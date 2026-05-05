@@ -750,22 +750,4 @@ export default {
   },
 };
 
-export default {
-  render() {
-    const label = 'recipes'.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;text-align:center">
-      <div style="width:56px;height:56px;border-radius:16px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:24px">🚧</div>
-      <div style="font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);">${label}</div>
-      <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6;max-width:260px">
-        Цей екран буде реалізований на наступному кроці.<br/>
-        Роль: <strong style="color:var(--green)">${state.role}</strong>
-      </div>
-      <button onclick="window.__barops.navigate('dashboard')"
-        style="height:44px;padding:0 24px;background:var(--green);border:none;border-radius:12px;
-               font-size:14px;font-family:var(--font-h);font-weight:500;color:#fff;cursor:pointer;margin-top:8px">
-        ← Дашборд
-      </button>
-    </div>`;
-  },
-  init() {},
-};
+
