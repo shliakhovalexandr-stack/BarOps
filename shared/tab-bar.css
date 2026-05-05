@@ -1,0 +1,106 @@
+/* ============================================================
+   BarOps Tab Bar Styles
+   ============================================================ */
+
+/* ── Wrapper (fixed at bottom of phone frame) ── */
+#app-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 8px 4px 22px;          /* 22px = safe area bottom */
+  border-top: 0.5px solid var(--bg3);
+  background: var(--bg1);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+}
+
+/* ── Regular tab item ── */
+.tab-bar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  transition: background var(--dur-fast);
+  min-width: 48px;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-bar__item:active { background: var(--bg2); }
+
+/* ── Icon container (relative for badge) ── */
+.tab-bar__icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
+/* ── Label ── */
+.tab-bar__label {
+  font-size: 9px;
+  font-family: var(--font-b);
+  letter-spacing: .03em;
+  white-space: nowrap;
+  /* colour set via --tab-color or inline style */
+}
+
+/* ── Notification badge on icon ── */
+.tab-bar__badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 10px;
+  background: var(--amber);
+  border: 1.5px solid var(--bg1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-family: var(--font-h);
+  font-weight: 700;
+  color: #fff;
+  padding: 0 3px;
+}
+
+/* ── FAB item (center button) ── */
+.tab-bar__fab-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-bar__fab-wrap .tab-bar__label {
+  color: var(--text2);
+}
+.tab-bar__fab-wrap:active .tab-bar__fab {
+  transform: scale(.92);
+}
+
+.tab-bar__fab {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), var(--green-d));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -14px;              /* lifts above bar */
+  box-shadow: 0 4px 20px rgba(29,158,117,.35);
+  transition: all var(--dur-fast) var(--ease-spring);
+}
+
+/* ── Active tab indicator (optional accent dot) ── */
+.tab-bar__item--active .tab-bar__label::after {
+  /* kept empty — colour is enough feedback */
+}

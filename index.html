@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BarOps</title>
+
+<!-- ── Fonts ── -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+
+<!-- ── Shared styles ── -->
+<link rel="stylesheet" href="shared/tokens.css"/>
+<link rel="stylesheet" href="shared/components.css"/>
+<link rel="stylesheet" href="shared/tab-bar.css"/>
+
+<style>
+/* ────────────────────────────
+   HOST PAGE LAYOUT
+──────────────────────────── */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(29,158,117,.07) 0%, transparent 65%),
+    var(--bg);
+}
+
+/* ── Grain ── */
+.bg-grain {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+  opacity: .85;
+}
+.bg-glow {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse 60% 45% at 50% 100%, rgba(29,158,117,.1) 0%, transparent 70%);
+}
+
+/* ────────────────────────────
+   PHONE FRAME
+──────────────────────────── */
+#phone {
+  position: relative; z-index: 1;
+  width: var(--phone-w);
+  background: var(--bg1);
+  border-radius: var(--r-phone);
+  border: 6px solid #1c1c1c;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.05),
+    0 48px 96px rgba(0,0,0,.72),
+    0 0 70px rgba(29,158,117,.05);
+  display: flex;
+  flex-direction: column;
+  height: 844px;          /* iPhone 14 logical px */
+  overflow: hidden;
+  animation: frameIn .6s var(--ease-spring) both;
+}
+@keyframes frameIn {
+  from { opacity: 0; transform: translateY(24px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ────────────────────────────
+   STATUS BAR
+──────────────────────────── */
+#app-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 22px 6px;
+  font-size: 11px;
+  color: var(--text2);
+  font-family: var(--font-h);
+  font-weight: 500;
+  letter-spacing: .04em;
+  flex-shrink: 0;
+}
+#app-status-bar .status-bar__right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ────────────────────────────
+   VIEW CONTAINER
+──────────────────────────── */
+#app-view {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  /* transition applied by JS */
+  transition: opacity 250ms ease, transform 250ms ease;
+}
+#app-view::-webkit-scrollbar { width: 0; }
+
+/* ────────────────────────────
+   LOADING SCREEN
+──────────────────────────── */
+#app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 20px;
+}
+.loading-logo-mark {
+  width: 56px; height: 56px; border-radius: 16px;
+  background: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 32px rgba(29,158,117,.35);
+  position: relative; overflow: hidden;
+  animation: logoPulse 1.2s ease-in-out infinite;
+}
+.loading-logo-mark::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.2) 0%, transparent 60%);
+}
+@keyframes logoPulse { 0%,100%{ box-shadow: 0 0 32px rgba(29,158,117,.35); } 50%{ box-shadow: 0 0 48px rgba(29,158,117,.55); } }
+.loading-ring {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2.5px solid var(--bg3); border-top-color: var(--green);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-family: var(--font-h); font-size: 11px; font-weight: 500;
+  color: var(--text2); letter-spacing: .08em;
+}
+
+/* ────────────────────────────
+   ERROR SCREEN
+──────────────────────────── */
+.error-screen {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1; gap: 12px; padding: 32px;
+  text-align: center;
+}
+.error-screen h2 { font-family: var(--font-h); font-size: 18px; color: var(--text0); }
+.error-screen p  { font-size: 13px; color: var(--text2); font-family: var(--font-b); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="bg-grain"></div>
+<div class="bg-glow"></div>
+
+<!-- ══════════ PHONE FRAME ══════════ -->
+<div id="phone">
+
+  <!-- Status bar -->
+  <div id="app-status-bar">
+    <!-- Filled by app.js bootstrap() -->
+    <span>21:34</span>
+  </div>
+
+  <!-- Main view container -->
+  <div id="app-view">
+    <!-- Loading state shown until first page renders -->
+    <div id="app-loading">
+      <div class="loading-logo-mark">
+        <svg width="30" height="30" viewBox="0 0 28 28" fill="none">
+          <path d="M7 4h14l-4 10H11L7 4z" stroke="white" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+          <path d="M11 14v8M17 14v8M9 22h10" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="loading-ring"></div>
+      <div class="loading-text">BAROPS</div>
+    </div>
+  </div>
+
+  <!-- Tab bar (hidden on auth, filled by app.js) -->
+  <nav id="app-tab-bar" style="display:none">
+    <!-- Filled by renderTabBar() in app.js -->
+  </nav>
+
+</div><!-- /phone -->
+
+<!-- ══════════ PAGE MODULES ══════════
+     Кожна сторінка — ES-модуль.
+     Вони самостійно реєструють себе через registerPage().
+     Підключення — тут. Решта — в page-файлі.
+     ══════════════════════════════════ -->
+<script type="module">
+  import { bootstrap, registerPage } from './shared/app.js';
+
+  /*
+   * Стратегія: eager import усіх сторінок паралельно.
+   * Модулі невеликі (~10–20 КБ кожен), тому завантажуються
+   * миттєво з локального сервера або CDN.
+   * navigate() гарантовано отримає готовий модуль.
+   */
+  const [
+    authMod, dashMod, ocrMod, invMod, woffMod,
+    ordMod, recMod, alertMod, shiftMod, mgrMod, teamMod,
+  ] = await Promise.all([
+    import('./pages/auth.js'),
+    import('./pages/dashboard.js'),
+    import('./pages/ocr.js'),
+    import('./pages/inventory.js'),
+    import('./pages/writeoff.js'),
+    import('./pages/ordering.js'),
+    import('./pages/recipes.js'),
+    import('./pages/price-alert.js'),
+    import('./pages/shift-log.js'),
+    import('./pages/manager.js'),
+    import('./pages/team.js'),
+  ]);
+
+  /* Реєструємо кожну сторінку — простий прямий об'єкт */
+  const pages = [
+    ['auth',        authMod],
+    ['dashboard',   dashMod],
+    ['ocr',         ocrMod],
+    ['inventory',   invMod],
+    ['writeoff',    woffMod],
+    ['ordering',    ordMod],
+    ['recipes',     recMod],
+    ['price-alert', alertMod],
+    ['shift-log',   shiftMod],
+    ['manager',     mgrMod],
+    ['team',        teamMod],
+  ];
+
+  for (const [name, mod] of pages) {
+    registerPage(name, mod.default);
+  }
+
+  /* Стартуємо додаток — перехід на 'auth' */
+  bootstrap();
+</script>
+
+</body>
+</html>
