@@ -19,14 +19,14 @@ const QUICK_BARTENDER = [
     svg:`<rect x="2" y="2" width="4" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
          <rect x="8" y="5" width="4" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
          <rect x="14" y="8" width="3" height="8"  rx="1.5" stroke="currentColor" stroke-width="1.3"/>` },
-  { route:'writeoff',  primary:false, badge:'3',  label:'Списання',    sub:'Псування · Бій',
-    color:'#1f0808', iconColor:'#E24B4A',
-    svg:`<path d="M3 14l2-2 7-7 2 2-7 7-2 2H3v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-         <path d="M10 5l2 2" stroke="currentColor" stroke-width="1.3"/>` },
+  { route:'recipes',   primary:false, badge:null, label:'Рецепти',     sub:'ТТК коктейлів',
+    color:'#12102a', iconColor:'#7F77DD',
+    svg:`<path d="M6 3h10l-2 6H8L6 3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>
+         <path d="M8 9v8M14 9v8M6 17h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   { route:'shift-log', primary:false, badge:null, label:'Журнал',      sub:'Нотатки зміни',
     color:'#0d1a0d', iconColor:'#1D9E75',
-    svg:`<circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3"/>
-         <path d="M9 6v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+    svg:`<rect x="4" y="3" width="12" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+         <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
 ];
 
 const QUICK_MANAGER = [
