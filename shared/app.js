@@ -62,11 +62,13 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
-    route: 'shift-log',
-    label: 'Журнал',
+    route: 'ordering',
+    label: 'Закупка',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.4"/>
-      <path d="M11 8v3l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M4 6h14l-2 9H6L4 6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+      <path d="M4 6l-1-3H2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="8" cy="18" r="1.2" fill="currentColor"/>
+      <circle cx="14" cy="18" r="1.2" fill="currentColor"/>
     </svg>`,
   },
 ];

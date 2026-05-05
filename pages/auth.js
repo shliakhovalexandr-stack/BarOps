@@ -151,10 +151,11 @@ const CSS = `
 .auth-role-card.selected .auth-role-check { background: var(--green); border-color: var(--green); }
 
 /* ── OTP ── */
-.auth-otp-row { display: flex; gap: 10px; margin-top: 8px; }
+.auth-otp-row { display: flex; gap: 7px; margin-top: 8px; justify-content: center; }
 .auth-otp-cell {
-  flex: 1; height: 60px; background: var(--bg2); border: 0.5px solid var(--border2);
-  border-radius: 14px; text-align: center; font-size: 24px; font-family: var(--font-h);
+  width: 44px; height: 52px; flex-shrink: 0;
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 12px; text-align: center; font-size: 22px; font-family: var(--font-h);
   font-weight: 700; color: var(--text0); outline: none; caret-color: var(--green);
   transition: border-color .2s, box-shadow .2s; -webkit-appearance: none;
 }

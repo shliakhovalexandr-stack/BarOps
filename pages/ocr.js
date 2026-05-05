@@ -364,9 +364,14 @@ const CSS = `<style id="ocr-css">
 /* ════════════════════════
    HELPERS
 ════════════════════════ */
-function fmt(n) {
-  if (n === null || n === undefined) return '—';
-  return Number(n).toLocaleString('uk-UA', { minimumFractionDigits:2, maximumFractionDigits:2 });
+function extractVol(name) {
+  // Extract volume like 0.7л, 1л, 0.75л, 500мл from product name
+  const m = name.match(/(\d+(?:[.,]\d+)?)\s*(л|мл|l|ml)/i);
+  if (!m) return null;
+  let val = parseFloat(m[1].replace(',','.'));
+  const unit = m[2].toLowerCase();
+  if (unit === 'мл' || unit === 'ml') val = val / 1000;
+  return val;
 }
 function fmtDate(d) {
   if (!d) return '—';
@@ -398,8 +403,6 @@ function stepIndicator() {
 
 /* ── STEP 1 ── */
 function renderStep1() {
-  const labels = ['Баядера Логістик · №BCV15402', 'Клас І К · КРН-7897056', 'РОМА · №191004'];
-  const activeIdx = INVOICES.indexOf(INVOICES.find(iv => iv === _inv)) || 0;
   return `
   <div class="ocr-topbar">
     <div class="ocr-back" onclick="window.__barops.navigate('dashboard')">
@@ -409,20 +412,11 @@ function renderStep1() {
     </div>
     <div>
       <div class="ocr-title">Сканування накладної</div>
-      <div class="ocr-sub">Оберіть накладну або зробіть фото</div>
+      <div class="ocr-sub">Сфотографуйте накладну для розпізнавання</div>
     </div>
   </div>
 
   <div class="ocr-scroll">
-    <div class="ocr-demo-label">Демо-накладні (реальні фото)</div>
-    <div class="ocr-sel-row" id="ocr-sel-row">
-      ${INVOICES.map((iv, i) => `
-      <button class="ocr-sel ${i===0?'act':''}"
-              onclick="window.__ocr.selectInv(${i}, this)">
-        ${['Баядера · Gin','Клас І К · Вино','РОМА · Горілка'][i]}
-      </button>`).join('')}
-    </div>
-
     <div class="ocr-cam">
       <div class="ocr-doc-ghost"></div>
       <div class="ocr-corner ocr-tl"></div>
@@ -430,7 +424,7 @@ function renderStep1() {
       <div class="ocr-corner ocr-bl"></div>
       <div class="ocr-corner ocr-br"></div>
       <div class="ocr-scan-line"></div>
-      <div class="ocr-cam-lbl" id="ocr-cam-lbl">${labels[0]}</div>
+      <div class="ocr-cam-lbl">Наведіть на накладну</div>
     </div>
 
     <div class="ocr-hint">Тримайте документ рівно в рамці · без тіней і відблисків</div>
@@ -610,7 +604,7 @@ function itemsList() {
         <div class="ocr-idot" style="background:${dotColor}"></div>
         <div style="flex:1;min-width:0">
           <div class="ocr-iname">${item.name}</div>
-          <div class="ocr-iqty">${item.qty} ${item.unit} · ${fmt(item.unitPrice)} ₴/шт</div>
+          <div class="ocr-iqty">${item.qty} ${item.unit} · ${fmt(item.unitPrice)} ₴/шт${extractVol(item.name) ? ` · <span style="color:var(--teal)">${extractVol(item.name)}л</span>` : ''}</div>
         </div>
         <div style="flex-shrink:0;margin-right:8px">
           <div class="ocr-iprice">${fmt(item.total)} ₴</div>

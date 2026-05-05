@@ -337,34 +337,17 @@ function recipeListHTML() {
   });
 
   return list.map(r => {
-    const col  = fcColor(r.fc);
-    const barW = Math.min(r.fc / 30 * 100, 100);
-    const prevFc = (r.prevTotalCost / r.sellPrice * 100);
-    const badge = r.fcAlert
-      ? `<span class="rc-fc-badge rc-badge-up">↑ +${(r.fc - prevFc).toFixed(1)}%</span>`
-      : `<span class="rc-fc-badge rc-badge-ok">Без змін</span>`;
-
     return `
-    <div class="rec-card ${fcBorderCls(r.fc)}" onclick="window.__rec.openDetail('${r.id}')">
-      <div class="rc-color-bar" style="background:${col}"></div>
+    <div class="rec-card" style="border-color:var(--border)" onclick="window.__rec.openDetail('${r.id}')">
       <div class="rc-main">
         <div class="rc-emoji-box">${r.emoji}</div>
         <div style="flex:1;min-width:0">
           <div class="rc-name">${r.name}</div>
           <div class="rc-cat">${r.category}</div>
         </div>
-        <div>
-          <div class="rc-sell">${r.sellPrice} ₴</div>
-          <div class="rc-sell-lbl">ціна продажу</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 11l6-4-6-4" stroke="var(--text3)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-      </div>
-      <div class="rc-fc-row">
-        <div class="rc-fc-bar-wrap">
-          <div class="rc-fc-fill" style="width:${barW}%;background:${col}"></div>
-        </div>
-        <div class="rc-fc-pct" style="color:${col}">${r.fc}%</div>
-        <div class="rc-fc-cost">${r.cost.toFixed(1)} ₴</div>
-        ${badge}
       </div>
     </div>`;
   }).join('');
@@ -424,25 +407,27 @@ function detailHTML(r) {
   if (!r) return '';
   const col    = fcColor(r.fc);
   const margin = (r.sellPrice - r.cost).toFixed(1);
+  const isMgr  = state.role === 'manager';
 
   /* Ingredients tab */
   const ingTab = `
   <div class="rh-ing-list">
     ${r.ingredients.map(ing => `
-    <div class="rh-ing-row ${ing.changed?'changed':'unchanged'}">
+    <div class="rh-ing-row ${isMgr&&ing.changed?'changed':'unchanged'}">
       <div class="rh-ing-emoji">${ing.emoji}</div>
       <div style="flex:1;min-width:0">
         <div class="rh-ing-name">${ing.name}</div>
         <div class="rh-ing-vol">${ing.vol}</div>
       </div>
-      <div>
+      ${isMgr ? `<div>
         <div class="rh-ing-cost" style="color:${ing.changed?'var(--amber)':'var(--text0)'}">${ing.cost.toFixed(1)} ₴</div>
         <div class="rh-ing-prev" style="color:${ing.changed?'var(--amber)':'var(--text2)'}">
           ${ing.changed ? `↑ було ${ing.prevCost.toFixed(1)} ₴` : '= без змін'}
         </div>
-      </div>
+      </div>` : ''}
     </div>`).join('')}
   </div>
+  ${isMgr ? `
   <div class="rh-subtotal">
     <div>
       <div class="rh-sub-lbl">Загальна собівартість</div>
@@ -456,7 +441,7 @@ function detailHTML(r) {
     <div class="rh-ps-row"><div class="rh-ps-lbl">FC з поточною ціною</div><div class="rh-ps-val" style="color:${col}">${r.fc}%</div></div>
     <div class="rh-ps-row"><div class="rh-ps-lbl">Рекомендована ціна (FC 18%)</div><div class="rh-ps-val rec">${r.recommended} ₴</div></div>
     <div class="rh-ps-note">Підняти ціну до ${r.recommended} ₴ (+${r.recommended-r.sellPrice} ₴) або скоригувати об'єм інгредієнтів</div>
-  </div>
+  </div>` : ''}
   <div style="height:14px"></div>`;
 
   /* History tab */
@@ -525,6 +510,7 @@ function detailHTML(r) {
           <div class="rh-cat">${r.category}</div>
         </div>
       </div>
+      ${isMgr ? `
       <div class="rh-fc-blocks">
         <div class="rh-fc-blk">
           <div class="rh-fc-val" style="color:var(--teal)">${r.cost.toFixed(1)} ₴</div>
@@ -555,13 +541,13 @@ function detailHTML(r) {
       <div class="rh-price-alert">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L13 12H1L7 1z" stroke="var(--amber)" stroke-width="1.2" stroke-linejoin="round"/><path d="M7 5v3M7 10v.4" stroke="var(--amber)" stroke-width="1.2" stroke-linecap="round"/></svg>
         ${r.alertText}
-      </div>` : ''}
+      </div>` : ''}` : ''}
     </div>
 
     <!-- Tabs -->
     <div class="rh-tabs" style="flex-shrink:0">
       <button class="rh-tab ${_detailTab==='ing' ?'act':''}" onclick="window.__rec.setDetailTab('ing')">Інгредієнти</button>
-      <button class="rh-tab ${_detailTab==='hist'?'act':''}" onclick="window.__rec.setDetailTab('hist')">Динаміка FC</button>
+      ${isMgr ? `<button class="rh-tab ${_detailTab==='hist'?'act':''}" onclick="window.__rec.setDetailTab('hist')">Динаміка FC</button>` : ''}
       <button class="rh-tab ${_detailTab==='tech'?'act':''}" onclick="window.__rec.setDetailTab('tech')">Техкарта</button>
     </div>
 

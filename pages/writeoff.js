@@ -813,7 +813,8 @@ function maybeClose(e) { if (e.target===document.getElementById('wo-form-overlay
 
 function selectCat(cat) {
   _selCat = cat;
-  fullRender();
+  // Авто-перехід на наступний крок без кнопки «Далі»
+  setTimeout(() => { _formStep = 2; fullRender(); }, 180);
 }
 function searchProds(q) { _prodSearch = q; refreshProdList(); }
 function selectProd(id) { _selProd = PRODS.find(p=>p.id===id); refreshProdList(); updateNextBtn(); }

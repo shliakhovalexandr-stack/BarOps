@@ -137,7 +137,7 @@ const CSS = `<style id="dash-css">
 .d-qbtn--primary{background:rgba(29,158,117,.08);border-color:var(--green-border)}
 .d-qbtn-icon{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .d-qbtn-label{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);line-height:1.2}
-.d-qbtn-sub{font-size:10px;color:var(--text2);margin-top:-6px;font-family:var(--font-b)}
+.d-qbtn-sub{font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
 .d-qbtn-badge{position:absolute;top:12px;right:12px;background:var(--red);border-radius:20px;
   padding:2px 7px;font-size:10px;color:#fff;font-family:var(--font-h);font-weight:600}
 
@@ -365,17 +365,6 @@ ${CSS}
     <!-- KPI -->
     <div class="d-sec" style="padding-top:16px">Зміна сьогодні</div>
     <div class="d-kpi-row">${kpiRow(kpi)}</div>
-
-    <!-- Shift progress -->
-    <div class="d-sec" style="padding-top:16px">Прогрес зміни</div>
-    <div class="d-shift-card">
-      <div class="d-shift-card-row">
-        <div class="d-shift-card-title">18:00 → 23:00</div>
-        <div class="d-shift-card-time">74% · 1год 26хв залишилось</div>
-      </div>
-      <div class="d-prog"><div class="d-prog-fill" style="width:74%"></div></div>
-      <div class="d-prog-lbls"><span>Початок</span><span>Зараз</span><span>Кінець</span></div>
-    </div>
 
     <!-- Manager analytics widgets -->
     ${isMgr ? `
