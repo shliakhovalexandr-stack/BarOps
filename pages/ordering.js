@@ -336,6 +336,13 @@ function barSuppliersHTML() {
 
 function renderBartender() {
   const totalItems = SUPPLIERS.reduce((a,s) => a + s.products.filter(p=>p.barQty>0).length, 0);
+  const today = new Date();
+  const todayDay = today.toLocaleDateString('uk-UA',{weekday:'short'}).replace('.','');
+
+  // Find which supplier has order today
+  const todaySupplier = SUPPLIERS.find(s =>
+    s.orderDay.split(', ').some(d => d === 'Вт' || d === 'Ср' || d === 'Чт')
+  );
 
   return `
   <div class="ord-topbar" style="flex-shrink:0">
@@ -343,8 +350,8 @@ function renderBartender() {
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div style="flex:1">
-      <div class="ord-title">Замовлення</div>
-      <div class="ord-sub">${state.venue} · Наступне 12.05</div>
+      <div class="ord-title">Закупка</div>
+      <div class="ord-sub">${state.venue} · Наступна 12.05 (Вт)</div>
     </div>
     <div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--teal)">${totalItems} поз.</div>
   </div>
@@ -362,22 +369,30 @@ function renderBartender() {
       </div>
     </div>` : ''}
 
-    <!-- Delivery dates -->
-    <div class="ord-sec">Дати замовлень (від менеджера)</div>
+    <!-- Інформаційна плашка -->
+    <div style="margin:0 14px 10px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px">
+        <circle cx="8" cy="8" r="6" stroke="var(--blue)" stroke-width="1.2"/>
+        <path d="M8 7v5M8 5v.5" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      <div style="font-size:12px;color:var(--blue);font-family:var(--font-b);line-height:1.5">
+        Менеджер налаштував дати і товари. Заповніть потрібну кількість і відправте заявку.
+      </div>
+    </div>
+
+    <!-- Розклад поставок -->
+    <div class="ord-sec">Розклад закупок (від менеджера)</div>
     <div class="ord-dates-card">
       <div class="odc-hdr">
-        <div class="odc-title">Розклад поставок</div>
-        <div class="odc-badge"><div class="odc-dot"></div>Наступне: 12.05</div>
+        <div class="odc-title">Дати поставок</div>
+        <div class="odc-badge"><div class="odc-dot"></div>Найближча: 12.05</div>
       </div>
       <div class="odc-dates-row">
-        ${[{day:'Вт',d:'12',m:'Травня',cls:'urgent',mc:'var(--amber)'},
-           {day:'Чт',d:'19',m:'Травня',cls:'',mc:'var(--text2)'},
-           {day:'Вт',d:'26',m:'Травня',cls:'',mc:'var(--text2)'},
-           {day:'Чт',d:'2', m:'Червня',cls:'',mc:'var(--text2)'}].map(c=>`
-        <div class="odc-chip ${c.cls}">
-          <div class="odc-day">${c.day}</div>
-          <div class="odc-date" style="color:${c.cls==='urgent'?'var(--amber)':'var(--text0)'}">${c.d}</div>
-          <div class="odc-month" style="color:${c.mc}">${c.m}</div>
+        ${SUPPLIERS.map((s,i) => `
+        <div class="odc-chip ${i===0?'urgent':''}">
+          <div class="odc-day">${s.orderDay.split(',')[0]}</div>
+          <div class="odc-date" style="color:${i===0?'var(--amber)':'var(--text0)'}">${s.nextDate.split('.')[0]}</div>
+          <div class="odc-month" style="color:${i===0?'var(--amber)':'var(--text2)'};">${s.name.split(' ')[0]}</div>
         </div>`).join('')}
       </div>
     </div>
@@ -396,8 +411,8 @@ function renderBartender() {
       </div>
     </div>
 
-    <!-- Suppliers -->
-    <div class="ord-sec">Товари по постачальниках</div>
+    <!-- Листи закупки по постачальниках -->
+    <div class="ord-sec">Листи закупки по постачальниках</div>
     <div id="ord-bar-supps">${barSuppliersHTML()}</div>
     <div style="height:14px"></div>
   </div>

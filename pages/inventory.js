@@ -379,25 +379,64 @@ function buildInputPanel(p) {
   </div>`;
 
   if (mode === 'kg') {
+    // Нова формула: (Вага відкритої − Вага пустої) × Коеф + Повні пляшки × Об'єм
+    const coef = p.full > p.empty ? (p.vol / (p.full - p.empty)) : 0;
+    const openL = p._openKg > 0 ? Math.max(0, (p._openKg - p.empty) * coef) : 0;
+    const totalL = (p._fullBottles || 0) * p.vol + openL;
+    const totalMl = Math.round(totalL * 1000);
+    const diff = totalL - p.sysQty;
+    const hasData = (p._fullBottles > 0 || p._openKg > 0);
+
     return `<div class="inv-ipanel open">
       ${modeTabs}
+
+      <!-- Повні пляшки -->
       <div>
-        <div class="inv-inp-lbl" style="margin-bottom:5px">Фактична вага, кг</div>
-        <input class="inv-field" id="inv-kg-${p.id}" type="number" step="0.01" placeholder="0.00"
-          oninput="window.__inv.calcKg('${p.id}')"/>
+        <div class="inv-inp-lbl" style="margin-bottom:5px">Повних пляшок (H)</div>
+        <div class="inv-stepper">
+          <div class="inv-stbtn" onclick="window.__inv.changeFullBottles('${p.id}',-1)">−</div>
+          <div class="inv-stdisp">
+            <span id="inv-fb-${p.id}">${p._fullBottles||0}</span>
+            <span style="font-size:13px;color:var(--text2);margin-left:4px">шт</span>
+          </div>
+          <div class="inv-stbtn" onclick="window.__inv.changeFullBottles('${p.id}',1)">+</div>
+        </div>
       </div>
-      <div class="inv-conv">
-        <div class="inv-conv-formula">
-          Формула:<br/>
-          <span style="font-size:10px;font-family:var(--font-h);color:var(--text1)">(вага − ${p.empty}) ÷ ${fmt2(p.full-p.empty)} × ${p.vol}</span>
+
+      <!-- Вага відкритої пляшки -->
+      <div>
+        <div class="inv-inp-lbl" style="margin-bottom:5px">Вага відкритої пляшки, кг (G)</div>
+        <input class="inv-field" id="inv-kg-${p.id}" type="number" step="0.001"
+          placeholder="0.000" value="${p._openKg||''}"
+          oninput="window.__inv.calcKg('${p.id}')"/>
+        <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:4px;text-align:center">
+          Порожня: ${p.empty} кг · Повна: ${p.full} кг · Коеф: ${coef.toFixed(3)}
+        </div>
+      </div>
+
+      <!-- Live результат -->
+      <div class="inv-conv" id="inv-conv-${p.id}">
+        <div>
+          <div class="inv-conv-formula">
+            Залишок відкритої:<br/>
+            <span style="color:var(--text1)">(G − ${p.empty}) × ${coef.toFixed(3)} = <strong id="inv-open-l-${p.id}" style="color:var(--teal)">${openL.toFixed(3)} л</strong></span>
+          </div>
+          <div class="inv-conv-formula" style="margin-top:4px">
+            Повний залишок = H×${p.vol} + відкрита
+          </div>
         </div>
         <div style="text-align:right">
-          <div class="inv-conv-result" id="inv-cr-${p.id}">—</div>
-          <div class="inv-conv-unit">літрів</div>
+          <div class="inv-conv-result" id="inv-cr-${p.id}" style="color:${hasData?'var(--green)':'var(--text3)'}">${hasData?totalMl:'—'}</div>
+          <div class="inv-conv-unit">мл</div>
+          <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:${hasData?'var(--green)':'var(--text3)'};margin-top:2px" id="inv-cr-l-${p.id}">${hasData?totalL.toFixed(2):'—'}</div>
+          <div class="inv-conv-unit">л</div>
         </div>
       </div>
+
       ${sysRow(`inv-cf-${p.id}`, `inv-cd-${p.id}`)}
-      <button class="inv-save" id="inv-save-${p.id}" onclick="window.__inv.saveKg('${p.id}')" disabled>
+      <button class="inv-save" id="inv-save-${p.id}"
+        onclick="window.__inv.saveKg('${p.id}')"
+        ${hasData?'':'disabled style="opacity:.4"'}>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3 3 7-7" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Зберегти
       </button>
@@ -761,27 +800,59 @@ function switchMode(id, mode) {
   if (p) { p.unit = mode; refreshList(); }
 }
 
-/* kg calc */
+/* kg calc — нова формула з двома полями */
+function changeFullBottles(id, delta) {
+  const p = PRODUCTS.find(x=>x.id===id);
+  if (!p) return;
+  p._fullBottles = Math.max(0, (p._fullBottles||0) + delta);
+  _updateKgDisplay(id);
+}
+
 function calcKg(id) {
-  const p    = PRODUCTS.find(x=>x.id===id);
-  const inp  = document.getElementById('inv-kg-'+id);
-  const kg   = parseFloat(inp?.value);
+  const p   = PRODUCTS.find(x=>x.id===id);
+  const inp = document.getElementById('inv-kg-'+id);
+  const kg  = parseFloat(inp?.value);
+  if (p) p._openKg = isNaN(kg) ? 0 : kg;
+  _updateKgDisplay(id);
+}
+
+function _updateKgDisplay(id) {
+  const p = PRODUCTS.find(x=>x.id===id);
+  if (!p) return;
+  const coef   = p.full > p.empty ? (p.vol / (p.full - p.empty)) : 0;
+  const openKg = p._openKg || 0;
+  const fullB  = p._fullBottles || 0;
+  const openL  = openKg > 0 ? Math.max(0, (openKg - p.empty) * coef) : 0;
+  const totalL = fullB * p.vol + openL;
+  const totalMl = Math.round(totalL * 1000);
+  const diff   = totalL - p.sysQty;
+  const hasData = fullB > 0 || openKg > 0;
+
+  // Update full bottles display
+  const fbEl = document.getElementById('inv-fb-'+id);
+  if (fbEl) fbEl.textContent = fullB;
+
+  // Update open litres display
+  const olEl = document.getElementById('inv-open-l-'+id);
+  if (olEl) olEl.textContent = openL.toFixed(3)+' л';
+
+  // Update total displays
+  const crEl = document.getElementById('inv-cr-'+id);
+  if (crEl) { crEl.textContent = hasData ? totalMl : '—'; crEl.style.color = hasData?'var(--green)':'var(--text3)'; }
+  const clEl = document.getElementById('inv-cr-l-'+id);
+  if (clEl) { clEl.textContent = hasData ? totalL.toFixed(2) : '—'; clEl.style.color = hasData?'var(--green)':'var(--text3)'; }
+
+  // Update comparison row
+  const cfEl = document.getElementById('inv-cf-'+id);
+  if (cfEl) cfEl.textContent = fmt2(totalL);
+  const cdEl = document.getElementById('inv-cd-'+id);
+  if (cdEl) { cdEl.textContent = (diff>=0?'+':'')+fmt2(diff)+' л'; cdEl.style.color = diffColor(diff); }
+
+  // Enable/disable save button
   const save = document.getElementById('inv-save-'+id);
-  if (!p || isNaN(kg) || kg <= 0) {
-    const cr = document.getElementById('inv-cr-'+id);
-    if (cr) cr.textContent = '—';
-    if (save) { save.disabled = true; save.style.opacity = '.4'; }
-    return;
-  }
-  const l  = Math.max(0, Math.min(((kg - p.empty) / (p.full - p.empty)) * p.vol, p.vol));
-  const cr = document.getElementById('inv-cr-'+id);
-  if (cr) cr.textContent = l.toFixed(3);
-  const cf = document.getElementById('inv-cf-'+id);
-  if (cf) cf.textContent = fmt2(l);
-  const cd = document.getElementById('inv-cd-'+id);
-  if (cd) { const d=l-p.sysQty; cd.textContent=(d>=0?'+':'')+fmt2(d)+' л'; cd.style.color=diffColor(d); }
-  if (save) { save.disabled=false; save.style.opacity='1'; }
-  p._tempL = l;
+  if (save) { save.disabled = !hasData; save.style.opacity = hasData?'1':'.4'; }
+
+  p._tempL = totalL;
 }
 function saveKg(id) {
   const p = PRODUCTS.find(x=>x.id===id);
@@ -862,15 +933,42 @@ function selectDay(d, el) {
 /* mgr overlay */
 function openOverlay(name) {
   _mgrOverlay = name;
-  const ov = document.getElementById('inv-mgr-overlay');
+  const p   = PRODUCTS.find(x => x.name === name || name.startsWith(x.name.split(' ')[0]));
+  const ov  = document.getElementById('inv-mgr-overlay');
   const ttl = document.getElementById('inv-ov-title');
   if (ov)  ov.classList.add('open');
   if (ttl) ttl.textContent = name;
+  // Populate fields from product data
+  if (p) {
+    const eEl = document.getElementById('inv-ov-empty');
+    const fEl = document.getElementById('inv-ov-full');
+    const vEl = document.getElementById('inv-ov-vol');
+    if (eEl) eEl.value = p.empty;
+    if (fEl) fEl.value = p.full;
+    if (vEl) vEl.value = p.vol;
+    // Set mode buttons
+    ['kg','l','sht'].forEach(k => {
+      document.getElementById('inv-mm-'+k)?.classList.toggle('act', k === p.unit);
+    });
+  }
   updateFormula();
 }
 function closeOverlay(e) {
-  if (!e || e.target === document.getElementById('inv-mgr-overlay'))
+  if (!e || e.target === document.getElementById('inv-mgr-overlay')) {
+    // Save settings back to product
+    const p = PRODUCTS.find(x => x.name === _mgrOverlay || (_mgrOverlay||'').startsWith(x.name.split(' ')[0]));
+    if (p) {
+      const empty = parseFloat(document.getElementById('inv-ov-empty')?.value);
+      const full  = parseFloat(document.getElementById('inv-ov-full')?.value);
+      const vol   = parseFloat(document.getElementById('inv-ov-vol')?.value);
+      const mode  = ['kg','l','sht'].find(k => document.getElementById('inv-mm-'+k)?.classList.contains('act')) || p.unit;
+      if (!isNaN(empty)) p.empty = empty;
+      if (!isNaN(full))  p.full  = full;
+      if (!isNaN(vol))   p.vol   = vol;
+      p.unit = mode;
+    }
     document.getElementById('inv-mgr-overlay')?.classList.remove('open');
+  }
 }
 function setMgrMode(m) {
   ['kg','l','sht'].forEach(k => {
@@ -909,7 +1007,8 @@ export default {
     window.__inv = {
       openLocked, openActive, openManager,
       setFilter, doSearch, toggleProd, closeProd, switchMode,
-      calcKg, saveKg, changeBottles, setFrac, saveSht, calcL, saveL,
+      calcKg, changeFullBottles, saveKg,
+      changeBottles, setFrac, saveSht, calcL, saveL,
       selectDay, openOverlay, closeOverlay, setMgrMode, updateFormula,
     };
     if (_subView === 'locked') startCountdown();

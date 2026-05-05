@@ -466,19 +466,37 @@ function renderBartender() {
           <div>
             <div class="wo-custom-lbl">Об'єм списання</div>
             <div class="wo-vol-row">
-              <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.01"
-                placeholder="0.00" value="${_selVol||''}"
+              <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
+                placeholder="0.000" value="${_selVol||''}"
                 oninput="window.__wo.updateVol()"/>
               <select class="wo-vol-unit" id="wo-vol-unit" onchange="window.__wo.updateVol()">
-                <option value="l">л</option>
-                <option value="ml">мл</option>
-                <option value="sht">шт</option>
-                <option value="kg">кг</option>
+                ${_selProd?.unit==='kg'
+                  ? `<option value="kg" selected>кг</option><option value="l">л</option>`
+                  : _selProd?.unit==='sht'
+                  ? `<option value="sht" selected>шт</option><option value="l">л</option>`
+                  : `<option value="l" selected>л</option><option value="ml">мл</option>`}
               </select>
             </div>
+            ${_selProd ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-align:center">
+              Одиниця виміру підтягнута з картки товару
+            </div>` : ''}
           </div>
           <div class="wo-presets">
-            ${[0.05,0.1,0.35,0.7,1.0].map((v,i) =>
+            ${_selProd ? (() => {
+              const vol = _selProd.vol || 0.7;
+              const unit = _selProd.unit === 'kg' ? 'кг' : _selProd.unit === 'sht' ? 'шт' : 'л';
+              const presets = [
+                [parseFloat((vol*0.1).toFixed(3)), `10%`],
+                [parseFloat((vol*0.25).toFixed(3)), `25%`],
+                [parseFloat((vol*0.5).toFixed(3)), `½`],
+                [parseFloat((vol*0.75).toFixed(3)), `75%`],
+                [vol, `1 пляш.`],
+              ];
+              return presets.map(([v,lbl]) =>
+                `<button class="wo-preset ${_selVol===v?'act':''}"
+                  onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} ${unit}</span></button>`
+              ).join('');
+            })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
               `<button class="wo-preset ${_selVol===v?'act':''}"
                 onclick="window.__wo.setVol(${v})">${['0.05 л','0.1 л','½ пляш.','1 пляш.','1.0 л'][i]}</button>`
             ).join('')}
@@ -725,6 +743,35 @@ function renderManager() {
       </div>
     </div>
 
+    <!-- Custom reasons settings -->
+    <div class="wo-sec" style="padding-top:10px">
+      Налаштування причин списання
+      <button class="wo-sec-link" style="color:var(--green)" onclick="window.__wo.addCustomReason()">+ Додати</button>
+    </div>
+    <div style="margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden">
+      ${Object.entries(REASONS).map(([cat, reasons]) => `
+      <div style="padding:10px 14px;border-bottom:0.5px solid var(--border)">
+        <div style="font-size:11px;color:${CAT[cat].color};font-family:var(--font-b);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          ${CAT[cat].label}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          ${reasons.map((r,i) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:8px">
+            <span style="flex:1;font-size:12px;color:var(--text1);font-family:var(--font-b)">${r}</span>
+            <div onclick="window.__wo.removeReason('${cat}',${i})"
+              style="width:20px;height:20px;border-radius:6px;background:var(--red-bg);border:0.5px solid var(--red-border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`).join('')}
+    </div>
+    <div style="padding:0 14px 6px">
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.5">
+        Бармен завжди може ввести причину вручну — це поле завжди доступне
+      </div>
+    </div>
+
     <!-- Journal -->
     <div class="wo-sec" style="padding-top:10px">Журнал</div>
     <div class="wo-filter-row">
@@ -890,6 +937,15 @@ function exportReport(t) {
   const m = { pdf:'📄 PDF-звіт сформовано', csv:'📊 Excel готовий', tg:'✈️ Відправлено в Telegram' };
   alert(m[t]||'Готово');
 }
+function addCustomReason() {
+  const cat = prompt('Категорія (biy/psuv/deg/insh):');
+  if (!REASONS[cat]) { alert('Невірна категорія'); return; }
+  const text = prompt('Текст причини:');
+  if (text?.trim()) { REASONS[cat].push(text.trim()); fullRender(); }
+}
+function removeReason(cat, idx) {
+  if (REASONS[cat]) { REASONS[cat].splice(idx, 1); fullRender(); }
+}
 
 /* ════════════════════════
    PAGE MODULE EXPORT
@@ -918,6 +974,7 @@ export default {
       setVol, updateVol, selectReason,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport,
+      addCustomReason, removeReason,
     };
   },
 };
