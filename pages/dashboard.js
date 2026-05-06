@@ -17,10 +17,13 @@ const VENUES_LIST = [
 let _activeVenue = 'all'; // 'all' | venue id
 let _venueSheetOpen = false;
 const QUICK_BARTENDER = [
-  { route:'debts',     primary:true,  badge:null, label:'Борги',        sub:'Між закладами',
+  { route:'debts',     primary:false, badge:null, label:'Борги',        sub:'Між закладами',
     color:'#0c1a2a', iconColor:'#EF9F27',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
+  { route:'inventory', primary:false, badge:null, label:'Залишки',     sub:'Всі товари',
+    color:'#0d1a0d', iconColor:'#1D9E75',
+    svg:`<path d="M2 14h4V7H2zM7 14h4V4H7zM13 14h4V9h-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
   { route:'inventory', primary:false, badge:null, label:'Інвентар',    sub:'Облік залишків',
     color:'#12102a', iconColor:'#7F77DD',
     svg:`<rect x="2" y="2" width="4" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
@@ -166,17 +169,17 @@ const CSS = `<style id="dash-css">
 .d-sec-link{font-size:11px;color:var(--green);letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b);padding:0}
 
 /* quick grid */
-.d-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px}
-.d-qbtn{background:var(--bg2);border:0.5px solid var(--border);border-radius:18px;padding:16px 14px 14px;
-  cursor:pointer;display:flex;flex-direction:column;gap:10px;min-height:92px;
-  transition:all .18s;text-align:left;position:relative;overflow:hidden}
+.d-quick{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:0 14px}
+.d-qbtn{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:12px 6px 10px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;
+  transition:all .18s;text-align:center;position:relative;overflow:hidden}
 .d-qbtn::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.03);opacity:0;transition:opacity .15s}
 .d-qbtn:hover::before{opacity:1}
-.d-qbtn:active{transform:scale(.97)}
+.d-qbtn:active{transform:scale(.95)}
 .d-qbtn--primary{background:rgba(29,158,117,.08);border-color:var(--green-border)}
 .d-qbtn-icon{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.d-qbtn-label{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);line-height:1.2}
-.d-qbtn-sub{font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
+.d-qbtn-label{font-family:var(--font-h);font-size:11px;font-weight:600;color:var(--text0);line-height:1.2}
+.d-qbtn-sub{font-size:9px;color:var(--text2);margin-top:1px;font-family:var(--font-b);display:none}
 .d-qbtn-badge{position:absolute;top:12px;right:12px;background:var(--red);border-radius:20px;
   padding:2px 7px;font-size:10px;color:#fff;font-family:var(--font-h);font-weight:600}
 
@@ -466,7 +469,7 @@ ${CSS}
     <!-- Inventory preview -->
     <div class="d-sec" style="padding-top:16px">
       Залишки · критичні
-      <button class="d-sec-link" onclick="window.__barops.navigate('inventory')">Всі →</button>
+      <button class="d-sec-link" onclick="window.__barops.navigate('stock')">Всі →</button>
     </div>
     <div class="d-inv-list">
       ${INVENTORY_ITEMS.map(r=>`

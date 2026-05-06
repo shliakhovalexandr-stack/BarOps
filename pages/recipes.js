@@ -354,7 +354,6 @@ function recipeListHTML() {
 }
 
 function renderBartender() {
-  const alertCount = RECIPES.filter(r => r.fcAlert).length;
   return `
   <div class="rec-topbar" style="flex-shrink:0">
     <div class="rec-back" onclick="window.__barops.navigate('dashboard')">
@@ -362,9 +361,8 @@ function renderBartender() {
     </div>
     <div style="flex:1">
       <div class="rec-title">Рецепти</div>
-      <div class="rec-sub">Живий фудкост · ${state.venue}</div>
+      <div class="rec-sub">Техкарти коктейлів · ${state.venue}</div>
     </div>
-    <div class="rec-live"><div class="rec-live-dot"></div>Live</div>
   </div>
 
   <div class="rec-scroll">
@@ -383,13 +381,6 @@ function renderBartender() {
       ${[['all','Всі'],['classic','Класика'],['signature','Сигнатури'],['mocktail','Мокейлі'],['shot','Шоти']]
         .map(([id,lbl]) => `<div class="rec-chip ${_cat===id?'act':''}" onclick="window.__rec.setCat('${id}')">${lbl}</div>`).join('')}
     </div>
-
-    <!-- FC alert strip -->
-    ${alertCount > 0 ? `
-    <div class="rec-fc-alert">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1L12 11H1L6.5 1z" stroke="var(--amber)" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5v3M6.5 9.5v.4" stroke="var(--amber)" stroke-width="1.2" stroke-linecap="round"/></svg>
-      ${alertCount} рецепти — фудкост зріс через зміну цін у накладних
-    </div>` : ''}
 
     <!-- Recipe list -->
     <div class="rec-grid" id="rec-grid">${recipeListHTML()}</div>

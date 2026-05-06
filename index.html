@@ -213,7 +213,7 @@ body {
   const [
     authMod, dashMod, ocrMod, invMod, woffMod,
     ordMod, recMod, alertMod, shiftMod, mgrMod, teamMod, profMod,
-    exciseMod, debtsMod, analyticsMod,
+    exciseMod, debtsMod, analyticsMod, stockMod,
   ] = await Promise.all([
     import('./pages/auth.js'),
     import('./pages/dashboard.js'),
@@ -230,6 +230,7 @@ body {
     import('./pages/excise.js'),
     import('./pages/debts.js'),
     import('./pages/analytics.js'),
+    import('./pages/stock.js'),
   ]);
 
   /* Реєструємо кожну сторінку — простий прямий об'єкт */
@@ -249,6 +250,7 @@ body {
     ['excise',      exciseMod],
     ['debts',       debtsMod],
     ['analytics',   analyticsMod],
+    ['stock',       stockMod],
   ];
 
   for (const [name, mod] of pages) {

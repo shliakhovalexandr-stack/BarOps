@@ -45,10 +45,10 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
-    route: 'writeoff', label: 'Списання',
+    route: 'shift-log', label: 'Журнал',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M4 16l2-2 8-8 2 2-8 8-2 2H4v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-      <path d="M12 6l2 2" stroke="currentColor" stroke-width="1.4"/>
+      <rect x="4" y="3" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/>
+      <path d="M7 8h8M7 12h8M7 16h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </svg>`,
   },
   {
