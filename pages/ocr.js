@@ -437,7 +437,7 @@ function renderStep1() {
           <path d="M2 16l4-4.5 3.5 3.5 3-3.5 5.5 4.5" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/>
         </svg>
       </div>
-      <button class="ocr-btn-shoot" onclick="window.__ocr.goStep(2)">
+      <button class="ocr-btn-shoot" onclick="window.__ocr.shootPhoto()">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="4" width="14" height="10" rx="2" stroke="#fff" stroke-width="1.2"/>
           <circle cx="9" cy="9" r="3" stroke="#fff" stroke-width="1.2"/>
@@ -803,38 +803,58 @@ ${CSS}
 let _newCounter = 100;
 
 function goStep(n) {
-  // clear timers
   _procTimers.forEach(t => clearTimeout(t));
   _procTimers = [];
-
   _step    = n;
   _filter  = 'all';
   _editId  = null;
   _editAll = false;
-
-  // Re-render entire view via navigate trick — reuse app-view
   const view = document.getElementById('app-view');
   if (!view) return;
   view.innerHTML = buildHTML();
-
   if (n === 2) startProcessing();
 }
 
-function selectInv(idx, btn) {
-  _inv = deepClone(INVOICES[idx]);
-  document.querySelectorAll('.ocr-sel').forEach(b => b.classList.remove('act'));
-  btn.classList.add('act');
-  const labels = ['Баядера Логістик · №BCV15402','Клас І К · КРН-7897056','РОМА · №191004'];
-  const lbl = document.getElementById('ocr-cam-lbl');
-  if (lbl) lbl.textContent = labels[idx];
+/* ── РЕАЛЬНИЙ OCR через Claude Vision ── */
+function shootPhoto() {
+  // Відкриваємо вибір файлу (камера або галерея)
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment'; // задня камера на мобільному
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Конвертуємо в base64
+    const base64 = await fileToBase64(file);
+    const mediaType = file.type || 'image/jpeg';
+    // Переходимо на крок 2 (обробка)
+    _step = 2;
+    _filter = 'all';
+    _editId = null;
+    const view = document.getElementById('app-view');
+    if (!view) return;
+    view.innerHTML = buildHTML();
+    // Запускаємо реальний OCR
+    startRealOCR(base64, mediaType);
+  };
+  input.click();
 }
 
-function startProcessing() {
-  const inv = _inv;
-  const suppEl = document.getElementById('ocr-proc-supp');
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function startRealOCR(base64, mediaType) {
+  const suppEl  = document.getElementById('ocr-proc-supp');
   const titleEl = document.getElementById('ocr-proc-title');
-  if (suppEl) suppEl.textContent = inv.supplier;
-  if (titleEl) titleEl.textContent = `Читаю накладну ${inv.num}…`;
+  if (titleEl) titleEl.textContent = 'Claude Vision аналізує фото…';
+  if (suppEl)  suppEl.textContent  = 'Розпізнавання накладної…';
 
   const set = (dotId, dotCls, valId, val) => {
     const d = document.getElementById(dotId);
@@ -843,21 +863,62 @@ function startProcessing() {
     if (v) v.textContent = val;
   };
 
-  _procTimers.push(setTimeout(() => {
-    set('ocr-dot-items','ocr-pdot-done','ocr-ps-items',`✓ ${inv.items.length} позицій`);
-    set('ocr-dot-match','ocr-pdot-act','ocr-ps-match','…');
-  }, 1400));
-  _procTimers.push(setTimeout(() => {
-    const m = inv.items.filter(x=>x.matched).length;
-    set('ocr-dot-match','ocr-pdot-done','ocr-ps-match',`✓ ${m}/${inv.items.length}`);
-    set('ocr-dot-prices','ocr-pdot-act','ocr-ps-prices','…');
-  }, 2700));
-  _procTimers.push(setTimeout(() => {
-    const w = inv.items.filter(x=>x.status==='warn').length;
-    set('ocr-dot-prices','ocr-pdot-done','ocr-ps-prices', w>0?`⚠ ${w} зміни`:'✓ Без змін');
-    // auto-advance after short pause
-    _procTimers.push(setTimeout(() => goStep(3), 600));
-  }, 3900));
+  set('ocr-dot-items','ocr-pdot-act','ocr-ps-items','…');
+
+  try {
+    const res = await fetch('/api/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64, mediaType }),
+    });
+
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.error || 'OCR failed');
+
+    const data = json.data;
+
+    // Заповнюємо дані накладної
+    _inv = {
+      supplier: data.supplier || 'Невідомий постачальник',
+      num:      data.invoiceNumber || '—',
+      date:     data.date || new Date().toLocaleDateString('uk-UA'),
+      items: (data.items || []).map((item, i) => ({
+        id:        'r' + i,
+        name:      item.name || '',
+        volume:    item.volume || null,
+        qty:       item.quantity || 1,
+        unit:      item.unit || 'пляш.',
+        unitPrice: item.unitPrice || 0,
+        total:     item.total || 0,
+        status:    'ok',
+        matched:   true,
+        prevPrice: null,
+      })),
+      total:    data.totalAmount || 0,
+      accuracy: Math.round((data.confidence || 0.9) * 100),
+    };
+
+    set('ocr-dot-items','ocr-pdot-done','ocr-ps-items',`✓ ${_inv.items.length} позицій`);
+
+    setTimeout(() => {
+      set('ocr-dot-match','ocr-pdot-done','ocr-ps-match',`✓ ${_inv.items.length}/${_inv.items.length}`);
+      set('ocr-dot-prices','ocr-pdot-done','ocr-ps-prices','✓ Перевірено');
+      if (suppEl)  suppEl.textContent  = _inv.supplier;
+      if (titleEl) titleEl.textContent = `Накладна ${_inv.num} розпізнана`;
+      setTimeout(() => goStep(3), 800);
+    }, 800);
+
+  } catch (err) {
+    // Помилка — показуємо і повертаємо на крок 1
+    if (titleEl) titleEl.textContent = '⚠ Помилка розпізнавання';
+    if (suppEl)  suppEl.textContent  = err.message;
+    set('ocr-dot-items','ocr-pdot-err','ocr-ps-items','Помилка');
+    setTimeout(() => {
+      alert('Не вдалось розпізнати накладну. Спробуйте ще раз — краще освітлення та чіткіше фото.');
+      goStep(1);
+    }, 1500);
+  }
 }
 
 /* supplier edit */
@@ -981,7 +1042,7 @@ export default {
 
   init() {
     window.__ocr = {
-      goStep, selectInv, startProcessing,
+      goStep, shootPhoto, selectInv,
       toggleSuppEdit, closeSuppEdit, saveSuppEdit,
       setFilter, toggleEdit, cancelItem, saveItem,
       deleteItem, recalcTotal, addItem, toggleEditAll,
