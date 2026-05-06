@@ -82,11 +82,12 @@ const TAB_BAR_MANAGER = [
     </svg>`,
   },
   {
-    route: 'ordering',
-    label: 'Замовлення',
-    badge: '1',
+    route: 'team',
+    label: 'Команда',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M3 11h16M14 6l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="8"  cy="8"  r="3" stroke="currentColor" stroke-width="1.4"/>
+      <circle cx="15" cy="8"  r="3" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 19c0-3 2-5 5-5M13 19c0-3 2-5 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </svg>`,
   },
   {
