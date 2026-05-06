@@ -4,6 +4,15 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>BarOps</title>
+<meta name="description" content="Розумний помічник для барменів: інвентаризація, накладні, списання"/>
+<meta name="theme-color" content="#1D9E75"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="BarOps"/>
+<link rel="manifest" href="/manifest.json"/>
+<link rel="apple-touch-icon" href="/icons/icon-192.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"/>
 
 <!-- ── Fonts ── -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -259,6 +268,17 @@ body {
 
   /* Стартуємо додаток — перехід на 'auth' */
   bootstrap();
+</script>
+
+<script>
+  /* Реєстрація Service Worker для PWA */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('[SW] Зареєстровано:', reg.scope))
+        .catch(err => console.log('[SW] Помилка:', err));
+    });
+  }
 </script>
 
 </body>
