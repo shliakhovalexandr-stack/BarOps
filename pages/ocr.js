@@ -429,22 +429,29 @@ function renderStep1() {
 
     <div class="ocr-hint">Тримайте документ рівно в рамці · без тіней і відблисків</div>
 
+    <!-- Приховані file inputs — спрацьовують напряму з onclick -->
+    <input type="file" id="ocr-cam-input" accept="image/*" capture="environment"
+      style="display:none" onchange="window.__ocr.handleFile(this)"/>
+    <input type="file" id="ocr-gallery-input" accept="image/*"
+      style="display:none" onchange="window.__ocr.handleFile(this)"/>
+
     <div class="ocr-cam-btns">
-      <div class="ocr-btn-icon" title="Галерея">
+      <label for="ocr-gallery-input" class="ocr-btn-icon" title="Галерея" style="cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <rect x="2" y="4" width="16" height="13" rx="2.5" stroke="var(--text1)" stroke-width="1.2"/>
           <circle cx="7" cy="9.5" r="2" stroke="var(--text1)" stroke-width="1.2"/>
           <path d="M2 16l4-4.5 3.5 3.5 3-3.5 5.5 4.5" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/>
         </svg>
-      </div>
-      <button class="ocr-btn-shoot" onclick="window.__ocr.shootPhoto()">
+      </label>
+      <label for="ocr-cam-input" class="ocr-btn-shoot" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="4" width="14" height="10" rx="2" stroke="#fff" stroke-width="1.2"/>
           <circle cx="9" cy="9" r="3" stroke="#fff" stroke-width="1.2"/>
         </svg>
         Зробити фото
-      </button>
-      <div class="ocr-btn-icon" title="Спалах">
+      </label>
+      <div class="ocr-btn-icon" id="ocr-flash-btn" title="Спалах"
+        style="cursor:pointer" onclick="window.__ocr.toggleFlash()">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M11 2L5 11h6l-2 7 8-10h-6l2-6z" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/>
         </svg>
@@ -816,29 +823,36 @@ function goStep(n) {
 }
 
 /* ── РЕАЛЬНИЙ OCR через Claude Vision ── */
-function shootPhoto() {
-  // Відкриваємо вибір файлу (камера або галерея)
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment'; // задня камера на мобільному
-  input.onchange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // Конвертуємо в base64
-    const base64 = await fileToBase64(file);
-    const mediaType = file.type || 'image/jpeg';
-    // Переходимо на крок 2 (обробка)
-    _step = 2;
-    _filter = 'all';
-    _editId = null;
-    const view = document.getElementById('app-view');
-    if (!view) return;
-    view.innerHTML = buildHTML();
-    // Запускаємо реальний OCR
-    startRealOCR(base64, mediaType);
-  };
-  input.click();
+async function handleFile(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  // Скидаємо input щоб можна було вибрати той самий файл знову
+  input.value = '';
+
+  const base64 = await fileToBase64(file);
+  const mediaType = file.type || 'image/jpeg';
+
+  // Переходимо на крок 2
+  _step = 2;
+  _filter = 'all';
+  _editId = null;
+  const view = document.getElementById('app-view');
+  if (!view) return;
+  view.innerHTML = buildHTML();
+  startRealOCR(base64, mediaType);
+}
+
+let _flashOn = false;
+function toggleFlash() {
+  _flashOn = !_flashOn;
+  const btn = document.getElementById('ocr-flash-btn');
+  if (btn) {
+    btn.style.background = _flashOn ? 'var(--amber-bg)' : '';
+    btn.style.borderColor = _flashOn ? 'var(--amber)' : '';
+    btn.querySelector('path').setAttribute('stroke', _flashOn ? 'var(--amber)' : 'var(--text1)');
+  }
+  // Спалах через CSS filter на відео (якщо є WebRTC)
+  // В PWA режимі системна камера сама керує спалахом
 }
 
 function fileToBase64(file) {
@@ -1042,7 +1056,7 @@ export default {
 
   init() {
     window.__ocr = {
-      goStep, shootPhoto, selectInv,
+      goStep, handleFile, toggleFlash, selectInv,
       toggleSuppEdit, closeSuppEdit, saveSuppEdit,
       setFilter, toggleEdit, cancelItem, saveItem,
       deleteItem, recalcTotal, addItem, toggleEditAll,
