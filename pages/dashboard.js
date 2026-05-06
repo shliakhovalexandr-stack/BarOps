@@ -9,24 +9,24 @@ import { navigate, state } from '../shared/app.js';
    DATA
 ════════════════════════ */
 const QUICK_BARTENDER = [
-  { route:'ocr',       primary:true,  badge:null, label:'Накладна',    sub:'OCR-сканування',
-    color:'#0c2018', iconColor:'#1D9E75',
-    svg:`<rect x="2" y="4" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/>
-         <path d="M5 7h1m2 0h1m2 0h1M5 10h1m2 0h1m2 0h1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-         <path d="M6 2h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+  { route:'debts',     primary:true,  badge:null, label:'Борги',        sub:'Між закладами',
+    color:'#0c1a2a', iconColor:'#EF9F27',
+    svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+         <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
   { route:'inventory', primary:false, badge:null, label:'Інвентар',    sub:'Облік залишків',
     color:'#12102a', iconColor:'#7F77DD',
     svg:`<rect x="2" y="2" width="4" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
          <rect x="8" y="5" width="4" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
          <rect x="14" y="8" width="3" height="8"  rx="1.5" stroke="currentColor" stroke-width="1.3"/>` },
-  { route:'recipes',   primary:false, badge:null, label:'Рецепти',     sub:'ТТК коктейлів',
-    color:'#12102a', iconColor:'#7F77DD',
-    svg:`<path d="M6 3h10l-2 6H8L6 3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>
-         <path d="M8 9v8M14 9v8M6 17h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
-  { route:'shift-log', primary:false, badge:null, label:'Журнал',      sub:'Нотатки зміни',
-    color:'#0d1a0d', iconColor:'#1D9E75',
-    svg:`<rect x="4" y="3" width="12" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
-         <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+  { route:'excise',    primary:false, badge:null, label:'Акцизні',     sub:'Сканування марок',
+    color:'#0a1a24', iconColor:'#4FA8E8',
+    svg:`<rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+         <path d="M4 8h8M4 11h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+         <circle cx="13" cy="11" r="1.5" fill="currentColor" opacity=".7"/>` },
+  { route:'writeoff',  primary:false, badge:'3',  label:'Списання',    sub:'Псування · Бій',
+    color:'#1f0808', iconColor:'#E24B4A',
+    svg:`<path d="M3 14l2-2 7-7 2 2-7 7-2 2H3v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+         <path d="M10 5l2 2" stroke="currentColor" stroke-width="1.3"/>` },
 ];
 
 const QUICK_MANAGER = [
