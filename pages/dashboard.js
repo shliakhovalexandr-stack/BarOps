@@ -21,7 +21,7 @@ const QUICK_BARTENDER = [
     color:'#0c1a2a', iconColor:'#EF9F27',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
-  { route:'inventory', primary:false, badge:null, label:'Залишки',     sub:'Всі товари',
+  { route:'stock',     primary:false, badge:null, label:'Залишки',     sub:'Всі товари',
     color:'#0d1a0d', iconColor:'#1D9E75',
     svg:`<path d="M2 14h4V7H2zM7 14h4V4H7zM13 14h4V9h-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
   { route:'inventory', primary:false, badge:null, label:'Інвентар',    sub:'Облік залишків',
