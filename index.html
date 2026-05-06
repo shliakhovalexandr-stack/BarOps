@@ -183,6 +183,9 @@ body {
     <!-- Filled by renderTabBar() in app.js -->
   </nav>
 
+  <!-- Drawer wrap (manager only) -->
+  <div id="app-drawer-wrap"></div>
+
 </div><!-- /phone -->
 
 <!-- ══════════ PAGE MODULES ══════════
@@ -202,7 +205,7 @@ body {
   const [
     authMod, dashMod, ocrMod, invMod, woffMod,
     ordMod, recMod, alertMod, shiftMod, mgrMod, teamMod, profMod,
-    exciseMod, debtsMod,
+    exciseMod, debtsMod, analyticsMod,
   ] = await Promise.all([
     import('./pages/auth.js'),
     import('./pages/dashboard.js'),
@@ -218,6 +221,7 @@ body {
     import('./pages/profile.js'),
     import('./pages/excise.js'),
     import('./pages/debts.js'),
+    import('./pages/analytics.js'),
   ]);
 
   /* Реєструємо кожну сторінку — простий прямий об'єкт */
@@ -236,6 +240,7 @@ body {
     ['profile',     profMod],
     ['excise',      exciseMod],
     ['debts',       debtsMod],
+    ['analytics',   analyticsMod],
   ];
 
   for (const [name, mod] of pages) {

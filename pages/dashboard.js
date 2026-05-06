@@ -6,8 +6,16 @@
 import { navigate, state } from '../shared/app.js';
 
 /* ════════════════════════
-   DATA
+   MULTI-VENUE DATA
 ════════════════════════ */
+const VENUES_LIST = [
+  { id:'v1', name:'Sky Lounge',  pos:'Poster',    color:'var(--green)',  rev:'38 420 ₴', fc:'21.4%', staff:2, alerts:3 },
+  { id:'v2', name:'Bar Noir',    pos:'iiko',      color:'var(--amber)',  rev:'22 180 ₴', fc:'19.8%', staff:1, alerts:1 },
+  { id:'v3', name:'Rooftop Bar', pos:'R-Keeper',  color:'var(--purple)', rev:'14 350 ₴', fc:'23.1%', staff:1, alerts:2 },
+];
+
+let _activeVenue = 'all'; // 'all' | venue id
+let _venueSheetOpen = false;
 const QUICK_BARTENDER = [
   { route:'debts',     primary:true,  badge:null, label:'Борги',        sub:'Між закладами',
     color:'#0c1a2a', iconColor:'#EF9F27',
@@ -94,6 +102,37 @@ const CSS = `<style id="dash-css">
 .d-venue-row{display:flex;justify-content:space-between;align-items:flex-start}
 .d-venue-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);letter-spacing:.04em;margin-bottom:3px}
 .d-venue-name{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em;line-height:1}
+.d-venue-btn{display:inline-flex;align-items:center;gap:5px;cursor:pointer;transition:opacity .15s}
+.d-venue-btn:active{opacity:.7}
+.d-venue-chev{width:16px;height:16px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:2px}
+/* venue sheet */
+.d-vsheet-ov{position:absolute;inset:0;z-index:70;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;flex-direction:column;justify-content:flex-end}
+.d-vsheet-ov.open{display:flex;animation:dvOvIn .2s ease}
+@keyframes dvOvIn{from{opacity:0}to{opacity:1}}
+.d-vsheet{background:var(--bg2);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border2);padding:0 0 32px;animation:dvSlide .3s cubic-bezier(.22,1,.36,1)}
+@keyframes dvSlide{from{transform:translateY(100%)}to{transform:none}}
+.d-vsheet-handle{width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:14px auto 16px}
+.d-vsheet-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);padding:0 18px 14px}
+.d-venue-option{display:flex;align-items:center;gap:12px;padding:12px 18px;cursor:pointer;transition:background .12s;border-bottom:0.5px solid var(--border)}
+.d-venue-option:last-child{border-bottom:none}
+.d-venue-option:active{background:var(--bg3)}
+.d-venue-option.sel{background:var(--green-bg)}
+.d-vo-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.d-vo-name{font-family:var(--font-h);font-size:15px;font-weight:600;color:var(--text0);flex:1}
+.d-vo-pos{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.d-vo-stats{text-align:right;flex-shrink:0}
+.d-vo-rev{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0)}
+.d-vo-fc{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.d-vo-check{width:20px;height:20px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* all-venues summary */
+.d-all-venues{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.d-av-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border)}
+.d-av-row:last-child{border-bottom:none}
+.d-av-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.d-av-name{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
+.d-av-pos{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
+.d-av-rev{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0);text-align:right}
+.d-av-fc{font-size:10px;font-family:var(--font-b);margin-top:2px;text-align:right}
 .d-notif-btn{width:38px;height:38px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);
   display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative}
 .d-notif-btn:active{background:var(--bg3)}
@@ -305,9 +344,20 @@ ${CSS}
     <!-- Header -->
     <div class="d-header">
       <div class="d-venue-row">
-        <div>
-          <div class="d-venue-sub">${isMgr?'Менеджер':'Бармен'} · Вечірня зміна</div>
-          <div class="d-venue-name">${state.venue}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${isMgr ? `
+          <div onclick="window.__barops.openDrawer()"
+            style="width:36px;height:36px;border-radius:10px;background:var(--bg2);
+                   border:0.5px solid var(--border2);display:flex;flex-direction:column;
+                   align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0">
+            <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
+            <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
+            <div style="width:10px;height:1.5px;background:var(--text1);border-radius:1px;align-self:flex-start;margin-left:8px"></div>
+          </div>` : ''}
+          <div>
+            <div class="d-venue-sub">${isMgr?'Менеджер':'Бармен'} · Вечірня зміна</div>
+            <div class="d-venue-name">${state.venue}</div>
+          </div>
         </div>
         <div class="d-notif-btn" onclick="window.__dash.toggleNotif()">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -458,6 +508,54 @@ ${CSS}
 
     <div style="height:20px"></div>
   </div><!-- d-scroll -->
+
+  ${isMgr ? `
+  <!-- VENUE SWITCHER SHEET -->
+  <div class="d-vsheet-ov ${_venueSheetOpen?'open':''}" onclick="window.__dash.closeVenueSheet(event)">
+    <div class="d-vsheet" onclick="event.stopPropagation()">
+      <div class="d-vsheet-handle"></div>
+      <div class="d-vsheet-title">Оберіть заклад</div>
+
+      <!-- Всі заклади -->
+      <div class="d-venue-option ${_activeVenue==='all'?'sel':''}" onclick="window.__dash.selectVenue('all')">
+        <div class="d-vo-dot" style="background:var(--green)"></div>
+        <div style="flex:1">
+          <div class="d-vo-name">Всі заклади</div>
+          <div class="d-vo-pos">Зведена статистика · ${VENUES_LIST.length} заклади</div>
+        </div>
+        <div class="d-vo-stats">
+          <div class="d-vo-rev">${VENUES_LIST.reduce((a,v)=>{const n=parseInt(v.rev.replace(/\s/g,''));return a+n;},0).toLocaleString('uk-UA')} ₴</div>
+          <div class="d-vo-fc">загалом</div>
+        </div>
+        ${_activeVenue==='all'?`<div class="d-vo-check"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`:''}
+      </div>
+
+      <!-- Кожен заклад -->
+      ${VENUES_LIST.map(v => `
+      <div class="d-venue-option ${_activeVenue===v.id?'sel':''}" onclick="window.__dash.selectVenue('${v.id}')">
+        <div class="d-vo-dot" style="background:${v.color}"></div>
+        <div style="flex:1">
+          <div class="d-vo-name">${v.name}</div>
+          <div class="d-vo-pos">${v.pos} · ${v.staff} бармен · ${v.alerts} алерт</div>
+        </div>
+        <div class="d-vo-stats">
+          <div class="d-vo-rev">${v.rev}</div>
+          <div class="d-vo-fc" style="color:${parseFloat(v.fc)>22?'var(--red)':parseFloat(v.fc)>18?'var(--amber)':'var(--green)'}">FC ${v.fc}</div>
+        </div>
+        ${_activeVenue===v.id?`<div class="d-vo-check"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`:''}
+      </div>`).join('')}
+
+      <!-- Додати заклад -->
+      <div style="padding:10px 18px">
+        <button onclick="window.__dash.addVenue()" style="width:100%;height:44px;background:var(--green-bg);border:0.5px dashed var(--green-border);border-radius:12px;font-size:13px;color:var(--green);cursor:pointer;font-family:var(--font-b)">+ Підключити новий заклад</button>
+      </div>
+    </div>
+  </div>
+
+  ${_activeVenue==='all' ? `
+  <!-- ALL VENUES SUMMARY (below quick actions when "all" selected) -->` : ''}
+  ` : ''}
+
 </div>`;
 }
 
@@ -465,6 +563,29 @@ ${CSS}
    PAGE MODULE
 ════════════════════════ */
 let _notifOpen = false;
+
+function fullRender() {
+  const v = document.getElementById('app-view');
+  if (v) v.innerHTML = buildHTML();
+}
+
+function toggleVenueSheet() { _venueSheetOpen = !_venueSheetOpen; fullRender(); }
+function closeVenueSheet(e) {
+  if (!e || e.target.classList.contains('d-vsheet-ov')) { _venueSheetOpen = false; fullRender(); }
+}
+function selectVenue(id) {
+  _activeVenue = id;
+  _venueSheetOpen = false;
+  if (id !== 'all') {
+    const v = VENUES_LIST.find(x => x.id === id);
+    if (v) state.venue = v.name;
+  }
+  fullRender();
+}
+function addVenue() {
+  _venueSheetOpen = false;
+  alert('Підключення нового закладу:\n\n1. Оберіть POS-систему (Poster / iiko / R-Keeper)\n2. Введіть API-ключ\n3. Заклад з\'явиться у списку');
+}
 
 export default {
   render() {
@@ -481,6 +602,7 @@ export default {
         _notifOpen = false;
         document.getElementById('d-notif')?.classList.remove('open');
       },
+      toggleVenueSheet, closeVenueSheet, selectVenue, addVenue,
     };
   },
 };
