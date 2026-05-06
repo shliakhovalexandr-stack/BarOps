@@ -30,19 +30,19 @@ const QUICK_BARTENDER = [
 ];
 
 const QUICK_MANAGER = [
-  { route:'manager',   primary:true,  badge:null, label:'Аналітика',      sub:'Звіти · Тренди',
-    color:'#12102a', iconColor:'#7F77DD',
-    svg:`<path d="M3 13l3-4 3 2 3-5 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-         <path d="M3 15h13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
-  { route:'team',      primary:false, badge:null, label:'Команда',         sub:'Ролі · Доступ',
-    color:'#0c2018', iconColor:'#1D9E75',
-    svg:`<circle cx="6" cy="7" r="2.5" stroke="currentColor" stroke-width="1.3"/>
-         <circle cx="12" cy="7" r="2.5" stroke="currentColor" stroke-width="1.3"/>
-         <path d="M2 14c0-2.5 2-4 4-4M10 14c0-2.5 2-4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
-  { route:'ordering',  primary:false, badge:'1',  label:'Замовлення',      sub:'Заявка бармена',
+  { route:'debts',     primary:true,  badge:null, label:'Борги',          sub:'Всі заклади',
+    color:'#1a120a', iconColor:'#EF9F27',
+    svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+         <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
+  { route:'excise',    primary:false, badge:null, label:'Акцизні',        sub:'Журнал команди',
+    color:'#0a1a24', iconColor:'#4FA8E8',
+    svg:`<rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+         <path d="M4 8h8M4 11h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+         <circle cx="13" cy="11" r="1.5" fill="currentColor" opacity=".7"/>` },
+  { route:'ordering',  primary:false, badge:'1',  label:'Замовлення',     sub:'Заявка бармена',
     color:'#1f0f08', iconColor:'#EF9F27',
     svg:`<path d="M3 12h3v3H3zM7 8h3v7H7zM11 5h3v10h-3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
-  { route:'recipes',   primary:false, badge:null, label:'Рецепти',         sub:'Живий фудкост',
+  { route:'recipes',   primary:false, badge:null, label:'Фудкост',        sub:'Живий FC меню',
     color:'#0a0a14', iconColor:'#7F77DD',
     svg:`<rect x="2" y="3" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/>
          <path d="M5 7h7M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>

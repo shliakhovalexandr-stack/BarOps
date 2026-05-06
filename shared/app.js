@@ -39,11 +39,11 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
-    route: 'shift-log',
-    label: 'Журнал',
+    route: 'writeoff',
+    label: 'Списання',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <rect x="4" y="3" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/>
-      <path d="M7 8h8M7 12h8M7 16h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M4 16l2-2 8-8 2 2-8 8-2 2H4v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M12 6l2 2" stroke="currentColor" stroke-width="1.4"/>
     </svg>`,
   },
   {
@@ -107,12 +107,11 @@ const TAB_BAR_MANAGER = [
     </svg>`,
   },
   {
-    route: 'team',
-    label: 'Команда',
+    route: 'profile',
+    label: 'Профіль',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <circle cx="8"  cy="8"  r="3" stroke="currentColor" stroke-width="1.4"/>
-      <circle cx="15" cy="8"  r="3" stroke="currentColor" stroke-width="1.4"/>
-      <path d="M3 19c0-3 2-5 5-5M13 19c0-3 2-5 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M4 19c0-3.9 3.1-7 7-7h.5c3.9 0 6.5 3.1 6.5 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </svg>`,
   },
 ];

@@ -132,9 +132,92 @@ const CSS = `<style id="dbt-css">
 @keyframes dbtFade{from{opacity:0}to{opacity:1}}
 </style>`;
 
+let _mgrVenueEdit = false; // показати форму редагування закладів
+let _venues = [...VENUES]; // копія для редагування менеджером
+
 /* ════════════════════════
-   RENDERS
+   MANAGER HOME
 ════════════════════════ */
+function mgrHomeHTML() {
+  const active = DEBTS.filter(d => !d.returned);
+  const myVenue = state.venue || VENUES[0];
+
+  // Зведення по закладах
+  const summary = _venues.map(v => {
+    const owes  = DEBTS.filter(d => d.from === v && !d.returned).length;
+    const owed  = DEBTS.filter(d => d.to   === v && !d.returned).length;
+    return { v, owes, owed };
+  }).filter(x => x.owes > 0 || x.owed > 0);
+
+  return `
+  <div class="dbt-topbar" style="flex-shrink:0">
+    <div class="dbt-back" onclick="window.__barops.navigate('dashboard')">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div style="flex:1">
+      <div class="dbt-title">Борги — Менеджер</div>
+      <div class="dbt-sub">Всі заклади · ${active.length} активних</div>
+    </div>
+    <div style="background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--amber);font-family:var(--font-b)">${active.length} активних</div>
+  </div>
+
+  <div class="dbt-scroll">
+    <!-- Зведення по закладах -->
+    <div class="dbt-sec" style="padding-top:4px">
+      Зведення по закладах
+      <button class="dbt-sec-link" onclick="window.__dbt.toggleVenueEdit()">⚙ Заклади</button>
+    </div>
+
+    ${_mgrVenueEdit ? `
+    <div style="margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px">
+      <div style="font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);margin-bottom:10px">Налаштування закладів</div>
+      ${_venues.map((v,i) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <input style="flex:1;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none" value="${v}" onchange="window.__dbt.renameVenue(${i},this.value)"/>
+        <div onclick="window.__dbt.removeVenue(${i})" style="width:32px;height:32px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </div>
+      </div>`).join('')}
+      <button onclick="window.__dbt.addVenue()" style="width:100%;height:38px;background:var(--green-bg);border:0.5px dashed var(--green-border);border-radius:9px;font-size:13px;color:var(--green);cursor:pointer;font-family:var(--font-b);margin-top:4px">+ Додати заклад</button>
+      <button onclick="window.__dbt.toggleVenueEdit()" style="width:100%;height:38px;background:var(--green);border:none;border-radius:9px;font-size:13px;color:#fff;cursor:pointer;font-family:var(--font-b);margin-top:8px">Зберегти</button>
+    </div>` : `
+    <div style="margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden">
+      ${summary.length ? summary.map(s => `
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:0.5px solid var(--border)">
+        <div style="flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b);font-weight:500">${s.v}</div>
+        ${s.owes > 0 ? `<div style="font-size:11px;color:var(--red);font-family:var(--font-b)">Винен: ${s.owes}</div>` : ''}
+        ${s.owed > 0 ? `<div style="font-size:11px;color:var(--green);font-family:var(--font-b)">Йому: ${s.owed}</div>` : ''}
+      </div>`).join('') : `
+      <div style="padding:16px;text-align:center;font-size:13px;color:var(--text2);font-family:var(--font-b)">Активних боргів немає</div>`}
+    </div>`}
+
+    <!-- Нова операція -->
+    <div class="dbt-sec">Нова операція</div>
+    <div class="dbt-mode-grid">
+      <div class="dbt-mode-card sale" onclick="window.__dbt.openMode('sale')">
+        <div class="dbt-mode-icon" style="background:rgba(20,184,166,.12)">💸</div>
+        <div class="dbt-mode-name">Продажа</div>
+        <div class="dbt-mode-desc">Між закладами → Telegram бухгалтеру</div>
+      </div>
+      <div class="dbt-mode-card debt" onclick="window.__dbt.openMode('debt')">
+        <div class="dbt-mode-icon" style="background:rgba(239,159,39,.12)">📋</div>
+        <div class="dbt-mode-name">Борг</div>
+        <div class="dbt-mode-desc">Фіксація позики між закладами</div>
+      </div>
+    </div>
+
+    <!-- Всі борги -->
+    <div class="dbt-sec">
+      Всі борги
+      <div style="display:flex;gap:2px;background:var(--bg2);border:0.5px solid var(--border);border-radius:7px;padding:2px">
+        <button class="dbt-ftab ${_filter==='active'?'act':''}" onclick="window.__dbt.setFilter('active')" style="height:24px;min-width:64px">Активні (${active.length})</button>
+        <button class="dbt-ftab ${_filter==='all'?'act':''}"    onclick="window.__dbt.setFilter('all')"    style="height:24px;min-width:48px">Всі (${DEBTS.length})</button>
+      </div>
+    </div>
+    <div class="dbt-list" id="dbt-list">${debtListHTML()}</div>
+    <div style="height:14px"></div>
+  </div>`;
+}
 function homeHTML() {
   const active  = DEBTS.filter(d => !d.returned).length;
   const total   = DEBTS.length;
@@ -369,11 +452,13 @@ function debtFormHTML() {
    MAIN BUILD
 ════════════════════════ */
 function buildHTML() {
+  const isMgr    = state.role === 'manager';
   const formOpen = _mode !== null && !_submitted;
+
   return `
 ${CSS}
 <div class="dbt-wrap">
-  ${homeHTML()}
+  ${isMgr ? mgrHomeHTML() : homeHTML()}
 
   <!-- FORM OVERLAY -->
   <div class="dbt-form-overlay ${formOpen?'open':''}" id="dbt-form">
@@ -391,7 +476,7 @@ ${CSS}
     <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6;margin-bottom:24px;max-width:280px">
       ${_mode==='sale'
         ? 'Повідомлення про продажу надіслано в Telegram'
-        : 'Борг додано в журнал обох закладів. Зʼявиться галочка «Повернуто» коли погасять.'}
+        : 'Борг додано в журнал. Зʼявиться галочка «Повернуто» коли погасять.'}
     </div>
     <button onclick="window.__dbt.closeSuccess()" style="width:100%;max-width:280px;height:50px;background:var(--green);border:none;border-radius:12px;font-size:14px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);margin-bottom:10px">
       Готово
@@ -485,14 +570,21 @@ function toggleReturn(id) {
   refreshList();
 }
 
+function toggleVenueEdit() { _mgrVenueEdit = !_mgrVenueEdit; fullRender(); }
+function addVenue()        { _venues.push('Новий заклад'); fullRender(); }
+function removeVenue(i)    { _venues.splice(i, 1); fullRender(); }
+function renameVenue(i, v) { _venues[i] = v; }
+
 /* ════════════════════════
    PAGE MODULE EXPORT
 ════════════════════════ */
 export default {
   render() {
-    _mode      = null;
-    _submitted = false;
-    _filter    = 'active';
+    _mode         = null;
+    _submitted    = false;
+    _filter       = 'active';
+    _mgrVenueEdit = false;
+    _venues       = [...VENUES];
     return buildHTML();
   },
   init() {
@@ -500,6 +592,7 @@ export default {
       setFilter, openMode, closeForm,
       updateSalePreview, submitSale, submitDebt,
       closeSuccess, addAnother, toggleReturn,
+      toggleVenueEdit, addVenue, removeVenue, renameVenue,
     };
   },
 };

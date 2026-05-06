@@ -114,8 +114,127 @@ const CSS = `<style id="prof-css">
 /* ════════════════════════
    RENDER
 ════════════════════════ */
+const MGR_KPI = [
+  { label:'Виручка · місяць',    val:'812k ₴', sub:'↑ +8.2% vs минулий',      color:'var(--green)',  pct:82 },
+  { label:'Середній FC',         val:'19.4%',  sub:'↑ +2.1% vs норма',         color:'var(--amber)',  pct:65 },
+  { label:'Барменів у команді',  val:'3',      sub:'1 активна зміна зараз',     color:'var(--teal)',   pct:60 },
+  { label:'Активних боргів',     val:'2',      sub:'між закладами',             color:'var(--amber)',  pct:40 },
+  { label:'Накладних цей місяць',val:'38',     sub:'точність OCR 96.8%',        color:'var(--green)',  pct:90 },
+  { label:'Списань місяць',      val:'41',     sub:'~10 450 ₴ збитків',         color:'var(--red)',    pct:45 },
+];
+
+function mgrProfileHTML() {
+  return `
+  <div class="prof-scroll">
+    <!-- Hero -->
+    <div class="prof-hero">
+      <div class="prof-avatar-row">
+        <div class="prof-avatar">👨‍💼</div>
+        <div>
+          <div class="prof-name">${state.user || 'Костянтин О.'}</div>
+          <div class="prof-role" style="color:var(--amber)">👨‍💼 Менеджер</div>
+          <div class="prof-venue">${state.venue}</div>
+          <div class="prof-since">Управляє з 01.09.2024</div>
+        </div>
+      </div>
+      <div class="prof-stats-row">
+        <div class="prof-stat">
+          <div class="prof-stat-val" style="color:var(--green)">812k</div>
+          <div class="prof-stat-lbl">Виручка<br/>₴ / місяць</div>
+        </div>
+        <div class="prof-stat">
+          <div class="prof-stat-val" style="color:var(--teal)">3</div>
+          <div class="prof-stat-lbl">Барменів<br/>у команді</div>
+        </div>
+        <div class="prof-stat">
+          <div class="prof-stat-val" style="color:var(--amber)">19.4%</div>
+          <div class="prof-stat-lbl">Середній<br/>FC</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="prof-sec">KPI закладу · травень 2026</div>
+    <div class="prof-kpi-grid">
+      ${MGR_KPI.map(k => `
+      <div class="prof-kpi">
+        <div class="prof-kpi-val" style="color:${k.color}">${k.val}</div>
+        <div class="prof-kpi-lbl">${k.label}</div>
+        <div class="prof-kpi-sub">${k.sub}</div>
+        <div class="prof-kpi-bar">
+          <div class="prof-kpi-fill" style="width:${k.pct}%;background:${k.color}"></div>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Команда -->
+    <div class="prof-sec">Команда</div>
+    <div class="prof-shifts">
+      ${[
+        { name:'Олексій К.', role:'Бармен · Вечірня', tasks:'87%', color:'var(--green)',  live:true  },
+        { name:'Марія П.',   role:'Бармен · Денна',   tasks:'99%', color:'var(--green)',  live:false },
+        { name:'Дмитро І.',  role:'Бармен · Нічна',   tasks:'68%', color:'var(--amber)', live:false },
+      ].map(m => `
+      <div class="prof-shift-row">
+        <div style="width:8px;height:8px;border-radius:50%;background:${m.live?'var(--green)':'var(--text3)'};flex-shrink:0${m.live?';animation:profLive 1.8s ease-in-out infinite':''}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="prof-shift-date">${m.name}</div>
+          <div class="prof-shift-type">${m.role}</div>
+        </div>
+        <div>
+          <div class="prof-shift-tasks" style="color:${m.color}">${m.tasks}</div>
+          <div class="prof-shift-status" style="color:${m.live?'var(--green)':'var(--text2)'}">${m.live?'🟢 Активна':'Не в зміні'}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Контакти -->
+    <div class="prof-sec">Контакти</div>
+    <div class="prof-info-card">
+      <div class="prof-info-row"><div class="prof-info-lbl">📞 Телефон</div><div class="prof-info-val">+380 50 123 45 67</div></div>
+      <div class="prof-info-row"><div class="prof-info-lbl">✉️ Email</div><div class="prof-info-val" style="font-size:12px">manager@skylounge.ua</div></div>
+      <div class="prof-info-row"><div class="prof-info-lbl">🏢 Заклад</div><div class="prof-info-val">${state.venue}</div></div>
+    </div>
+
+    <!-- Налаштування -->
+    <div class="prof-sec">Сповіщення</div>
+    <div class="prof-settings">
+      ${[['Заявки на замовлення',true],['Цінові алерти',true],['Списання барменів',true],['Журнал змін',false]].map(([lbl,on]) => `
+      <div class="prof-setting-row">
+        <div class="prof-setting-lbl">${lbl}</div>
+        <div class="prof-toggle ${on?'on':''}" onclick="this.classList.toggle('on');this.querySelector('.prof-toggle-knob').style.left=this.classList.contains('on')?'18px':'2px'">
+          <div class="prof-toggle-knob" style="left:${on?18:2}px"></div>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Роль -->
+    <div class="prof-sec">Демо — зміна ролі</div>
+    <div class="prof-role-switch">
+      <div class="prof-rs-title">Переключити роль</div>
+      <div class="prof-rs-sub">Для перегляду функцій бармена</div>
+      <div class="prof-rs-btns">
+        <button class="prof-rs-btn inactive" onclick="window.__barops.setRole('bartender')">🍸 Бармен</button>
+        <button class="prof-rs-btn active">👨‍💼 Менеджер</button>
+      </div>
+    </div>
+
+    <button class="prof-logout" onclick="window.__barops.navigate('auth')">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M10 11l3-3-3-3M13 8H6" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Вийти з акаунту
+    </button>
+    <div style="height:14px"></div>
+  </div>`;
+}
+
 function buildHTML() {
   const isBartender = state.role === 'bartender';
+  if (!isBartender) {
+    return `${CSS}<div class="prof-wrap">${mgrProfileHTML()}</div>`;
+  }
 
   return `
 ${CSS}

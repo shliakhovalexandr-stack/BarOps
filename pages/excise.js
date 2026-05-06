@@ -106,10 +106,89 @@ const CSS = `<style id="exc-css">
 .exc-sent-pill{background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:20px;padding:6px 16px;font-size:12px;color:var(--blue);font-family:var(--font-b);margin-bottom:22px}
 </style>`;
 
-/* ════════════════════════
-   RENDER
-════════════════════════ */
+const MGR_HISTORY = [
+  { barman:'Олексій К.', venue:'Sky Lounge',  name:'Johnnie Walker Black', code:'UA-2024-847291', time:'19:41', status:'ok'    },
+  { barman:'Олексій К.', venue:'Sky Lounge',  name:"Hendrick's Gin",       code:'UA-2024-847288', time:'18:53', status:'ok'    },
+  { barman:'Марія П.',   venue:'Bar Noir',     name:'Aperol 1л',            code:'Не розпізнано',  time:'20:11', status:'error' },
+  { barman:'Марія П.',   venue:'Bar Noir',     name:'Campari 0.7л',         code:'UA-2024-847201', time:'19:30', status:'ok'    },
+  { barman:'Дмитро І.',  venue:'Rooftop Bar',  name:'Prosecco DOC',         code:'UA-2024-847155', time:'18:05', status:'ok'    },
+];
+
+function mgrExciseHTML() {
+  const sent  = MGR_HISTORY.filter(h => h.status === 'ok').length;
+  const error = MGR_HISTORY.filter(h => h.status === 'error').length;
+
+  return `
+  <div class="exc-topbar" style="flex-shrink:0">
+    <div class="exc-back" onclick="window.__barops.navigate('dashboard')">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div style="flex:1">
+      <div class="exc-title">Акцизні марки</div>
+      <div class="exc-sub">Менеджер · Журнал команди</div>
+    </div>
+  </div>
+
+  <div class="exc-scroll">
+    <!-- KPI -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px 10px">
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--green)">${sent}</div>
+        <div style="font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:4px;text-transform:uppercase;letter-spacing:.05em">Надіслано</div>
+      </div>
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--red)">${error}</div>
+        <div style="font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:4px;text-transform:uppercase;letter-spacing:.05em">Помилок</div>
+      </div>
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0)">${MGR_HISTORY.length}</div>
+        <div style="font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:4px;text-transform:uppercase;letter-spacing:.05em">Всього</div>
+      </div>
+    </div>
+
+    <!-- Telegram налаштування -->
+    <div class="exc-tg-card">
+      <div class="exc-tg-title">⚙ Telegram чат (загальний)</div>
+      <div class="exc-tg-row">
+        <input class="exc-tg-inp" id="exc-tg-input" type="text"
+          value="${_tgUsername}" placeholder="@username або ID чату"/>
+        <button class="exc-tg-save" onclick="window.__exc.saveTg()">Зберегти</button>
+      </div>
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:8px;line-height:1.5">
+        Всі бармени надсилають марки в цей чат. Змінюється для всієї команди.
+      </div>
+    </div>
+
+    <!-- Журнал команди -->
+    <div class="exc-sec">Журнал команди · сьогодні</div>
+    <div class="exc-hist">
+      ${MGR_HISTORY.map(h => `
+      <div class="exc-hist-row">
+        <div class="exc-hist-icon" style="background:${h.status==='ok'?'var(--green-bg)':'var(--red-bg)'}">
+          ${h.status==='ok'
+            ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3 3 7-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+            : `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--red)" stroke-width="1.5" stroke-linecap="round"/></svg>`}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="exc-hist-name">${h.name}</div>
+          <div class="exc-hist-code">${h.barman} · ${h.venue}</div>
+          <div class="exc-hist-code" style="color:var(--text3)">${h.code}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="exc-hist-date">${h.time}</div>
+          <div class="exc-hist-status" style="color:${h.status==='ok'?'var(--green)':'var(--red)'}">
+            ${h.status==='ok'?'✓ Надіслано':'✗ Помилка'}
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <div style="height:14px"></div>
+  </div>`;
+}
 function buildHTML() {
+  if (state.role === 'manager') return `${CSS}<div class="exc-wrap">${mgrExciseHTML()}</div>`;
+
   return `
 ${CSS}
 <div class="exc-wrap" style="position:relative">
