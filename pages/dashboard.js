@@ -41,10 +41,13 @@ const QUICK_BARTENDER = [
 ];
 
 const QUICK_MANAGER = [
-  { route:'debts',     primary:true,  badge:null, label:'Борги',          sub:'Всі заклади',
+  { route:'debts',     primary:false, badge:null, label:'Борги',          sub:'Всі заклади',
     color:'#1a120a', iconColor:'#EF9F27',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
+  { route:'stock',     primary:false, badge:null, label:'Залишки',        sub:'Всі товари',
+    color:'#0d1a0d', iconColor:'#1D9E75',
+    svg:`<path d="M2 14h4V7H2zM7 14h4V4H7zM13 14h4V9h-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
   { route:'excise',    primary:false, badge:null, label:'Акцизні',        sub:'Журнал команди',
     color:'#0a1a24', iconColor:'#4FA8E8',
     svg:`<rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
