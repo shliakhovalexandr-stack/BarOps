@@ -429,12 +429,6 @@ function renderStep1() {
 
     <div class="ocr-hint">Тримайте документ рівно в рамці · без тіней і відблисків</div>
 
-    <!-- Приховані file inputs — спрацьовують напряму з onclick -->
-    <input type="file" id="ocr-cam-input" accept="image/*" capture="environment"
-      style="display:none" onchange="window.__ocr.handleFile(this)"/>
-    <input type="file" id="ocr-gallery-input" accept="image/*"
-      style="display:none" onchange="window.__ocr.handleFile(this)"/>
-
     <div class="ocr-cam-btns">
       <label for="ocr-gallery-input" class="ocr-btn-icon" title="Галерея" style="cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

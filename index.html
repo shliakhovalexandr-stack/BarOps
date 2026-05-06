@@ -186,6 +186,14 @@ body {
   <!-- Drawer wrap (manager only) -->
   <div id="app-drawer-wrap"></div>
 
+  <!-- Постійні file inputs для камери/галереї (iOS Safari сумісність) -->
+  <input type="file" id="ocr-cam-input" accept="image/*" capture="environment"
+    style="position:fixed;top:-100px;left:-100px;opacity:0;width:1px;height:1px"
+    onchange="if(window.__ocr&&this.files[0])window.__ocr.handleFile(this)"/>
+  <input type="file" id="ocr-gallery-input" accept="image/*"
+    style="position:fixed;top:-100px;left:-100px;opacity:0;width:1px;height:1px"
+    onchange="if(window.__ocr&&this.files[0])window.__ocr.handleFile(this)"/>
+
 </div><!-- /phone -->
 
 <!-- ══════════ PAGE MODULES ══════════
