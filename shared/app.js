@@ -375,6 +375,13 @@ export async function bootstrap() {
   updateClock();
   setInterval(updateClock, 1000);
   const sb = document.getElementById('app-status-bar');
-  if (sb) sb.innerHTML = STATUS_BAR_HTML;
+  // Приховуємо внутрішній статус-бар на мобільному
+  if (sb) {
+    if (window.innerWidth <= 500) {
+      sb.style.display = 'none';
+    } else {
+      sb.innerHTML = STATUS_BAR_HTML;
+    }
+  }
   await navigate('auth', { replace: true });
 }
