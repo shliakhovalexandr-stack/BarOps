@@ -173,6 +173,25 @@ function setFilter(f) { _filter = f; fullRender(); }
 function search(q)    { _search = q; fullRender(); }
 
 export default {
-  render() { _filter = 'Всі'; _search = ''; return buildHTML(); },
-  init()   { window.__stk = { setFilter, search }; },
+  async render() {
+    _filter = 'Всі'; _search = '';
+    // Спробуємо завантажити реальні дані
+    try {
+      const { productsAPI } = await import('../shared/api.js');
+      const data = await productsAPI.getAll();
+      if (data?.data?.length) {
+        // Оновлюємо STOCK реальними даними
+        STOCK.length = 0;
+        data.data.forEach((p, i) => STOCK.push({
+          id: i+1, emoji: '🍾',
+          name: p.name, cat: p.cat || 'Інше',
+          qty: p.stock || 0, unit: p.unit || 'л',
+          norm: p.minStock || 0,
+          status: (p.stock || 0) < (p.minStock || 0) ? 'low' : 'ok',
+        }));
+      }
+    } catch { /* використовуємо демо-дані */ }
+    return buildHTML();
+  },
+  init() { window.__stk = { setFilter, search }; },
 };

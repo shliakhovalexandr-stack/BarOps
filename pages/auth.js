@@ -668,22 +668,44 @@ function otpBack(e, inp, prevId) {
 }
 function otpDone(inp) { if (inp.value.length >= 1) inp.blur(); }
 
-function doVerify() {
+async function doVerify() {
   const code = ['otp1','otp2','otp3','otp4','otp5','otp6']
     .map(id => document.getElementById(id)?.value || '')
     .join('');
 
   const cells = document.querySelectorAll('.auth-otp-cell');
+  if (code.length < 6) return;
 
-  if (code === '123456') {
+  // Показуємо завантаження
+  cells.forEach(c => { c.style.borderColor = 'var(--amber)'; });
+
+  try {
+    // Спробуємо реальний backend
+    const { authAPI } = await import('./api.js');
+    const data = await authAPI.verifyOtp(_phone, code);
+
     cells.forEach(c => { c.style.borderColor = 'var(--green)'; c.style.color = 'var(--green)'; });
-    setTimeout(() => _finalizeLogin(), 500);
-  } else {
-    cells.forEach(c => { c.style.borderColor = 'var(--red)'; });
-    setTimeout(() => {
-      cells.forEach(c => { c.style.borderColor = ''; c.style.color = ''; c.value = ''; });
-      document.getElementById('otp1')?.focus();
-    }, 900);
+
+    // Зберігаємо дані користувача
+    if (data.user) {
+      state.user    = data.user.name;
+      state.role    = data.user.role;
+      state.venue   = 'Sky Lounge';
+    }
+    setTimeout(() => _finalizeLogin(data.user?.role), 500);
+
+  } catch (err) {
+    // Fallback — демо-режим якщо backend недоступний
+    if (code === '123456') {
+      cells.forEach(c => { c.style.borderColor = 'var(--green)'; c.style.color = 'var(--green)'; });
+      setTimeout(() => _finalizeLogin(), 500);
+    } else {
+      cells.forEach(c => { c.style.borderColor = 'var(--red)'; });
+      setTimeout(() => {
+        cells.forEach(c => { c.style.borderColor = ''; c.style.color = ''; c.value = ''; });
+        document.getElementById('otp1')?.focus();
+      }, 900);
+    }
   }
 }
 
@@ -709,10 +731,9 @@ function startResend() {
   }, 1000);
 }
 
-function _finalizeLogin() {
-  // Зберігаємо роль у глобальний стан і переходимо на dashboard
-  const role = _selectedRole || 'bartender';
-  state.role = role;
+function _finalizeLogin(role) {
+  const r = role || _selectedRole || 'bartender';
+  state.role = r;
   navigate('dashboard');
 }
 
