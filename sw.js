@@ -3,10 +3,8 @@
    Кешування ресурсів для офлайн-режиму
    ============================================================ */
 
-const CACHE_NAME = 'barops-v1';
+const CACHE_NAME = 'barops-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/shared/app.js',
   '/shared/tokens.css',
@@ -56,25 +54,25 @@ self.addEventListener('fetch', event => {
   // API запити не кешуємо
   if (event.request.url.includes('/api/')) return;
 
+  // index.html завжди з мережі (щоб оновлення застосовувались відразу)
+  if (event.request.url.endsWith('/') ||
+      event.request.url.endsWith('/index.html') ||
+      event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Зберігаємо свіжу копію в кеш
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
       })
-      .catch(() => {
-        // Мережа недоступна — беремо з кешу
-        return caches.match(event.request).then(cached => {
-          if (cached) return cached;
-          // Для HTML сторінок повертаємо index.html
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html');
-          }
-        });
-      })
+      .catch(() => caches.match(event.request))
   );
 });
