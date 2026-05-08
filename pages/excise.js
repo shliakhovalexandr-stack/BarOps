@@ -146,19 +146,6 @@ function mgrExciseHTML() {
       </div>
     </div>
 
-    <!-- Telegram налаштування -->
-    <div class="exc-tg-card">
-      <div class="exc-tg-title">⚙ Telegram чат (загальний)</div>
-      <div class="exc-tg-row">
-        <input class="exc-tg-inp" id="exc-tg-input" type="text"
-          value="${_tgUsername}" placeholder="@username або ID чату"/>
-        <button class="exc-tg-save" onclick="window.__exc.saveTg()">Зберегти</button>
-      </div>
-      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:8px;line-height:1.5">
-        Всі бармени надсилають марки в цей чат. Змінюється для всієї команди.
-      </div>
-    </div>
-
     <!-- Журнал команди -->
     <div class="exc-sec">Журнал команди · сьогодні</div>
     <div class="exc-hist">
@@ -246,21 +233,6 @@ ${CSS}
     <div class="exc-info">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
       Фото акцизної марки автоматично надсилається в Telegram чат з бухгалтером
-    </div>
-
-    <!-- Telegram налаштування -->
-    <div class="exc-tg-card">
-      <div class="exc-tg-title">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:middle;margin-right:5px">
-          <path d="M1 6.5l12-5L9 13 6.5 8 1 6.5zM6.5 8l6-6" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Telegram чат
-      </div>
-      <div class="exc-tg-row">
-        <input class="exc-tg-inp" id="exc-tg-input" type="text"
-          value="${_tgUsername}" placeholder="@username або ID чату"/>
-        <button class="exc-tg-save" onclick="window.__exc.saveTg()">Зберегти</button>
-      </div>
     </div>
 
     <!-- Історія -->

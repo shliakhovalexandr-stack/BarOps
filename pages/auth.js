@@ -442,14 +442,21 @@ function viewRole() {
       </div>
     </div>
     <div class="auth-field-group" style="margin-top:20px">
-      <div class="auth-field-label">Код закладу (від менеджера)</div>
-      <div class="auth-field-wrap">
-        <input class="auth-field-input" id="venue-code" type="text"
-          placeholder="напр. SKYBAR-2024"
-          style="letter-spacing:.08em;text-transform:uppercase"/>
-      </div>
-      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:4px">
-        Залиште порожнім, якщо ви перший у закладі
+      <div class="auth-field-label">Заклад</div>
+      <div class="auth-field-wrap" style="position:relative">
+        <select class="auth-field-input" id="venue-select"
+          style="appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:36px">
+          <option value="">Оберіть заклад...</option>
+          <option value="La Pasta">La Pasta</option>
+          <option value="Тераса">Тераса</option>
+          <option value="Дім18">Дім18</option>
+          <option value="Хочу 2.0">Хочу 2.0</option>
+          <option value="Хочу">Хочу</option>
+        </select>
+        <svg style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none"
+          width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 5l4 4 4-4" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
     </div>
     <button class="auth-btn auth-btn--primary" style="margin-top:24px"
@@ -734,6 +741,11 @@ function startResend() {
 function _finalizeLogin(role) {
   const r = role || _selectedRole || 'bartender';
   state.role = r;
+  // Зберігаємо обраний заклад
+  const venueSelect = document.getElementById('venue-select');
+  if (venueSelect?.value) {
+    state.venue = venueSelect.value;
+  }
   navigate('dashboard');
 }
 
