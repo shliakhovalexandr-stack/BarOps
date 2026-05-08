@@ -741,7 +741,7 @@ function renderStep3() {
       </svg>
       ${_editAll ? 'Завершити редагування' : 'Режим редагування'}
     </button>
-    <button class="ocr-btn-confirm" onclick="window.__ocr.goStep(4)">
+    <button class="ocr-btn-confirm" onclick="window.__ocr.confirmInvoice()">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
         <path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
@@ -1006,6 +1006,26 @@ function addItem() {
   }, 80);
 }
 
+async function confirmInvoice() {
+  try {
+    const { invoicesAPI } = await import('../shared/api.js');
+    const data = await invoicesAPI.create({
+      supplier:      _inv.supplier,
+      invoiceNumber: _inv.num,
+      date:          _inv.date,
+      items:         _inv.items,
+      totalAmount:   _inv.total,
+    });
+    if (data?.data?.id) {
+      await invoicesAPI.confirm(data.data.id);
+    }
+    console.log('[Invoice] Збережено в БД');
+  } catch (err) {
+    console.warn('[Invoice] Backend недоступний:', err.message);
+  }
+  goStep(4);
+}
+
 function toggleEditAll() {
   _editAll = !_editAll;
   _editId  = null;
@@ -1050,7 +1070,7 @@ export default {
 
   init() {
     window.__ocr = {
-      goStep, handleFile, toggleFlash, selectInv,
+      goStep, handleFile, toggleFlash, confirmInvoice, selectInv,
       toggleSuppEdit, closeSuppEdit, saveSuppEdit,
       setFilter, toggleEdit, cancelItem, saveItem,
       deleteItem, recalcTotal, addItem, toggleEditAll,

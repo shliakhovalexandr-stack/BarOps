@@ -914,13 +914,31 @@ function nextStep() {
 }
 function prevStep() { if (_formStep>1) { _formStep--; fullRender(); } }
 
-function submitForm() {
+async function submitForm() {
   const vol  = _selVol || 0;
   const unit = document.getElementById('wo-vol-unit')?.value || 'l';
   const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг'}[unit]||'л';
+
+  // Відправляємо на backend
+  try {
+    const { writeoffsAPI } = await import('../shared/api.js');
+    await writeoffsAPI.create({
+      items: [{
+        productName: _selProd?.name || 'Товар',
+        productId:   _selProd?.id   || null,
+        qty:         vol,
+        unit:        uLbl,
+      }],
+      category: CAT[_selCat]?.label || _selCat || 'Інше',
+      reason:   _selReason || null,
+    });
+    console.log('[Writeoff] Збережено в БД');
+  } catch (err) {
+    console.warn('[Writeoff] Backend недоступний, зберігаємо локально:', err.message);
+  }
+
   _formOpen = false;
   _succOpen = true;
-  // inject success into overlay directly
   const subEl  = document.getElementById('wo-succ-sub');
   const pillEl = document.getElementById('wo-succ-pill');
   if (subEl)  subEl.textContent  = `${_selProd?.name||'Товар'} · ${CAT[_selCat]?.label||''} · записано в журнал`;
