@@ -376,7 +376,32 @@ function fullRender() {
 ════════════════════════ */
 function shoot()         { _step = 'preview'; fullRender(); }
 function retake()        { _step = 'camera';  fullRender(); }
-function sendToTelegram(){ _step = 'sent';    fullRender(); }
+async function sendToTelegram() {
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch('https://barops-backend-production.up.railway.app/api/excise', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        code:        _scanResult?.code || 'Не розпізнано',
+        productName: _scanResult?.name || 'Невідомий товар',
+        venueName:   state.venue,
+        barmanName:  state.user || 'Бармен',
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      console.log('[Excise] Надіслано в Telegram ✓');
+    }
+  } catch (err) {
+    console.warn('[Excise] Backend недоступний:', err.message);
+  }
+  _step = 'sent';
+  fullRender();
+}
 function scanNext()      { _step = 'camera';  fullRender(); }
 
 function saveTg() {
