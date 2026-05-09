@@ -82,6 +82,7 @@ const CSS = `<style id="auth-styles">
 /* Spinner */
 .auth-spinner{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
 /* Phone display on PIN screen */
 .auth-phone-badge{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:24px;cursor:pointer}
@@ -135,6 +136,7 @@ function viewWelcome() {
    VIEW: PHONE
 ════════════════════════════════════ */
 function viewPhone() {
+  const phoneDigits = _phone ? _phone.replace('+380','') : '';
   return `
   <div class="auth-view ${_view==='phone'?'active':''}" id="auth-phone">
     <div class="auth-inner">
@@ -146,34 +148,46 @@ function viewPhone() {
         </div>
       </div>
 
-      <div class="auth-phone-wrap" onclick="document.getElementById('phone-inp').focus()">
-        <div class="auth-phone-flag">🇺🇦</div>
-        <div style="display:flex;align-items:center;flex:1;padding-left:4px">
-          <span style="font-size:20px;font-family:var(--font-h);font-weight:600;color:var(--text2);white-space:nowrap">+380</span>
+      <!-- Центрований блок як PIN -->
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:20px">
+
+        <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:20px;letter-spacing:.04em">
+          🇺🇦 Україна · +380
+        </div>
+
+        <!-- Велике поле номера -->
+        <div style="position:relative;width:100%;max-width:320px" onclick="document.getElementById('phone-inp').focus()">
+          <div style="display:flex;align-items:baseline;justify-content:center;gap:4px;padding:16px 20px;background:var(--bg2);border:1.5px solid ${phoneDigits.length>=9?'var(--green)':'var(--border2)'};border-radius:18px;transition:border-color .2s;min-height:72px">
+            <span style="font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1;padding-top:6px">+380</span>
+            <span style="font-size:32px;font-family:var(--font-h);font-weight:700;color:${phoneDigits?'var(--text0)':'var(--text2)'};letter-spacing:.04em;min-width:4px">
+              ${phoneDigits || ''}
+            </span>
+            <span class="phone-cursor" style="width:2px;height:34px;background:var(--green);border-radius:1px;animation:blink 1s ease infinite;display:inline-block;vertical-align:middle;margin-left:2px"></span>
+          </div>
           <input
             id="phone-inp"
-            class="auth-phone-input"
             type="tel"
             inputmode="numeric"
-            placeholder=" 73 XXX XX XX"
             maxlength="9"
             autocomplete="tel"
-            value="${_phone ? _phone.replace('+380','') : ''}"
+            value="${phoneDigits}"
             oninput="window.__auth.onPhoneInput(this)"
             onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
-            style="padding-left:4px"
+            style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer"
           />
         </div>
+
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:12px">
+          ${phoneDigits.length}/9 цифр
+        </div>
+
       </div>
-      <div class="auth-phone-hint">Україна · введіть 9 цифр після +380</div>
 
-      <div class="auth-error" id="phone-err">Введіть коректний номер (10 цифр)</div>
-
-      <div class="auth-spacer"></div>
+      <div class="auth-error" id="phone-err">Введіть коректний номер (9 цифр)</div>
 
       <button class="auth-btn auth-btn-primary" id="phone-next-btn"
         onclick="window.__auth.submitPhone()"
-        ${_phone.replace(/\D/g,'').length >= 10 ? '' : 'disabled'}>
+        ${phoneDigits.length >= 9 ? '' : 'disabled'}>
         Далі →
       </button>
       <div style="height:12px"></div>
@@ -276,23 +290,35 @@ function goTo(sub) {
    PHONE LOGIC
 ════════════════════════════════════ */
 function onPhoneInput(inp) {
-  // Залишаємо тільки цифри
   let digits = inp.value.replace(/\D/g, '');
-  // Якщо починається з 380 — прибираємо префікс
   if (digits.startsWith('380')) digits = digits.slice(3);
   else if (digits.startsWith('38')) digits = digits.slice(2);
   else if (digits.startsWith('0')) digits = digits.slice(1);
-  // Обмежуємо до 9 цифр
   digits = digits.slice(0, 9);
   inp.value = digits;
   _phone = '+380' + digits;
 
-  // Активуємо кнопку
+  // Оновлюємо відображення цифр
+  const display = inp.parentElement?.querySelector('span:nth-child(2)');
+  if (display) display.textContent = digits;
+
+  // Оновлюємо лічильник
+  const counter = inp.parentElement?.parentElement?.nextElementSibling;
+  if (counter) counter.textContent = digits.length + '/9 цифр';
+
+  // Оновлюємо колір рамки
+  const wrap = inp.parentElement?.querySelector('div');
+  if (wrap) wrap.style.borderColor = digits.length >= 9 ? 'var(--green)' : 'var(--border2)';
+
   const btn = document.getElementById('phone-next-btn');
   if (btn) btn.disabled = digits.length < 9;
 
-  // Приховуємо помилку
   document.getElementById('phone-err')?.classList.remove('show');
+
+  // Автоперехід на PIN після 9 цифр
+  if (digits.length === 9) {
+    setTimeout(() => submitPhone(), 300);
+  }
 }
 
 function submitPhone() {
