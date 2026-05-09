@@ -10,6 +10,7 @@ import { navigate, state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 
 let _view          = 'welcome';  // welcome | login | manager-setup
+let _inputMode     = 'phone';    // 'phone' | 'pin'
 let _selectedRole  = null;
 let _selectedVenue = '';
 let _phone         = '';
@@ -167,8 +168,14 @@ function viewLogin() {
       <div class="auth-screen-title">Вхід до BarOps</div>
     </div>
 
-    <div class="auth-lbl">Номер телефону</div>
-    <div class="auth-field-wrap" id="phone-wrap">
+    <div class="auth-lbl" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Номер телефону</span>
+      <span id="phone-active-badge" style="font-size:10px;color:var(--green);font-family:var(--font-b);display:flex;align-items:center;gap:4px">
+        <span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block"></span>
+        активне поле
+      </span>
+    </div>
+    <div class="auth-field-wrap" id="phone-wrap" style="cursor:pointer" onclick="window.__auth.setMode('phone')">
       <div class="auth-field-prefix">
         <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
           <rect width="18" height="4" fill="#005BBB"/>
@@ -177,14 +184,19 @@ function viewLogin() {
         </svg>
       </div>
       <input class="auth-inp with-prefix" id="login-phone" type="tel"
-        placeholder="73 XXX XX XX" maxlength="17"
-        oninput="window.__auth.formatPhone(this);window.__auth.checkPhoneDone(this)"
-        onchange="window.__auth.onPhoneChange()"/>
+        placeholder="73 XXX XX XX" maxlength="17" readonly
+        onclick="window.__auth.setMode('phone')"/>
     </div>
     <div class="auth-err" id="phone-err">Введіть коректний номер телефону</div>
 
-    <div class="auth-lbl">PIN-код</div>
-    <div class="auth-pin-row">${dots}</div>
+    <div class="auth-lbl" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="window.__auth.setMode('pin')">
+      <span>PIN-код</span>
+      <span id="pin-active-badge" style="font-size:10px;color:var(--text2);font-family:var(--font-b);display:flex;align-items:center;gap:4px;display:none">
+        <span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block"></span>
+        активне поле
+      </span>
+    </div>
+    <div class="auth-pin-row" style="cursor:pointer" onclick="window.__auth.setMode('pin')">${dots}</div>
     <div class="auth-pin-keypad">${keys}</div>
 
     <div class="auth-error-banner" id="login-err"></div>
@@ -293,8 +305,9 @@ function goTo(sub) {
     if (sub === 'login') {
       const ph = document.getElementById('login-phone');
       if (ph && !ph.value) ph.value = '+380 ';
-      // Підсвічуємо поле щоб показати що треба вводити
+      _inputMode = 'phone';
       updatePinDots('pin-dot');
+      setTimeout(() => setMode('phone'), 50);
     }
   });
   _view = sub;
@@ -328,25 +341,27 @@ function onPhoneChange() {
    PIN KEYPAD — Login
 ════════════════════════════════════ */
 function pinAdd(digit) {
-  const phoneInp = document.getElementById('login-phone');
-  const phoneDigits = (phoneInp?.value || '').replace(/\D/g, '');
-
-  // Якщо телефон ще не заповнений — вводимо в телефон
-  if (phoneDigits.length < 12) {
+  if (_inputMode === 'phone') {
+    const phoneInp = document.getElementById('login-phone');
     if (phoneInp) {
-      // Додаємо цифру до raw значення (без форматування)
-      const raw = phoneInp.value.replace(/\D/g, '');
-      const next = raw + digit;
-      // Відновлюємо з префіксом +38
-      phoneInp.value = '+38' + next.replace(/^38/, '').slice(0, 10);
+      const raw = phoneInp.value.replace(/\D/g, '').replace(/^380?/, '');
+      if (raw.length >= 9) {
+        // Телефон заповнено — автоматично перемикаємо на PIN
+        setMode('pin');
+        pinAdd(digit);
+        return;
+      }
+      phoneInp.value = '+380' + raw + digit;
       formatPhone(phoneInp);
       const newDigits = phoneInp.value.replace(/\D/g, '');
-      if (newDigits.length >= 12) phoneInp.blur();
+      if (newDigits.length >= 12) {
+        setTimeout(() => setMode('pin'), 200);
+      }
     }
     return;
   }
 
-  // Телефон заповнено — вводимо PIN
+  // PIN mode
   if (_pin.length >= 4) return;
   _pin += digit;
   updatePinDots('pin-dot');
@@ -356,19 +371,24 @@ function pinAdd(digit) {
   }
 }
 function pinDel() {
-  const phoneInp = document.getElementById('login-phone');
-  const phoneDigits = (phoneInp?.value || '').replace(/\D/g, '');
-
-  // Якщо PIN порожній — видаляємо з телефону
-  if (_pin.length === 0) {
-    if (phoneInp && phoneDigits.length > 2) {
-      const raw = phoneDigits.slice(0, -1);
-      phoneInp.value = '+38' + raw.replace(/^38/, '');
-      formatPhone(phoneInp);
+  if (_inputMode === 'phone') {
+    const phoneInp = document.getElementById('login-phone');
+    if (phoneInp) {
+      const raw = phoneInp.value.replace(/\D/g, '').replace(/^380?/, '');
+      if (raw.length > 0) {
+        phoneInp.value = '+380' + raw.slice(0, -1);
+        formatPhone(phoneInp);
+      }
     }
     return;
   }
 
+  // PIN mode
+  if (_pin.length === 0) {
+    // Якщо PIN порожній і натиснули backspace — повертаємось до телефону
+    setMode('phone');
+    return;
+  }
   _pin = _pin.slice(0, -1);
   updatePinDots('pin-dot');
   const btn = document.getElementById('login-btn');
@@ -538,6 +558,25 @@ async function loadVenues() {
 }
 
 
+function setMode(mode) {
+  _inputMode = mode;
+  const phoneBadge = document.getElementById('phone-active-badge');
+  const pinBadge   = document.getElementById('pin-active-badge');
+  const phoneWrap  = document.getElementById('phone-wrap');
+
+  if (mode === 'phone') {
+    if (phoneBadge) phoneBadge.style.display = 'flex';
+    if (pinBadge)   pinBadge.style.display   = 'none';
+    if (phoneWrap)  phoneWrap.style.borderColor = 'var(--green)';
+    if (phoneWrap)  phoneWrap.style.boxShadow  = '0 0 0 3px rgba(29,158,117,.1)';
+  } else {
+    if (phoneBadge) phoneBadge.style.display = 'none';
+    if (pinBadge)   pinBadge.style.display   = 'flex';
+    if (phoneWrap)  phoneWrap.style.borderColor = '';
+    if (phoneWrap)  phoneWrap.style.boxShadow  = '';
+  }
+}
+
 function checkPhoneDone(inp) {
   const digits = inp.value.replace(/\D/g, '');
   if (digits.length >= 12) {
@@ -565,7 +604,7 @@ export default {
 
   init() {
     window.__auth = {
-      goTo, formatPhone, onPhoneChange, checkPhoneDone,
+      goTo, formatPhone, onPhoneChange, checkPhoneDone, setMode,
       pinAdd, pinDel, mpinAdd, mpinDel,
       doLogin, doManagerSetup,
     };
