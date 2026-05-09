@@ -12,6 +12,7 @@ const API = 'https://barops-backend-production.up.railway.app';
    STATE
 ════════════════════════ */
 let _team       = [];     // реальні дані з бекенду
+let _venues     = [];     // список закладів
 let _loading    = true;
 let _openId     = null;   // відкритий профіль
 let _sheetMode  = null;   // null | 'add' | 'edit'
@@ -312,6 +313,13 @@ function addSheetHTML() {
           onpaste="setTimeout(()=>window.__tm.formatAddPhone(document.getElementById('add-phone')),10)"/>
       </div>
 
+      <div class="tm-sh-lbl">Заклад</div>
+      <select class="tm-sh-inp" id="add-venue" style="appearance:none;-webkit-appearance:none;cursor:pointer;color:var(--text0)"
+        onchange="window.__tm.selectVenue(this.value)">
+        <option value="">Оберіть заклад...</option>
+        ${_venues.map(v => `<option value="${v.id}" ${v.id === _selectedVenueId ? 'selected' : ''}>${v.name}</option>`).join('')}
+      </select>
+
       <div class="tm-sh-lbl">Роль</div>
       <div class="tm-sh-roles">
         <div class="tm-sh-role sel" id="role-bartender" onclick="window.__tm.selectRole('bartender')">🍸 Бармен</div>
@@ -463,7 +471,12 @@ function closeSheetOverlay(e) {
   if (e.target === document.getElementById('tm-sheet-overlay')) closeSheet();
 }
 
-let _selectedRole = 'BARTENDER';
+let _selectedRole   = 'BARTENDER';
+let _selectedVenueId = '';  // заклад для нового бармена
+function selectVenue(id) {
+  _selectedVenueId = id;
+}
+
 function selectRole(r) {
   _selectedRole = r.toUpperCase();
   document.querySelectorAll('.tm-sh-role').forEach(el => el.classList.remove('sel'));
@@ -539,8 +552,14 @@ async function submitAdd() {
   const errEl = document.getElementById('add-err');
   const btn   = document.getElementById('add-send-btn');
 
+  const venueId = document.getElementById('add-venue')?.value || _selectedVenueId;
+
   if (!name || !phone || phone.replace(/\D/g,'').length < 11) {
     if (errEl) { errEl.textContent = 'Вкажіть ім\'я і коректний телефон'; errEl.classList.add('show'); }
+    return;
+  }
+  if (!venueId) {
+    if (errEl) { errEl.textContent = 'Оберіть заклад'; errEl.classList.add('show'); }
     return;
   }
   if (_addPin.length < 4) {
@@ -563,10 +582,11 @@ async function submitAdd() {
   if (btn) btn.disabled = true;
 
   try {
+    const venueId = document.getElementById('add-venue')?.value || _selectedVenueId;
     const res = await fetch(`${API}/api/auth/add-bartender`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-      body:    JSON.stringify({ name, phone, pin: _addPin, role: _selectedRole }),
+      body:    JSON.stringify({ name, phone, pin: _addPin, role: _selectedRole, venueId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка');
@@ -672,6 +692,11 @@ async function loadTeam() {
   _loading = true;
   fullRender();
   try {
+    // Завантажуємо заклади
+    const vRes  = await fetch(`${API}/api/auth/venues`);
+    const vData = await vRes.json();
+    if (vData.venues) _venues = vData.venues;
+
     const res  = await fetch(`${API}/api/auth/team`, {
       headers: { Authorization: `Bearer ${token()}` },
     });
@@ -700,7 +725,7 @@ export default {
     window.__tm = {
       openProfile, closeProfile,
       openAdd, openEdit, closeSheet, closeSheetOverlay,
-      selectRole, pinAdd, pinDel,
+      selectRole, selectVenue, pinAdd, pinDel,
       submitAdd, submitEdit,
       deactivate, activate,
       formatAddPhone, pastePhone,
