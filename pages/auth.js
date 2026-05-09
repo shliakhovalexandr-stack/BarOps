@@ -283,8 +283,7 @@ function onPhoneInput(inp) {
   let digits = inp.value.replace(/\D/g, '');
   if (digits.startsWith('380')) digits = digits.slice(3);
   else if (digits.startsWith('38')) digits = digits.slice(2);
-  else if (digits.startsWith('0')) digits = digits.slice(1);
-  digits = digits.slice(0, 9);
+  digits = digits.slice(0, 10);
   inp.value = digits;
   _phone = '+38' + digits;
 
