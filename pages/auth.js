@@ -57,10 +57,11 @@ const CSS = `<style id="auth-styles">
 .auth-screen-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 
 /* Phone field */
-.auth-phone-wrap{background:var(--bg2);border:1.5px solid var(--green);border-radius:16px;display:flex;align-items:center;gap:0;overflow:hidden;margin-bottom:8px;box-shadow:0 0 0 3px rgba(29,158,117,.08)}
-.auth-phone-flag{width:58px;height:58px;display:flex;align-items:center;justify-content:center;border-right:0.5px solid var(--border2);flex-shrink:0;font-size:24px}
-.auth-phone-input{flex:1;height:58px;background:transparent;border:none;outline:none;color:var(--text0);font-size:20px;font-family:var(--font-h);font-weight:600;padding:0 16px;letter-spacing:.02em}
-.auth-phone-input::placeholder{color:var(--text2);font-size:16px;font-weight:400;font-family:var(--font-b)}
+.auth-phone-wrap{background:var(--bg2);border:1.5px solid var(--border2);border-radius:16px;display:flex;align-items:center;gap:0;overflow:hidden;margin-bottom:8px;transition:border-color .2s}
+.auth-phone-wrap:focus-within{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.08)}
+.auth-phone-flag{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-right:0.5px solid var(--border2);flex-shrink:0;font-size:24px}
+.auth-phone-input{flex:1;height:56px;background:transparent;border:none;outline:none;color:var(--text0);font-size:18px;font-family:var(--font-h);font-weight:600;padding:0 16px}
+.auth-phone-input::placeholder{color:var(--text2);font-size:15px;font-weight:400;font-family:var(--font-b)}
 .auth-phone-hint{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:24px;padding-left:4px}
 
 /* PIN squares */
@@ -149,37 +150,30 @@ function viewPhone() {
         </div>
       </div>
 
-      <!-- Центр екрану як PIN -->
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
-
-        <!-- Прапор + поле в одному рядку -->
-        <div style="display:flex;align-items:center;gap:0;width:100%;background:var(--bg2);border:1.5px solid ${phoneDigits.length>=9?'var(--green)':'var(--border2)'};border-radius:16px;overflow:hidden;transition:border-color .2s"
-             onclick="document.getElementById('phone-inp').focus()">
-          <!-- Прапор кнопка -->
-          <div style="display:flex;align-items:center;gap:6px;padding:0 14px;height:58px;border-right:0.5px solid var(--border2);flex-shrink:0">
-            <span style="font-size:24px">🇺🇦</span>
-            <span style="font-size:14px;color:var(--text2);font-family:var(--font-b)">+380</span>
-          </div>
-          <!-- Поле вводу -->
+      <!-- Поле вводу -->
+      <div class="auth-phone-wrap" id="phone-wrap" onclick="document.getElementById('phone-inp').focus()">
+        <div class="auth-phone-flag">🇺🇦</div>
+        <div style="display:flex;align-items:center;flex:1">
+          <span style="font-size:17px;font-family:var(--font-h);font-weight:600;color:var(--text2);white-space:nowrap;padding-left:2px">+380</span>
           <input
             id="phone-inp"
             type="tel"
             inputmode="numeric"
             maxlength="9"
             autocomplete="tel"
-            placeholder="XX XXX XX XX"
+            placeholder=" XX XXX XX XX"
             value="${phoneDigits}"
             oninput="window.__auth.onPhoneInput(this)"
             onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
-            style="flex:1;height:58px;background:transparent;border:none;outline:none;font-size:22px;font-family:var(--font-h);font-weight:600;color:var(--text0);padding:0 16px;letter-spacing:.04em"
+            style="flex:1;height:56px;background:transparent;border:none;outline:none;font-size:18px;font-family:var(--font-h);font-weight:600;color:var(--text0);padding:0 8px;-webkit-text-fill-color:var(--text0)"
           />
         </div>
-
-        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">${phoneDigits.length}/9 цифр</div>
-
       </div>
+      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding-left:4px;margin-bottom:16px">Україна · +380</div>
 
       <div class="auth-error" id="phone-err">Введіть коректний номер (9 цифр)</div>
+
+      <div class="auth-spacer"></div>
 
       <button class="auth-btn auth-btn-primary" id="phone-next-btn"
         onclick="window.__auth.submitPhone()"
@@ -293,14 +287,6 @@ function onPhoneInput(inp) {
   digits = digits.slice(0, 9);
   inp.value = digits;
   _phone = '+380' + digits;
-
-  // Оновлюємо рамку
-  const wrap = inp.parentElement;
-  if (wrap) wrap.style.borderColor = digits.length >= 9 ? 'var(--green)' : 'var(--border2)';
-
-  // Оновлюємо лічильник
-  const counter = wrap?.parentElement?.nextElementSibling;
-  if (counter) counter.textContent = digits.length + '/9 цифр';
 
   const btn = document.getElementById('phone-next-btn');
   if (btn) btn.disabled = digits.length < 9;
