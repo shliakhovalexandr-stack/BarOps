@@ -411,37 +411,62 @@ function retake() {
 async function sendToTelegram() {
   if (!_photoFile) return;
 
-  const btn = document.getElementById('exc-send-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<div class="exc-spinner"></div> Надсилання...`;
-  }
+  const btn     = document.getElementById('exc-send-btn');
+  const errEl   = document.getElementById('exc-send-err');
+  if (btn) { btn.disabled = true; btn.innerHTML = `<div class="exc-spinner"></div> Надсилання...`; }
 
   try {
-    const token = localStorage.getItem('barops_token');
+    const token     = localStorage.getItem('barops_token');
     const venueName = state.venue || '';
 
-    // Надсилаємо фото як multipart/form-data
+    if (!venueName) throw new Error('Заклад не визначено. Вийдіть і увійдіть знову.');
+    if (!token)     throw new Error('Токен відсутній. Вийдіть і увійдіть знову.');
+
     const formData = new FormData();
     formData.append('photo',      _photoFile);
     formData.append('venueName',  venueName);
     formData.append('barmanName', state.user || 'Бармен');
 
-    const res = await fetch('https://barops-backend-production.up.railway.app/api/excise/photo', {
+    console.log('[Excise] Відправляємо фото:', { venueName, user: state.user, size: _photoFile.size });
+
+    const res  = await fetch('https://barops-backend-production.up.railway.app/api/excise/photo', {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body:    formData,
     });
 
     const data = await res.json();
-    console.log('[Excise] Відповідь:', data);
+    console.log('[Excise] Відповідь бекенду:', data);
+
+    if (!res.ok) throw new Error(data.error || `Помилка сервера ${res.status}`);
+    if (!data.sent) throw new Error('Telegram не відповів. Перевірте налаштування бота.');
+
+    _step = 'sent';
+    fullRender();
 
   } catch (err) {
-    console.warn('[Excise] Помилка надсилання:', err.message);
+    console.error('[Excise] Помилка:', err.message);
+    // Показуємо помилку на кнопці
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `⚠️ Помилка — спробувати знову`;
+      btn.style.background = 'var(--red)';
+    }
+    // Показуємо текст помилки
+    const errDiv = document.getElementById('exc-send-err');
+    if (errDiv) { errDiv.textContent = err.message; errDiv.style.display = 'block'; }
+    else {
+      // Додаємо елемент помилки якщо немає
+      const actions = document.querySelector('.exc-preview-actions');
+      if (actions) {
+        const div = document.createElement('div');
+        div.id = 'exc-send-err';
+        div.style.cssText = 'color:var(--red);font-size:12px;font-family:var(--font-b);text-align:center;padding:4px 0 8px';
+        div.textContent = err.message;
+        actions.prepend(div);
+      }
+    }
   }
-
-  _step = 'sent';
-  fullRender();
 }
 
 function scanNext() {
