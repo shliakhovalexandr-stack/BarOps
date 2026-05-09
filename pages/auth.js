@@ -598,18 +598,30 @@ export default {
     goTo(_view);
     loadVenues();
 
-    // Відновлюємо сесію якщо токен є
+    // Відновлюємо сесію якщо токен є і він дійсний
     const token = localStorage.getItem('barops_token');
     if (token) {
       state.role  = localStorage.getItem('barops_role')  || 'bartender';
       state.venue = localStorage.getItem('barops_venue') || '';
       state.user  = localStorage.getItem('barops_user')  || 'Бармен';
-      // Перевіряємо чи токен дійсний
+      // Перевіряємо чи токен дійсний на бекенді
       fetch(`${API}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       }).then(r => {
-        if (r.ok) navigate('dashboard');
-      }).catch(() => {});
+        if (r.ok) {
+          navigate('dashboard');
+        } else {
+          // Токен недійсний — очищаємо і показуємо логін
+          localStorage.removeItem('barops_token');
+          localStorage.removeItem('barops_refresh');
+          localStorage.removeItem('barops_venue');
+          localStorage.removeItem('barops_role');
+          localStorage.removeItem('barops_user');
+        }
+      }).catch(() => {
+        // Офлайн — входимо з кешованими даними
+        if (state.venue && state.role) navigate('dashboard');
+      });
     }
   },
 };

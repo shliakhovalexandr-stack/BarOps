@@ -404,6 +404,17 @@ export async function bootstrap() {
   window.__barops = {
     navigate, goBack, setRole, state,
     openDrawer, closeDrawer, switchVenue, addVenuePrompt,
+    logout: function() {
+      localStorage.removeItem('barops_token');
+      localStorage.removeItem('barops_refresh');
+      localStorage.removeItem('barops_venue');
+      localStorage.removeItem('barops_role');
+      localStorage.removeItem('barops_user');
+      state.role  = 'bartender';
+      state.venue = '';
+      state.user  = '';
+      navigate('auth', { replace: true });
+    },
   };
   updateClock();
   setInterval(updateClock, 1000);
