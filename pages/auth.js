@@ -177,7 +177,7 @@ function viewLogin() {
         </svg>
       </div>
       <input class="auth-inp with-prefix" id="login-phone" type="tel"
-        placeholder="+380 XX XXX XX XX" maxlength="17"
+        placeholder="73 XXX XX XX" maxlength="17"
         oninput="window.__auth.formatPhone(this);window.__auth.checkPhoneDone(this)"
         onchange="window.__auth.onPhoneChange()"/>
     </div>
@@ -287,7 +287,16 @@ function goTo(sub) {
   });
   _pin = '';
   const t = document.getElementById('auth-' + sub);
-  if (t) requestAnimationFrame(() => t.classList.add('active'));
+  if (t) requestAnimationFrame(() => {
+    t.classList.add('active');
+    // Ініціалізуємо поле телефону з +380
+    if (sub === 'login') {
+      const ph = document.getElementById('login-phone');
+      if (ph && !ph.value) ph.value = '+380 ';
+      // Підсвічуємо поле щоб показати що треба вводити
+      updatePinDots('pin-dot');
+    }
+  });
   _view = sub;
 }
 
@@ -295,17 +304,19 @@ function goTo(sub) {
    PHONE FORMAT
 ════════════════════════════════════ */
 function formatPhone(inp) {
-  let v = inp.value.replace(/\D/g, '');
-  if (v.startsWith('380'))    v = '+' + v;
-  else if (v.startsWith('0')) v = '+38' + v;
-  else if (!v.startsWith('+')) v = '+380' + v;
-  const d = v.replace(/\D/g, '');
-  let fmt = '+';
-  if (d.length > 0) fmt += d.slice(0, 3);
-  if (d.length > 3) fmt += ' ' + d.slice(3, 5);
-  if (d.length > 5) fmt += ' ' + d.slice(5, 8);
-  if (d.length > 8) fmt += ' ' + d.slice(8, 10);
-  if (d.length > 10) fmt += ' ' + d.slice(10, 12);
+  // Завжди тримаємо +380 як префікс
+  let digits = inp.value.replace(/\D/g, '');
+  // Прибираємо ведучі 380 якщо є
+  if (digits.startsWith('380')) digits = digits.slice(3);
+  else if (digits.startsWith('38')) digits = digits.slice(2);
+  // Обмежуємо до 9 цифр після +380 (напр. 731911940)
+  digits = digits.slice(0, 9);
+  // Форматуємо: +380 73 XXX XX XX
+  let fmt = '+380';
+  if (digits.length > 0) fmt += ' ' + digits.slice(0, 2);
+  if (digits.length > 2) fmt += ' ' + digits.slice(2, 5);
+  if (digits.length > 5) fmt += ' ' + digits.slice(5, 7);
+  if (digits.length > 7) fmt += ' ' + digits.slice(7, 9);
   inp.value = fmt.trim();
 }
 
@@ -317,12 +328,25 @@ function onPhoneChange() {
    PIN KEYPAD — Login
 ════════════════════════════════════ */
 function pinAdd(digit) {
-  if (document.activeElement?.id === 'login-phone') {
-    document.activeElement.value += digit;
-    formatPhone(document.activeElement);
-    checkPhoneDone(document.activeElement);
+  const phoneInp = document.getElementById('login-phone');
+  const phoneDigits = (phoneInp?.value || '').replace(/\D/g, '');
+
+  // Якщо телефон ще не заповнений — вводимо в телефон
+  if (phoneDigits.length < 12) {
+    if (phoneInp) {
+      // Додаємо цифру до raw значення (без форматування)
+      const raw = phoneInp.value.replace(/\D/g, '');
+      const next = raw + digit;
+      // Відновлюємо з префіксом +38
+      phoneInp.value = '+38' + next.replace(/^38/, '').slice(0, 10);
+      formatPhone(phoneInp);
+      const newDigits = phoneInp.value.replace(/\D/g, '');
+      if (newDigits.length >= 12) phoneInp.blur();
+    }
     return;
   }
+
+  // Телефон заповнено — вводимо PIN
   if (_pin.length >= 4) return;
   _pin += digit;
   updatePinDots('pin-dot');
@@ -332,7 +356,19 @@ function pinAdd(digit) {
   }
 }
 function pinDel() {
-  if (_pin.length === 0) return;
+  const phoneInp = document.getElementById('login-phone');
+  const phoneDigits = (phoneInp?.value || '').replace(/\D/g, '');
+
+  // Якщо PIN порожній — видаляємо з телефону
+  if (_pin.length === 0) {
+    if (phoneInp && phoneDigits.length > 2) {
+      const raw = phoneDigits.slice(0, -1);
+      phoneInp.value = '+38' + raw.replace(/^38/, '');
+      formatPhone(phoneInp);
+    }
+    return;
+  }
+
   _pin = _pin.slice(0, -1);
   updatePinDots('pin-dot');
   const btn = document.getElementById('login-btn');
@@ -507,7 +543,6 @@ function checkPhoneDone(inp) {
   if (digits.length >= 12) {
     _phone = inp.value;
     inp.blur();
-    // Scroll to PIN section smoothly
     document.getElementById('pin-dot-1')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
