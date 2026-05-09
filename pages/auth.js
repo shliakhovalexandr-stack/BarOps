@@ -7,8 +7,10 @@ import { navigate, setRole, state } from '../shared/app.js';
 
 /* ── Internal sub-view state ── */
 let _view = 'welcome'; // 'welcome' | 'login' | 'register' | 'role' | 'otp'
-let _selectedRole = null;
-let _resendTimer = null;
+let _selectedRole  = null;
+let _selectedVenue = '';   // зберігаємо venue до переходу на OTP
+let _phone         = '';   // зберігаємо телефон для verifyOtp
+let _resendTimer   = null;
 
 /* ════════════════════════════════════
    STYLES  (scoped, injected once)
@@ -652,13 +654,18 @@ function selectRole(role) {
 
 function goToOtp() {
   if (!_selectedRole) {
-    // highlight both cards briefly
     document.querySelectorAll('.auth-role-card').forEach(c => {
       c.style.borderColor = 'var(--amber)';
       setTimeout(() => c.style.borderColor = '', 800);
     });
     return;
   }
+  // Зберігаємо venue ДО переходу на OTP (поки select ще в DOM)
+  const venueSelect = document.getElementById('venue-select');
+  if (venueSelect?.value) _selectedVenue = venueSelect.value;
+  // Зберігаємо телефон
+  const phoneInput = document.getElementById('reg-phone');
+  if (phoneInput?.value) _phone = phoneInput.value.replace(/\s/g, '');
   goTo('otp');
 }
 
@@ -697,7 +704,9 @@ async function doVerify() {
     if (data.user) {
       state.user    = data.user.name;
       state.role    = data.user.role;
-      state.venue   = 'Sky Lounge';
+      state.venue   = _selectedVenue || data.user.venueName || 'Sky Lounge';
+      localStorage.setItem('barops_venue', state.venue);
+      localStorage.setItem('barops_token', data.token || '');
     }
     setTimeout(() => _finalizeLogin(data.user?.role), 500);
 
@@ -740,12 +749,12 @@ function startResend() {
 
 function _finalizeLogin(role) {
   const r = role || _selectedRole || 'bartender';
-  state.role = r;
-  // Зберігаємо обраний заклад
-  const venueSelect = document.getElementById('venue-select');
-  if (venueSelect?.value) {
-    state.venue = venueSelect.value;
-  }
+  state.role  = r;
+  state.venue = _selectedVenue || localStorage.getItem('barops_venue') || '';
+  state.user  = state.user || localStorage.getItem('barops_user') || 'Бармен';
+  // Зберігаємо у localStorage для відновлення сесії
+  localStorage.setItem('barops_role',  r);
+  localStorage.setItem('barops_venue', state.venue);
   navigate('dashboard');
 }
 
