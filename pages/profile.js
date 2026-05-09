@@ -219,7 +219,7 @@ function mgrProfileHTML() {
       </div>
     </div>
 
-    <button class="prof-logout" onclick="window.__barops.navigate('auth')">
+    <button class="prof-logout" onclick="window.__prof.logout()">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/>
         <path d="M10 11l3-3-3-3M13 8H6" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -351,7 +351,7 @@ ${CSS}
     </div>
 
     <!-- Вихід -->
-    <button class="prof-logout" onclick="window.__barops.navigate('auth')">
+    <button class="prof-logout" onclick="window.__prof.logout()">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/>
         <path d="M10 11l3-3-3-3M13 8H6" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -367,6 +367,16 @@ ${CSS}
 /* ════════════════════════
    PAGE MODULE EXPORT
 ════════════════════════ */
+
+function doLogout() {
+  localStorage.removeItem('barops_token');
+  localStorage.removeItem('barops_refresh');
+  localStorage.removeItem('barops_venue');
+  localStorage.removeItem('barops_role');
+  localStorage.removeItem('barops_user');
+  window.__barops.navigate('auth');
+}
+
 export default {
   render() { return buildHTML(); },
   init()   {},
