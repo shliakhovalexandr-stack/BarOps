@@ -357,7 +357,7 @@ function editSheetHTML() {
       <input class="tm-sh-inp" id="edit-name" type="text" placeholder="${t.name}" value="${t.name}"/>
 
       <div class="tm-sh-lbl">Новий PIN (залиште порожнім щоб не змінювати)</div>
-      ${pinKeypadHTML('add', currentPin, _pinStep === 'confirm' ? 'Підтвердіть новий PIN' : 'Новий PIN (4 цифри)')}
+      ${pinKeypadHTML('add', currentPin, 'Новий PIN (4 цифри) — необов\'язково')}
 
       <div class="tm-sh-err" id="edit-err"></div>
       <button class="tm-sh-send" id="edit-send-btn" onclick="window.__tm.submitEdit()">
@@ -611,19 +611,8 @@ async function submitEdit() {
   const body  = {};
 
   if (name && name !== t.name) body.name = name;
-  if (_addPin.length === 4) {
-    if (_pinStep === 'first') {
-      _pinStep = 'confirm';
-      fullRender();
-      return;
-    }
-    if (_addPin !== _addPinConfirm) {
-      if (errEl) { errEl.textContent = 'PIN-коди не збігаються'; errEl.classList.add('show'); }
-      _addPinConfirm = '';
-      _pinStep = 'first';
-      fullRender();
-      return;
-    }
+  // PIN — просто зберігаємо без підтвердження (менеджер сам встановлює)
+  if (_addPin.length >= 4) {
     body.pin = _addPin;
   }
 
