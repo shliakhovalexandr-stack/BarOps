@@ -206,11 +206,6 @@ function viewLogin() {
       Увійти
     </button>
 
-    <div class="auth-demo-hint">
-      <strong style="color:var(--text0)">Демо-режим:</strong><br/>
-      Будь-який номер + PIN <strong>1234</strong><br/>
-      <span style="opacity:.6">або збережені дані менеджера</span>
-    </div>
     <div style="height:24px"></div>
   </div>`;
 }
@@ -454,14 +449,6 @@ async function doLogin() {
     navigate('dashboard');
 
   } catch (err) {
-    // Демо-fallback: PIN 1234
-    if (_pin === '1234') {
-      state.role  = 'bartender';
-      state.venue = 'La Pasta';
-      state.user  = 'Бармен (демо)';
-      navigate('dashboard');
-      return;
-    }
     if (errEl) {
       errEl.textContent = err.message;
       errEl.classList.add('show');
