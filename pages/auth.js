@@ -178,7 +178,7 @@ function viewLogin() {
       </div>
       <input class="auth-inp with-prefix" id="login-phone" type="tel"
         placeholder="+380 XX XXX XX XX" maxlength="17"
-        oninput="window.__auth.formatPhone(this)"
+        oninput="window.__auth.formatPhone(this);window.__auth.checkPhoneDone(this)"
         onchange="window.__auth.onPhoneChange()"/>
     </div>
     <div class="auth-err" id="phone-err">Введіть коректний номер телефону</div>
@@ -317,6 +317,12 @@ function onPhoneChange() {
    PIN KEYPAD — Login
 ════════════════════════════════════ */
 function pinAdd(digit) {
+  if (document.activeElement?.id === 'login-phone') {
+    document.activeElement.value += digit;
+    formatPhone(document.activeElement);
+    checkPhoneDone(document.activeElement);
+    return;
+  }
   if (_pin.length >= 4) return;
   _pin += digit;
   updatePinDots('pin-dot');
@@ -495,6 +501,17 @@ async function loadVenues() {
   } catch { /* ігноруємо — офлайн */ }
 }
 
+
+function checkPhoneDone(inp) {
+  const digits = inp.value.replace(/\D/g, '');
+  if (digits.length >= 12) {
+    _phone = inp.value;
+    inp.blur();
+    // Scroll to PIN section smoothly
+    document.getElementById('pin-dot-1')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 /* ════════════════════════════════════
    PAGE MODULE EXPORT
 ════════════════════════════════════ */
@@ -513,7 +530,7 @@ export default {
 
   init() {
     window.__auth = {
-      goTo, formatPhone, onPhoneChange,
+      goTo, formatPhone, onPhoneChange, checkPhoneDone,
       pinAdd, pinDel, mpinAdd, mpinDel,
       doLogin, doManagerSetup,
     };
