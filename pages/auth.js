@@ -161,7 +161,7 @@ function viewPhone() {
             inputmode="numeric"
             maxlength="10"
             autocomplete="tel"
-            placeholder="0XX XXX XX XX"
+            placeholder="··· ··· ·· ··"
             value="${phoneDigits}"
             oninput="window.__auth.onPhoneInput(this)"
             onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
