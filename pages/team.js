@@ -415,8 +415,21 @@ ${CSS}
 }
 
 function fullRender() {
+  // Зберігаємо значення полів форми перед перемальовкою
+  const savedName  = document.getElementById('add-name')?.value  || '';
+  const savedPhone = document.getElementById('add-phone')?.value || '';
+  const savedEditName = document.getElementById('edit-name')?.value || '';
+
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
+
+  // Відновлюємо значення після перемальовки
+  const nameEl  = document.getElementById('add-name');
+  const phoneEl = document.getElementById('add-phone');
+  const editNameEl = document.getElementById('edit-name');
+  if (nameEl  && savedName)  nameEl.value  = savedName;
+  if (phoneEl && savedPhone) phoneEl.value = savedPhone;
+  if (editNameEl && savedEditName) editNameEl.value = savedEditName;
 }
 
 /* ════════════════════════
@@ -468,13 +481,8 @@ function pinAdd(prefix, digit) {
 
   updatePinDots(prefix);
 
-  // Автоперехід до підтвердження
-  if (_sheetMode === 'add' && !isConfirm && _addPin.length === 4) {
-    setTimeout(() => {
-      _pinStep = 'confirm';
-      fullRender();
-    }, 200);
-  }
+  // Оновлюємо тільки крапки, без fullRender
+  // Перехід до підтвердження відбувається при натисканні кнопки submitAdd
 }
 
 function pinDel(prefix) {
