@@ -298,9 +298,19 @@ function addSheetHTML() {
       <div class="tm-sh-lbl">Ім'я та прізвище</div>
       <input class="tm-sh-inp" id="add-name" type="text" placeholder="Олексій Коваленко"/>
 
-      <div class="tm-sh-lbl">Номер телефону</div>
-      <input class="tm-sh-inp" id="add-phone" type="tel" placeholder="+380 67 XXX XX XX"
-        oninput="window.__auth && window.__auth.formatPhone ? window.__auth.formatPhone(this) : null"/>
+      <div class="tm-sh-lbl" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Номер телефону</span>
+        <span onclick="window.__tm.pastePhone()" style="font-size:10px;color:var(--green);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:4px">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="3" width="8" height="8" rx="1.5" stroke="var(--green)" stroke-width="1.2"/><path d="M3 3V2a1 1 0 011-1h5a1 1 0 011 1v6a1 1 0 01-1 1H8" stroke="var(--green)" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Вставити
+        </span>
+      </div>
+      <div style="position:relative">
+        <input class="tm-sh-inp" id="add-phone" type="tel" placeholder="+380 67 XXX XX XX"
+          style="padding-right:48px"
+          oninput="window.__tm.formatAddPhone(this)"
+          onpaste="setTimeout(()=>window.__tm.formatAddPhone(document.getElementById('add-phone')),10)"/>
+      </div>
 
       <div class="tm-sh-lbl">Роль</div>
       <div class="tm-sh-roles">
@@ -379,7 +389,18 @@ ${CSS}
   <div class="tm-scroll">
     ${_loading
       ? `<div class="tm-loading"><div class="tm-spinner"></div><div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Завантаження команди...</div></div>`
-      : teamListHTML()}
+      : _team.length === 0
+        ? `<div class="tm-loading" style="flex-direction:column;gap:16px;padding:32px">
+             <div style="font-size:40px">👥</div>
+             <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);text-align:center">Команда порожня</div>
+             <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.6">Додайте першого бармена
+натиснувши кнопку вище</div>
+             <div class="tm-add-btn" onclick="window.__tm.openAdd()" style="margin:0;width:100%">
+               <div class="tm-add-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+               <div><div class="tm-add-text">Додати першого бармена</div><div class="tm-add-sub">Ім'я, телефон та PIN для входу</div></div>
+             </div>
+           </div>`
+        : teamListHTML()}
   </div>
 
   <!-- Profile overlay -->
@@ -467,6 +488,37 @@ function updatePinDots(prefix) {
   const pin = _pinStep === 'confirm' ? _addPinConfirm : _addPin;
   for (let i = 1; i <= 4; i++) {
     document.getElementById(`${prefix}-dot-${i}`)?.classList.toggle('filled', pin.length >= i);
+  }
+}
+
+/* ════════════════════════
+   PHONE FORMAT IN SHEET
+════════════════════════ */
+function formatAddPhone(inp) {
+  let digits = inp.value.replace(/\D/g, '');
+  if (digits.startsWith('380')) digits = digits.slice(3);
+  else if (digits.startsWith('38')) digits = digits.slice(2);
+  else if (digits.startsWith('0')) digits = digits.slice(1);
+  digits = digits.slice(0, 9);
+  let fmt = '+380';
+  if (digits.length > 0) fmt += ' ' + digits.slice(0, 2);
+  if (digits.length > 2) fmt += ' ' + digits.slice(2, 5);
+  if (digits.length > 5) fmt += ' ' + digits.slice(5, 7);
+  if (digits.length > 7) fmt += ' ' + digits.slice(7, 9);
+  inp.value = fmt.trim();
+}
+
+async function pastePhone() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const inp  = document.getElementById('add-phone');
+    if (inp) {
+      inp.value = text;
+      formatAddPhone(inp);
+    }
+  } catch {
+    // Якщо clipboard недоступний — фокусуємо поле
+    document.getElementById('add-phone')?.focus();
   }
 }
 
@@ -619,10 +671,8 @@ async function loadTeam() {
     if (data.team) _team = data.team;
   } catch {
     // Показуємо демо-дані якщо API недоступне
-    _team = [
-      { id:'demo1', name:'Олексій Коваленко', phone:'+380672341122', role:'BARTENDER', status:'active', lastLogin: new Date().toISOString(), createdAt: new Date().toISOString() },
-      { id:'demo2', name:'Марія Петренко',    phone:'+380503452233', role:'BARTENDER', status:'active', lastLogin: null, createdAt: new Date().toISOString() },
-    ];
+    // Команда порожня — менеджер ще не додав барменів
+    _team = [];
   }
   _loading = false;
   fullRender();
@@ -645,6 +695,7 @@ export default {
       selectRole, pinAdd, pinDel,
       submitAdd, submitEdit,
       deactivate, activate,
+      formatAddPhone, pastePhone,
     };
     loadTeam();
   },
