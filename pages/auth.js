@@ -154,14 +154,14 @@ function viewPhone() {
       <div class="auth-phone-wrap" id="phone-wrap" onclick="document.getElementById('phone-inp').focus()">
         <div class="auth-phone-flag">🇺🇦</div>
         <div style="display:flex;align-items:center;flex:1">
-          <span style="font-size:17px;font-family:var(--font-h);font-weight:600;color:var(--text2);white-space:nowrap;padding-left:2px">+380</span>
+          <span style="font-size:17px;font-family:var(--font-h);font-weight:600;color:var(--text2);white-space:nowrap;padding-left:2px">+38</span>
           <input
             id="phone-inp"
             type="tel"
             inputmode="numeric"
-            maxlength="9"
+            maxlength="10"
             autocomplete="tel"
-            placeholder=" XX XXX XX XX"
+            placeholder="0XX XXX XX XX"
             value="${phoneDigits}"
             oninput="window.__auth.onPhoneInput(this)"
             onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
@@ -169,15 +169,15 @@ function viewPhone() {
           />
         </div>
       </div>
-      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding-left:4px;margin-bottom:16px">Україна · +380</div>
+      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding-left:4px;margin-bottom:16px">Україна · +38</div>
 
-      <div class="auth-error" id="phone-err">Введіть коректний номер (9 цифр)</div>
+      <div class="auth-error" id="phone-err">Введіть коректний номер</div>
 
       <div class="auth-spacer"></div>
 
       <button class="auth-btn auth-btn-primary" id="phone-next-btn"
         onclick="window.__auth.submitPhone()"
-        ${phoneDigits.length >= 9 ? '' : 'disabled'}>
+        ${phoneDigits.length >= 10 ? '' : 'disabled'}>
         Далі →
       </button>
       <div style="height:12px"></div>
@@ -286,23 +286,23 @@ function onPhoneInput(inp) {
   else if (digits.startsWith('0')) digits = digits.slice(1);
   digits = digits.slice(0, 9);
   inp.value = digits;
-  _phone = '+380' + digits;
+  _phone = '+38' + digits;
 
   const btn = document.getElementById('phone-next-btn');
-  if (btn) btn.disabled = digits.length < 9;
+  if (btn) btn.disabled = digits.length < 10;
   document.getElementById('phone-err')?.classList.remove('show');
 
-  if (digits.length === 9) setTimeout(() => submitPhone(), 400);
+  if (digits.length === 10) setTimeout(() => submitPhone(), 400);
 }
 
 function submitPhone() {
   const inp = document.getElementById('phone-inp');
   const digits = (inp?.value || '').replace(/\D/g, '');
-  if (digits.length < 9) {
+  if (digits.length < 10) {
     document.getElementById('phone-err')?.classList.add('show');
     return;
   }
-  _phone = '+380' + digits;
+  _phone = '+38' + digits;
   goTo('pin');
 }
 
