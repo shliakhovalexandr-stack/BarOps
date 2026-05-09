@@ -337,19 +337,6 @@ ${CSS}
       </div>`).join('')}
     </div>
 
-    <!-- Зміна ролі (демо) -->
-    <div class="prof-sec">Демо — зміна ролі</div>
-    <div class="prof-role-switch">
-      <div class="prof-rs-title">Переключити роль</div>
-      <div class="prof-rs-sub">Для демонстрації функцій різних ролей в одному додатку</div>
-      <div class="prof-rs-btns">
-        <button class="prof-rs-btn ${isBartender?'active':'inactive'}"
-                onclick="window.__barops.setRole('bartender')">🍸 Бармен</button>
-        <button class="prof-rs-btn ${!isBartender?'active':'inactive'}"
-                onclick="window.__barops.setRole('manager')">👨‍💼 Менеджер</button>
-      </div>
-    </div>
-
     <!-- Вихід -->
     <button class="prof-logout" onclick="window.__barops.logout()">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
