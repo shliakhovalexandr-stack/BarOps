@@ -137,6 +137,7 @@ function viewWelcome() {
 ════════════════════════════════════ */
 function viewPhone() {
   const phoneDigits = _phone ? _phone.replace('+380','') : '';
+
   return `
   <div class="auth-view ${_view==='phone'?'active':''}" id="auth-phone">
     <div class="auth-inner">
@@ -148,38 +149,33 @@ function viewPhone() {
         </div>
       </div>
 
-      <!-- Центрований блок як PIN -->
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:20px">
+      <!-- Центр екрану як PIN -->
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
 
-        <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:20px;letter-spacing:.04em">
-          🇺🇦 Україна · +380
-        </div>
-
-        <!-- Велике поле номера -->
-        <div style="position:relative;width:100%;max-width:320px" onclick="document.getElementById('phone-inp').focus()">
-          <div style="display:flex;align-items:baseline;justify-content:center;gap:4px;padding:16px 20px;background:var(--bg2);border:1.5px solid ${phoneDigits.length>=9?'var(--green)':'var(--border2)'};border-radius:18px;transition:border-color .2s;min-height:72px">
-            <span style="font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1;padding-top:6px">+380</span>
-            <span style="font-size:32px;font-family:var(--font-h);font-weight:700;color:${phoneDigits?'var(--text0)':'var(--text2)'};letter-spacing:.04em;min-width:4px">
-              ${phoneDigits || ''}
-            </span>
-            <span class="phone-cursor" style="width:2px;height:34px;background:var(--green);border-radius:1px;animation:blink 1s ease infinite;display:inline-block;vertical-align:middle;margin-left:2px"></span>
+        <!-- Прапор + поле в одному рядку -->
+        <div style="display:flex;align-items:center;gap:0;width:100%;background:var(--bg2);border:1.5px solid ${phoneDigits.length>=9?'var(--green)':'var(--border2)'};border-radius:16px;overflow:hidden;transition:border-color .2s"
+             onclick="document.getElementById('phone-inp').focus()">
+          <!-- Прапор кнопка -->
+          <div style="display:flex;align-items:center;gap:6px;padding:0 14px;height:58px;border-right:0.5px solid var(--border2);flex-shrink:0">
+            <span style="font-size:24px">🇺🇦</span>
+            <span style="font-size:14px;color:var(--text2);font-family:var(--font-b)">+380</span>
           </div>
+          <!-- Поле вводу -->
           <input
             id="phone-inp"
             type="tel"
             inputmode="numeric"
             maxlength="9"
             autocomplete="tel"
+            placeholder="XX XXX XX XX"
             value="${phoneDigits}"
             oninput="window.__auth.onPhoneInput(this)"
             onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
-            style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer"
+            style="flex:1;height:58px;background:transparent;border:none;outline:none;font-size:22px;font-family:var(--font-h);font-weight:600;color:var(--text0);padding:0 16px;letter-spacing:.04em"
           />
         </div>
 
-        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:12px">
-          ${phoneDigits.length}/9 цифр
-        </div>
+        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">${phoneDigits.length}/9 цифр</div>
 
       </div>
 
@@ -298,27 +294,19 @@ function onPhoneInput(inp) {
   inp.value = digits;
   _phone = '+380' + digits;
 
-  // Оновлюємо відображення цифр
-  const display = inp.parentElement?.querySelector('span:nth-child(2)');
-  if (display) display.textContent = digits;
+  // Оновлюємо рамку
+  const wrap = inp.parentElement;
+  if (wrap) wrap.style.borderColor = digits.length >= 9 ? 'var(--green)' : 'var(--border2)';
 
   // Оновлюємо лічильник
-  const counter = inp.parentElement?.parentElement?.nextElementSibling;
+  const counter = wrap?.parentElement?.nextElementSibling;
   if (counter) counter.textContent = digits.length + '/9 цифр';
-
-  // Оновлюємо колір рамки
-  const wrap = inp.parentElement?.querySelector('div');
-  if (wrap) wrap.style.borderColor = digits.length >= 9 ? 'var(--green)' : 'var(--border2)';
 
   const btn = document.getElementById('phone-next-btn');
   if (btn) btn.disabled = digits.length < 9;
-
   document.getElementById('phone-err')?.classList.remove('show');
 
-  // Автоперехід на PIN після 9 цифр
-  if (digits.length === 9) {
-    setTimeout(() => submitPhone(), 300);
-  }
+  if (digits.length === 9) setTimeout(() => submitPhone(), 400);
 }
 
 function submitPhone() {
