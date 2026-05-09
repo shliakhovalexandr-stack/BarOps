@@ -9,18 +9,42 @@
    1. ГЛОБАЛЬНИЙ СТАН
    ══════════════════════════════════════ */
 export const state = {
-  role:    'bartender',
-  venue:   'Sky Lounge',
-  user:    'Олексій К.',
+  role:    localStorage.getItem('barops_role')  || 'bartender',
+  venue:   localStorage.getItem('barops_venue') || '',
+  user:    localStorage.getItem('barops_user')  || '',
   route:   'auth',
   history: [],
 };
 
-export const MANAGER_VENUES = [
-  { id:'v1', name:'Sky Lounge',  pos:'Poster',   active:true  },
-  { id:'v2', name:'Bar Noir',    pos:'iiko',     active:false },
-  { id:'v3', name:'Rooftop Bar', pos:'R-Keeper', active:false },
-];
+export let MANAGER_VENUES = [];
+
+// Завантажуємо реальні заклади з бекенду
+async function loadVenuesIntoDrawer() {
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch('https://barops-backend-production.up.railway.app/api/auth/venues', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    const data = await res.json();
+    if (data.venues && data.venues.length > 0) {
+      // Визначаємо активний заклад з state
+      MANAGER_VENUES = data.venues.map((v, i) => ({
+        id:     v.id,
+        name:   v.name,
+        pos:    'Syrve',
+        active: v.name === state.venue || i === 0,
+      }));
+      // Встановлюємо перший активний як поточний
+      const active = MANAGER_VENUES.find(v => v.active);
+      if (active && !state.venue) state.venue = active.name;
+      renderDrawer();
+    }
+  } catch {
+    // Fallback — показуємо поточний заклад
+    MANAGER_VENUES = [{ id:'current', name: state.venue || 'Заклад', pos:'Syrve', active:true }];
+    renderDrawer();
+  }
+}
 
 let _drawerOpen = false;
 
@@ -195,7 +219,7 @@ function renderDrawer() {
       </div>
     </div>
     <div style="padding:12px 20px 32px;border-top:0.5px solid var(--border2)">
-      <div onclick="window.__barops.navigate('auth');window.__barops.closeDrawer()"
+      <div onclick="localStorage.clear();window.__barops.navigate('auth');window.__barops.closeDrawer()"
         style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 0">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round"/>
@@ -207,13 +231,21 @@ function renderDrawer() {
   </div>`;
 }
 
-export function openDrawer()  { _drawerOpen = true;  renderDrawer(); }
+export function openDrawer()  {
+  _drawerOpen = true;
+  renderDrawer();
+  // Оновлюємо список закладів кожного разу при відкритті
+  if (MANAGER_VENUES.length === 0) loadVenuesIntoDrawer();
+}
 export function closeDrawer() { _drawerOpen = false; renderDrawer(); }
 
 export function switchVenue(id) {
   MANAGER_VENUES.forEach(v => v.active = v.id === id);
   const v = MANAGER_VENUES.find(x => x.id === id);
-  if (v) state.venue = v.name;
+  if (v) {
+    state.venue = v.name;
+    localStorage.setItem('barops_venue', v.name);
+  }
   renderDrawer();
   const page = PAGES[state.route];
   if (page) {
@@ -328,9 +360,10 @@ function renderTabBar() {
 export function setRole(role) {
   state.role  = role;
   state.user  = role === 'manager' ? 'Костянтин О.' : 'Олексій К.';
-  state.venue = role === 'manager'
-    ? (MANAGER_VENUES.find(v=>v.active)?.name || 'Sky Lounge')
-    : 'Sky Lounge';
+  state.venue = localStorage.getItem('barops_venue') || '';
+  if (role === 'manager') {
+    loadVenuesIntoDrawer();
+  }
   state.history = [];
   navigate('dashboard', { replace: true });
 }
