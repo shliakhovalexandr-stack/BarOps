@@ -221,6 +221,9 @@ function viewPin() {
       <div class="auth-pin-squares" id="pin-squares" onclick="document.getElementById('pin-inp').focus()">
         ${squares}
       </div>
+      <div style="text-align:center;font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:-16px;margin-bottom:16px">
+        Введіть свій PIN-код · Пін-код надає менеджер
+      </div>
 
       <!-- Прихований input для PIN (відкриває системну клавіатуру) -->
       <input
