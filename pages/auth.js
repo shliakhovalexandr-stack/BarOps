@@ -148,20 +148,24 @@ function viewPhone() {
 
       <div class="auth-phone-wrap" onclick="document.getElementById('phone-inp').focus()">
         <div class="auth-phone-flag">🇺🇦</div>
-        <input
-          id="phone-inp"
-          class="auth-phone-input"
-          type="tel"
-          inputmode="numeric"
-          placeholder="73 XXX XX XX"
-          maxlength="13"
-          autocomplete="tel"
-          value="${_phone ? _phone.replace('+380','') : ''}"
-          oninput="window.__auth.onPhoneInput(this)"
-          onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
-        />
+        <div style="display:flex;align-items:center;flex:1;padding-left:4px">
+          <span style="font-size:20px;font-family:var(--font-h);font-weight:600;color:var(--text2);white-space:nowrap">+380</span>
+          <input
+            id="phone-inp"
+            class="auth-phone-input"
+            type="tel"
+            inputmode="numeric"
+            placeholder=" 73 XXX XX XX"
+            maxlength="9"
+            autocomplete="tel"
+            value="${_phone ? _phone.replace('+380','') : ''}"
+            oninput="window.__auth.onPhoneInput(this)"
+            onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
+            style="padding-left:4px"
+          />
+        </div>
       </div>
-      <div class="auth-phone-hint">+380 · Україна</div>
+      <div class="auth-phone-hint">Україна · введіть 9 цифр після +380</div>
 
       <div class="auth-error" id="phone-err">Введіть коректний номер (10 цифр)</div>
 
