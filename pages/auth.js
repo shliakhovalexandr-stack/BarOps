@@ -201,7 +201,7 @@ function viewPin() {
         <div class="auth-back" onclick="window.__auth.goTo('phone')">${BACK_SVG}</div>
         <div>
           <div class="auth-screen-title">Введіть PIN</div>
-          <div class="auth-screen-sub">4-значний код доступу</div>
+          <div class="auth-screen-sub">Пін-код надає менеджер закладу</div>
         </div>
       </div>
 
