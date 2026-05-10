@@ -302,7 +302,7 @@ function addSheetHTML() {
     <div class="tm-sheet" onclick="event.stopPropagation()">
       <div class="tm-sh-handle"></div>
       <div class="tm-sh-title">Додати бармена</div>
-      <div class="tm-sh-sub">Бармен входить в систему з телефоном та PIN-кодом</div>
+      <div class="tm-sh-sub">Заклад: <strong style="color:var(--green)">${_activeVenueName || 'поточний'}</strong></div>
 
       <div class="tm-sh-lbl">Ім'я та прізвище</div>
       <input class="tm-sh-inp" id="add-name" type="text" placeholder="Олексій Коваленко"/>
@@ -591,7 +591,9 @@ async function submitAdd() {
   if (btn) btn.disabled = true;
 
   try {
-    const venueId = currentVenueId();
+    // Завжди беремо активний заклад зі сторінки команди
+    const venueId = _activeVenueId || currentVenueId();
+    console.log('[Team] Додаємо бармена в заклад:', venueId, _activeVenueName);
     const res = await fetch(`${API}/api/auth/add-bartender`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
