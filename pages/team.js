@@ -384,7 +384,7 @@ ${CSS}
     </div>
     <div style="flex:1">
       <div class="tm-title">Команда</div>
-      <div class="tm-sub">${state.venue} · ${_team.length} учасників</div>
+      <div class="tm-sub">${state.venue || 'Всі заклади'} · ${_team.length} учасників</div>
     </div>
     <button onclick="window.__tm.openAdd()"
       style="height:34px;padding:0 14px;background:var(--green);border:none;border-radius:20px;font-size:12px;font-family:var(--font-b);color:#fff;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px">
@@ -686,7 +686,10 @@ async function loadTeam() {
     const vData = await vRes.json();
     if (vData.venues) _venues = vData.venues;
 
-    const res  = await fetch(`${API}/api/auth/team`, {
+    // Передаємо venueId щоб отримати команду конкретного закладу
+    const venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+    const teamUrl = venueId ? `${API}/api/auth/team?venueId=${venueId}` : `${API}/api/auth/team`;
+    const res  = await fetch(teamUrl, {
       headers: { Authorization: `Bearer ${token()}` },
     });
     const data = await res.json();

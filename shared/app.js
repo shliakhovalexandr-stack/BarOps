@@ -36,7 +36,11 @@ async function loadVenuesIntoDrawer() {
       }));
       // Встановлюємо перший активний як поточний
       const active = MANAGER_VENUES.find(v => v.active);
-      if (active && !state.venue) state.venue = active.name;
+      if (active && !state.venue) {
+        state.venue   = active.name;
+        state.venueId = active.id;
+        localStorage.setItem('barops_venueId', active.id);
+      }
       renderDrawer();
     }
   } catch {
@@ -243,10 +247,12 @@ export function switchVenue(id) {
   MANAGER_VENUES.forEach(v => v.active = v.id === id);
   const v = MANAGER_VENUES.find(x => x.id === id);
   if (v) {
-    state.venue = v.name;
-    localStorage.setItem('barops_venue', v.name);
+    state.venue   = v.name;
+    state.venueId = v.id;
+    localStorage.setItem('barops_venue',   v.name);
+    localStorage.setItem('barops_venueId', v.id);
   }
-  renderDrawer();
+  closeDrawer();
   const page = PAGES[state.route];
   if (page) {
     const view = document.getElementById('app-view');
@@ -360,7 +366,8 @@ function renderTabBar() {
 export function setRole(role) {
   state.role  = role;
   state.user  = role === 'manager' ? 'Костянтин О.' : 'Олексій К.';
-  state.venue = localStorage.getItem('barops_venue') || '';
+  state.venue   = localStorage.getItem('barops_venue')   || '';
+  state.venueId = localStorage.getItem('barops_venueId') || '';
   if (role === 'manager') {
     loadVenuesIntoDrawer();
   }
