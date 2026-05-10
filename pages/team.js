@@ -8,15 +8,17 @@ import { navigate, state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 function currentVenueId() {
-  return state.venueId || localStorage.getItem('barops_venueId') || '';
+  return _activeVenueId || state.venueId || localStorage.getItem('barops_venueId') || '';
 }
 
 
 /* ════════════════════════
    STATE
 ════════════════════════ */
-let _team       = [];     // реальні дані з бекенду
-let _venues     = [];     // список закладів
+let _team          = [];  // реальні дані з бекенду
+let _venues        = [];  // список закладів
+let _activeVenueId = '';  // активний заклад на сторінці команди
+let _activeVenueName = '';
 let _loading    = true;
 let _openId     = null;   // відкритий профіль
 let _sheetMode  = null;   // null | 'add' | 'edit'
@@ -320,11 +322,10 @@ function addSheetHTML() {
       </div>
 
       <div class="tm-sh-lbl">Заклад</div>
-      <select class="tm-sh-inp" id="add-venue" style="appearance:none;-webkit-appearance:none;cursor:pointer;color:var(--text0)"
-        onchange="window.__tm.selectVenue(this.value)">
-        <option value="">Оберіть заклад...</option>
-        ${_venues.map(v => `<option value="${v.id}" ${v.id === _selectedVenueId ? 'selected' : ''}>${v.name}</option>`).join('')}
-      </select>
+      <div style="background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
+        <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${_activeVenueName || state.venue || 'Поточний заклад'}</div>
+      </div>
 
       <div class="tm-sh-lbl">Роль</div>
       <div class="tm-sh-roles">
@@ -390,7 +391,7 @@ ${CSS}
     </div>
     <div style="flex:1">
       <div class="tm-title">Команда</div>
-      <div class="tm-sub">${state.venue || 'Всі заклади'} · ${_team.length} учасників</div>
+      <div class="tm-sub">${_activeVenueName || state.venue || 'Всі заклади'} · ${_team.length} учасників</div>
     </div>
     <button onclick="window.__tm.openAdd()"
       style="height:34px;padding:0 14px;background:var(--green);border:none;border-radius:20px;font-size:12px;font-family:var(--font-b);color:#fff;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px">
@@ -398,6 +399,20 @@ ${CSS}
       Додати
     </button>
   </div>
+
+  <!-- Venue selector -->
+  ${_venues.length > 1 ? `
+  <div style="padding:0 14px 10px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none">
+    ${_venues.map(v => `
+      <div onclick="window.__tm.switchTeamVenue('${v.id}','${v.name}')"
+        style="flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-family:var(--font-b);cursor:pointer;transition:all .15s;
+          background:${_activeVenueId===v.id?'var(--green)':'var(--bg2)'};
+          color:${_activeVenueId===v.id?'#fff':'var(--text1)'};
+          border:0.5px solid ${_activeVenueId===v.id?'var(--green)':'var(--border2)'}">
+        ${v.name}
+      </div>
+    `).join('')}
+  </div>` : ''}
 
   <!-- List -->
   <div class="tm-scroll">
@@ -483,6 +498,12 @@ function selectVenue(id) {
   _selectedVenueId = id;
 }
 
+function switchTeamVenue(id, name) {
+  _activeVenueId   = id;
+  _activeVenueName = name;
+  loadTeam();
+}
+
 function selectRole(r) {
   _selectedRole = r.toUpperCase();
   document.querySelectorAll('.tm-sh-role').forEach(el => el.classList.remove('sel'));
@@ -558,14 +579,8 @@ async function submitAdd() {
   const errEl = document.getElementById('add-err');
   const btn   = document.getElementById('add-send-btn');
 
-  const venueId = document.getElementById('add-venue')?.value || _selectedVenueId;
-
   if (!name || !phone || phone.replace(/\D/g,'').length < 11) {
     if (errEl) { errEl.textContent = 'Вкажіть ім\'я і коректний телефон'; errEl.classList.add('show'); }
-    return;
-  }
-  if (!venueId) {
-    if (errEl) { errEl.textContent = 'Оберіть заклад'; errEl.classList.add('show'); }
     return;
   }
   if (_addPin.length < 4) {
@@ -576,7 +591,7 @@ async function submitAdd() {
   if (btn) btn.disabled = true;
 
   try {
-    const venueId = document.getElementById('add-venue')?.value || _selectedVenueId || currentVenueId();
+    const venueId = currentVenueId();
     const res = await fetch(`${API}/api/auth/add-bartender`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
@@ -696,7 +711,15 @@ async function loadTeam() {
     // Завантажуємо заклади
     const vRes  = await fetch(`${API}/api/auth/venues`);
     const vData = await vRes.json();
-    if (vData.venues) _venues = vData.venues;
+    if (vData.venues) {
+      _venues = vData.venues;
+      // Встановлюємо активний заклад якщо не обраний
+      if (!_activeVenueId && _venues.length > 0) {
+        const current = _venues.find(v => v.id === currentVenueId()) || _venues[0];
+        _activeVenueId   = current.id;
+        _activeVenueName = current.name;
+      }
+    }
 
     // Передаємо venueId щоб отримати команду конкретного закладу
     const vId = currentVenueId();
@@ -729,7 +752,7 @@ export default {
     window.__tm = {
       openProfile, closeProfile,
       openAdd, openEdit, closeSheet, closeSheetOverlay,
-      selectRole, selectVenue, pinAdd, pinDel,
+      selectRole, selectVenue, switchTeamVenue, pinAdd, pinDel,
       submitAdd, submitEdit,
       deactivate, activate, hardDelete,
       formatAddPhone, pastePhone,
