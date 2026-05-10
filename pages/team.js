@@ -291,10 +291,8 @@ function pinKeypadHTML(prefix, currentPin, label) {
    ADD SHEET HTML
 ════════════════════════ */
 function addSheetHTML() {
-  const pinLabel = _pinStep === 'first'
-    ? 'Встановіть PIN (4 цифри)'
-    : `Підтвердіть PIN (введіть ще раз)`;
-  const currentPin = _pinStep === 'first' ? _addPin : _addPinConfirm;
+  const pinLabel = 'Встановіть PIN (4 цифри)';
+  const currentPin = _addPin;
 
   return `
   <div class="tm-sheet-overlay ${_sheetMode === 'add' ? 'open' : ''}" id="tm-sheet-overlay"
@@ -572,18 +570,6 @@ async function submitAdd() {
   }
   if (_addPin.length < 4) {
     if (errEl) { errEl.textContent = 'Введіть PIN (4 цифри)'; errEl.classList.add('show'); }
-    return;
-  }
-  if (_pinStep === 'first') {
-    _pinStep = 'confirm';
-    fullRender();
-    return;
-  }
-  if (_addPin !== _addPinConfirm) {
-    if (errEl) { errEl.textContent = 'PIN-коди не збігаються. Спробуйте ще раз'; errEl.classList.add('show'); }
-    _addPinConfirm = '';
-    _pinStep = 'first';
-    fullRender();
     return;
   }
 
