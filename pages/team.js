@@ -7,6 +7,10 @@
 import { navigate, state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
+function currentVenueId() {
+  return state.venueId || localStorage.getItem('barops_venueId') || '';
+}
+
 
 /* ════════════════════════
    STATE
@@ -258,6 +262,10 @@ function profileHTML(t) {
     ${t.status === 'active'
       ? `<button class="tm-btn tm-btn-red" onclick="window.__tm.deactivate('${t.id}')">Деактивувати акаунт</button>`
       : `<button class="tm-btn tm-btn-ghost" onclick="window.__tm.activate('${t.id}')">Відновити акаунт</button>`}
+    <button class="tm-btn" onclick="window.__tm.hardDelete('${t.id}')"
+      style="background:transparent;border:0.5px solid var(--red-border);color:var(--red);opacity:.6;margin-top:4px;height:40px;font-size:12px">
+      🗑 Видалити повністю
+    </button>
   </div>`;
 }
 
@@ -582,7 +590,7 @@ async function submitAdd() {
   if (btn) btn.disabled = true;
 
   try {
-    const venueId = document.getElementById('add-venue')?.value || _selectedVenueId;
+    const venueId = document.getElementById('add-venue')?.value || _selectedVenueId || currentVenueId();
     const res = await fetch(`${API}/api/auth/add-bartender`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
@@ -624,7 +632,9 @@ async function submitEdit() {
   if (btn) btn.disabled = true;
 
   try {
-    const res = await fetch(`${API}/api/auth/team/${t.id}`, {
+    const vId = currentVenueId();
+    const putUrl = vId ? `${API}/api/auth/team/${t.id}?venueId=${vId}` : `${API}/api/auth/team/${t.id}`;
+    const res = await fetch(putUrl, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
       body:    JSON.stringify(body),
@@ -649,12 +659,28 @@ async function submitEdit() {
 async function deactivate(id) {
   if (!confirm('Деактивувати цей акаунт? Бармен не зможе увійти.')) return;
   try {
-    await fetch(`${API}/api/auth/team/${id}`, {
+    const vId = currentVenueId();
+    await fetch(`${API}/api/auth/team/${id}?venueId=${vId}`, {
       method:  'DELETE',
       headers: { Authorization: `Bearer ${token()}` },
     });
     const idx = _team.findIndex(m => m.id === id);
     if (idx !== -1) _team[idx].status = 'inactive';
+    _openId = null;
+    fullRender();
+  } catch (err) { alert('Помилка: ' + err.message); }
+}
+
+async function hardDelete(id) {
+  const member = _team.find(m => m.id === id);
+  if (!confirm(`Повністю видалити ${member?.name || 'бармена'}? Цю дію не можна скасувати.`)) return;
+  try {
+    const vId = currentVenueId();
+    await fetch(`${API}/api/auth/team/${id}?permanent=true&venueId=${vId}`, {
+      method:  'DELETE',
+      headers: { Authorization: `Bearer ${token()}` },
+    });
+    _team = _team.filter(m => m.id !== id);
     _openId = null;
     fullRender();
   } catch (err) { alert('Помилка: ' + err.message); }
@@ -687,8 +713,8 @@ async function loadTeam() {
     if (vData.venues) _venues = vData.venues;
 
     // Передаємо venueId щоб отримати команду конкретного закладу
-    const venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
-    const teamUrl = venueId ? `${API}/api/auth/team?venueId=${venueId}` : `${API}/api/auth/team`;
+    const vId = currentVenueId();
+    const teamUrl = vId ? `${API}/api/auth/team?venueId=${vId}` : `${API}/api/auth/team`;
     const res  = await fetch(teamUrl, {
       headers: { Authorization: `Bearer ${token()}` },
     });
@@ -719,7 +745,7 @@ export default {
       openAdd, openEdit, closeSheet, closeSheetOverlay,
       selectRole, selectVenue, pinAdd, pinDel,
       submitAdd, submitEdit,
-      deactivate, activate,
+      deactivate, activate, hardDelete,
       formatAddPhone, pastePhone,
     };
     loadTeam();
