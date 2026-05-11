@@ -1,5 +1,5 @@
 /* ============================================================
-   BarOps — pages/venue-edit.js (FIXED v2)
+   BarOps — pages/venue-edit.js (FIXED v3)
    Редагування закладу: назва, Telegram Topic ID, POS
    ============================================================ */
 
@@ -12,21 +12,16 @@ let _loading = true;
 let _saving = false;
 let _saveSuccess = false;
 let _toastTimer = null;
+let _draft = { name: '', posType: 'manual', topicUrl: '' }; // Чернетка
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
-/* ════════════════════════
-   LOCAL STORAGE KEYS
-════════════════════════ */
 const LS_KEYS = {
   venueName:     'barops_venue_name',
   venuePos:      'barops_venue_pos',
   telegramTopic: 'barops_telegram_topic',
 };
 
-/* ════════════════════════
-   CSS
-════════════════════════ */
 const CSS = `<style id="ve-css">
 .ve-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .ve-scroll{overflow-y:auto;flex:1;padding-bottom:24px}.ve-scroll::-webkit-scrollbar{width:0}
@@ -57,9 +52,6 @@ const CSS = `<style id="ve-css">
 .ve-toast.error{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
 </style>`;
 
-/* ════════════════════════
-   HELPERS
-════════════════════════ */
 function extractTopicId(url) {
   if (!url) return null;
   const trimmed = url.trim();
@@ -89,9 +81,6 @@ function showToast(message, type = 'success') {
   }, 2500);
 }
 
-/* ════════════════════════
-   LOCAL STORAGE
-════════════════════════ */
 function saveToLocal(name, posType, topicId) {
   localStorage.setItem(LS_KEYS.venueName, name);
   localStorage.setItem(LS_KEYS.venuePos, posType);
@@ -110,9 +99,6 @@ function loadFromLocal() {
   };
 }
 
-/* ════════════════════════
-   DATA LOADING
-════════════════════════ */
 async function loadVenue(venueId) {
   _loading = true;
   _venue = null;
@@ -132,15 +118,20 @@ async function loadVenue(venueId) {
           posType: found.posType || 'manual',
           telegramTopicId: found.telegramTopicId || '',
         };
+        // Ініціалізуємо чернетку
+        _draft = {
+          name: _venue.name,
+          posType: _venue.posType,
+          topicUrl: _venue.telegramTopicId,
+        };
         saveToLocal(_venue.name, _venue.posType, _venue.telegramTopicId);
         console.log('[VenueEdit] Loaded from API:', _venue);
       }
     }
   } catch (e) {
-    console.warn('[VenueEdit] API failed, using localStorage fallback:', e);
+    console.warn('[VenueEdit] API failed:', e);
   }
 
-  // Fallback
   if (!_venue) {
     const local = loadFromLocal();
     if (local.name) {
@@ -150,6 +141,11 @@ async function loadVenue(venueId) {
         posType: local.posType,
         telegramTopicId: local.telegramTopicId,
       };
+      _draft = {
+        name: local.name,
+        posType: local.posType,
+        topicUrl: local.telegramTopicId,
+      };
       console.log('[VenueEdit] Loaded from localStorage:', _venue);
     }
   }
@@ -158,9 +154,15 @@ async function loadVenue(venueId) {
   render();
 }
 
-/* ════════════════════════
-   BUILD HTML
-════════════════════════ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function buildHTML() {
   if (_loading) {
     return `${CSS}
@@ -196,9 +198,9 @@ function buildHTML() {
     </div>`;
   }
 
-  // ГАРАНТУЄМО, що _venue.telegramTopicId завжди string (не null/undefined)
-  const safeTopicId = v.telegramTopicId || '';
-  const hasTopic = !!safeTopicId;
+  // Використовуємо _draft для інпутів, _venue для статусу
+  const displayTopic = _draft.topicUrl || '';
+  const hasTopic = !!displayTopic;
 
   return `
 ${CSS}
@@ -221,14 +223,14 @@ ${CSS}
     <div class="ve-sec">Основна інформація</div>
     <div class="ve-card">
       <div class="ve-label">Назва закладу</div>
-      <input class="ve-input" id="ve-name" type="text" value="${escapeHtml(v.name)}" placeholder="Наприклад: Test Bar">
+      <input class="ve-input" id="ve-name" type="text" value="${escapeHtml(_draft.name)}" placeholder="Наприклад: Test Bar">
 
       <div class="ve-label">POS-система</div>
       <select class="ve-select" id="ve-pos">
-        <option value="manual" ${v.posType === 'manual' ? 'selected' : ''}>Manual (ручний облік)</option>
-        <option value="syrve" ${v.posType === 'syrve' ? 'selected' : ''}>Syrve (iiko)</option>
-        <option value="poster" ${v.posType === 'poster' ? 'selected' : ''}>Poster</option>
-        <option value="rkeeper" ${v.posType === 'rkeeper' ? 'selected' : ''}>R-Keeper</option>
+        <option value="manual" ${_draft.posType === 'manual' ? 'selected' : ''}>Manual (ручний облік)</option>
+        <option value="syrve" ${_draft.posType === 'syrve' ? 'selected' : ''}>Syrve (iiko)</option>
+        <option value="poster" ${_draft.posType === 'poster' ? 'selected' : ''}>Poster</option>
+        <option value="rkeeper" ${_draft.posType === 'rkeeper' ? 'selected' : ''}>R-Keeper</option>
       </select>
     </div>
 
@@ -247,7 +249,7 @@ ${CSS}
       `}
 
       <div class="ve-label">Telegram Topic</div>
-      <input class="ve-input" id="ve-topic" type="text" value="${escapeHtml(safeTopicId)}" placeholder="Встав посилання на топік або ID">
+      <input class="ve-input" id="ve-topic" type="text" value="${escapeHtml(displayTopic)}" placeholder="Встав посилання на топік або ID">
       <div class="ve-hint">
         📱 Можна вставити повне посилання на топік або тільки ID<br>
         Приклади:<br>
@@ -267,39 +269,41 @@ ${CSS}
 </div>`;
 }
 
-function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function render() {
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
+  setupListeners();
 }
 
-/* ════════════════════════
-   ACTIONS
-════════════════════════ */
+function setupListeners() {
+  const nameInput = document.getElementById('ve-name');
+  const posSelect = document.getElementById('ve-pos');
+  const topicInput = document.getElementById('ve-topic');
+
+  if (nameInput) {
+    nameInput.oninput = (e) => { _draft.name = e.target.value; };
+  }
+  if (posSelect) {
+    posSelect.onchange = (e) => { _draft.posType = e.target.value; };
+  }
+  if (topicInput) {
+    topicInput.oninput = (e) => { _draft.topicUrl = e.target.value; };
+  }
+}
+
 async function save() {
   if (_saving) return;
   _saving = true;
   _saveSuccess = false;
   render();
 
-  const nameInput = document.getElementById('ve-name');
-  const posSelect = document.getElementById('ve-pos');
-  const topicInput = document.getElementById('ve-topic');
-
-  const name = nameInput?.value?.trim() || '';
-  const posType = posSelect?.value || 'manual';
-  const topicUrl = topicInput?.value?.trim() || '';
+  // Читаємо з _draft (гарантовано актуальні дані)
+  const name = _draft.name.trim();
+  const posType = _draft.posType;
+  const topicUrl = _draft.topicUrl.trim();
   const topicId = extractTopicId(topicUrl);
 
-  console.log('[VenueEdit] Saving:', { name, posType, topicUrl, topicId, venueId: _venue?.id });
+  console.log('[VenueEdit] Saving from draft:', { name, posType, topicUrl, topicId, venueId: _venue?.id });
 
   if (!name) {
     showToast('❌ Вкажіть назву закладу', 'error');
@@ -315,24 +319,20 @@ async function save() {
     return;
   }
 
-  // 1. Оновлюємо _venue ОДРАЗУ (до запиту на backend)
+  // Оновлюємо _venue
   _venue.name = name;
   _venue.posType = posType;
   _venue.telegramTopicId = topicId || '';
 
-  // 2. Зберігаємо в localStorage
+  // Зберігаємо в localStorage
   saveToLocal(name, posType, topicId);
 
-  // 3. Надсилаємо на backend
+  // Надсилаємо на backend
   let backendSuccess = false;
   try {
     const token = localStorage.getItem('barops_token');
     const url = `${API}/api/venues/${_venue.id}`;
-    const body = JSON.stringify({
-      name,
-      posType,
-      telegramTopicId: topicId,
-    });
+    const body = JSON.stringify({ name, posType, telegramTopicId: topicId });
 
     console.log('[VenueEdit] PATCH', url, body);
 
@@ -366,18 +366,16 @@ async function save() {
   }
 
   _saving = false;
-  render(); // Тепер _venue вже оновлений, тому поле покаже нове значення!
+  render();
 }
 
-/* ════════════════════════
-   PAGE EXPORT
-════════════════════════ */
 export default {
   render(params) {
     _venue = null;
     _loading = true;
     _saving = false;
     _saveSuccess = false;
+    _draft = { name: '', posType: 'manual', topicUrl: '' };
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
     console.log('[VenueEdit] Render with venueId:', venueId);
     loadVenue(venueId);
@@ -385,5 +383,6 @@ export default {
   },
   init(params) {
     window.__ve = { save };
+    setupListeners();
   },
 };
