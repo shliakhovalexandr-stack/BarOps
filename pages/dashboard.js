@@ -5,7 +5,7 @@
 
 import { navigate, state } from '../shared/app.js';
 
-const API = window.__barops?.api || '';
+const API = 'https://barops-backend-production.up.railway.app';
 
 /* ════════════════════════
    STATE
