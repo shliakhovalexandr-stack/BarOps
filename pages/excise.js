@@ -1,23 +1,12 @@
-/* ============================================================
-   BarOps — pages/excise.js
-   Акцизні марки: фото → Telegram топік закладу
-   ============================================================ */
-
 import { navigate, state } from '../shared/app.js';
 
 const API_URL = 'https://barops-backend-production.up.railway.app';
 
-/* ════════════════════════
-   MODULE STATE
-════════════════════════ */
 let _step       = 'idle';
 let _photoFile  = null;
 let _photoUrl   = null;
 let _errorMsg   = '';
 
-/* ════════════════════════
-   CSS
-════════════════════════ */
 const CSS = `<style id="exc-css">
 .exc-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .exc-scroll{overflow-y:auto;flex:1;padding-bottom:24px}.exc-scroll::-webkit-scrollbar{width:0}
@@ -64,9 +53,6 @@ const CSS = `<style id="exc-css">
 .exc-file-input{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
 </style>`;
 
-/* ════════════════════════
-   HELPERS
-════════════════════════ */
 function getToken() {
   return localStorage.getItem('barops_token') || '';
 }
@@ -74,14 +60,15 @@ function getToken() {
 function getUserInfo() {
   try {
     const token = getToken();
-    if (!token) return { name: 'Бармен', venueName: 'Заклад' };
+    if (!token) return { name: 'Бармен', venueName: 'Заклад', telegramTopicId: null };
     const payload = JSON.parse(atob(token.split('.')[1]));
     return {
-      name:      payload.name      || 'Бармен',
-      venueName: payload.venueName || payload.venue || 'Заклад',
+      name:            payload.name      || 'Бармен',
+      venueName:       payload.venueName || payload.venue || 'Заклад',
+      telegramTopicId: payload.telegramTopicId || null,
     };
   } catch {
-    return { name: 'Бармен', venueName: 'Заклад' };
+    return { name: 'Бармен', venueName: 'Заклад', telegramTopicId: null };
   }
 }
 
@@ -92,9 +79,6 @@ function fmtTime() {
   });
 }
 
-/* ════════════════════════
-   RENDER
-════════════════════════ */
 function render() {
   const { name, venueName } = getUserInfo();
 
@@ -211,9 +195,6 @@ function render() {
     </div>`;
 }
 
-/* ════════════════════════
-   ACTIONS
-════════════════════════ */
 function rerender() {
   const view = document.getElementById('app-view');
   if (view) view.innerHTML = render();
@@ -256,16 +237,17 @@ function handleFile(input) {
 async function send() {
   if (!_photoFile) return;
 
-  const { name, venueName } = getUserInfo();
+  const { name, venueName, telegramTopicId } = getUserInfo();
 
   _step = 'sending';
   rerender();
 
   try {
     const formData = new FormData();
-    formData.append('photo',      _photoFile);
-    formData.append('venueName',  venueName);
-    formData.append('barmanName', name);
+    formData.append('photo',           _photoFile);
+    formData.append('venueName',       venueName);
+    formData.append('barmanName',      name);
+    formData.append('telegramTopicId', telegramTopicId || '');
 
     const token = getToken();
     const res = await fetch(`${API_URL}/api/excise/photo`, {
@@ -291,14 +273,8 @@ async function send() {
   }
 }
 
-/* ════════════════════════
-   GLOBAL CONTROLLER
-════════════════════════ */
 window.__excise = { goBack, reset, openCamera, openGallery, handleFile, send };
 
-/* ════════════════════════
-   PAGE EXPORT
-════════════════════════ */
 export default {
   render(params) {
     _step      = 'idle';
