@@ -1,5 +1,5 @@
 /* ============================================================
-   BarOps — pages/venue-edit.js (FIXED v3)
+   BarOps — pages/venue-edit.js (FIXED v4)
    Редагування закладу: назва, Telegram Topic ID, POS
    ============================================================ */
 
@@ -12,7 +12,7 @@ let _loading = true;
 let _saving = false;
 let _saveSuccess = false;
 let _toastTimer = null;
-let _draft = { name: '', posType: 'manual', topicUrl: '' }; // Чернетка
+let _draft = { name: '', posType: 'manual', topicUrl: '' };
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
@@ -118,7 +118,6 @@ async function loadVenue(venueId) {
           posType: found.posType || 'manual',
           telegramTopicId: found.telegramTopicId || '',
         };
-        // Ініціалізуємо чернетку
         _draft = {
           name: _venue.name,
           posType: _venue.posType,
@@ -198,7 +197,6 @@ function buildHTML() {
     </div>`;
   }
 
-  // Використовуємо _draft для інпутів, _venue для статусу
   const displayTopic = _draft.topicUrl || '';
   const hasTopic = !!displayTopic;
 
@@ -260,8 +258,8 @@ ${CSS}
     </div>
 
     <div style="padding:8px 14px 24px">
-      <button class="ve-btn ve-btn-green" id="ve-save-btn" onclick="window.__ve.save()" ${_saving ? 'disabled' : ''}>
-        ${_saving ? '<div style="width:20px;height:20px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;animation:veSpin .7s linear infinite"></div>' : '💾 Зберегти зміни'}
+      <button class="ve-btn ve-btn-green" id="ve-save-btn" onclick="window.__ve.save()">
+        💾 Зберегти зміни
       </button>
       <button class="ve-btn ve-btn-ghost" onclick="window.__barops.goBack()">Назад</button>
     </div>
@@ -291,44 +289,65 @@ function setupListeners() {
   }
 }
 
+function setSavingState(saving) {
+  const btn = document.getElementById('ve-save-btn');
+  if (!btn) return;
+  if (saving) {
+    btn.disabled = true;
+    btn.innerHTML = '<div style="width:20px;height:20px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;animation:veSpin .7s linear infinite"></div>';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Зберегти зміни';
+  }
+}
+
 async function save() {
   if (_saving) return;
   _saving = true;
   _saveSuccess = false;
-  render();
 
-  // Читаємо з _draft (гарантовано актуальні дані)
-  const name = _draft.name.trim();
-  const posType = _draft.posType;
-  const topicUrl = _draft.topicUrl.trim();
+  // НЕ перерендерюємо форму — тільки оновлюємо кнопку
+  setSavingState(true);
+
+  // Читаємо значення з DOM (форма не змінилась!)
+  const nameInput = document.getElementById('ve-name');
+  const posSelect = document.getElementById('ve-pos');
+  const topicInput = document.getElementById('ve-topic');
+
+  const name = (nameInput?.value || '').trim();
+  const posType = posSelect?.value || 'manual';
+  const topicUrl = (topicInput?.value || '').trim();
   const topicId = extractTopicId(topicUrl);
 
-  console.log('[VenueEdit] Saving from draft:', { name, posType, topicUrl, topicId, venueId: _venue?.id });
+  console.log('[VenueEdit] Saving:', { name, posType, topicUrl, topicId, venueId: _venue?.id });
 
   if (!name) {
     showToast('❌ Вкажіть назву закладу', 'error');
     _saving = false;
-    render();
+    setSavingState(false);
     return;
   }
 
   if (!_venue || !_venue.id) {
     showToast('❌ Помилка: заклад не завантажено', 'error');
     _saving = false;
-    render();
+    setSavingState(false);
     return;
   }
 
-  // Оновлюємо _venue
+  // Оновлюємо _venue і _draft
   _venue.name = name;
   _venue.posType = posType;
   _venue.telegramTopicId = topicId || '';
+
+  _draft.name = name;
+  _draft.posType = posType;
+  _draft.topicUrl = topicUrl;
 
   // Зберігаємо в localStorage
   saveToLocal(name, posType, topicId);
 
   // Надсилаємо на backend
-  let backendSuccess = false;
   try {
     const token = localStorage.getItem('barops_token');
     const url = `${API}/api/venues/${_venue.id}`;
@@ -349,7 +368,6 @@ async function save() {
     console.log('[VenueEdit] Response:', data);
 
     if (data.success) {
-      backendSuccess = true;
       _saveSuccess = true;
       showToast('✅ Зміни збережено');
 
@@ -366,6 +384,7 @@ async function save() {
   }
 
   _saving = false;
+  // Тепер перерендерюємо — показати success banner і оновлений статус
   render();
 }
 
