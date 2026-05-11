@@ -1,5 +1,5 @@
 /* ============================================================
-   BarOps — pages/venue-edit.js
+   BarOps — pages/venue-edit.js (FIXED v2)
    Редагування закладу: назва, Telegram Topic ID, POS
    ============================================================ */
 
@@ -63,13 +63,13 @@ const CSS = `<style id="ve-css">
 function extractTopicId(url) {
   if (!url) return null;
   const trimmed = url.trim();
+  if (!trimmed) return null;
   if (/^\d+$/.test(trimmed)) return trimmed;
   const match = trimmed.match(/[/_](\d+)(?:\?|$|#)/);
   return match ? match[1] : null;
 }
 
 function showToast(message, type = 'success') {
-  // Прибрати старий toast
   const old = document.getElementById('ve-toast');
   if (old) old.remove();
   if (_toastTimer) clearTimeout(_toastTimer);
@@ -80,7 +80,6 @@ function showToast(message, type = 'success') {
   toast.textContent = message;
   document.body.appendChild(toast);
 
-  // Форсувати reflow
   toast.offsetHeight;
   toast.classList.add('show');
 
@@ -96,7 +95,11 @@ function showToast(message, type = 'success') {
 function saveToLocal(name, posType, topicId) {
   localStorage.setItem(LS_KEYS.venueName, name);
   localStorage.setItem(LS_KEYS.venuePos, posType);
-  if (topicId) localStorage.setItem(LS_KEYS.telegramTopic, topicId);
+  if (topicId) {
+    localStorage.setItem(LS_KEYS.telegramTopic, topicId);
+  } else {
+    localStorage.removeItem(LS_KEYS.telegramTopic);
+  }
 }
 
 function loadFromLocal() {
@@ -123,9 +126,13 @@ async function loadVenue(venueId) {
     if (data.success && data.venues) {
       const found = data.venues.find(v => v.id === venueId);
       if (found) {
-        _venue = found;
-        // Також зберегти в localStorage для fallback
-        saveToLocal(found.name, found.posType || 'manual', found.telegramTopicId);
+        _venue = {
+          id: found.id,
+          name: found.name || '',
+          posType: found.posType || 'manual',
+          telegramTopicId: found.telegramTopicId || '',
+        };
+        saveToLocal(_venue.name, _venue.posType, _venue.telegramTopicId);
         console.log('[VenueEdit] Loaded from API:', _venue);
       }
     }
@@ -133,7 +140,7 @@ async function loadVenue(venueId) {
     console.warn('[VenueEdit] API failed, using localStorage fallback:', e);
   }
 
-  // Fallback: якщо API не спрацював — беремо з localStorage
+  // Fallback
   if (!_venue) {
     const local = loadFromLocal();
     if (local.name) {
@@ -189,8 +196,9 @@ function buildHTML() {
     </div>`;
   }
 
-  // Використовуємо актуальні дані з _venue (включаючи зміни після збереження)
-  const hasTopic = !!v.telegramTopicId;
+  // ГАРАНТУЄМО, що _venue.telegramTopicId завжди string (не null/undefined)
+  const safeTopicId = v.telegramTopicId || '';
+  const hasTopic = !!safeTopicId;
 
   return `
 ${CSS}
@@ -239,7 +247,7 @@ ${CSS}
       `}
 
       <div class="ve-label">Telegram Topic</div>
-      <input class="ve-input" id="ve-topic" type="text" value="${escapeHtml(v.telegramTopicId || '')}" placeholder="Встав посилання на топік або ID">
+      <input class="ve-input" id="ve-topic" type="text" value="${escapeHtml(safeTopicId)}" placeholder="Встав посилання на топік або ID">
       <div class="ve-hint">
         📱 Можна вставити повне посилання на топік або тільки ID<br>
         Приклади:<br>
@@ -260,7 +268,7 @@ ${CSS}
 }
 
 function escapeHtml(str) {
-  if (!str) return '';
+  if (str === null || str === undefined) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -271,52 +279,6 @@ function escapeHtml(str) {
 function render() {
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
-}
-
-/* ════════════════════════
-   AUTO-SAVE TO LOCAL STORAGE
-   (при зміні полів)
-════════════════════════ */
-function setupAutoSave() {
-  const nameInput = document.getElementById('ve-name');
-  const posSelect = document.getElementById('ve-pos');
-  const topicInput = document.getElementById('ve-topic');
-
-  const saveDraft = () => {
-    const name = nameInput?.value?.trim() || '';
-    const pos = posSelect?.value || 'manual';
-    const topic = topicInput?.value?.trim() || '';
-    const topicId = extractTopicId(topic);
-
-    localStorage.setItem(LS_KEYS.venueName, name);
-    localStorage.setItem(LS_KEYS.venuePos, pos);
-    if (topicId) localStorage.setItem(LS_KEYS.telegramTopic, topicId);
-  };
-
-  nameInput?.addEventListener('input', saveDraft);
-  posSelect?.addEventListener('change', saveDraft);
-  topicInput?.addEventListener('input', saveDraft);
-}
-
-/* ════════════════════════
-   UPDATE TOPIC STATUS UI
-   (без повного ререндеру)
-════════════════════════ */
-function updateTopicStatusUI(hasTopic) {
-  const statusEl = document.getElementById('ve-topic-status');
-  if (!statusEl) return;
-
-  if (hasTopic) {
-    statusEl.className = 've-topic-status ok';
-    statusEl.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--green)" stroke-width="1.5"/><path d="M5 8l2 2 3-3" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Топік підключено · Фото акцизних марок будуть надсилатися в правильний чат`;
-  } else {
-    statusEl.className = 've-topic-status warn';
-    statusEl.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--amber)" stroke-width="1.5"/><path d="M8 5v3.5M8 11v.5" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round"/></svg>
-      Топік не налаштовано · Фото будуть падати в загальний чат групи`;
-  }
 }
 
 /* ════════════════════════
@@ -332,9 +294,9 @@ async function save() {
   const posSelect = document.getElementById('ve-pos');
   const topicInput = document.getElementById('ve-topic');
 
-  const name = nameInput?.value?.trim();
-  const posType = posSelect?.value;
-  const topicUrl = topicInput?.value?.trim();
+  const name = nameInput?.value?.trim() || '';
+  const posType = posSelect?.value || 'manual';
+  const topicUrl = topicInput?.value?.trim() || '';
   const topicId = extractTopicId(topicUrl);
 
   console.log('[VenueEdit] Saving:', { name, posType, topicUrl, topicId, venueId: _venue?.id });
@@ -353,22 +315,24 @@ async function save() {
     return;
   }
 
-  // 1. Зберігаємо в localStorage одразу (fallback)
-  saveToLocal(name, posType, topicId);
-
-  // 2. Оновлюємо локальний об'єкт _venue
+  // 1. Оновлюємо _venue ОДРАЗУ (до запиту на backend)
   _venue.name = name;
   _venue.posType = posType;
-  _venue.telegramTopicId = topicId;
+  _venue.telegramTopicId = topicId || '';
 
-  // 3. Оновлюємо UI статусу топіка одразу
-  updateTopicStatusUI(!!topicId);
+  // 2. Зберігаємо в localStorage
+  saveToLocal(name, posType, topicId);
 
-  // 4. Надсилаємо на backend
+  // 3. Надсилаємо на backend
+  let backendSuccess = false;
   try {
     const token = localStorage.getItem('barops_token');
     const url = `${API}/api/venues/${_venue.id}`;
-    const body = JSON.stringify({ name, posType, telegramTopicId: topicId });
+    const body = JSON.stringify({
+      name,
+      posType,
+      telegramTopicId: topicId,
+    });
 
     console.log('[VenueEdit] PATCH', url, body);
 
@@ -385,27 +349,24 @@ async function save() {
     console.log('[VenueEdit] Response:', data);
 
     if (data.success) {
+      backendSuccess = true;
       _saveSuccess = true;
       showToast('✅ Зміни збережено');
 
-      // Оновлюємо state якщо це активний заклад
       if (state.venueId === _venue.id) {
         state.venue = name;
         localStorage.setItem('barops_venue', name);
       }
     } else {
-      // Backend повернув помилку, але localStorage вже збережено
-      showToast('⚠️ ' + (data.error || 'Помилка сервера, але зміни збережено локально'), 'error');
+      showToast('⚠️ ' + (data.error || 'Помилка сервера'), 'error');
     }
   } catch (e) {
     console.error('[VenueEdit] Network error:', e);
-    // Мережева помилка — дані вже в localStorage
-    showToast('⚠️ Немає зв\'язку з сервером, але зміни збережено локально', 'error');
+    showToast('⚠️ Немає зв\'язку з сервером, зміни збережено локально', 'error');
   }
 
   _saving = false;
-  render();
-  setupAutoSave(); // Перепідключаємо auto-save після ререндеру
+  render(); // Тепер _venue вже оновлений, тому поле покаже нове значення!
 }
 
 /* ════════════════════════
@@ -424,6 +385,5 @@ export default {
   },
   init(params) {
     window.__ve = { save };
-    setupAutoSave();
   },
 };
