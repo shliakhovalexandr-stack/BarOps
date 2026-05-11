@@ -43,6 +43,18 @@ const CSS = `<style id="ve-css">
 </style>`;
 
 /* ════════════════════════
+   HELPERS
+════════════════════════ */
+function extractTopicId(url) {
+  if (!url) return null;
+  // Якщо вже просто число — повертаємо як є
+  if (/^\d+$/.test(url.trim())) return url.trim();
+  // Парсимо URL типу https://t.me/c/1234567890/1966 або https://web.telegram.org/a/#-1001234567890_1966
+  const match = url.match(/[/_](\d+)(?:\?|$|#)/);
+  return match ? match[1] : null;
+}
+
+/* ════════════════════════
    DATA LOADING
 ════════════════════════ */
 async function loadVenue(venueId) {
@@ -140,14 +152,14 @@ ${CSS}
       </div>
       `}
 
-      <div class="ve-label">Telegram Topic ID</div>
-      <input class="ve-input" id="ve-topic" type="text" value="${v.telegramTopicId || ''}" placeholder="Наприклад: 1966">
+      <div class="ve-label">Telegram Topic</div>
+      <input class="ve-input" id="ve-topic" type="text" value="${v.telegramTopicId || ''}" placeholder="Встав посилання на топік або ID">
       <div class="ve-hint">
-        📱 Як знайти Topic ID:<br>
-        1. Відкрий Telegram Web → зайди в групу<br>
-        2. Відкрий потрібний топік (тему)<br>
-        3. Скопіюй число з URL після нижнього підкреслення<br>
-        Приклад: https://t.me/c/1234567890/<strong>1966</strong>
+        📱 Можна вставити повне посилання на топік або тільки ID<br>
+        Приклади:<br>
+        • https://t.me/c/1234567890/<strong>1966</strong><br>
+        • https://web.telegram.org/a/#-1001234567890_<strong>1966</strong><br>
+        • або просто: <strong>1966</strong>
       </div>
     </div>
 
@@ -176,7 +188,10 @@ async function save() {
 
   const name = document.getElementById('ve-name')?.value?.trim();
   const posType = document.getElementById('ve-pos')?.value;
-  const topicId = document.getElementById('ve-topic')?.value?.trim();
+  const topicUrl = document.getElementById('ve-topic')?.value?.trim();
+  
+  // Витягуємо ID з посилання
+  const topicId = extractTopicId(topicUrl);
 
   if (!name) {
     alert('Вкажіть назву закладу');
@@ -195,7 +210,7 @@ async function save() {
       body: JSON.stringify({
         name,
         posType,
-        telegramTopicId: topicId || null,
+        telegramTopicId: topicId,
       }),
     });
 
@@ -204,7 +219,7 @@ async function save() {
     if (data.success) {
       _venue.name = name;
       _venue.posType = posType;
-      _venue.telegramTopicId = topicId || null;
+      _venue.telegramTopicId = topicId;
       
       if (state.venueId === _venue.id) {
         state.venue = name;
