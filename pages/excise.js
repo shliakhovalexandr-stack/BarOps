@@ -325,15 +325,23 @@ async function send() {
 window.__excise = { goBack, reset, openCamera, openGallery, handleFile, send };
 
 /* ════════════════════════
-   PAGE EXPORT
+   PAGE EXPORT — ВИПРАВЛЕНО
+   Тепер експортуємо об'єкт з render() та init(),
+   як очікує app.js
 ════════════════════════ */
-export default function mount(container) {
-  // Скидаємо стан при кожному вході
-  _step      = 'idle';
-  _photoFile = null;
-  if (_photoUrl) URL.revokeObjectURL(_photoUrl);
-  _photoUrl  = null;
-  _errorMsg  = '';
+export default {
+  render(params) {
+    // Скидаємо стан при кожному вході
+    _step      = 'idle';
+    _photoFile = null;
+    if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+    _photoUrl  = null;
+    _errorMsg  = '';
 
-  container.innerHTML = render();
-}
+    return render();
+  },
+  init(params) {
+    // init викликається після render в app.js
+    // Все необхідне вже зроблено в render()
+  }
+};
