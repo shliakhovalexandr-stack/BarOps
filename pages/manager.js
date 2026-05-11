@@ -1,11 +1,13 @@
 /* ============================================================
    BarOps — pages/manager.js
    Панель менеджера: Дашборд / Аналітика / Замовлення / Постачальники
-                   / Норми запасів / Налаштування
+                   / Норми запасів / Налаштування / Заклади
    Мобільна адаптація desktop-дашборду
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
+
+const API_URL = 'https://barops-backend-production.up.railway.app';
 
 /* ════════════════════════
    DATA
@@ -26,6 +28,8 @@ const NORMS_DATA = [
 ════════════════════════ */
 let _section = 'dashboard';
 let _revPeriod = '30';
+let _venues = [];
+let _editingVenue = null;
 
 /* ════════════════════════
    CSS
@@ -133,6 +137,35 @@ const CSS = `<style id="mgr-css">
 .mgr-toggle-knob{width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s}
 .mgr-toggle.on .mgr-toggle-knob{left:18px}
 
+/* venues */
+.mgr-venue-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px}
+.mgr-venue-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mgr-venue-icon{width:40px;height:40px;border-radius:12px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:20px}
+.mgr-venue-info{flex:1}
+.mgr-venue-name{font-size:15px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
+.mgr-venue-pos{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.mgr-venue-edit{width:32px;height:32px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.mgr-venue-edit:active{background:var(--bg4)}
+.mgr-venue-topic{font-size:12px;color:var(--text2);font-family:var(--font-b);padding:8px 12px;background:var(--bg3);border-radius:8px;margin-top:8px}
+.mgr-venue-topic strong{color:var(--green)}
+.mgr-venue-actions{display:flex;gap:8px;margin-top:10px}
+.mgr-venue-btn{flex:1;height:40px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg3);font-size:12px;font-family:var(--font-b);color:var(--text1);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.mgr-venue-btn:active{background:var(--bg4)}
+.mgr-venue-btn.green{background:var(--green);border-color:var(--green);color:#fff}
+
+/* modal */
+.mgr-modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;padding:0 14px 24px}
+.mgr-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:calc(100% - 28px);max-width:380px;background:var(--bg1);border:0.5px solid var(--border);border-radius:20px;padding:20px;z-index:301}
+.mgr-modal-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:16px}
+.mgr-modal-label{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.mgr-modal-input{width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;margin-bottom:14px;box-sizing:border-box}
+.mgr-modal-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+.mgr-modal-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px;line-height:1.5}
+.mgr-modal-actions{display:flex;gap:10px}
+.mgr-modal-btn{flex:1;height:48px;border-radius:12px;border:none;font-size:14px;font-family:var(--font-h);font-weight:500;cursor:pointer}
+.mgr-modal-btn.cancel{background:var(--bg3);color:var(--text1)}
+.mgr-modal-btn.save{background:var(--green);color:#fff}
+
 /* action buttons */
 .mgr-btn{width:100%;height:50px;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
 .mgr-btn-green{background:var(--green);color:#fff;box-shadow:0 4px 16px rgba(29,158,117,.2)}
@@ -153,7 +186,7 @@ function navHTML() {
     { id:'dashboard', icon:`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="8" width="5" height="6" rx="1" fill="currentColor" opacity=".7"/><rect x="9" y="2" width="5" height="12" rx="1" fill="currentColor"/></svg>`, lbl:'Дашборд' },
     { id:'analytics', icon:`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 11l3-4 3 2 3-4 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`, lbl:'Аналіт.' },
     { id:'team',      icon:`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="6" r="2.5" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="6" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-2.2 1.8-4 4-4M9 14c0-2.2 1.8-4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`, lbl:'Команда' },
-    { id:'norms',     icon:`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.5 4.5H15L10.5 9l1.5 5L8 11.5 3.5 14l1.5-5L.5 6h5.5z" stroke="currentColor" stroke-width="1" stroke-linejoin="round" fill="none"/></svg>`, lbl:'Норми' },
+    { id:'venues',    icon:`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 6l6-4 6 4v8H2V6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 14V9h4v5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`, lbl:'Заклади' },
     { id:'settings',  icon:`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`, lbl:'Налашт.' },
   ];
   return `<div class="mgr-nav">
@@ -391,6 +424,97 @@ function sectionNorms() {
 }
 
 /* ════════════════════════
+   SECTION: VENUES (НОВЕ)
+════════════════════════ */
+async function loadVenues() {
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`${API_URL}/api/venues`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    const data = await res.json();
+    if (data.success) {
+      _venues = data.venues || [];
+    }
+  } catch (err) {
+    console.error('[Manager] loadVenues error:', err);
+  }
+}
+
+function sectionVenues() {
+  if (_venues.length === 0) {
+    loadVenues().then(() => {
+      if (_section === 'venues') {
+        const view = document.getElementById('app-view');
+        if (view) view.innerHTML = buildHTML();
+      }
+    });
+  }
+
+  return `
+  <div style="height:14px"></div>
+  
+  ${!_editingVenue ? `
+  <!-- Список закладів -->
+  ${_venues.map(v => `
+  <div class="mgr-venue-card">
+    <div class="mgr-venue-header">
+      <div class="mgr-venue-icon">🏪</div>
+      <div class="mgr-venue-info">
+        <div class="mgr-venue-name">${v.name}</div>
+        <div class="mgr-venue-pos">${v.posType || 'Manual'} · ${v.id.slice(0,8)}</div>
+      </div>
+      <div class="mgr-venue-edit" onclick="window.__mgr.editVenue('${v.id}')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 14l2-2 8-8 2 2-8 8-2 2H2v-2z" stroke="var(--text1)" stroke-width="1.3" stroke-linejoin="round"/>
+          <path d="M10 4l2 2" stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    ${v.telegramTopicId ? `
+    <div class="mgr-venue-topic">
+      📱 Telegram Topic ID: <strong>${v.telegramTopicId}</strong>
+    </div>
+    ` : `
+    <div class="mgr-venue-topic" style="color:var(--amber)">
+      ⚠️ Telegram топік не налаштовано — фото будуть в загальний чат
+    </div>
+    `}
+  </div>
+  `).join('')}
+  
+  <div style="padding:8px 14px 14px">
+    <button class="mgr-btn mgr-btn-green" onclick="window.__mgr.createVenue()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Додати заклад
+    </button>
+  </div>
+  ` : `
+  <!-- Форма редагування/створення -->
+  <div style="padding:0 14px 14px">
+    <div class="mgr-modal-title">${_editingVenue.id ? 'Редагувати заклад' : 'Новий заклад'}</div>
+    
+    <div class="mgr-modal-label">Назва закладу</div>
+    <input class="mgr-modal-input" id="venue-name" type="text" value="${_editingVenue.name || ''}" placeholder="Наприклад: Test Bar">
+    
+    <div class="mgr-modal-label">Telegram Topic ID</div>
+    <input class="mgr-modal-input" id="venue-topic" type="text" value="${_editingVenue.telegramTopicId || ''}" placeholder="Наприклад: 1966">
+    <div class="mgr-modal-hint">
+      Відкрий топік у Telegram Web → скопіюй число з URL після _<br>
+      Приклад: https://t.me/c/1234567890/<strong>1966</strong>
+    </div>
+    
+    <div class="mgr-modal-actions">
+      <button class="mgr-modal-btn cancel" onclick="window.__mgr.cancelEdit()">Скасувати</button>
+      <button class="mgr-modal-btn save" onclick="window.__mgr.saveVenue()">Зберегти</button>
+    </div>
+  </div>
+  `}
+  
+  <div style="height:14px"></div>`;
+}
+
+/* ════════════════════════
    SECTION: SETTINGS
 ════════════════════════ */
 function sectionSettings() {
@@ -454,6 +578,7 @@ function sectionContent() {
     case 'analytics': return sectionAnalytics();
     case 'team':      return sectionTeam();
     case 'norms':     return sectionNorms();
+    case 'venues':    return sectionVenues();
     case 'settings':  return sectionSettings();
     default:          return sectionDashboard();
   }
@@ -464,6 +589,7 @@ const SECTION_TITLES = {
   analytics: 'Аналітика',
   team:      'Команда',
   norms:     'Норми запасів',
+  venues:    'Заклади',
   settings:  'Налаштування',
 };
 
@@ -509,11 +635,70 @@ function fullRender() {
 ════════════════════════ */
 function setSection(id) {
   _section = id;
+  if (id === 'venues') loadVenues();
   fullRender();
 }
 function setRevPeriod(p) {
   _revPeriod = p;
   fullRender();
+}
+
+function editVenue(id) {
+  const venue = _venues.find(v => v.id === id);
+  if (!venue) return;
+  _editingVenue = { ...venue };
+  fullRender();
+}
+
+function createVenue() {
+  _editingVenue = { id: null, name: '', telegramTopicId: '' };
+  fullRender();
+}
+
+function cancelEdit() {
+  _editingVenue = null;
+  fullRender();
+}
+
+async function saveVenue() {
+  const name = document.getElementById('venue-name')?.value?.trim();
+  const topicId = document.getElementById('venue-topic')?.value?.trim();
+  
+  if (!name) {
+    alert('Вкажіть назву закладу');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('barops_token');
+    const url = `${API_URL}/api/venues${_editingVenue.id ? `/${_editingVenue.id}` : ''}`;
+    const method = _editingVenue.id ? 'PATCH' : 'POST';
+    
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name,
+        telegramTopicId: topicId || null,
+      }),
+    });
+
+    const data = await res.json();
+    
+    if (data.success) {
+      _editingVenue = null;
+      await loadVenues();
+      fullRender();
+    } else {
+      alert(data.error || 'Помилка збереження');
+    }
+  } catch (err) {
+    console.error('[Manager] saveVenue error:', err);
+    alert('Мережева помилка');
+  }
 }
 
 /* ════════════════════════
@@ -523,9 +708,10 @@ export default {
   render() {
     _section   = 'dashboard';
     _revPeriod = '30';
+    _editingVenue = null;
     return buildHTML();
   },
   init() {
-    window.__mgr = { setSection, setRevPeriod };
+    window.__mgr = { setSection, setRevPeriod, editVenue, createVenue, cancelEdit, saveVenue };
   },
 };
