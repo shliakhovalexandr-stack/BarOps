@@ -8,7 +8,14 @@ import { navigate, state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 function currentVenueId() {
+  // Пріоритет: активний заклад на сторінці → state → localStorage
+  // Використовується ТІЛЬКИ для GET-запитів (завантаження команди)
   return _activeVenueId || state.venueId || localStorage.getItem('barops_venueId') || '';
+}
+
+// Повертає venueId виключно зі стану сторінки (для POST/PUT/DELETE)
+function activeVenueIdStrict() {
+  return _activeVenueId;
 }
 
 
@@ -591,9 +598,14 @@ async function submitAdd() {
   if (btn) btn.disabled = true;
 
   try {
-    // Завжди беремо активний заклад зі сторінки команди
-    const venueId = _activeVenueId || currentVenueId();
-    console.log('[Team] Додаємо бармена в заклад:', venueId, _activeVenueName);
+    // Завжди беремо активний заклад зі стану сторінки (НЕ з localStorage)
+    const venueId = activeVenueIdStrict();
+    if (!venueId) {
+      if (errEl) { errEl.textContent = 'Заклад не визначено. Оновіть сторінку.'; errEl.classList.add('show'); }
+      if (btn) btn.disabled = false;
+      return;
+    }
+    console.log('[Team] submitAdd → venueId:', venueId, '|', _activeVenueName);
     const res = await fetch(`${API}/api/auth/add-bartender`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
@@ -715,11 +727,18 @@ async function loadTeam() {
     const vData = await vRes.json();
     if (vData.venues) {
       _venues = vData.venues;
-      // Встановлюємо активний заклад якщо не обраний
-      if (!_activeVenueId && _venues.length > 0) {
-        const current = _venues.find(v => v.id === currentVenueId()) || _venues[0];
-        _activeVenueId   = current.id;
-        _activeVenueName = current.name;
+      if (_venues.length > 0) {
+        // Якщо _activeVenueId вже встановлений (напр. через switchTeamVenue) — перевіряємо валідність
+        const alreadyValid = _activeVenueId && _venues.find(v => v.id === _activeVenueId);
+        if (!alreadyValid) {
+          // Пріоритет: localStorage (заклад менеджера) → перший у списку
+          const fromStorage = _venues.find(v => v.id === (state.venueId || localStorage.getItem('barops_venueId')));
+          const current = fromStorage || _venues[0];
+          _activeVenueId   = current.id;
+          _activeVenueName = current.name;
+        }
+        console.log('[Team] activeVenueId після loadTeam:', _activeVenueId, _activeVenueName);
+        console.log('[Team] localStorage venueId:', localStorage.getItem('barops_venueId'));
       }
     }
 

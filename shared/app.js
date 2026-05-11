@@ -241,7 +241,7 @@ function renderDrawer() {
               <path d="M2 14l2-2 8-8 2 2-8 8-2 2H2v-2z" stroke="var(--green)" stroke-width="1.3" stroke-linejoin="round"/>
               <path d="M10 4l2 2" stroke="var(--green)" stroke-width="1.3" stroke-linecap="round"/>
             </svg>
-            <span style="font-size:13px;color:var(--green);font-family:var(--font-b)">Редагувати назву</span>
+            <span style="font-size:13px;color:var(--green);font-family:var(--font-b)">Редагувати заклад</span>
           </div>
           <div onclick="window.__barops.archiveVenue('${v.id}')"
             style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
@@ -348,32 +348,10 @@ export async function archiveVenue(id) {
   }
 }
 
-export async function editVenue(id, currentName) {
-  const name = prompt('Нова назва закладу:', currentName);
-  if (!name?.trim() || name.trim() === currentName) { _venueMenuId = null; renderDrawer(); return; }
-  try {
-    const token = localStorage.getItem('barops_token');
-    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body:    JSON.stringify({ name: name.trim() }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      const v = MANAGER_VENUES.find(x => x.id === id);
-      if (v) v.name = name.trim();
-      if (state.venueId === id) {
-        state.venue = name.trim();
-        localStorage.setItem('barops_venue', name.trim());
-      }
-      _venueMenuId = null;
-      renderDrawer();
-    } else {
-      alert(data.error || 'Помилка оновлення');
-    }
-  } catch (e) {
-    alert('Мережева помилка');
-  }
+export function editVenue(id, currentName) {
+  _venueMenuId = null;
+  renderDrawer();
+  navigate('venue-edit', { params: { venueId: id, venueName: currentName } });
 }
 
 export async function deleteVenue(id, name) {
