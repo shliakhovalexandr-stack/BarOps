@@ -11,8 +11,18 @@ let _venue = null;
 let _loading = true;
 let _saving = false;
 let _saveSuccess = false;
+let _toastTimer = null;
 
 function token() { return localStorage.getItem('barops_token') || ''; }
+
+/* ════════════════════════
+   LOCAL STORAGE KEYS
+════════════════════════ */
+const LS_KEYS = {
+  venueName:     'barops_venue_name',
+  venuePos:      'barops_venue_pos',
+  telegramTopic: 'barops_telegram_topic',
+};
 
 /* ════════════════════════
    CSS
@@ -41,7 +51,10 @@ const CSS = `<style id="ve-css">
 .ve-topic-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;font-family:var(--font-b)}
 .ve-topic-status.ok{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
 .ve-topic-status.warn{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
-.ve-success{background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:12px;padding:12px 14px;margin:0 14px 14px;font-size:13px;color:var(--green);font-family:var(--font-b);display:flex;align-items:center;gap:8px}
+.ve-success{background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:12px;padding:12px 14px;margin:0 14px 14px;font-size:13px;color:var(--green);font-family:var(--font-b);display:flex;align-items:center;gap:8px;animation:veFadeIn .3s ease}
+.ve-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);color:var(--text0);padding:12px 24px;border-radius:12px;font-family:var(--font-b);font-size:14px;border:0.5px solid var(--border2);z-index:1000;opacity:0;transition:all .3s ease;pointer-events:none;white-space:nowrap}
+.ve-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.ve-toast.error{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
 </style>`;
 
 /* ════════════════════════
@@ -49,27 +62,91 @@ const CSS = `<style id="ve-css">
 ════════════════════════ */
 function extractTopicId(url) {
   if (!url) return null;
-  if (/^\d+$/.test(url.trim())) return url.trim();
-  const match = url.match(/[/_](\d+)(?:\?|$|#)/);
+  const trimmed = url.trim();
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  const match = trimmed.match(/[/_](\d+)(?:\?|$|#)/);
   return match ? match[1] : null;
+}
+
+function showToast(message, type = 'success') {
+  // Прибрати старий toast
+  const old = document.getElementById('ve-toast');
+  if (old) old.remove();
+  if (_toastTimer) clearTimeout(_toastTimer);
+
+  const toast = document.createElement('div');
+  toast.id = 've-toast';
+  toast.className = `ve-toast ${type === 'error' ? 'error' : ''}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  // Форсувати reflow
+  toast.offsetHeight;
+  toast.classList.add('show');
+
+  _toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+/* ════════════════════════
+   LOCAL STORAGE
+════════════════════════ */
+function saveToLocal(name, posType, topicId) {
+  localStorage.setItem(LS_KEYS.venueName, name);
+  localStorage.setItem(LS_KEYS.venuePos, posType);
+  if (topicId) localStorage.setItem(LS_KEYS.telegramTopic, topicId);
+}
+
+function loadFromLocal() {
+  return {
+    name: localStorage.getItem(LS_KEYS.venueName) || '',
+    posType: localStorage.getItem(LS_KEYS.venuePos) || 'manual',
+    telegramTopicId: localStorage.getItem(LS_KEYS.telegramTopic) || '',
+  };
 }
 
 /* ════════════════════════
    DATA LOADING
 ════════════════════════ */
 async function loadVenue(venueId) {
+  _loading = true;
+  _venue = null;
+
   try {
     const res = await fetch(`${API}/api/venues`, {
       headers: { Authorization: `Bearer ${token()}` },
     });
     const data = await res.json();
-    if (data.success) {
-      _venue = data.venues.find(v => v.id === venueId) || null;
-      console.log('[VenueEdit] Loaded venue:', _venue);
+
+    if (data.success && data.venues) {
+      const found = data.venues.find(v => v.id === venueId);
+      if (found) {
+        _venue = found;
+        // Також зберегти в localStorage для fallback
+        saveToLocal(found.name, found.posType || 'manual', found.telegramTopicId);
+        console.log('[VenueEdit] Loaded from API:', _venue);
+      }
     }
   } catch (e) {
-    console.error('[VenueEdit] loadVenue:', e);
+    console.warn('[VenueEdit] API failed, using localStorage fallback:', e);
   }
+
+  // Fallback: якщо API не спрацював — беремо з localStorage
+  if (!_venue) {
+    const local = loadFromLocal();
+    if (local.name) {
+      _venue = {
+        id: venueId,
+        name: local.name,
+        posType: local.posType,
+        telegramTopicId: local.telegramTopicId,
+      };
+      console.log('[VenueEdit] Loaded from localStorage:', _venue);
+    }
+  }
+
   _loading = false;
   render();
 }
@@ -112,6 +189,7 @@ function buildHTML() {
     </div>`;
   }
 
+  // Використовуємо актуальні дані з _venue (включаючи зміни після збереження)
   const hasTopic = !!v.telegramTopicId;
 
   return `
@@ -135,7 +213,7 @@ ${CSS}
     <div class="ve-sec">Основна інформація</div>
     <div class="ve-card">
       <div class="ve-label">Назва закладу</div>
-      <input class="ve-input" id="ve-name" type="text" value="${v.name}" placeholder="Наприклад: Test Bar">
+      <input class="ve-input" id="ve-name" type="text" value="${escapeHtml(v.name)}" placeholder="Наприклад: Test Bar">
 
       <div class="ve-label">POS-система</div>
       <select class="ve-select" id="ve-pos">
@@ -149,19 +227,19 @@ ${CSS}
     <div class="ve-sec">Telegram інтеграція</div>
     <div class="ve-card">
       ${hasTopic ? `
-      <div class="ve-topic-status ok">
+      <div class="ve-topic-status ok" id="ve-topic-status">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--green)" stroke-width="1.5"/><path d="M5 8l2 2 3-3" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Топік підключено · Фото акцизних марок будуть надсилатися в правильний чат
       </div>
       ` : `
-      <div class="ve-topic-status warn">
+      <div class="ve-topic-status warn" id="ve-topic-status">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--amber)" stroke-width="1.5"/><path d="M8 5v3.5M8 11v.5" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round"/></svg>
         Топік не налаштовано · Фото будуть падати в загальний чат групи
       </div>
       `}
 
       <div class="ve-label">Telegram Topic</div>
-      <input class="ve-input" id="ve-topic" type="text" value="${v.telegramTopicId || ''}" placeholder="Встав посилання на топік або ID">
+      <input class="ve-input" id="ve-topic" type="text" value="${escapeHtml(v.telegramTopicId || '')}" placeholder="Встав посилання на топік або ID">
       <div class="ve-hint">
         📱 Можна вставити повне посилання на топік або тільки ID<br>
         Приклади:<br>
@@ -172,7 +250,7 @@ ${CSS}
     </div>
 
     <div style="padding:8px 14px 24px">
-      <button class="ve-btn ve-btn-green" id="ve-save-btn" onclick="window.__ve.save()">
+      <button class="ve-btn ve-btn-green" id="ve-save-btn" onclick="window.__ve.save()" ${_saving ? 'disabled' : ''}>
         ${_saving ? '<div style="width:20px;height:20px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;animation:veSpin .7s linear infinite"></div>' : '💾 Зберегти зміни'}
       </button>
       <button class="ve-btn ve-btn-ghost" onclick="window.__barops.goBack()">Назад</button>
@@ -181,9 +259,64 @@ ${CSS}
 </div>`;
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function render() {
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
+}
+
+/* ════════════════════════
+   AUTO-SAVE TO LOCAL STORAGE
+   (при зміні полів)
+════════════════════════ */
+function setupAutoSave() {
+  const nameInput = document.getElementById('ve-name');
+  const posSelect = document.getElementById('ve-pos');
+  const topicInput = document.getElementById('ve-topic');
+
+  const saveDraft = () => {
+    const name = nameInput?.value?.trim() || '';
+    const pos = posSelect?.value || 'manual';
+    const topic = topicInput?.value?.trim() || '';
+    const topicId = extractTopicId(topic);
+
+    localStorage.setItem(LS_KEYS.venueName, name);
+    localStorage.setItem(LS_KEYS.venuePos, pos);
+    if (topicId) localStorage.setItem(LS_KEYS.telegramTopic, topicId);
+  };
+
+  nameInput?.addEventListener('input', saveDraft);
+  posSelect?.addEventListener('change', saveDraft);
+  topicInput?.addEventListener('input', saveDraft);
+}
+
+/* ════════════════════════
+   UPDATE TOPIC STATUS UI
+   (без повного ререндеру)
+════════════════════════ */
+function updateTopicStatusUI(hasTopic) {
+  const statusEl = document.getElementById('ve-topic-status');
+  if (!statusEl) return;
+
+  if (hasTopic) {
+    statusEl.className = 've-topic-status ok';
+    statusEl.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--green)" stroke-width="1.5"/><path d="M5 8l2 2 3-3" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Топік підключено · Фото акцизних марок будуть надсилатися в правильний чат`;
+  } else {
+    statusEl.className = 've-topic-status warn';
+    statusEl.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--amber)" stroke-width="1.5"/><path d="M8 5v3.5M8 11v.5" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Топік не налаштовано · Фото будуть падати в загальний чат групи`;
+  }
 }
 
 /* ════════════════════════
@@ -195,41 +328,49 @@ async function save() {
   _saveSuccess = false;
   render();
 
-  const name = document.getElementById('ve-name')?.value?.trim();
-  const posType = document.getElementById('ve-pos')?.value;
-  const topicUrl = document.getElementById('ve-topic')?.value?.trim();
-  
+  const nameInput = document.getElementById('ve-name');
+  const posSelect = document.getElementById('ve-pos');
+  const topicInput = document.getElementById('ve-topic');
+
+  const name = nameInput?.value?.trim();
+  const posType = posSelect?.value;
+  const topicUrl = topicInput?.value?.trim();
   const topicId = extractTopicId(topicUrl);
 
   console.log('[VenueEdit] Saving:', { name, posType, topicUrl, topicId, venueId: _venue?.id });
 
   if (!name) {
-    alert('Вкажіть назву закладу');
+    showToast('❌ Вкажіть назву закладу', 'error');
     _saving = false;
     render();
     return;
   }
 
   if (!_venue || !_venue.id) {
-    alert('Помилка: заклад не завантажено');
+    showToast('❌ Помилка: заклад не завантажено', 'error');
     _saving = false;
     render();
     return;
   }
 
+  // 1. Зберігаємо в localStorage одразу (fallback)
+  saveToLocal(name, posType, topicId);
+
+  // 2. Оновлюємо локальний об'єкт _venue
+  _venue.name = name;
+  _venue.posType = posType;
+  _venue.telegramTopicId = topicId;
+
+  // 3. Оновлюємо UI статусу топіка одразу
+  updateTopicStatusUI(!!topicId);
+
+  // 4. Надсилаємо на backend
   try {
     const token = localStorage.getItem('barops_token');
-    console.log('[VenueEdit] Token:', token ? 'present' : 'missing');
-    
     const url = `${API}/api/venues/${_venue.id}`;
-    console.log('[VenueEdit] URL:', url);
-    
-    const body = JSON.stringify({
-      name,
-      posType,
-      telegramTopicId: topicId,
-    });
-    console.log('[VenueEdit] Body:', body);
+    const body = JSON.stringify({ name, posType, telegramTopicId: topicId });
+
+    console.log('[VenueEdit] PATCH', url, body);
 
     const res = await fetch(url, {
       method: 'PATCH',
@@ -240,35 +381,31 @@ async function save() {
       body: body,
     });
 
-    console.log('[VenueEdit] Response status:', res.status);
     const data = await res.json();
-    console.log('[VenueEdit] Response data:', data);
+    console.log('[VenueEdit] Response:', data);
 
     if (data.success) {
-      _venue.name = name;
-      _venue.posType = posType;
-      _venue.telegramTopicId = topicId;
       _saveSuccess = true;
-      
+      showToast('✅ Зміни збережено');
+
+      // Оновлюємо state якщо це активний заклад
       if (state.venueId === _venue.id) {
         state.venue = name;
         localStorage.setItem('barops_venue', name);
       }
-      
-      // НЕ переходимо на дашборд, залишаємося на сторінці
-      _saving = false;
-      render();
     } else {
-      alert(data.error || 'Помилка збереження');
-      _saving = false;
-      render();
+      // Backend повернув помилку, але localStorage вже збережено
+      showToast('⚠️ ' + (data.error || 'Помилка сервера, але зміни збережено локально'), 'error');
     }
   } catch (e) {
-    console.error('[VenueEdit] Error:', e);
-    alert('Мережева помилка: ' + e.message);
-    _saving = false;
-    render();
+    console.error('[VenueEdit] Network error:', e);
+    // Мережева помилка — дані вже в localStorage
+    showToast('⚠️ Немає зв\'язку з сервером, але зміни збережено локально', 'error');
   }
+
+  _saving = false;
+  render();
+  setupAutoSave(); // Перепідключаємо auto-save після ререндеру
 }
 
 /* ════════════════════════
@@ -287,5 +424,6 @@ export default {
   },
   init(params) {
     window.__ve = { save };
+    setupAutoSave();
   },
 };
