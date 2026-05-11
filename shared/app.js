@@ -234,6 +234,15 @@ function renderDrawer() {
         ${v.id===_venueMenuId?`
         <div style="margin:0 12px 8px;border-radius:12px;background:var(--bg3);
                     border:0.5px solid var(--border2);overflow:hidden">
+          <div onclick="window.__barops.editVenue('${v.id}','${v.name}')"
+            style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
+                   border-bottom:0.5px solid var(--border2)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 14l2-2 8-8 2 2-8 8-2 2H2v-2z" stroke="var(--green)" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M10 4l2 2" stroke="var(--green)" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size:13px;color:var(--green);font-family:var(--font-b)">Редагувати назву</span>
+          </div>
           <div onclick="window.__barops.archiveVenue('${v.id}')"
             style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
                    border-bottom:0.5px solid var(--border2)">
@@ -333,6 +342,34 @@ export async function archiveVenue(id) {
       }
     } else {
       alert(data.error || 'Помилка архівування');
+    }
+  } catch (e) {
+    alert('Мережева помилка');
+  }
+}
+
+export async function editVenue(id, currentName) {
+  const name = prompt('Нова назва закладу:', currentName);
+  if (!name?.trim() || name.trim() === currentName) { _venueMenuId = null; renderDrawer(); return; }
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ name: name.trim() }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const v = MANAGER_VENUES.find(x => x.id === id);
+      if (v) v.name = name.trim();
+      if (state.venueId === id) {
+        state.venue = name.trim();
+        localStorage.setItem('barops_venue', name.trim());
+      }
+      _venueMenuId = null;
+      renderDrawer();
+    } else {
+      alert(data.error || 'Помилка оновлення');
     }
   } catch (e) {
     alert('Мережева помилка');
@@ -511,7 +548,7 @@ export async function bootstrap() {
   window.__barops = {
     navigate, goBack, setRole, state,
     openDrawer, closeDrawer, switchVenue, addVenuePrompt,
-    openVenueMenu, archiveVenue, deleteVenue,
+    openVenueMenu, archiveVenue, deleteVenue, editVenue,
     logout: function() {
       localStorage.removeItem('barops_token');
       localStorage.removeItem('barops_refresh');
