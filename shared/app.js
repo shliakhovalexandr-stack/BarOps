@@ -51,6 +51,7 @@ async function loadVenuesIntoDrawer() {
 }
 
 let _drawerOpen = false;
+let _venueMenuId = null; // id закладу з відкритим контекстним меню
 
 /* ══════════════════════════════════════
    2. РЕЄСТР СТОРІНОК
@@ -201,20 +202,56 @@ function renderDrawer() {
       <div style="padding:8px 20px 6px;font-size:10px;color:var(--text2);
                   letter-spacing:.10em;text-transform:uppercase;font-family:var(--font-b)">Заклади</div>
       ${MANAGER_VENUES.map(v => `
-      <div onclick="window.__barops.switchVenue('${v.id}')"
-        style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
-               background:${v.active?'rgba(29,158,117,.06)':'transparent'};transition:background .12s">
-        <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;
-                    background:${v.active?'var(--green)':'var(--bg4)'};
-                    border:1.5px solid ${v.active?'var(--green)':'var(--border3)'}"></div>
-        <div style="flex:1">
-          <div style="font-size:13px;color:${v.active?'var(--text0)':'var(--text2)'};
-                      font-family:var(--font-b);font-weight:${v.active?'500':'400'}">${v.name}</div>
-          <div style="font-size:10px;color:var(--text2);font-family:var(--font-b)">${v.pos}</div>
+      <div style="position:relative">
+        <div
+          onclick="window.__barops.switchVenue('${v.id}')"
+          oncontextmenu="event.preventDefault();window.__barops.openVenueMenu('${v.id}')"
+          data-long-press-id="${v.id}"
+          style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
+                 background:${v.id===_venueMenuId?'rgba(255,255,255,.04)':v.active?'rgba(29,158,117,.06)':'transparent'};
+                 transition:background .12s">
+          <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;
+                      background:${v.active?'var(--green)':'var(--bg4)'};
+                      border:1.5px solid ${v.active?'var(--green)':'var(--border3)'}"></div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:${v.active?'var(--text0)':'var(--text2)'};
+                        font-family:var(--font-b);font-weight:${v.active?'500':'400'}">${v.name}</div>
+            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b)">${v.pos}</div>
+          </div>
+          ${v.active?`<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 7l3 3 7-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>`:`
+          <div onclick="event.stopPropagation();window.__barops.openVenueMenu('${v.id}')"
+            style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+                   border-radius:6px;cursor:pointer;opacity:.4">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="3" r="1" fill="var(--text2)"/>
+              <circle cx="7" cy="7" r="1" fill="var(--text2)"/>
+              <circle cx="7" cy="11" r="1" fill="var(--text2)"/>
+            </svg>
+          </div>`}
         </div>
-        ${v.active?`<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M2 7l3 3 7-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`:''}
+        ${v.id===_venueMenuId?`
+        <div style="margin:0 12px 8px;border-radius:12px;background:var(--bg3);
+                    border:0.5px solid var(--border2);overflow:hidden">
+          <div onclick="window.__barops.archiveVenue('${v.id}')"
+            style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
+                   border-bottom:0.5px solid var(--border2)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="5" width="12" height="9" rx="1.5" stroke="var(--amber)" stroke-width="1.3"/>
+              <path d="M2 5h12M6 2h4" stroke="var(--amber)" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M6 8.5h4" stroke="var(--amber)" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size:13px;color:var(--amber);font-family:var(--font-b)">Архівувати заклад</span>
+          </div>
+          <div onclick="window.__barops.deleteVenue('${v.id}','${v.name}')"
+            style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 4h10M6 4V2h4v2M5 4v8a1 1 0 001 1h4a1 1 0 001-1V4" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span style="font-size:13px;color:var(--red);font-family:var(--font-b)">Видалити заклад</span>
+          </div>
+        </div>`:``}
       </div>`).join('')}
       <div onclick="window.__barops.addVenuePrompt()"
         style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer">
@@ -267,6 +304,69 @@ export function addVenuePrompt() {
   const pos = prompt('POS-система (Poster / iiko / R-Keeper):') || 'Poster';
   MANAGER_VENUES.push({ id:'v'+Date.now(), name:name.trim(), pos, active:false });
   renderDrawer();
+}
+
+export function openVenueMenu(id) {
+  _venueMenuId = _venueMenuId === id ? null : id;
+  renderDrawer();
+}
+
+export async function archiveVenue(id) {
+  const v = MANAGER_VENUES.find(x => x.id === id);
+  if (!v) return;
+  if (!confirm(`Архівувати "${v.name}"? Заклад буде прихований, дані збережуться.`)) return;
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}/archive`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      MANAGER_VENUES = MANAGER_VENUES.filter(x => x.id !== id);
+      _venueMenuId = null;
+      // Якщо архівували активний — переключаємо на перший
+      if (state.venueId === id && MANAGER_VENUES.length > 0) {
+        switchVenue(MANAGER_VENUES[0].id);
+      } else {
+        renderDrawer();
+      }
+    } else {
+      alert(data.error || 'Помилка архівування');
+    }
+  } catch (e) {
+    alert('Мережева помилка');
+  }
+}
+
+export async function deleteVenue(id, name) {
+  if (!confirm(`Видалити "${name}" назавжди? Всі дані закладу будуть втрачені. Це незворотна дія.`)) return;
+  // Друге підтвердження для безпеки
+  if (!confirm(`Ви впевнені? Видалити "${name}" безповоротно?`)) return;
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      MANAGER_VENUES = MANAGER_VENUES.filter(x => x.id !== id);
+      _venueMenuId = null;
+      if (state.venueId === id && MANAGER_VENUES.length > 0) {
+        switchVenue(MANAGER_VENUES[0].id);
+      } else if (MANAGER_VENUES.length === 0) {
+        closeDrawer();
+        navigate('dashboard');
+      } else {
+        renderDrawer();
+      }
+    } else {
+      alert(data.error || 'Помилка видалення');
+    }
+  } catch (e) {
+    alert('Мережева помилка');
+  }
 }
 
 /* ══════════════════════════════════════
@@ -411,6 +511,7 @@ export async function bootstrap() {
   window.__barops = {
     navigate, goBack, setRole, state,
     openDrawer, closeDrawer, switchVenue, addVenuePrompt,
+    openVenueMenu, archiveVenue, deleteVenue,
     logout: function() {
       localStorage.removeItem('barops_token');
       localStorage.removeItem('barops_refresh');
