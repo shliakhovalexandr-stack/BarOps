@@ -10,6 +10,7 @@ const API = 'https://barops-backend-production.up.railway.app';
 let _venue = null;
 let _loading = true;
 let _saving = false;
+let _saveSuccess = false;
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
@@ -40,6 +41,7 @@ const CSS = `<style id="ve-css">
 .ve-topic-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;font-family:var(--font-b)}
 .ve-topic-status.ok{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
 .ve-topic-status.warn{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
+.ve-success{background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:12px;padding:12px 14px;margin:0 14px 14px;font-size:13px;color:var(--green);font-family:var(--font-b);display:flex;align-items:center;gap:8px}
 </style>`;
 
 /* ════════════════════════
@@ -47,9 +49,7 @@ const CSS = `<style id="ve-css">
 ════════════════════════ */
 function extractTopicId(url) {
   if (!url) return null;
-  // Якщо вже просто число — повертаємо як є
   if (/^\d+$/.test(url.trim())) return url.trim();
-  // Парсимо URL типу https://t.me/c/1234567890/1966 або https://web.telegram.org/a/#-1001234567890_1966
   const match = url.match(/[/_](\d+)(?:\?|$|#)/);
   return match ? match[1] : null;
 }
@@ -65,6 +65,7 @@ async function loadVenue(venueId) {
     const data = await res.json();
     if (data.success) {
       _venue = data.venues.find(v => v.id === venueId) || null;
+      console.log('[VenueEdit] Loaded venue:', _venue);
     }
   } catch (e) {
     console.error('[VenueEdit] loadVenue:', e);
@@ -124,6 +125,13 @@ ${CSS}
   </div>
 
   <div class="ve-scroll">
+    ${_saveSuccess ? `
+    <div class="ve-success">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--green)" stroke-width="1.5"/><path d="M5 8l2 2 3-3" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ✅ Зміни збережено успішно!
+    </div>
+    ` : ''}
+
     <div class="ve-sec">Основна інформація</div>
     <div class="ve-card">
       <div class="ve-label">Назва закладу</div>
@@ -167,7 +175,7 @@ ${CSS}
       <button class="ve-btn ve-btn-green" id="ve-save-btn" onclick="window.__ve.save()">
         ${_saving ? '<div style="width:20px;height:20px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;animation:veSpin .7s linear infinite"></div>' : '💾 Зберегти зміни'}
       </button>
-      <button class="ve-btn ve-btn-ghost" onclick="window.__barops.goBack()">Скасувати</button>
+      <button class="ve-btn ve-btn-ghost" onclick="window.__barops.goBack()">Назад</button>
     </div>
   </div>
 </div>`;
@@ -184,14 +192,16 @@ function render() {
 async function save() {
   if (_saving) return;
   _saving = true;
+  _saveSuccess = false;
   render();
 
   const name = document.getElementById('ve-name')?.value?.trim();
   const posType = document.getElementById('ve-pos')?.value;
   const topicUrl = document.getElementById('ve-topic')?.value?.trim();
   
-  // Витягуємо ID з посилання
   const topicId = extractTopicId(topicUrl);
+
+  console.log('[VenueEdit] Saving:', { name, posType, topicUrl, topicId, venueId: _venue?.id });
 
   if (!name) {
     alert('Вкажіть назву закладу');
@@ -200,41 +210,62 @@ async function save() {
     return;
   }
 
+  if (!_venue || !_venue.id) {
+    alert('Помилка: заклад не завантажено');
+    _saving = false;
+    render();
+    return;
+  }
+
   try {
-    const res = await fetch(`${API}/api/venues/${_venue.id}`, {
+    const token = localStorage.getItem('barops_token');
+    console.log('[VenueEdit] Token:', token ? 'present' : 'missing');
+    
+    const url = `${API}/api/venues/${_venue.id}`;
+    console.log('[VenueEdit] URL:', url);
+    
+    const body = JSON.stringify({
+      name,
+      posType,
+      telegramTopicId: topicId,
+    });
+    console.log('[VenueEdit] Body:', body);
+
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token()}`,
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        name,
-        posType,
-        telegramTopicId: topicId,
-      }),
+      body: body,
     });
 
+    console.log('[VenueEdit] Response status:', res.status);
     const data = await res.json();
+    console.log('[VenueEdit] Response data:', data);
 
     if (data.success) {
       _venue.name = name;
       _venue.posType = posType;
       _venue.telegramTopicId = topicId;
+      _saveSuccess = true;
       
       if (state.venueId === _venue.id) {
         state.venue = name;
         localStorage.setItem('barops_venue', name);
       }
       
-      alert('✅ Зміни збережено!');
-      navigate('dashboard');
+      // НЕ переходимо на дашборд, залишаємося на сторінці
+      _saving = false;
+      render();
     } else {
       alert(data.error || 'Помилка збереження');
       _saving = false;
       render();
     }
   } catch (e) {
-    alert('Мережева помилка');
+    console.error('[VenueEdit] Error:', e);
+    alert('Мережева помилка: ' + e.message);
     _saving = false;
     render();
   }
@@ -248,7 +279,9 @@ export default {
     _venue = null;
     _loading = true;
     _saving = false;
+    _saveSuccess = false;
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
+    console.log('[VenueEdit] Render with venueId:', venueId);
     loadVenue(venueId);
     return buildHTML();
   },
