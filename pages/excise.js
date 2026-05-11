@@ -1,1 +1,314 @@
-﻿⨯㴠㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽ഽ †慂佲獰钀瀠条獥支捸獩⹥獪਍†퀠킐톺킆킸킷톽ₖ볐냐胑뫐룐›蓑뻐苑뻐銆吠汥来慲⁭苑뻐뿐雑뫐퀠킷킰킺킻킰톴ඃ †㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽㴽⨠യഊ椊灭牯⁴⁻慮楶慧整‬瑳瑡⁥⁽牦浯✠⸮猯慨敲⽤灡⹰獪㬧਍਍潣獮⁴偁彉剕⁌‽栧瑴獰⼺戯牡灯⵳慢正湥ⵤ牰摯捵楴湯甮⹰慲汩慷⹹灡❰഻ഊ⼊‪闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕਍†䴠䑏䱕⁅呓呁൅邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢ₐ⼪਍敬⁴獟整⁰†††‽椧汤❥※†⼯✠摩敬‧⁼瀧敲楶睥‧⁼猧湥楤杮‧⁼搧湯❥簠✠牥潲❲਍敬⁴灟潨潴楆敬†‽畮汬഻氊瑥张桰瑯啯汲†㴠渠汵㭬਍敬⁴敟牲牯獍⁧†‽✧഻ഊ⼊‪闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕਍†䌠卓਍闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕⨠യ挊湯瑳䌠卓㴠怠猼祴敬椠㵤攢捸挭獳㸢਍攮捸眭慲筰汦硥ㄺ搻獩汰祡昺敬㭸汦硥搭物捥楴湯挺汯浵㭮癯牥汦睯栺摩敤㭮潰楳楴湯爺汥瑡癩絥਍攮捸猭牣汯筬癯牥汦睯礭愺瑵㭯汦硥ㄺ瀻摡楤杮戭瑯潴㩭㐲硰⹽硥ⵣ捳潲汬㨺眭扥楫⵴捳潲汬慢筲楷瑤㩨細਍਍⨯琠灯慢⁲⼪਍攮捸琭灯慢筲楤灳慬㩹汦硥愻楬湧椭整獭挺湥整㭲慧㩰㈱硰瀻摡楤杮㠺硰ㄠ瀸⁸㈱硰昻敬⵸桳楲歮〺ൽ⸊硥ⵣ慢正睻摩桴㌺瀶㭸敨杩瑨㌺瀶㭸潢摲牥爭摡畩㩳〵㬥慢正牧畯摮瘺牡⴨戭㉧㬩潢摲牥〺㔮硰猠汯摩瘠牡⴨戭牯敤㉲㬩楤灳慬㩹汦硥愻楬湧椭整獭挺湥整㭲番瑳晩⵹潣瑮湥㩴散瑮牥挻牵潳㩲潰湩整㭲汦硥猭牨湩㩫細਍攮捸戭捡㩫捡楴敶扻捡杫潲湵㩤慶⡲ⴭ杢⤳ൽ⸊硥ⵣ楴汴筥潦瑮昭浡汩㩹慶⡲ⴭ潦瑮栭㬩潦瑮猭穩㩥㜱硰昻湯⵴敷杩瑨㜺〰挻汯牯瘺牡⴨琭硥ぴ㬩敬瑴牥猭慰楣杮ⴺ〮攲絭਍攮捸猭扵晻湯⵴楳敺ㄺ瀱㭸潣潬㩲慶⡲ⴭ整瑸⤲活牡楧⵮潴㩰瀱㭸潦瑮昭浡汩㩹慶⡲ⴭ潦瑮戭紩਍਍⨯栠牥⁯慣摲⨠യ⸊硥ⵣ敨潲浻牡楧㩮‰㐱硰ㄠ瀶㭸慢正牧畯摮瘺牡⴨戭㉧㬩潢摲牥〺㔮硰猠汯摩瘠牡⴨愭扭牥戭牯敤⥲戻牯敤⵲慲楤獵㈺瀰㭸慰摤湩㩧㈲硰㈠瀰㭸楤灳慬㩹汦硥昻敬⵸楤敲瑣潩㩮潣畬湭愻楬湧椭整獭挺湥整㭲慧㩰㈱硰琻硥⵴污杩㩮散瑮牥ൽ⸊硥ⵣ敨潲椭潣筮楷瑤㩨〶硰栻楥桧㩴〶硰戻牯敤⵲慲楤獵ㄺ瀸㭸慢正牧畯摮瘺牡⴨愭扭牥戭⥧戻牯敤㩲⸰瀵⁸潳楬⁤慶⡲ⴭ浡敢⵲潢摲牥㬩楤灳慬㩹汦硥愻楬湧椭整獭挺湥整㭲番瑳晩⵹潣瑮湥㩴散瑮牥昻湯⵴楳敺㈺瀸絸਍攮捸栭牥ⵯ楴汴筥潦瑮昭浡汩㩹慶⡲ⴭ潦瑮栭㬩潦瑮猭穩㩥㠱硰昻湯⵴敷杩瑨㜺〰挻汯牯瘺牡⴨琭硥ぴ㬩敬瑴牥猭慰楣杮ⴺ〮攲絭਍攮捸栭牥ⵯ敤捳晻湯⵴楳敺ㄺ瀲㭸潣潬㩲慶⡲ⴭ整瑸⤲昻湯⵴慦業祬瘺牡⴨昭湯⵴⥢氻湩ⵥ敨杩瑨ㄺ㘮活硡眭摩桴㈺〶硰ൽഊ⼊‪桰瑯⁯畢瑴湯⁳⼪਍攮捸戭湴筳楤灳慬㩹牧摩朻楲ⵤ整灭慬整挭汯浵獮ㄺ牦ㄠ牦朻灡ㄺ瀰㭸慰摤湩㩧‰㐱硰㈠瀰絸਍攮捸戭湴桻楥桧㩴㈵硰戻牯敤⵲慲楤獵ㄺ瀴㭸潢摲牥〺㔮硰猠汯摩瘠牡⴨戭牯敤㉲㬩慢正牧畯摮瘺牡⴨戭㉧㬩楤灳慬㩹汦硥愻楬湧椭整獭挺湥整㭲番瑳晩⵹潣瑮湥㩴散瑮牥朻灡㠺硰挻牵潳㩲潰湩整㭲潦瑮猭穩㩥㌱硰昻湯⵴慦業祬瘺牡⴨昭湯⵴⥢昻湯⵴敷杩瑨㔺〰挻汯牯瘺牡⴨琭硥ぴ㬩牴湡楳楴湯愺汬⸠㔱絳਍攮捸戭湴愺瑣癩筥牴湡晳牯㩭捳污⡥㤮⤷戻捡杫潲湵㩤慶⡲ⴭ杢⤳ൽ⸊硥ⵣ瑢⹮牰浩牡筹慢正牧畯摮瘺牡⴨愭扭牥㬩潢摲牥挭汯牯琺慲獮慰敲瑮挻汯牯⌺晦㭦牧摩挭汯浵㩮⼱ㄭ栻楥桧㩴㐵硰昻湯⵴楳敺ㄺ瀴㭸潦瑮眭楥桧㩴〶細਍攮捸戭湴瀮楲慭祲愺瑣癩筥慢正牧畯摮⌺つ挸攱ൽഊ⼊‪牰癥敩⁷⼪਍攮捸瀭敲楶睥浻牡楧㩮‰㐱硰ㄠ瀴㭸潢摲牥爭摡畩㩳㘱硰漻敶晲潬㩷楨摤湥戻牯敤㩲⸰瀵⁸潳楬⁤慶⡲ⴭ潢摲牥⤲瀻獯瑩潩㩮敲慬楴敶戻捡杫潲湵㩤慶⡲ⴭ杢⤲ൽ⸊硥ⵣ牰癥敩⁷浩筧楷瑤㩨〱┰搻獩汰祡戺潬正活硡栭楥桧㩴㠲瀰㭸扯敪瑣昭瑩挺癯牥ൽ⸊硥ⵣ牰癥敩⵷档湡敧灻獯瑩潩㩮扡潳畬整琻灯ㄺ瀰㭸楲桧㩴〱硰戻捡杫潲湵㩤杲慢〨〬〬⸬㔶㬩潢摲牥〺㔮硰猠汯摩爠执⡡㔲ⰵ㔲ⰵ㔲ⰵㄮ⤵戻牯敤⵲慲楤獵㈺瀰㭸慰摤湩㩧瀵⁸㈱硰昻湯⵴楳敺ㄺ瀱㭸潣潬㩲昣晦昻湯⵴慦業祬瘺牡⴨昭湯⵴⥢挻牵潳㩲潰湩整㭲慢正牤灯昭汩整㩲汢牵㘨硰紩਍攮捸瀭敲楶睥挭慨杮㩥捡楴敶扻捡杫潲湵㩤杲慢〨〬〬⸬㔸紩਍਍⨯椠普⁯慣摲⨠യ⸊硥ⵣ湩潦浻牡楧㩮‰㐱硰ㄠ瀶㭸慢正牧畯摮瘺牡⴨戭㉧㬩潢摲牥〺㔮硰猠汯摩瘠牡⴨戭牯敤⥲戻牯敤⵲慲楤獵ㄺ瀶㭸癯牥汦睯栺摩敤絮਍攮捸椭普ⵯ潲筷楤灳慬㩹汦硥愻楬湧椭整獭挺湥整㭲慧㩰㈱硰瀻摡楤杮ㄺ瀳⁸㐱硰戻牯敤⵲潢瑴浯〺㔮硰猠汯摩瘠牡⴨戭牯敤⥲ൽ⸊硥ⵣ湩潦爭睯氺獡⵴档汩筤潢摲牥戭瑯潴㩭潮敮ൽ⸊硥ⵣ湩潦椭潣筮潦瑮猭穩㩥㘱硰眻摩桴㈺瀰㭸整瑸愭楬湧挺湥整㭲汦硥猭牨湩㩫細਍攮捸椭普ⵯ慬敢筬潦瑮猭穩㩥ㄱ硰挻汯牯瘺牡⴨琭硥㉴㬩潦瑮昭浡汩㩹慶⡲ⴭ潦瑮戭㬩汦硥ㄺൽ⸊硥ⵣ湩潦瘭污晻湯⵴楳敺ㄺ瀳㭸潣潬㩲慶⡲ⴭ整瑸⤰昻湯⵴慦業祬瘺牡⴨昭湯⵴⥢昻湯⵴敷杩瑨㔺〰琻硥⵴污杩㩮楲桧絴਍਍⨯猠湥⁤畢瑴湯⨠യ⸊硥ⵣ敳摮浻牡楧㩮‰㐱硰ㄠ瀲㭸敨杩瑨㔺瀴㭸潢摲牥爭摡畩㩳㘱硰戻牯敤㩲潮敮戻捡杫潲湵㩤慶⡲ⴭ牧敥⥮挻汯牯⌺晦㭦潦瑮昭浡汩㩹慶⡲ⴭ潦瑮栭㬩潦瑮猭穩㩥㔱硰昻湯⵴敷杩瑨㜺〰氻瑥整⵲灳捡湩㩧〮攱㭭畣獲牯瀺楯瑮牥搻獩汰祡昺敬㭸污杩⵮瑩浥㩳散瑮牥樻獵楴祦挭湯整瑮挺湥整㭲慧㩰瀸㭸牴湡楳楴湯愺汬⸠㔱㭳楷瑤㩨慣捬ㄨ〰‥‭㠲硰紩਍攮捸猭湥㩤捡楴敶扻捡杫潲湵㩤慶⡲ⴭ牧敥⵮⥤琻慲獮潦浲猺慣敬⸨㠹紩਍攮捸猭湥㩤楤慳汢摥潻慰楣祴⸺㬵畣獲牯渺瑯愭汬睯摥琻慲獮潦浲渺湯絥਍਍⨯猠湥楤杮猠慴整⨠യ⸊硥ⵣ敳摮湩筧楤灳慬㩹汦硥昻敬⵸楤敲瑣潩㩮潣畬湭愻楬湧椭整獭挺湥整㭲番瑳晩⵹潣瑮湥㩴散瑮牥昻敬㩸㬱慧㩰㘱硰瀻摡楤杮㐺瀰⁸㐲硰琻硥⵴污杩㩮散瑮牥ൽ⸊硥ⵣ灳湩敮筲楷瑤㩨〴硰栻楥桧㩴〴硰戻牯敤⵲慲楤獵㔺┰戻牯敤㩲瀳⁸潳楬⁤慶⡲ⴭ杢⤳戻牯敤⵲潴⵰潣潬㩲慶⡲ⴭ浡敢⥲愻楮慭楴湯攺捸灓湩⸠猷氠湩慥⁲湩楦楮整ൽ䀊敫晹慲敭⁳硥卣楰筮潴瑻慲獮潦浲爺瑯瑡⡥㘳搰来紩ൽ⸊硥ⵣ敳摮湩ⵧ楴汴筥潦瑮昭浡汩㩹慶⡲ⴭ潦瑮栭㬩潦瑮猭穩㩥㘱硰昻湯⵴敷杩瑨㜺〰挻汯牯瘺牡⴨琭硥ぴ紩਍攮捸猭湥楤杮猭扵晻湯⵴楳敺ㄺ瀲㭸潣潬㩲慶⡲ⴭ整瑸⤲昻湯⵴慦業祬瘺牡⴨昭湯⵴⥢氻湩ⵥ敨杩瑨ㄺ㔮ൽഊ⼊‪潤敮猠慴整⨠യ⸊硥ⵣ潤敮摻獩汰祡昺敬㭸汦硥搭物捥楴湯挺汯浵㭮污杩⵮瑩浥㩳散瑮牥樻獵楴祦挭湯整瑮挺湥整㭲汦硥ㄺ朻灡ㄺ瀴㭸慰摤湩㩧〴硰㈠瀴㭸整瑸愭楬湧挺湥整絲਍攮捸搭湯ⵥ捩湯睻摩桴㜺瀲㭸敨杩瑨㜺瀲㭸潢摲牥爭摡畩㩳㈲硰戻捡杫潲湵㩤慶⡲ⴭ牧敥⵮杢㬩潢摲牥〺㔮硰猠汯摩瘠牡⴨札敲湥戭牯敤⥲搻獩汰祡昺敬㭸污杩⵮瑩浥㩳散瑮牥樻獵楴祦挭湯整瑮挺湥整㭲潦瑮猭穩㩥㐳硰愻楮慭楴湯攺捸潐⁰㐮⁳畣楢ⵣ敢楺牥⸨㐳ㄬ㔮ⰶ㘮ⰴ⤱戠瑯絨਍歀祥牦浡獥攠捸潐筰牦浯瑻慲獮潦浲猺慣敬⸨⤵漻慰楣祴〺瑽筯牴湡晳牯㩭潮敮漻慰楣祴ㄺ絽਍攮捸搭湯ⵥ楴汴筥潦瑮昭浡汩㩹慶⡲ⴭ潦瑮栭㬩潦瑮猭穩㩥〲硰昻湯⵴敷杩瑨㜺〰挻汯牯瘺牡⴨琭硥ぴ紩਍攮捸搭湯ⵥ畳筢潦瑮猭穩㩥㌱硰挻汯牯瘺牡⴨琭硥㉴㬩潦瑮昭浡汩㩹慶⡲ⴭ潦瑮戭㬩楬敮栭楥桧㩴⸱㬶慭⵸楷瑤㩨㘲瀰絸਍攮捸搭湯ⵥ条楡筮慭杲湩琭灯㠺硰栻楥桧㩴㠴硰眻摩桴ㄺ〰㬥潢摲牥爭摡畩㩳㐱硰戻牯敤㩲⸰瀵⁸潳楬⁤慶⡲ⴭ潢摲牥⤲戻捡杫潲湵㩤慶⡲ⴭ杢⤲昻湯⵴楳敺ㄺ瀴㭸潦瑮昭浡汩㩹慶⡲ⴭ潦瑮戭㬩潦瑮眭楥桧㩴〵㬰潣潬㩲慶⡲ⴭ整瑸⤰挻牵潳㩲潰湩整絲਍攮捸搭湯ⵥ条楡㩮捡楴敶扻捡杫潲湵㩤慶⡲ⴭ杢⤳ൽഊ⼊‪牥潲⁲⼪਍攮捸攭牲牯浻牡楧㩮‰㐱硰ㄠ瀲㭸慢正牧畯摮瘺牡⴨爭摥戭⥧戻牯敤㩲⸰瀵⁸潳楬⁤慶⡲ⴭ敲ⵤ潢摲牥㬩潢摲牥爭摡畩㩳㐱硰瀻摡楤杮ㄺ瀲⁸㐱硰昻湯⵴楳敺ㄺ瀲㭸潣潬㩲慶⡲ⴭ敲⥤昻湯⵴慦業祬瘺牡⴨昭湯⵴⥢氻湩ⵥ敨杩瑨ㄺ㔮琻硥⵴污杩㩮散瑮牥ൽഊ⼊‪楨摤湥椠灮瑵⁳⼪਍攮捸昭汩ⵥ湩異筴潰楳楴湯昺硩摥琻灯ⴺ〲瀰㭸敬瑦ⴺ〲瀰㭸灯捡瑩㩹㬰楷瑤㩨瀱㭸敨杩瑨ㄺ硰ൽ㰊猯祴敬怾഻ഊ⼊‪闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕਍†䠠䱅䕐卒਍闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕⨠യ昊湵瑣潩⁮敧呴歯湥⤨笠਍†敲畴湲氠捯污瑓牯条⹥敧䥴整⡭戧牡灯彳潴敫❮籼✠㬧਍ൽഊ昊湵瑣潩⁮敧啴敳䥲普⡯ൻ 琠祲笠਍††潣獮⁴潴敫⁮‽敧呴歯湥⤨഻ †椠⁦ℨ潴敫⥮爠瑥牵⁮⁻慮敭›퀧킑톰킀킼킵➽‬敶畮乥浡㩥✠韐냐뫐믐냐듐‧㭽਍††潣獮⁴慰汹慯⁤‽半乏瀮牡敳愨潴⡢潴敫⹮灳楬⡴⸧⤧ㅛ⥝㬩਍††敲畴湲笠਍†††慮敭›††瀠祡潬摡渮浡⁥††簠⁼퀧킑톰킀킼킵➽ബ ††瘠湥敵慎敭›慰汹慯⹤敶畮乥浡⁥籼瀠祡潬摡瘮湥敵簠⁼퀧킗킰킺킻킰➴ബ †素഻ 素挠瑡档笠਍††敲畴湲笠渠浡㩥✠釐냐胑볐뗐뷐Ⱗ瘠湥敵慎敭›퀧킗킰킺킻킰➴素഻ 素਍ൽഊ昊湵瑣潩⁮浦呴浩⡥ൻ 爠瑥牵⁮敮⁷慄整⤨琮䱯捯污卥牴湩⡧甧⵫䅕Ⱗ笠਍††慤㩹✠ⴲ楤楧❴‬潭瑮㩨✠ⴲ楤楧❴‬敹牡›渧浵牥捩Ⱗ਍††潨牵›㈧搭杩瑩Ⱗ洠湩瑵㩥✠ⴲ楤楧❴ബ 素㬩਍ൽഊ⼊‪闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕਍†删久䕄൒邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢ₐ⼪਍畦据楴湯爠湥敤⡲ൻ 挠湯瑳笠渠浡ⱥ瘠湥敵慎敭素㴠朠瑥獕牥湉潦⤨഻ഊ 椠⁦弨瑳灥㴠㴽✠敳摮湩❧ൻ †爠瑥牵⁮①䍻卓ൽ ††㰠楤⁶汣獡㵳攢捸眭慲≰ാ †††㰠楤⁶汣獡㵳攢捸琭灯慢≲ാ ††††㰠楤⁶汣獡㵳攢捸戭捡≫漠据楬正∽彟硥楣敳朮䉯捡⡫∩ാ †††††㰠癳⁧楷瑤㵨ㄢ∸栠楥桧㵴ㄢ∸瘠敩䉷硯∽‰‰㐲㈠∴映汩㵬渢湯≥猠牴歯㵥挢牵敲瑮潃潬≲猠牴歯ⵥ楷瑤㵨㈢㈮㸢瀼瑡⁨㵤䴢㤱ㄠ䠲䴵㈱㔠⵬‷‷‷∷㸯⼼癳㹧਍†††††⼼楤㹶਍†††††搼癩ാ †††††㰠楤⁶汣獡㵳攢捸琭瑩敬㸢郐뫐蛑룐럐⼼楤㹶਍†††††⼼楤㹶਍††††⼼楤㹶਍††††搼癩挠慬獳∽硥ⵣ敳摮湩≧ാ ††††㰠楤⁶汣獡㵳攢捸猭楰湮牥㸢⼼楤㹶਍†††††搼癩挠慬獳∽硥ⵣ敳摮湩ⵧ楴汴≥퀾킝킰톴킁킸킻톰킔킼₾蓑뻐苑뻐胢㲦搯癩ാ ††††㰠楤⁶汣獡㵳攢捸猭湥楤杮猭扵㸢ꓐ뻐苑뻐퀠킰톺킆킸킷킽톾ₗ볐냐胑뫐룐戼㹲닐雑듐뿐胑냐닐믐近铑苑賑臑近퀠₲敔敬牧浡⼼楤㹶਍††††⼼楤㹶਍†††⼼楤㹶㭠਍†ൽഊ 椠⁦弨瑳灥㴠㴽✠潤敮⤧笠਍††敲畴湲怠笤千絓਍†††搼癩挠慬獳∽硥ⵣ牷灡㸢਍††††搼癩挠慬獳∽硥ⵣ潴扰牡㸢਍†††††搼癩挠慬獳∽硥ⵣ慢正•湯汣捩㵫弢敟捸獩⹥潧慂正⤨㸢਍††††††猼杶眠摩桴∽㠱•敨杩瑨∽㠱•楶睥潂㵸〢〠㈠‴㐲•楦汬∽潮敮•瑳潲敫∽畣牲湥䍴汯牯•瑳潲敫眭摩桴∽⸲∲㰾慰桴搠∽ㅍ‹㈱㕈ㅍ′氵㜭㜠㜠㜠⼢㰾猯杶ാ ††††㰠搯癩ാ ††††㰠楤㹶਍††††††搼癩挠慬獳∽硥ⵣ楴汴≥퀾킐톺킆킸㲷搯癩ാ ††††㰠搯癩ാ †††㰠搯癩ാ †††㰠楤⁶汣獡㵳攢捸搭湯≥ാ ††††㰠楤⁶汣獡㵳攢捸搭湯ⵥ捩湯㸢鳢㲅搯癩ാ ††††㰠楤⁶汣獡㵳攢捸搭湯ⵥ楴汴≥퀾톒킖킴톿킀킰킲킻킵킽↾⼼楤㹶਍†††††搼癩挠慬獳∽硥ⵣ潤敮猭扵㸢ꓐ뻐苑뻐퀠킰톺킆킸킷킽톾ₗ볐냐胑뫐룐퀠킽킰톴톖킁킻킰킽₾듐뻐吠汥来慲⵭苑뻐뿐雑뫐菑퀠킷킰킺킻킰톴₃ꯂ笤敶畮乥浡絥믂⼼楤㹶਍†††††戼瑵潴⁮汣獡㵳攢捸搭湯ⵥ条楡≮漠据楬正∽彟硥楣敳爮獥瑥⤨㸢鷐냐듐雑臑믐냐苑룐턠킉₵뻐듐뷐뗐턠킄톾킂㲾戯瑵潴㹮਍††††⼼楤㹶਍†††⼼楤㹶㭠਍†ൽഊ 挠湯瑳栠獡桐瑯⁯‽獟整⁰㴽‽瀧敲楶睥‧☦张桰瑯啯汲഻ഊ 爠瑥牵⁮①䍻卓ൽ †㰠楤⁶汣獡㵳攢捸眭慲≰ാ ††㰠ⴡ‭ꋐ뻐뿐뇐냐胑ⴠ㸭਍†††搼癩挠慬獳∽硥ⵣ潴扰牡㸢਍††††搼癩挠慬獳∽硥ⵣ慢正•湯汣捩㵫弢敟捸獩⹥潧慂正⤨㸢਍†††††猼杶眠摩桴∽㠱•敨杩瑨∽㠱•楶睥潂㵸〢〠㈠‴㐲•楦汬∽潮敮•瑳潲敫∽畣牲湥䍴汯牯•瑳潲敫眭摩桴∽⸲∲㰾慰桴搠∽ㅍ‹㈱㕈ㅍ′氵㜭㜠㜠㜠⼢㰾猯杶ാ †††㰠搯癩ാ †††㰠楤㹶਍†††††搼癩挠慬獳∽硥ⵣ楴汴≥퀾킐톺킆킸킷톽ₖ볐냐胑뫐룐⼼楤㹶਍†††††搼癩挠慬獳∽硥ⵣ畳≢␾登湥敵慎敭㱽搯癩ാ †††㰠搯癩ാ ††㰠搯癩ാഊ ††㰠楤⁶汣獡㵳攢捸猭牣汯≬ാഊ †††␠ⅻ慨偳潨潴㼠怠਍††††ℼⴭ䠠牥⁯ⴭാ †††㰠楤⁶汣獡㵳攢捸栭牥≯ാ ††††㰠楤⁶汣獡㵳攢捸栭牥ⵯ捩湯㸢鿰랏룯㲏搯癩ാ ††††㰠楤⁶汣獡㵳攢捸栭牥ⵯ楴汴≥퀾키톾킂₾냐뫐蛑룐럐뷐뻐韑퀠킼톰킀킺㲸搯癩ാ ††††㰠楤⁶汣獡㵳攢捸栭牥ⵯ敤捳㸢ꇐ蓑뻐苑뻐돐胑냐蓑菑말퀠킰톺킆킸킷톽₃볐냐胑뫐菑钀퀠킲킾킽₰냐닐苑뻐볐냐苑룐蟑뷐뻐퀠킿톾톂킀킰킿톸톂₌菑吠汥来慲⵭뛐菑胑뷐냐믐퀠킷킰킺킻킰톴㲃搯癩ാ †††㰠搯癩ാഊ †††㰠ⴡ‭髐뷐뻐뿐뫐룐퀠킲킸킱톾톀₃蓑뻐苑뻐ⴠ㸭਍††††搼癩挠慬獳∽硥ⵣ瑢獮㸢਍†††††戼瑵潴⁮汣獡㵳攢捸戭湴•湯汣捩㵫弢敟捸獩⹥灯湥慃敭慲⤨㸢਍††††††鿰랓퀠킚킰킼통킀ධ ††††㰠戯瑵潴㹮਍†††††戼瑵潴⁮汣獡㵳攢捸戭湴•湯汣捩㵫弢敟捸獩⹥灯湥慇汬牥⡹∩ാ †††††隟辸퀠킓킰킻통킀통ඏ ††††㰠戯瑵潴㹮਍††††⼼楤㹶਍††††⁠›✧ൽഊ †††␠桻獡桐瑯⁯‿ൠ †††㰠ⴡ‭鿐胑뗐닐턧₎蓑뻐苑뻐ⴠ㸭਍††††搼癩挠慬獳∽硥ⵣ牰癥敩≷ാ ††††㰠浩⁧牳㵣␢彻桰瑯啯汲≽愠瑬∽郐뫐蛑룐럐뷐냐퀠킼톰킀킺⊰㸯਍†††††搼癩挠慬獳∽硥ⵣ牰癥敩⵷档湡敧•湯汣捩㵫弢敟捸獩⹥灯湥慇汬牥⡹∩퀾킗톼킖킽톸킂₸蓑뻐苑뻐⼼楤㹶਍††††⼼楤㹶਍਍††††ℼⴭ퀠킆톽킄₾ⴭാ †††㰠楤⁶汣獡㵳攢捸椭普≯ാ ††††㰠楤⁶汣獡㵳攢捸椭普ⵯ潲≷ാ †††††㰠灳湡挠慬獳∽硥ⵣ湩潦椭潣≮醟㲤猯慰㹮਍††††††猼慰⁮汣獡㵳攢捸椭普ⵯ慬敢≬퀾킑톰킀킼킵㲽猯慰㹮਍††††††猼慰⁮汣獡㵳攢捸椭普ⵯ慶≬␾湻浡絥⼼灳湡ാ ††††㰠搯癩ാ ††††㰠楤⁶汣獡㵳攢捸椭普ⵯ潲≷ാ †††††㰠灳湡挠慬獳∽硥ⵣ湩潦椭潣≮辟㲠猯慰㹮਍††††††猼慰⁮汣獡㵳攢捸椭普ⵯ慬敢≬퀾킗킰킺킻킰㲴猯慰㹮਍††††††猼慰⁮汣獡㵳攢捸椭普ⵯ慶≬␾登湥敵慎敭㱽猯慰㹮਍†††††⼼楤㹶਍†††††搼癩挠慬獳∽硥ⵣ湩潦爭睯㸢਍††††††猼慰⁮汣獡㵳攢捸椭普ⵯ捩湯㸢鿰邕⼼灳湡ാ †††††㰠灳湡挠慬獳∽硥ⵣ湩潦氭扡汥㸢Ꟑ냐臑⼼灳湡ാ †††††㰠灳湡挠慬獳∽硥ⵣ湩潦瘭污㸢笤浦呴浩⡥紩⼼灳湡ാ ††††㰠搯癩ാ †††㰠搯癩ാഊ †††␠彻瑳灥㴠㴽✠牥潲❲㼠怠搼癩挠慬獳∽硥ⵣ牥潲≲ꂚ룯₏笤敟牲牯獍絧⼼楤㹶⁠›✧ൽഊ †††㰠ⴡ‭髐뷐뻐뿐뫐냐퀠톲킖킴톿킀킰킲킺₸ⴭാ †††㰠畢瑴湯挠慬獳∽硥ⵣ敳摮•湯汣捩㵫弢敟捸獩⹥敳摮⤨㸢਍†††††猼杶眠摩桴∽㠱•敨杩瑨∽㠱•楶睥潂㵸〢〠㈠‴㐲•楦汬∽潮敮•瑳潲敫∽畣牲湥䍴汯牯•瑳潲敫眭摩桴∽⸲∲㰾慰桴搠∽㉍′䰲ㄱㄠ䴳㈲㈠⵬‷〲㐭㤭㤭㐭㈠ⴰ稷⼢㰾猯杶ാ ††††퀠킝킰톴톖킁킻톰킂₸닐吠汥来慲൭ †††㰠戯瑵潴㹮਍††††⁠›✧ൽഊ ††㰠搯癩ാഊ ††㰠ⴡ‭鿐胑룐藑뻐닐냐뷐雑映汩⁥湩異獴ⴠ㸭਍†††椼灮瑵挠慬獳∽硥ⵣ楦敬椭灮瑵•摩∽硥ⵣ慣⵭湩≰琠灹㵥昢汩≥愠捣灥㵴椢慭敧⨯•慣瑰牵㵥攢癮物湯敭瑮ഢ †††漠据慨杮㵥弢敟捸獩⹥慨摮敬楆敬琨楨⥳⼢ാ ††㰠湩異⁴汣獡㵳攢捸昭汩ⵥ湩異≴椠㵤攢捸札污椭灮•祴数∽楦敬•捡散瑰∽浩条⽥∪਍††††湯档湡敧∽彟硥楣敳栮湡汤䙥汩⡥桴獩∩㸯਍††⼼楤㹶㭠਍ൽഊ⼊‪闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕਍†䄠呃佉华਍闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕⨠യ昊湵瑣潩⁮敲敲摮牥⤨笠਍†潣獮⁴楶睥㴠搠捯浵湥⹴敧䕴敬敭瑮祂摉✨灡⵰楶睥⤧഻ 椠⁦瘨敩⥷瘠敩⹷湩敮䡲䵔⁌‽敲摮牥⤨഻紊਍਍畦据楴湯朠䉯捡⡫ൻ 渠癡杩瑡⡥搧獡扨慯摲⤧഻紊਍਍畦据楴湯爠獥瑥⤨笠਍†獟整⁰††㴠✠摩敬㬧਍†灟潨潴楆敬㴠渠汵㭬਍†晩⠠灟潨潴牕⥬唠䱒爮癥歯佥橢捥啴䱒弨桰瑯啯汲㬩਍†灟潨潴牕⁬㴠渠汵㭬਍†敟牲牯獍⁧㴠✠㬧਍†敲敲摮牥⤨഻紊਍਍畦据楴湯漠数䍮浡牥⡡ൻ 挠湯瑳椠灮㴠搠捯浵湥⹴敧䕴敬敭瑮祂摉✨硥ⵣ慣⵭湩❰㬩਍†晩⠠湩⥰椠灮挮楬正⤨഻紊਍਍畦据楴湯漠数䝮污敬祲⤨笠਍†潣獮⁴湩⁰‽潤畣敭瑮朮瑥汅浥湥䉴䥹⡤攧捸札污椭灮⤧഻ 椠⁦椨灮湩⹰汣捩⡫㬩਍ൽഊ昊湵瑣潩⁮慨摮敬楆敬椨灮瑵ൻ 挠湯瑳映汩⁥‽湩異⹴楦敬㽳嬮崰഻ 椠⁦ℨ楦敬敲畴湲഻ 椠⁦弨桰瑯啯汲剕⹌敲潶敫扏敪瑣剕⡌灟潨潴牕⥬഻ 张桰瑯䙯汩⁥‽楦敬഻ 张桰瑯啯汲†‽剕⹌牣慥整扏敪瑣剕⡌楦敬㬩਍†獟整⁰††㴠✠牰癥敩❷഻ 张牥潲䵲杳†‽✧഻ 爠牥湥敤⡲㬩਍ൽഊ愊祳据映湵瑣潩⁮敳摮⤨笠਍†晩⠠弡桰瑯䙯汩⥥爠瑥牵㭮਍਍†潣獮⁴⁻慮敭‬敶畮乥浡⁥⁽‽敧啴敳䥲普⡯㬩਍਍†獟整⁰‽猧湥楤杮㬧਍†敲敲摮牥⤨഻ഊ 琠祲笠਍††潣獮⁴潦浲慄慴㴠渠睥䘠牯䑭瑡⡡㬩਍††潦浲慄慴愮灰湥⡤瀧潨潴Ⱗ†††灟潨潴楆敬㬩਍††潦浲慄慴愮灰湥⡤瘧湥敵慎敭Ⱗ†敶畮乥浡⥥഻ †映牯䑭瑡⹡灡数摮✨慢浲湡慎敭Ⱗ渠浡⥥഻ഊ †挠湯瑳琠歯湥㴠朠瑥潔敫⡮㬩਍††潣獮⁴敲⁳‽睡楡⁴敦捴⡨①䅻䥐啟䱒⽽灡⽩硥楣敳瀯潨潴Ⱡ笠਍†††敭桴摯›✠佐呓Ⱗ਍†††敨摡牥㩳琠歯湥㼠笠䄠瑵潨楲慺楴湯›䉠慥敲⁲笤潴敫絮⁠⁽›絻ബ ††戠摯㩹††潦浲慄慴ബ †素㬩਍਍††潣獮⁴慤慴㴠愠慷瑩爠獥樮潳⡮㬩਍਍††晩⠠爡獥漮⥫琠牨睯渠睥䔠牲牯搨瑡⹡牥潲⁲籼✠鿐뻐볐룐믐뫐냐턠킁통킀킲통킀➰㬩਍਍††⼯퀠톞킇톸톉톃킔킼඾ †椠⁦弨桰瑯啯汲剕⹌敲潶敫扏敪瑣剕⡌灟潨潴牕⥬഻ †张桰瑯啯汲†‽畮汬഻ †张桰瑯䙯汩⁥‽畮汬഻ †张瑳灥†††‽搧湯❥഻ †爠牥湥敤⡲㬩਍਍†⁽慣捴⁨攨牲ൻ †张瑳灥††㴠✠牥潲❲഻ †张牥潲䵲杳㴠攠牲洮獥慳敧簠⁼퀧킝₵닐듐냐믐뻐臑近퀠킽킰톴톖킁킻톰킂₸蓑뻐苑뻐‮ꇐ뿐胑뻐뇐菑말턠킉₵胑냐럐✮഻ †爠牥湥敤⡲㬩਍†ൽ紊਍਍⨯邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢ඐ †䱇䉏䱁䌠乏剔䱏䕌൒邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢ₐ⼪਍楷摮睯弮敟捸獩⁥‽⁻潧慂正‬敲敳ⱴ漠数䍮浡牥ⱡ漠数䝮污敬祲‬慨摮敬楆敬‬敳摮素഻ഊ⼊‪闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕਍†倠䝁⁅塅佐呒钀퀠킒킘킟킠킐킒킛킕킝ඞ †ꋐ뗐뿐뗐胑퀠킵톺킁킿톾톀톂톃킔킼₾뻐뇐턧킔톺₂럐爠湥敤⡲苑냐椠楮⡴Ⱙ਍†턠킏₺뻐蟑雑뫐菑铑愠灰樮൳邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢邕闢ₐ⼪਍硥潰瑲搠晥畡瑬笠਍†敲摮牥瀨牡浡⥳笠਍††⼯퀠킡킺킸킴톰킔킼₾臑苑냐뷐퀠톿킀₸뫐뻐뛐뷐뻐볐菑퀠톲킅킾톴ඖ †张瑳灥†††‽椧汤❥഻ †张桰瑯䙯汩⁥‽畮汬഻ †椠⁦弨桰瑯啯汲剕⹌敲潶敫扏敪瑣剕⡌灟潨潴牕⥬഻ †张桰瑯啯汲†‽畮汬഻ †张牥潲䵲杳†‽✧഻ഊ †爠瑥牵⁮敲摮牥⤨഻ 素ബ 椠楮⡴慰慲獭ൻ †⼠ 湩瑩퀠킲킸킺킻킸킺톰톔톂톌톁₏뿐雑臑믐近爠湥敤⁲닐愠灰樮൳ †⼠ 鋐臑뗐퀠킽킵킾톱톅킖킴킽₵닐뛐뗐퀠톷킀킾킱킻킵킽₾닐爠湥敤⡲ഩ 素਍㭽
+/* ============================================================
+   BarOps — pages/excise.js
+   Акцизні марки: фото → Telegram топік закладу
+   ============================================================ */
+
+import { navigate, state } from '../shared/app.js';
+
+const API_URL = 'https://barops-backend-production.up.railway.app';
+
+/* ════════════════════════
+   MODULE STATE
+════════════════════════ */
+let _step       = 'idle';
+let _photoFile  = null;
+let _photoUrl   = null;
+let _errorMsg   = '';
+
+/* ════════════════════════
+   CSS
+════════════════════════ */
+const CSS = `<style id="exc-css">
+.exc-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.exc-scroll{overflow-y:auto;flex:1;padding-bottom:24px}.exc-scroll::-webkit-scrollbar{width:0}
+.exc-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
+.exc-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.exc-back:active{background:var(--bg3)}
+.exc-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
+.exc-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
+.exc-hero{margin:0 14px 16px;background:var(--bg2);border:0.5px solid var(--amber-border);border-radius:20px;padding:22px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.exc-hero-icon{width:60px;height:60px;border-radius:18px;background:var(--amber-bg);border:0.5px solid var(--amber-border);display:flex;align-items:center;justify-content:center;font-size:28px}
+.exc-hero-title{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
+.exc-hero-desc{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.6;max-width:260px}
+.exc-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 20px}
+.exc-btn{height:52px;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-size:13px;font-family:var(--font-b);font-weight:500;color:var(--text0);transition:all .15s}
+.exc-btn:active{transform:scale(.97);background:var(--bg3)}
+.exc-btn.primary{background:var(--amber);border-color:transparent;color:#fff;grid-column:1/-1;height:54px;font-size:14px;font-weight:600}
+.exc-btn.primary:active{background:#d08c1e}
+.exc-preview{margin:0 14px 14px;border-radius:16px;overflow:hidden;border:0.5px solid var(--border2);position:relative;background:var(--bg2)}
+.exc-preview img{width:100%;display:block;max-height:280px;object-fit:cover}
+.exc-preview-change{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.65);border:0.5px solid rgba(255,255,255,.15);border-radius:20px;padding:5px 12px;font-size:11px;color:#fff;font-family:var(--font-b);cursor:pointer;backdrop-filter:blur(6px)}
+.exc-preview-change:active{background:rgba(0,0,0,.85)}
+.exc-info{margin:0 14px 16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.exc-info-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:0.5px solid var(--border)}
+.exc-info-row:last-child{border-bottom:none}
+.exc-info-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.exc-info-label{font-size:11px;color:var(--text2);font-family:var(--font-b);flex:1}
+.exc-info-val{font-size:13px;color:var(--text0);font-family:var(--font-b);font-weight:500;text-align:right}
+.exc-send{margin:0 14px 12px;height:54px;border-radius:16px;border:none;background:var(--green);color:#fff;font-family:var(--font-h);font-size:15px;font-weight:700;letter-spacing:.01em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;width:calc(100% - 28px)}
+.exc-send:active{background:var(--green-d);transform:scale(.98)}
+.exc-send:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.exc-sending{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;padding:40px 24px;text-align:center}
+.exc-spinner{width:40px;height:40px;border-radius:50%;border:3px solid var(--bg3);border-top-color:var(--amber);animation:excSpin .7s linear infinite}
+@keyframes excSpin{to{transform:rotate(360deg)}}
+.exc-sending-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)}
+.exc-sending-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
+.exc-done{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:40px 24px;text-align:center}
+.exc-done-icon{width:72px;height:72px;border-radius:22px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:34px;animation:excPop .4s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes excPop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
+.exc-done-title{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0)}
+.exc-done-sub{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6;max-width:260px}
+.exc-done-again{margin-top:8px;height:48px;width:100%;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);font-size:14px;font-family:var(--font-b);font-weight:500;color:var(--text0);cursor:pointer}
+.exc-done-again:active{background:var(--bg3)}
+.exc-error{margin:0 14px 12px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:14px;padding:12px 14px;font-size:12px;color:var(--red);font-family:var(--font-b);line-height:1.5;text-align:center}
+.exc-file-input{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
+</style>`;
+
+/* ════════════════════════
+   HELPERS
+════════════════════════ */
+function getToken() {
+  return localStorage.getItem('barops_token') || '';
+}
+
+function getUserInfo() {
+  try {
+    const token = getToken();
+    if (!token) return { name: 'Бармен', venueName: 'Заклад' };
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return {
+      name:      payload.name      || 'Бармен',
+      venueName: payload.venueName || payload.venue || 'Заклад',
+    };
+  } catch {
+    return { name: 'Бармен', venueName: 'Заклад' };
+  }
+}
+
+function fmtTime() {
+  return new Date().toLocaleString('uk-UA', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+/* ════════════════════════
+   RENDER
+════════════════════════ */
+function render() {
+  const { name, venueName } = getUserInfo();
+
+  if (_step === 'sending') {
+    return `${CSS}
+      <div class="exc-wrap">
+        <div class="exc-topbar">
+          <div class="exc-back" onclick="__excise.goBack()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </div>
+          <div>
+            <div class="exc-title">Акциз</div>
+          </div>
+        </div>
+        <div class="exc-sending">
+          <div class="exc-spinner"></div>
+          <div class="exc-sending-title">Надсилаємо фото...</div>
+          <div class="exc-sending-sub">Фото акцизної марки<br>відправляється в Telegram</div>
+        </div>
+      </div>`;
+  }
+
+  if (_step === 'done') {
+    return `${CSS}
+      <div class="exc-wrap">
+        <div class="exc-topbar">
+          <div class="exc-back" onclick="__excise.goBack()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </div>
+          <div>
+            <div class="exc-title">Акциз</div>
+          </div>
+        </div>
+        <div class="exc-done">
+          <div class="exc-done-icon">✅</div>
+          <div class="exc-done-title">Відправлено!</div>
+          <div class="exc-done-sub">Фото акцизної марки надіслано до Telegram-топіку закладу «${venueName}»</div>
+          <button class="exc-done-again" onclick="__excise.reset()">Надіслати ще одне фото</button>
+        </div>
+      </div>`;
+  }
+
+  const hasPhoto = _step === 'preview' && _photoUrl;
+
+  return `${CSS}
+    <div class="exc-wrap">
+      <div class="exc-topbar">
+        <div class="exc-back" onclick="__excise.goBack()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </div>
+        <div>
+          <div class="exc-title">Акцизні марки</div>
+          <div class="exc-sub">${venueName}</div>
+        </div>
+      </div>
+
+      <div class="exc-scroll">
+
+        ${!hasPhoto ? `
+        <div class="exc-hero">
+          <div class="exc-hero-icon">🏷️</div>
+          <div class="exc-hero-title">Фото акцизної марки</div>
+          <div class="exc-hero-desc">Сфотографуй акцизну марку — вона автоматично потрапить у Telegram-журнал закладу</div>
+        </div>
+
+        <div class="exc-btns">
+          <button class="exc-btn" onclick="__excise.openCamera()">
+            📷 Камера
+          </button>
+          <button class="exc-btn" onclick="__excise.openGallery()">
+            🖼️ Галерея
+          </button>
+        </div>
+        ` : ''}
+
+        ${hasPhoto ? `
+        <div class="exc-preview">
+          <img src="${_photoUrl}" alt="Акцизна марка"/>
+          <div class="exc-preview-change" onclick="__excise.openGallery()">Змінити фото</div>
+        </div>
+
+        <div class="exc-info">
+          <div class="exc-info-row">
+            <span class="exc-info-icon">👤</span>
+            <span class="exc-info-label">Бармен</span>
+            <span class="exc-info-val">${name}</span>
+          </div>
+          <div class="exc-info-row">
+            <span class="exc-info-icon">🏠</span>
+            <span class="exc-info-label">Заклад</span>
+            <span class="exc-info-val">${venueName}</span>
+          </div>
+          <div class="exc-info-row">
+            <span class="exc-info-icon">🕐</span>
+            <span class="exc-info-label">Час</span>
+            <span class="exc-info-val">${fmtTime()}</span>
+          </div>
+        </div>
+
+        ${_step === 'error' ? `<div class="exc-error">⚠️ ${_errorMsg}</div>` : ''}
+
+        <button class="exc-send" onclick="__excise.send()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          Надіслати в Telegram
+        </button>
+        ` : ''}
+
+      </div>
+
+      <input class="exc-file-input" id="exc-cam-inp" type="file" accept="image/*" capture="environment"
+        onchange="__excise.handleFile(this)"/>
+      <input class="exc-file-input" id="exc-gal-inp" type="file" accept="image/*"
+        onchange="__excise.handleFile(this)"/>
+    </div>`;
+}
+
+/* ════════════════════════
+   ACTIONS
+════════════════════════ */
+function rerender() {
+  const view = document.getElementById('app-view');
+  if (view) view.innerHTML = render();
+}
+
+function goBack() {
+  navigate('dashboard');
+}
+
+function reset() {
+  _step      = 'idle';
+  _photoFile = null;
+  if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+  _photoUrl  = null;
+  _errorMsg  = '';
+  rerender();
+}
+
+function openCamera() {
+  const inp = document.getElementById('exc-cam-inp');
+  if (inp) inp.click();
+}
+
+function openGallery() {
+  const inp = document.getElementById('exc-gal-inp');
+  if (inp) inp.click();
+}
+
+function handleFile(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+  _photoFile = file;
+  _photoUrl  = URL.createObjectURL(file);
+  _step      = 'preview';
+  _errorMsg  = '';
+  rerender();
+}
+
+async function send() {
+  if (!_photoFile) return;
+
+  const { name, venueName } = getUserInfo();
+
+  _step = 'sending';
+  rerender();
+
+  try {
+    const formData = new FormData();
+    formData.append('photo',      _photoFile);
+    formData.append('venueName',  venueName);
+    formData.append('barmanName', name);
+
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/excise/photo`, {
+      method:  'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body:    formData,
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Помилка сервера');
+
+    if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+    _photoUrl  = null;
+    _photoFile = null;
+    _step      = 'done';
+    rerender();
+
+  } catch (err) {
+    _step     = 'error';
+    _errorMsg = err.message || 'Не вдалося надіслати фото. Спробуй ще раз.';
+    rerender();
+  }
+}
+
+/* ════════════════════════
+   GLOBAL CONTROLLER
+════════════════════════ */
+window.__excise = { goBack, reset, openCamera, openGallery, handleFile, send };
+
+/* ════════════════════════
+   PAGE EXPORT
+════════════════════════ */
+export default {
+  render(params) {
+    _step      = 'idle';
+    _photoFile = null;
+    if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+    _photoUrl  = null;
+    _errorMsg  = '';
+
+    return render();
+  },
+  init(params) {
+  }
+};
