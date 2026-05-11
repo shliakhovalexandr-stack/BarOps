@@ -1,38 +1,19 @@
 /* ============================================================
    BarOps — pages/profile.js
-   Профіль бармена: особиста інформація + KPI + налаштування
+   Профіль: реальні дані з /api/auth/me + /api/stats
    ============================================================ */
 
-import { navigate, state, setRole } from '../shared/app.js';
+import { navigate, state } from '../shared/app.js';
 
-/* ════════════════════════
-   DATA
-════════════════════════ */
-const PROFILE = {
-  name:    'Олексій Коваленко',
-  role:    'Бармен',
-  venue:   'Sky Lounge',
-  phone:   '+380 67 234 11 22',
-  email:   'oleksiy@skylounge.ua',
-  since:   '12.01.2025',
-  avatar:  '🧑',
-};
+const API = 'https://barops-backend-production.up.railway.app';
 
-const KPI_MONTH = [
-  { label:'Змін відпрацьовано', val:'18',   sub:'з 20 запланованих',      color:'var(--green)',  pct:90 },
-  { label:'Задачі чеклисту',    val:'94%',  sub:'середнє за місяць',       color:'var(--green)',  pct:94 },
-  { label:'Накладних OCR',      val:'12',   sub:'точність 96.8%',          color:'var(--teal)',   pct:80 },
-  { label:'Списань',            val:'8',    sub:'3 бої · 4 псув · 1 дег',  color:'var(--amber)',  pct:60 },
-  { label:'Алертів ціни',       val:'3',    sub:'всі підтверджено',        color:'var(--purple)', pct:40 },
-  { label:'Рейтинг',            val:'4.8',  sub:'з 5.0 від менеджера',     color:'var(--gold)',   pct:96 },
-];
+let _profile = null;
+let _stats   = null;
+let _team    = null;
+let _plan    = null;
+let _loading = true;
 
-const RECENT_SHIFTS = [
-  { date:'08.05.2026', type:'Вечірня', tasks:'7/9',  status:'Активна',  color:'var(--green)'  },
-  { date:'07.05.2026', type:'Денна',   tasks:'9/9',  status:'✓ Закрита',color:'var(--text2)'  },
-  { date:'06.05.2026', type:'Вечірня', tasks:'8/9',  status:'✓ Закрита',color:'var(--text2)'  },
-  { date:'05.05.2026', type:'Нічна',   tasks:'6/9',  status:'⚠ Проблеми',color:'var(--amber)' },
-];
+function token() { return localStorage.getItem('barops_token') || ''; }
 
 /* ════════════════════════
    CSS
@@ -40,8 +21,6 @@ const RECENT_SHIFTS = [
 const CSS = `<style id="prof-css">
 .prof-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .prof-scroll{overflow-y:auto;flex:1}.prof-scroll::-webkit-scrollbar{width:0}
-
-/* hero */
 .prof-hero{padding:20px 20px 18px;background:linear-gradient(160deg,var(--green-bg) 0%,transparent 60%);border-bottom:0.5px solid var(--border2)}
 .prof-avatar-row{display:flex;align-items:center;gap:16px;margin-bottom:16px}
 .prof-avatar{width:68px;height:68px;border-radius:50%;background:var(--bg2);border:2px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:28px;position:relative;flex-shrink:0}
@@ -50,16 +29,11 @@ const CSS = `<style id="prof-css">
 .prof-name{font-family:var(--font-h);font-size:20px;font-weight:800;color:var(--text0);letter-spacing:-.02em;line-height:1}
 .prof-role{font-size:12px;color:var(--green);font-family:var(--font-b);margin-top:4px}
 .prof-venue{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.prof-since{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 .prof-stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .prof-stat{background:rgba(0,0,0,.3);border-radius:9px;padding:10px 8px;text-align:center;border:0.5px solid var(--border)}
 .prof-stat-val{font-family:var(--font-h);font-size:18px;font-weight:700;line-height:1}
 .prof-stat-lbl{font-size:9px;color:var(--text2);margin-top:3px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
-
-/* sec */
-.prof-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 18px 8px;font-family:var(--font-b)}
-
-/* kpi grid */
+.prof-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 18px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
 .prof-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px}
 .prof-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px;position:relative;overflow:hidden}
 .prof-kpi-val{font-family:var(--font-h);font-size:24px;font-weight:800;line-height:1;letter-spacing:-.02em}
@@ -67,174 +41,161 @@ const CSS = `<style id="prof-css">
 .prof-kpi-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
 .prof-kpi-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden}
 .prof-kpi-fill{height:100%;border-radius:2px}
-
-/* contact card */
 .prof-info-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
 .prof-info-row{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-bottom:0.5px solid var(--border)}
 .prof-info-row:last-child{border-bottom:none}
 .prof-info-lbl{font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .prof-info-val{font-size:13px;color:var(--text0);font-family:var(--font-b)}
-
-/* shifts */
 .prof-shifts{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
 .prof-shift-row{display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:0.5px solid var(--border)}
 .prof-shift-row:last-child{border-bottom:none}
-.prof-shift-date{font-size:13px;color:var(--text1);font-family:var(--font-b)}
-.prof-shift-type{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
-.prof-shift-tasks{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0);min-width:32px;text-align:right}
-.prof-shift-status{font-size:11px;font-family:var(--font-b);margin-top:2px;text-align:right}
-
-/* settings */
 .prof-settings{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
 .prof-setting-row{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s}
 .prof-setting-row:last-child{border-bottom:none}
 .prof-setting-row:active{background:var(--bg3)}
 .prof-setting-lbl{font-size:13px;color:var(--text0);font-family:var(--font-b)}
-.prof-setting-val{font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .prof-toggle{width:36px;height:20px;border-radius:10px;background:var(--bg4);border:0.5px solid var(--border2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
 .prof-toggle.on{background:var(--green);border-color:var(--green)}
 .prof-toggle-knob{width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s}
 .prof-toggle.on .prof-toggle-knob{left:18px}
-
-/* logout */
 .prof-logout{margin:0 14px 14px;width:calc(100% - 28px);height:50px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:12px;font-size:14px;color:var(--red);cursor:pointer;font-family:var(--font-b);font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
 .prof-logout:active{background:rgba(226,75,74,.15)}
-
-/* role switch demo */
-.prof-role-switch{margin:0 14px 8px;background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
-.prof-rs-title{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0)}
-.prof-rs-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
-.prof-rs-btns{display:flex;gap:8px}
-.prof-rs-btn{flex:1;height:38px;border:none;border-radius:9px;font-size:12px;font-family:var(--font-b);cursor:pointer;transition:all .15s}
-.prof-rs-btn.active{background:var(--green);color:#fff}
-.prof-rs-btn.inactive{background:var(--bg3);border:0.5px solid var(--border2);color:var(--text1)}
-.prof-rs-btn:active{transform:scale(.97)}
+/* plan badge */
+.prof-plan{margin:0 14px 8px;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.prof-plan--trial{background:var(--amber-bg);border:0.5px solid var(--amber-border)}
+.prof-plan--active{background:var(--green-bg);border:0.5px solid var(--green-border)}
+.prof-plan--expired{background:var(--red-bg);border:0.5px solid var(--red-border)}
+/* skel */
+.prof-skel{background:var(--bg2);border-radius:12px;animation:pSkel 1.2s ease-in-out infinite}
+@keyframes pSkel{0%,100%{opacity:.5}50%{opacity:1}}
 </style>`;
 
 /* ════════════════════════
-   RENDER
+   DATA LOADING
 ════════════════════════ */
-const MGR_KPI = [
-  { label:'Виручка · місяць',    val:'812k ₴', sub:'↑ +8.2% vs минулий',      color:'var(--green)',  pct:82 },
-  { label:'Середній FC',         val:'19.4%',  sub:'↑ +2.1% vs норма',         color:'var(--amber)',  pct:65 },
-  { label:'Барменів у команді',  val:'3',      sub:'1 активна зміна зараз',     color:'var(--teal)',   pct:60 },
-  { label:'Активних боргів',     val:'2',      sub:'між закладами',             color:'var(--amber)',  pct:40 },
-  { label:'Накладних цей місяць',val:'38',     sub:'точність OCR 96.8%',        color:'var(--green)',  pct:90 },
-  { label:'Списань місяць',      val:'41',     sub:'~10 450 ₴ збитків',         color:'var(--red)',    pct:45 },
-];
+async function loadData() {
+  _loading = true;
+  render();
 
-function mgrProfileHTML() {
-  return `
-  <div class="prof-scroll">
-    <!-- Hero -->
-    <div class="prof-hero">
-      <div class="prof-avatar-row">
-        <div class="prof-avatar">👨‍💼</div>
-        <div>
-          <div class="prof-name">${state.user || 'Костянтин О.'}</div>
-          <div class="prof-role" style="color:var(--amber)">👨‍💼 Менеджер</div>
-          <div class="prof-venue">${state.venue}</div>
-          <div class="prof-since">Управляє з 01.09.2024</div>
-        </div>
-      </div>
-      <div class="prof-stats-row">
-        <div class="prof-stat">
-          <div class="prof-stat-val" style="color:var(--green)">812k</div>
-          <div class="prof-stat-lbl">Виручка<br/>₴ / місяць</div>
-        </div>
-        <div class="prof-stat">
-          <div class="prof-stat-val" style="color:var(--teal)">3</div>
-          <div class="prof-stat-lbl">Барменів<br/>у команді</div>
-        </div>
-        <div class="prof-stat">
-          <div class="prof-stat-val" style="color:var(--amber)">19.4%</div>
-          <div class="prof-stat-lbl">Середній<br/>FC</div>
-        </div>
-      </div>
-    </div>
+  try {
+    const [meRes, statsRes, planRes] = await Promise.all([
+      fetch(`${API}/api/auth/me`,        { headers: { Authorization: `Bearer ${token()}` } }),
+      fetch(`${API}/api/stats?venueId=${localStorage.getItem('barops_venueId')||''}`,
+                                          { headers: { Authorization: `Bearer ${token()}` } }),
+      fetch(`${API}/api/register/plan`,   { headers: { Authorization: `Bearer ${token()}` } }),
+    ]);
 
-    <!-- KPI -->
-    <div class="prof-sec">KPI закладу · травень 2026</div>
-    <div class="prof-kpi-grid">
-      ${MGR_KPI.map(k => `
-      <div class="prof-kpi">
-        <div class="prof-kpi-val" style="color:${k.color}">${k.val}</div>
-        <div class="prof-kpi-lbl">${k.label}</div>
-        <div class="prof-kpi-sub">${k.sub}</div>
-        <div class="prof-kpi-bar">
-          <div class="prof-kpi-fill" style="width:${k.pct}%;background:${k.color}"></div>
-        </div>
-      </div>`).join('')}
-    </div>
+    if (meRes.ok)    { const d = await meRes.json();    _profile = d.user; }
+    if (statsRes.ok) { const d = await statsRes.json(); _stats   = d.today; }
+    if (planRes.ok)  { const d = await planRes.json();  _plan    = d; }
 
-    <!-- Команда -->
-    <div class="prof-sec">Команда</div>
-    <div class="prof-shifts">
-      ${[
-        { name:'Олексій К.', role:'Бармен · Вечірня', tasks:'87%', color:'var(--green)',  live:true  },
-        { name:'Марія П.',   role:'Бармен · Денна',   tasks:'99%', color:'var(--green)',  live:false },
-        { name:'Дмитро І.',  role:'Бармен · Нічна',   tasks:'68%', color:'var(--amber)', live:false },
-      ].map(m => `
-      <div class="prof-shift-row">
-        <div style="width:8px;height:8px;border-radius:50%;background:${m.live?'var(--green)':'var(--text3)'};flex-shrink:0${m.live?';animation:profLive 1.8s ease-in-out infinite':''}"></div>
-        <div style="flex:1;min-width:0">
-          <div class="prof-shift-date">${m.name}</div>
-          <div class="prof-shift-type">${m.role}</div>
-        </div>
-        <div>
-          <div class="prof-shift-tasks" style="color:${m.color}">${m.tasks}</div>
-          <div class="prof-shift-status" style="color:${m.live?'var(--green)':'var(--text2)'}">${m.live?'🟢 Активна':'Не в зміні'}</div>
-        </div>
-      </div>`).join('')}
-    </div>
+    // Якщо менеджер — завантажуємо команду
+    if (state.role === 'manager') {
+      const venueId = localStorage.getItem('barops_venueId') || '';
+      const teamRes = await fetch(`${API}/api/auth/team?venueId=${venueId}`,
+        { headers: { Authorization: `Bearer ${token()}` } });
+      if (teamRes.ok) { const d = await teamRes.json(); _team = d.team; }
+    }
+  } catch (e) {
+    console.error('[Profile] loadData:', e);
+  }
 
-    <!-- Контакти -->
-    <div class="prof-sec">Контакти</div>
-    <div class="prof-info-card">
-      <div class="prof-info-row"><div class="prof-info-lbl">📞 Телефон</div><div class="prof-info-val">+380 50 123 45 67</div></div>
-      <div class="prof-info-row"><div class="prof-info-lbl">✉️ Email</div><div class="prof-info-val" style="font-size:12px">manager@skylounge.ua</div></div>
-      <div class="prof-info-row"><div class="prof-info-lbl">🏢 Заклад</div><div class="prof-info-val">${state.venue}</div></div>
-    </div>
+  _loading = false;
+  render();
+}
 
-    <!-- Налаштування -->
-    <div class="prof-sec">Сповіщення</div>
-    <div class="prof-settings">
-      ${[['Заявки на замовлення',true],['Цінові алерти',true],['Списання барменів',true],['Журнал змін',false]].map(([lbl,on]) => `
-      <div class="prof-setting-row">
-        <div class="prof-setting-lbl">${lbl}</div>
-        <div class="prof-toggle ${on?'on':''}" onclick="this.classList.toggle('on');this.querySelector('.prof-toggle-knob').style.left=this.classList.contains('on')?'18px':'2px'">
-          <div class="prof-toggle-knob" style="left:${on?18:2}px"></div>
-        </div>
-      </div>`).join('')}
-    </div>
+/* ════════════════════════
+   PLAN BADGE
+════════════════════════ */
+function planBadge() {
+  if (!_plan) return '';
+  const { plan, expired, daysLeft } = _plan;
 
-    <!-- Роль -->
-    <div class="prof-sec">Демо — зміна ролі</div>
-    <div class="prof-role-switch">
-      <div class="prof-rs-title">Переключити роль</div>
-      <div class="prof-rs-sub">Для перегляду функцій бармена</div>
-      <div class="prof-rs-btns">
-        <button class="prof-rs-btn inactive" onclick="window.__barops.setRole('bartender')">🍸 Бармен</button>
-        <button class="prof-rs-btn active">👨‍💼 Менеджер</button>
-      </div>
-    </div>
-
-    <button class="prof-logout" onclick="window.__barops.logout()">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/>
-        <path d="M10 11l3-3-3-3M13 8H6" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  if (expired) {
+    return `
+    <div class="prof-plan prof-plan--expired">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="var(--red)" stroke-width="1.4"/>
+        <path d="M10 6v4M10 13v.5" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/>
       </svg>
-      Вийти з акаунту
-    </button>
-    <div style="height:14px"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--red);font-family:var(--font-b)">Підписка закінчилась</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Оновіть план для продовження</div>
+      </div>
+      <div style="font-size:12px;color:var(--red);font-family:var(--font-b);cursor:pointer">Оновити →</div>
+    </div>`;
+  }
+
+  if (plan === 'trial') {
+    return `
+    <div class="prof-plan prof-plan--trial">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="var(--amber)" stroke-width="1.4"/>
+        <path d="M10 6v4l2.5 2.5" stroke="var(--amber)" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--amber);font-family:var(--font-b)">Trial · залишилось ${daysLeft} дн.</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Повний функціонал активний</div>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="prof-plan prof-plan--active">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="8" stroke="var(--green)" stroke-width="1.4"/>
+      <path d="M6.5 10l2.5 2.5 4.5-4.5" stroke="var(--green)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:600;color:var(--green);font-family:var(--font-b)">${plan === 'basic' ? 'Basic' : 'Pro'} · активний</div>
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Діє ще ${daysLeft} дн.</div>
+    </div>
   </div>`;
 }
 
+/* ════════════════════════
+   BUILD HTML
+════════════════════════ */
 function buildHTML() {
-  const isBartender = state.role === 'bartender';
-  if (!isBartender) {
-    return `${CSS}<div class="prof-wrap">${mgrProfileHTML()}</div>`;
+  const isMgr  = state.role === 'manager';
+  const name   = _profile?.name  || state.user  || '—';
+  const email  = _profile?.email || '—';
+  const phone  = _profile?.phone || '—';
+  const venue  = state.venue || '—';
+
+  if (_loading) {
+    return `${CSS}
+    <div class="prof-wrap">
+      <div class="prof-scroll">
+        <div style="padding:20px 14px;display:flex;flex-direction:column;gap:10px">
+          <div class="prof-skel" style="height:120px"></div>
+          <div class="prof-skel" style="height:60px"></div>
+          <div class="prof-skel" style="height:180px"></div>
+        </div>
+      </div>
+    </div>`;
   }
+
+  const s = _stats;
+
+  // KPI картки з реальних даних
+  const mgrKpi = [
+    { label:'Накладних сьогодні',  val: String(s?.invoices?.count ?? '—'),   sub: s ? `${Math.round(s.invoices?.total||0).toLocaleString('uk-UA')} ₴` : '—',      color:'var(--green)', pct: Math.min(100, (s?.invoices?.count||0)*10) },
+    { label:'Команда закладу',     val: String(s?.teamCount ?? '—'),          sub: 'активних барменів',                                                              color:'var(--teal)',  pct: Math.min(100, (s?.teamCount||0)*20) },
+    { label:'Списань сьогодні',    val: String(s?.writeoffs?.count ?? '—'),   sub: Object.entries(s?.writeoffs?.byCategory||{}).map(([k,v])=>`${k}: ${v}`).join(' · ') || 'немає', color:'var(--amber)', pct: Math.min(100, (s?.writeoffs?.count||0)*10) },
+    { label:'Вартість запасів',    val: s ? `${Math.round((s.stockValue||0)/1000)}k ₴` : '—', sub: 'поточний залишок',                                              color:'var(--purple)',pct: 70 },
+    { label:'Критичних залишків',  val: String(s?.critical?.length ?? '—'),   sub: s?.critical?.[0]?.name || 'все норм',                                            color: (s?.critical?.length > 0) ? 'var(--red)' : 'var(--green)', pct: Math.min(100, (s?.critical?.length||0)*20) },
+    { label:'Активна зміна',       val: s?.shift ? '✓' : '—',                sub: s?.shift ? `${s.shift.user}` : 'немає',                                           color: s?.shift ? 'var(--green)' : 'var(--text2)', pct: s?.shift ? 100 : 0 },
+  ];
+
+  const barKpi = [
+    { label:'Списань сьогодні',   val: String(s?.writeoffs?.count ?? '—'), sub: 'в поточну зміну',    color:'var(--amber)', pct: Math.min(100, (s?.writeoffs?.count||0)*20) },
+    { label:'Накладних',          val: String(s?.invoices?.count ?? '—'),  sub: 'сьогодні',            color:'var(--green)', pct: Math.min(100, (s?.invoices?.count||0)*10) },
+    { label:'Критичних залишків', val: String(s?.critical?.length ?? '—'), sub: s?.critical?.[0]?.name || 'все норм', color:(s?.critical?.length > 0)?'var(--red)':'var(--green)', pct:50 },
+    { label:'Активна зміна',      val: s?.shift ? '✓' : '—',              sub: s?.shift ? 'відкрита' : 'не відкрита', color: s?.shift ? 'var(--green)' : 'var(--text2)', pct: s?.shift ? 100 : 0 },
+  ];
+
+  const kpi = isMgr ? mgrKpi : barKpi;
 
   return `
 ${CSS}
@@ -245,36 +206,41 @@ ${CSS}
     <div class="prof-hero">
       <div class="prof-avatar-row">
         <div class="prof-avatar">
-          <div class="prof-live-ring"></div>
-          ${PROFILE.avatar}
+          ${isMgr ? '' : '<div class="prof-live-ring"></div>'}
+          ${isMgr ? '👨‍💼' : '🧑'}
         </div>
         <div>
-          <div class="prof-name">${state.user || PROFILE.name}</div>
-          <div class="prof-role">${isBartender ? '🍸 Бармен' : '👨‍💼 Менеджер'}</div>
-          <div class="prof-venue">${state.venue}</div>
-          <div class="prof-since">У команді з ${PROFILE.since}</div>
+          <div class="prof-name">${name}</div>
+          <div class="prof-role" style="color:${isMgr?'var(--amber)':'var(--green)'}">
+            ${isMgr ? '👨‍💼 Менеджер' : '🍸 Бармен'}
+          </div>
+          <div class="prof-venue">${venue}</div>
+          ${email !== '—' ? `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${email}</div>` : ''}
         </div>
       </div>
       <div class="prof-stats-row">
         <div class="prof-stat">
-          <div class="prof-stat-val" style="color:var(--green)">18</div>
-          <div class="prof-stat-lbl">Змін<br/>цього міс.</div>
+          <div class="prof-stat-val" style="color:var(--green)">${s?.invoices?.count ?? '—'}</div>
+          <div class="prof-stat-lbl">Накладних<br/>сьогодні</div>
         </div>
         <div class="prof-stat">
-          <div class="prof-stat-val" style="color:var(--green)">94%</div>
-          <div class="prof-stat-lbl">Задачі<br/>чеклист</div>
+          <div class="prof-stat-val" style="color:${(s?.writeoffs?.count > 0)?'var(--amber)':'var(--green)'}">${s?.writeoffs?.count ?? '—'}</div>
+          <div class="prof-stat-lbl">Списань<br/>сьогодні</div>
         </div>
         <div class="prof-stat">
-          <div class="prof-stat-val" style="color:var(--gold)">4.8</div>
-          <div class="prof-stat-lbl">Рейтинг<br/>менеджера</div>
+          <div class="prof-stat-val" style="color:${(s?.critical?.length > 0)?'var(--red)':'var(--green)'}">${s?.critical?.length ?? '—'}</div>
+          <div class="prof-stat-lbl">Алертів<br/>залишки</div>
         </div>
       </div>
     </div>
 
-    <!-- KPI місяця -->
-    <div class="prof-sec">KPI за травень 2026</div>
+    <!-- План -->
+    ${planBadge()}
+
+    <!-- KPI -->
+    <div class="prof-sec">Статистика сьогодні</div>
     <div class="prof-kpi-grid">
-      ${KPI_MONTH.map(k => `
+      ${kpi.map(k => `
       <div class="prof-kpi">
         <div class="prof-kpi-val" style="color:${k.color}">${k.val}</div>
         <div class="prof-kpi-lbl">${k.label}</div>
@@ -285,38 +251,38 @@ ${CSS}
       </div>`).join('')}
     </div>
 
-    <!-- Останні зміни -->
-    <div class="prof-sec">Останні зміни</div>
+    <!-- Команда (тільки менеджер) -->
+    ${isMgr && _team?.length ? `
+    <div class="prof-sec">Команда закладу</div>
     <div class="prof-shifts">
-      ${RECENT_SHIFTS.map(s => `
-      <div class="prof-shift-row">
-        <div style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0"></div>
-        <div style="flex:1;min-width:0">
-          <div class="prof-shift-date">${s.date}</div>
-          <div class="prof-shift-type">${s.type} зміна</div>
-        </div>
-        <div>
-          <div class="prof-shift-tasks">${s.tasks}</div>
-          <div class="prof-shift-status" style="color:${s.color}">${s.status}</div>
-        </div>
-      </div>`).join('')}
-    </div>
+      ${_team.slice(0, 5).map(m => {
+        const isActive = m.status === 'active';
+        const roleLbl  = m.role === 'MANAGER' ? 'Менеджер' : 'Бармен';
+        const lastLogin = m.lastLogin ? new Date(m.lastLogin).toLocaleDateString('uk-UA') : 'не входив';
+        return `
+        <div class="prof-shift-row">
+          <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;
+            background:${isActive?'var(--green)':'var(--bg4)'};
+            border:1.5px solid ${isActive?'var(--green)':'var(--border3)'}"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--text1);font-family:var(--font-b)">${m.name}</div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${roleLbl} · ${m.phone || '—'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:${isActive?'var(--green)':'var(--text2)'};font-family:var(--font-b)">${isActive?'Активний':'Неактивний'}</div>
+            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${lastLogin}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
 
     <!-- Контакти -->
     <div class="prof-sec">Контактна інформація</div>
     <div class="prof-info-card">
-      <div class="prof-info-row">
-        <div class="prof-info-lbl">📞 Телефон</div>
-        <div class="prof-info-val">${PROFILE.phone}</div>
-      </div>
-      <div class="prof-info-row">
-        <div class="prof-info-lbl">✉️ Email</div>
-        <div class="prof-info-val" style="font-size:12px">${PROFILE.email}</div>
-      </div>
-      <div class="prof-info-row">
-        <div class="prof-info-lbl">🏢 Заклад</div>
-        <div class="prof-info-val">${state.venue}</div>
-      </div>
+      ${phone !== '—' ? `<div class="prof-info-row"><div class="prof-info-lbl">📞 Телефон</div><div class="prof-info-val">${phone}</div></div>` : ''}
+      ${email !== '—' ? `<div class="prof-info-row"><div class="prof-info-lbl">✉️ Email</div><div class="prof-info-val" style="font-size:12px">${email}</div></div>` : ''}
+      <div class="prof-info-row"><div class="prof-info-lbl">🏢 Заклад</div><div class="prof-info-val">${venue}</div></div>
+      <div class="prof-info-row"><div class="prof-info-lbl">👤 Роль</div><div class="prof-info-val">${isMgr ? 'Менеджер' : 'Бармен'}</div></div>
     </div>
 
     <!-- Сповіщення -->
@@ -324,14 +290,14 @@ ${CSS}
     <div class="prof-settings">
       ${[
         ['Push-сповіщення', true],
-        ['Алерти ціни', true],
-        ['Нагадування про інвентаризацію', true],
+        ['Цінові алерти', true],
+        ['Списання барменів', isMgr],
         ['Закриття зміни', false],
       ].map(([lbl, on]) => `
       <div class="prof-setting-row">
         <div class="prof-setting-lbl">${lbl}</div>
         <div class="prof-toggle ${on?'on':''}"
-             onclick="this.classList.toggle('on');this.querySelector('.prof-toggle-knob').style.left=this.classList.contains('on')?'18px':'2px'">
+          onclick="this.classList.toggle('on');this.querySelector('.prof-toggle-knob').style.left=this.classList.contains('on')?'18px':'2px'">
           <div class="prof-toggle-knob" style="left:${on?18:2}px"></div>
         </div>
       </div>`).join('')}
@@ -345,26 +311,24 @@ ${CSS}
       </svg>
       Вийти з акаунту
     </button>
-
     <div style="height:14px"></div>
   </div>
 </div>`;
 }
 
-/* ════════════════════════
-   PAGE MODULE EXPORT
-════════════════════════ */
-
-function doLogout() {
-  localStorage.removeItem('barops_token');
-  localStorage.removeItem('barops_refresh');
-  localStorage.removeItem('barops_venue');
-  localStorage.removeItem('barops_role');
-  localStorage.removeItem('barops_user');
-  window.__barops.navigate('auth');
+function render() {
+  const v = document.getElementById('app-view');
+  if (v) v.innerHTML = buildHTML();
 }
 
 export default {
-  render() { return buildHTML(); },
-  init()   {},
+  render() {
+    _loading = true;
+    _profile = null;
+    _stats   = null;
+    _plan    = null;
+    _team    = null;
+    return buildHTML();
+  },
+  init() { loadData(); },
 };
