@@ -70,10 +70,15 @@ function getUserInfo() {
     return {
       name:            payload.name      || 'Бармен',
       venueName:       payload.venueName || payload.venue || 'Заклад',
-      telegramTopicId: payload.telegramTopicId || null,
+      // Спробуємо отримати telegramTopicId з різних джерел
+      telegramTopicId: payload.telegramTopicId || localStorage.getItem('barops_telegram_topic') || null,
     };
   } catch {
-    return { name: 'Бармен', venueName: 'Заклад', telegramTopicId: null };
+    return { 
+      name: 'Бармен', 
+      venueName: 'Заклад', 
+      telegramTopicId: localStorage.getItem('barops_telegram_topic') || null 
+    };
   }
 }
 
@@ -231,12 +236,20 @@ function openGallery() {
 function handleFile(input) {
   const file = input.files?.[0];
   if (!file) return;
+  
+  // Очищаємо input щоб можна було вибрати той самий файл знову
+  input.value = '';
+  
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoFile = file;
   _photoUrl  = URL.createObjectURL(file);
   _step      = 'preview';
   _errorMsg  = '';
-  rerender();
+  
+  // Використовуємо requestAnimationFrame для стабільного ререндеру
+  requestAnimationFrame(() => {
+    rerender();
+  });
 }
 
 async function send() {
