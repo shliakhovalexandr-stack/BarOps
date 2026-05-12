@@ -323,7 +323,7 @@ export default {
     _team    = null;
     return buildHTML();
   },
-    init() { 
+  init() { 
     loadData();
   },
 };
