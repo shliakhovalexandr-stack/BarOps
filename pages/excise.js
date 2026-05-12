@@ -237,19 +237,18 @@ function handleFile(input) {
   const file = input.files?.[0];
   if (!file) return;
   
-  // Очищаємо input щоб можна було вибрати той самий файл знову
-  input.value = '';
-  
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoFile = file;
   _photoUrl  = URL.createObjectURL(file);
   _step      = 'preview';
   _errorMsg  = '';
   
-  // Використовуємо requestAnimationFrame для стабільного ререндеру
-  requestAnimationFrame(() => {
-    rerender();
-  });
+  // Очищаємо input ПІСЛЯ зчитування файлу, через таймаут
+  setTimeout(() => {
+    input.value = '';
+  }, 100);
+  
+  rerender();
 }
 
 async function send() {
@@ -284,8 +283,8 @@ async function send() {
     _step      = 'done';
     rerender();
 
-  } catch (err) {
-    _step     = 'error';
+    } catch (err) {
+    _step     = 'preview'; // Повертаємось на preview, щоб показати помилку
     _errorMsg = err.message || 'Не вдалося надіслати фото. Спробуй ще раз.';
     rerender();
   }
