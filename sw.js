@@ -51,6 +51,9 @@ self.addEventListener('activate', event => {
 
 // Fetch — спочатку мережа, потім кеш
 self.addEventListener('fetch', event => {
+  // Пропускаємо chrome-extension та інші не-HTTP схеми
+  if (!event.request.url.startsWith('http')) return;
+
   // API запити не кешуємо
   if (event.request.url.includes('/api/')) return;
 
@@ -69,9 +72,10 @@ self.addEventListener('fetch', event => {
       .then(response => {
         if (response.ok) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => if (event.request.url.startsWith('http')) {
-  cache.put(event.request, response.clone());
-}
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, clone);
+          });
+        }
         return response;
       })
       .catch(() => caches.match(event.request))
