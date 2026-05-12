@@ -439,8 +439,24 @@ async function save() {
    IIKO SETTINGS
 ════════════════════════ */
 async function initIikoSection(venueId) {
+  // Чекаємо поки DOM готовий
+  await new Promise(r => setTimeout(r, 500));
+  
   const badge = document.getElementById('iiko-status-badge');
+  
+  // Перевірка що елементи існують
+  if (!badge) {
+    console.warn('[iiko] badge not found, DOM not ready');
+    return;
+  }
+  
   const urlInput = document.getElementById('iiko-url');
+  const apiKeyInput = document.getElementById('iiko-api-key');
+  const loginInput = document.getElementById('iiko-login');
+  const passwordInput = document.getElementById('iiko-password');
+  const disconnectBtn = document.getElementById('btn-disconnect-iiko');
+  
+  const token = localStorage.getItem('barops_token');
   const apiKeyInput = document.getElementById('iiko-api-key');
   const loginInput = document.getElementById('iiko-login');
   const passwordInput = document.getElementById('iiko-password');
@@ -454,7 +470,15 @@ async function initIikoSection(venueId) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    if (!res.ok) throw new Error('Не вдалося завантажити');
+        if (!res.ok) {
+      if (res.status === 401) {
+        badge.textContent = '❌ Помилка авторизації';
+        badge.style.background = 'rgba(239, 68, 68, 0.15)';
+        badge.style.color = '#ef4444';
+        return;
+      }
+      throw new Error('Не вдалося завантажити');
+    }
     
     const data = await res.json();
     const settings = data.settings;
@@ -635,7 +659,7 @@ export default {
     // Ініціалізуємо iiko секцію
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
     if (venueId) {
-      setTimeout(() => initIikoSection(venueId), 100);
+            setTimeout(() => initIikoSection(venueId), 600);
     }
   },
 };
