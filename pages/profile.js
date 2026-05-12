@@ -316,7 +316,23 @@ ${CSS}
 </div>`;
 }
 
-function render() {
-  const v = document.getElementById('app-view');
-  if (v) v.innerHTML = buildHTML();
-}
+export default {
+  render() {
+    _loading = true;
+    _profile = null;
+    _stats   = null;
+    _plan    = null;
+    _team    = null;
+    return buildHTML();
+  },
+  init() { 
+    loadData();
+    window.__barops = {
+      ...window.__barops,
+      logout: () => {
+        localStorage.clear();
+        navigate('welcome');
+      },
+    };
+  },
+};
