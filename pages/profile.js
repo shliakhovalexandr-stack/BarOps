@@ -285,6 +285,19 @@ ${CSS}
       <div class="prof-info-row"><div class="prof-info-lbl">👤 Роль</div><div class="prof-info-val">${isMgr ? 'Менеджер' : 'Бармен'}</div></div>
     </div>
 
+    <!-- iiko/Syrve -->
+    ${isMgr ? `
+    <div class="prof-sec">🔗 Інтеграція iiko/Syrve</div>
+    <div class="prof-info-card" style="margin-bottom:8px">
+      <div class="prof-info-row" style="cursor:pointer" onclick="window.__barops.openIikoSettings()">
+        <div class="prof-info-lbl">⚙️ Налаштування</div>
+        <div class="prof-info-val" style="display:flex;align-items:center;gap:4px">
+          ${localStorage.getItem('barops_iiko_connected') ? '<span style="color:var(--green)">✓ Підключено</span>' : '<span style="color:var(--text2)">Не підключено</span>'}
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 2l5 5-5 5" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>` : ''}
+
     <!-- Сповіщення -->
     <div class="prof-sec">Сповіщення</div>
     <div class="prof-settings">
@@ -321,6 +334,136 @@ function render() {
   if (v) v.innerHTML = buildHTML();
 }
 
+/* ════════════════════════
+   IIKO SETTINGS
+════════════════════════ */
+function openIikoSettings() {
+  const connected = localStorage.getItem('barops_iiko_connected');
+  const savedUrl  = localStorage.getItem('barops_iiko_url') || '';
+  const savedKey  = localStorage.getItem('barops_iiko_api_key') || '';
+  
+  const modalHTML = `
+  <div id="iiko-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg1);width:100%;max-width:420px;border-radius:24px 24px 0 0;padding:20px 20px 32px;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div style="font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0)">🔗 iiko/Syrve</div>
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="document.getElementById('iiko-modal').remove()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3L3 11" stroke="var(--text2)" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Статус</div>
+        <div style="font-size:14px;color:${connected ? 'var(--green)' : 'var(--text2)'};font-family:var(--font-b);font-weight:600">
+          ${connected ? '✓ Підключено до iiko Cloud' : '⚠ Не підключено'}
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">URL сервера iiko</div>
+      <input id="iiko-url" type="url" value="${savedUrl}" placeholder="https://api-ru.iiko.services" 
+        style="width:100%;height:48px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;color:var(--text0);font-size:14px;padding:0 14px;box-sizing:border-box;outline:none;margin-bottom:12px;font-family:var(--font-b)"/>
+
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">API ключ</div>
+      <input id="iiko-key" type="password" value="${savedKey}" placeholder="Вставте API ключ з iiko" 
+        style="width:100%;height:48px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;color:var(--text0);font-size:14px;padding:0 14px;box-sizing:border-box;outline:none;margin-bottom:12px;font-family:var(--font-b)"/>
+
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Логін</div>
+      <input id="iiko-login" type="text" placeholder="admin" 
+        style="width:100%;height:48px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;color:var(--text0);font-size:14px;padding:0 14px;box-sizing:border-box;outline:none;margin-bottom:12px;font-family:var(--font-b)"/>
+
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Пароль</div>
+      <input id="iiko-pass" type="password" placeholder="••••••" 
+        style="width:100%;height:48px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;color:var(--text0);font-size:14px;padding:0 14px;box-sizing:border-box;outline:none;margin-bottom:16px;font-family:var(--font-b)"/>
+
+      <div id="iiko-error" style="display:none;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--red);font-family:var(--font-b);margin-bottom:12px;text-align:center"></div>
+
+      <button id="iiko-test-btn" onclick="window.__barops.testIiko()" 
+        style="width:100%;height:52px;border-radius:14px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);margin-bottom:10px">
+        🔍 Перевірити з'єднання
+      </button>
+
+      <button id="iiko-save-btn" onclick="window.__barops.saveIiko()" disabled
+        style="width:100%;height:52px;border-radius:14px;border:none;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-h);opacity:.5">
+        💾 Зберегти підключення
+      </button>
+
+      ${connected ? `
+      <button onclick="window.__barops.disconnectIiko()" 
+        style="width:100%;height:48px;border-radius:14px;border:0.5px solid var(--red-border);background:var(--red-bg);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);margin-top:10px">
+        Відключити iiko
+      </button>` : ''}
+      
+      <div style="margin-top:16px;font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5;text-align:center">
+        Як отримати API ключ:<br>
+        iiko → Налаштування → API → Створити ключ
+      </div>
+    </div>
+  </div>`;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+async function testIiko() {
+  const btn = document.getElementById('iiko-test-btn');
+  const err = document.getElementById('iiko-error');
+  const saveBtn = document.getElementById('iiko-save-btn');
+  
+  btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid var(--green);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:8px"></span> Перевірка...';
+  
+  const url   = document.getElementById('iiko-url').value.trim();
+  const key   = document.getElementById('iiko-key').value.trim();
+  const login = document.getElementById('iiko-login').value.trim();
+  const pass  = document.getElementById('iiko-pass').value.trim();
+
+  try {
+    const res = await fetch(`${API}/api/iiko/test`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token()}`
+      },
+      body: JSON.stringify({ url, apiKey: key, login, password: pass })
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      btn.innerHTML = '✓ З\'єднання успішне';
+      btn.style.borderColor = 'var(--green)';
+      btn.style.color = 'var(--green)';
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = '1';
+      err.style.display = 'none';
+    } else {
+      throw new Error(data.error || 'Помилка з\'єднання');
+    }
+  } catch (e) {
+    btn.innerHTML = '🔍 Перевірити з\'єднання';
+    err.textContent = e.message;
+    err.style.display = 'block';
+  }
+}
+
+function saveIiko() {
+  const url   = document.getElementById('iiko-url').value.trim();
+  const key   = document.getElementById('iiko-key').value.trim();
+  
+  localStorage.setItem('barops_iiko_url', url);
+  localStorage.setItem('barops_iiko_api_key', key);
+  localStorage.setItem('barops_iiko_connected', 'true');
+  
+  document.getElementById('iiko-modal').remove();
+  render();
+}
+
+function disconnectIiko() {
+  localStorage.removeItem('barops_iiko_url');
+  localStorage.removeItem('barops_iiko_api_key');
+  localStorage.removeItem('barops_iiko_connected');
+  document.getElementById('iiko-modal').remove();
+  render();
+}
+
 export default {
   render() {
     _loading = true;
@@ -330,5 +473,17 @@ export default {
     _team    = null;
     return buildHTML();
   },
-  init() { loadData(); },
+  init() { 
+    loadData();
+    window.__barops = {
+      logout: () => {
+        localStorage.clear();
+        navigate('welcome');
+      },
+      openIikoSettings,
+      testIiko,
+      saveIiko,
+      disconnectIiko,
+    };
+  },
 };
