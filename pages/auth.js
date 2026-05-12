@@ -516,7 +516,10 @@ async function doManagerLogin() {
     const res  = await fetch(`${API}/api/auth/login`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email: _mgr.email, password: _mgr.password }),
+      body:    JSON.stringify({ 
+        email: _mgr.email.toLowerCase().trim(), 
+        password: _mgr.password 
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка входу');
@@ -537,10 +540,12 @@ function regField(field, value) { _reg[field] = value; }
 
 function goToReg2() {
   const errEl = document.getElementById('reg1-err');
+  const normalizedEmail = _reg.email.toLowerCase().trim();
+  
   if (!_reg.name?.trim()) {
     if (errEl) { errEl.textContent = 'Введіть ім\'я'; errEl.classList.add('show'); } return;
   }
-  if (!_reg.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_reg.email)) {
+  if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     if (errEl) { errEl.textContent = 'Введіть коректний email'; errEl.classList.add('show'); } return;
   }
   if (!_reg.password || _reg.password.length < 6) {
