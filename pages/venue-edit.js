@@ -457,12 +457,6 @@ async function initIikoSection(venueId) {
   const disconnectBtn = document.getElementById('btn-disconnect-iiko');
   
   const token = localStorage.getItem('barops_token');
-  const apiKeyInput = document.getElementById('iiko-api-key');
-  const loginInput = document.getElementById('iiko-login');
-  const passwordInput = document.getElementById('iiko-password');
-  const disconnectBtn = document.getElementById('btn-disconnect-iiko');
-  
-  const token = localStorage.getItem('barops_token');
   
   // Завантажити поточні налаштування
   try {
