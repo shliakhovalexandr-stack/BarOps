@@ -75,9 +75,6 @@ const CSS = `<style id="prof-css">
 ════════════════════════ */
 async function loadData() {
   _loading = true;
-  // Оновлюємо DOM напряму
-  const v = document.getElementById('app-view');
-  if (v) v.innerHTML = buildHTML();
 
   try {
     const [meRes, statsRes, planRes] = await Promise.all([
@@ -102,10 +99,7 @@ async function loadData() {
     console.error('[Profile] loadData:', e);
   }
 
-    _loading = false;
-  // Оновлюємо DOM напряму
-  v = document.getElementById('app-view');
-  if (v) v.innerHTML = buildHTML();
+      _loading = false;
 }
 
 /* ════════════════════════
