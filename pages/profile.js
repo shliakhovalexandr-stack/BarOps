@@ -5,6 +5,15 @@
 
 import { navigate, state } from '../shared/app.js';
 
+const POS_SYSTEMS = {
+  manual:     { name: 'Вручну',     icon: '✋', color: 'var(--text2)' },
+  poster:     { name: 'Poster',     icon: '📋', color: '#e85d04' },
+  syrve:      { name: 'Syrve',      icon: '🔗', color: 'var(--green)' },
+  skyservice: { name: 'Skyservice', icon: '☁️', color: '#3b82f6' },
+  palmabox:   { name: 'PalmaBox',   icon: '🌴', color: '#10b981' },
+  profit:     { name: 'Profit',     icon: '💰', color: '#f59e0b' },
+};
+
 const API = 'https://barops-backend-production.up.railway.app';
 
 let _profile = null;
@@ -12,6 +21,7 @@ let _stats   = null;
 let _team    = null;
 let _plan    = null;
 let _loading = true;
+let _posSettings = null;
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
@@ -78,16 +88,19 @@ async function loadData() {
   updateView();
 
   try {
-    const [meRes, statsRes, planRes] = await Promise.all([
+    const venueId = localStorage.getItem('barops_venueId') || '';
+    const [meRes, statsRes, planRes, posRes] = await Promise.all([
       fetch(`${API}/api/auth/me`,        { headers: { Authorization: `Bearer ${token()}` } }),
-      fetch(`${API}/api/stats?venueId=${localStorage.getItem('barops_venueId')||''}`,
+      fetch(`${API}/api/stats?venueId=${venueId}`,
                                           { headers: { Authorization: `Bearer ${token()}` } }),
       fetch(`${API}/api/register/plan`,   { headers: { Authorization: `Bearer ${token()}` } }),
+      fetch(`${API}/api/pos/settings/${venueId}`, { headers: { Authorization: `Bearer ${token()}` } }),
     ]);
 
     if (meRes.ok)    { const d = await meRes.json();    _profile = d.user; }
     if (statsRes.ok) { const d = await statsRes.json(); _stats   = d.today; }
     if (planRes.ok)  { const d = await planRes.json();  _plan    = d; }
+    if (posRes.ok)   { const d = await posRes.json();   _posSettings = d.settings; }
 
     // Якщо менеджер — завантажуємо команду
     if (state.role === 'manager') {
@@ -290,6 +303,9 @@ ${CSS}
       <div class="prof-info-row"><div class="prof-info-lbl">👤 Роль</div><div class="prof-info-val">${isMgr ? 'Менеджер' : 'Бармен'}</div></div>
     </div>
 
+    <!-- POS-інтеграція -->
+    ${isMgr ? posIntegrationBlock() : ''}
+
     <!-- Сповіщення -->
     <div class="prof-sec">Сповіщення</div>
     <div class="prof-settings">
@@ -321,6 +337,34 @@ ${CSS}
 </div>`;
 }
 
+function posIntegrationBlock() {
+  const pos = _posSettings;
+  const currentType = pos?.posType || 'manual';
+  const sys = POS_SYSTEMS[currentType] || POS_SYSTEMS.manual;
+  const isConnected = pos?.posConnected;
+
+  return `
+  <div class="prof-sec">POS-інтеграція</div>
+  <div class="prof-info-card" style="margin:0 14px 8px">
+    <div class="prof-info-row">
+      <div class="prof-info-lbl">Система</div>
+      <div class="prof-info-val" style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:16px">${sys.icon}</span>
+        <span style="color:${sys.color}">${sys.name}</span>
+        ${isConnected ? '<span style="color:var(--green);font-size:11px">● підключено</span>' : '<span style="color:var(--text2);font-size:11px">○ не підключено</span>'}
+      </div>
+    </div>
+    ${pos?.posUrl ? `<div class="prof-info-row"><div class="prof-info-lbl">URL</div><div class="prof-info-val" style="font-size:11px">${pos.posUrl}</div></div>` : ''}
+    ${pos?.posLogin ? `<div class="prof-info-row"><div class="prof-info-lbl">Логін</div><div class="prof-info-val">${pos.posLogin}</div></div>` : ''}
+  </div>
+  <div style="margin:0 14px 14px">
+    <button onclick="window.__barops.navigate('pos-settings')" 
+      style="width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;font-size:14px;color:var(--text0);cursor:pointer;font-family:var(--font-b)">
+      ${isConnected ? '⚙️ Налаштування POS' : '🔗 Підключити POS-систему'}
+    </button>
+  </div>`;
+}
+
 export default {
   render() {
     _loading = true;
@@ -328,9 +372,7 @@ export default {
     _stats   = null;
     _plan    = null;
     _team    = null;
+    _posSettings = null;
     return buildHTML();
-  },
-  init() { 
-    loadData();
   },
 };
