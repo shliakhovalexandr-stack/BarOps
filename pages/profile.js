@@ -75,6 +75,7 @@ const CSS = `<style id="prof-css">
 ════════════════════════ */
 async function loadData() {
   _loading = true;
+  updateView();
 
   try {
     const [meRes, statsRes, planRes] = await Promise.all([
@@ -99,7 +100,13 @@ async function loadData() {
     console.error('[Profile] loadData:', e);
   }
 
-      _loading = false;
+  _loading = false;
+  updateView();
+}
+
+function updateView() {
+  const v = document.getElementById('app-view');
+  if (v) v.innerHTML = buildHTML();
 }
 
 /* ════════════════════════
