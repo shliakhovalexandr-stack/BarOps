@@ -3,7 +3,7 @@
    Кешування ресурсів для офлайн-режиму
    ============================================================ */
 
-const CACHE_NAME = 'barops-v2';
+const CACHE_NAME = 'barops-v3';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/shared/app.js',
