@@ -257,25 +257,8 @@ async function send() {
   const { name, venueName } = getUserInfo();
 
   // Читаємо telegramTopicId з бекенду напряму
-  let telegramTopicId = '';
-  try {
-    const venueId = localStorage.getItem('barops_venueId');
-    const token = getToken();
-    if (venueId && token) {
-      const vRes = await fetch(`${API_URL}/api/venues`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const vData = await vRes.json();
-      if (vData.success && vData.venues) {
-        const venue = vData.venues.find(v => v.id === venueId);
-        if (venue?.telegramTopicId) telegramTopicId = venue.telegramTopicId;
-      }
-    }
-  } catch (e) {
-    console.warn('[Excise] Не вдалось завантажити топік з API:', e);
-    telegramTopicId = localStorage.getItem('barops_telegram_topic') || '';
-  }
-
+  // Читаємо telegramTopicId з localStorage
+  const telegramTopicId = localStorage.getItem('barops_telegram_topic') || '';
   console.log('[Excise] telegramTopicId для відправки:', telegramTopicId);
 
   _step = 'sending';
