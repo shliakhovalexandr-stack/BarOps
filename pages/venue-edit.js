@@ -332,10 +332,14 @@ ${CSS}
       <div class="ve-card">
         <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
           <span style="font-size:24px">✋</span>
-          <div>
+          <div style="flex:1">
             <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Ручний облік</div>
-            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">Оберіть POS-систему вище щоб підключити інтеграцію</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">Оберіть POS-систему в полі вище</div>
           </div>
+          <button onclick="document.getElementById('ve-pos').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('ve-pos').focus()"
+            style="height:32px;padding:0 12px;border-radius:8px;border:0.5px solid var(--green);background:var(--green-bg);font-size:12px;color:var(--green);cursor:pointer;font-family:var(--font-b);white-space:nowrap;flex-shrink:0">
+            ↑ Обрати
+          </button>
         </div>
       </div>
       `}
