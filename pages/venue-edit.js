@@ -12,7 +12,7 @@ let _loading = true;
 let _saving = false;
 let _saveSuccess = false;
 let _toastTimer = null;
-let _draft = { name: '', posType: 'manual', topicUrl: '' };
+let _draft = { name: '', posType: 'manual', topicUrl: '', posUrl: '', posApiKey: '', posLogin: '', posPassword: '' };
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
@@ -117,11 +117,17 @@ async function loadVenue(venueId) {
           name: found.name || '',
           posType: found.posType || 'manual',
           telegramTopicId: found.telegramTopicId || '',
+          posUrl: found.posUrl || '',
+          posLogin: found.posLogin || '',
         };
         _draft = {
           name: _venue.name,
           posType: _venue.posType,
           topicUrl: _venue.telegramTopicId,
+          posUrl: _venue.posUrl || '',
+          posApiKey: '',
+          posLogin: _venue.posLogin || '',
+          posPassword: '',
         };
         saveToLocal(_venue.name, _venue.posType, _venue.telegramTopicId);
         console.log('[VenueEdit] Loaded from API:', _venue);
@@ -257,51 +263,71 @@ ${CSS}
       </div>
     </div>
 
-        <!-- iiko / Syrve -->
-    <div class="ve-sec">🔗 iiko / Syrve інтеграція</div>
-    <div class="ve-card" id="iiko-card">
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-        <span style="font-size: 20px;">🔗</span>
-        <div style="flex: 1;">
-          <div style="font-size: 14px; font-weight: 600; color: var(--text0); font-family: var(--font-b);">iiko Cloud</div>
-          <div style="font-size: 11px; color: var(--text2); font-family: var(--font-b); margin-top: 2px;">Синхронізація товарів та техкарт</div>
+        <!-- POS інтеграція — динамічна секція -->
+    <div id="pos-integration-section">
+      ${_draft.posType === 'syrve' ? `
+      <div class="ve-sec">🔗 Syrve / iiko інтеграція</div>
+      <div class="ve-card" id="iiko-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <span style="font-size:20px">🔗</span>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Syrve (iiko) Cloud</div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Синхронізація товарів та техкарт</div>
+          </div>
+          <span id="iiko-status-badge" style="padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;font-family:var(--font-b);background:rgba(234,179,8,0.15);color:#eab308">Завантаження...</span>
         </div>
-        <span id="iiko-status-badge" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; font-family: var(--font-b); background: rgba(234, 179, 8, 0.15); color: #eab308;">Завантаження...</span>
-      </div>
-      
-      <div id="iiko-fields">
-        <div class="ve-label">URL сервера iiko</div>
-        <input class="ve-input" id="iiko-url" type="url" placeholder="https://api-ru.iiko.services" value="https://api-ru.iiko.services">
-
+        <div class="ve-label">URL сервера</div>
+        <input class="ve-input" id="iiko-url" type="url" placeholder="https://api-ru.iiko.services" value="${escapeHtml(_draft.posUrl) || 'https://api-ru.iiko.services'}">
         <div class="ve-label">API ключ</div>
         <input class="ve-input" id="iiko-api-key" type="text" placeholder="Вставте API ключ з iiko">
-
         <div class="ve-label">Логін</div>
-        <input class="ve-input" id="iiko-login" type="text" placeholder="admin">
-
+        <input class="ve-input" id="iiko-login" type="text" placeholder="admin" value="${escapeHtml(_draft.posLogin)}">
         <div class="ve-label">Пароль</div>
         <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
-
-        <div style="display: flex; gap: 12px; margin-top: 20px;">
-          <button type="button" id="btn-test-iiko" class="ve-btn" 
-            style="flex: 1; background: transparent; border: 1.5px solid var(--green); color: var(--green); font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-h); height: 48px; border-radius: 14px;">
+        <div style="display:flex;gap:12px;margin-top:20px">
+          <button type="button" id="btn-test-iiko" class="ve-btn" style="flex:1;background:transparent;border:1.5px solid var(--green);color:var(--green);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:48px;border-radius:14px">
             🔍 Перевірити з'єднання
           </button>
-          <button type="button" id="btn-save-iiko" class="ve-btn ve-btn-green" 
-            style="flex: 1; height: 48px; border-radius: 14px;">
-            💾 Зберегти підключення
+          <button type="button" id="btn-save-iiko" class="ve-btn ve-btn-green" style="flex:1;height:48px;border-radius:14px">
+            💾 Зберегти
           </button>
         </div>
-        
-        <button type="button" id="btn-disconnect-iiko" class="ve-btn" 
-          style="width: 100%; margin-top: 12px; background: var(--red-bg); border: 0.5px solid var(--red-border); color: var(--red); font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font-b); height: 44px; border-radius: 14px; display: none;">
-          ❌ Відключити iiko
+        <button type="button" id="btn-disconnect-iiko" class="ve-btn" style="width:100%;margin-top:12px;background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
+          ❌ Відключити Syrve
+        </button>
+        <div style="margin-top:16px;font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5;text-align:center">
+          Як отримати API ключ: iiko → Налаштування → API → Створити ключ
+        </div>
+      </div>
+      ` : _draft.posType === 'poster' ? `
+      <div class="ve-sec">🍃 Poster інтеграція</div>
+      <div class="ve-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <span style="font-size:20px">🍃</span>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Poster POS</div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Синхронізація товарів та замовлень</div>
+          </div>
+          <span id="poster-status-badge" style="padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;font-family:var(--font-b);background:rgba(234,179,8,0.15);color:#eab308">Завантаження...</span>
+        </div>
+        <div class="ve-label">API токен Poster</div>
+        <input class="ve-input" id="poster-api-key" type="text" placeholder="Вставте токен з Poster">
+        <div class="ve-hint">
+          Як отримати токен: Poster → Налаштування → Інтеграції → API → Скопіювати токен
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px">
+          <button type="button" id="btn-test-poster" class="ve-btn" style="flex:1;background:transparent;border:1.5px solid var(--green);color:var(--green);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:48px;border-radius:14px">
+            🔍 Перевірити з'єднання
+          </button>
+          <button type="button" id="btn-save-poster" class="ve-btn ve-btn-green" style="flex:1;height:48px;border-radius:14px">
+            💾 Зберегти
+          </button>
+        </div>
+        <button type="button" id="btn-disconnect-poster" class="ve-btn" style="width:100%;margin-top:12px;background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
+          ❌ Відключити Poster
         </button>
       </div>
-      
-      <div style="margin-top: 16px; font-size: 11px; color: var(--text2); font-family: var(--font-b); line-height: 1.5; text-align: center;">
-        Як отримати API ключ: iiko → Налаштування → API → Створити ключ
-      </div>
+      ` : ''}
     </div>
 
     <div style="padding:8px 14px 24px">
@@ -329,7 +355,10 @@ function setupListeners() {
     nameInput.oninput = (e) => { _draft.name = e.target.value; };
   }
   if (posSelect) {
-    posSelect.onchange = (e) => { _draft.posType = e.target.value; };
+    posSelect.onchange = (e) => {
+      _draft.posType = e.target.value;
+      render();
+    };
   }
   if (topicInput) {
     topicInput.oninput = (e) => { _draft.topicUrl = e.target.value; };
@@ -634,6 +663,122 @@ async function initIikoSection(venueId) {
   });
 }
 
+async function initPosterSection(venueId) {
+  await new Promise(r => setTimeout(r, 500));
+  
+  const badge = document.getElementById('poster-status-badge');
+  if (!badge) return;
+
+  const apiKeyInput = document.getElementById('poster-api-key');
+  const disconnectBtn = document.getElementById('btn-disconnect-poster');
+  const authToken = localStorage.getItem('barops_token');
+
+  try {
+    const res = await fetch(`${API}/api/pos/settings/${venueId}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    const settings = data.settings;
+
+    if (settings.posConnected) {
+      badge.textContent = '✅ Підключено';
+      badge.style.background = 'rgba(34, 197, 94, 0.15)';
+      badge.style.color = '#22c55e';
+      if (disconnectBtn) disconnectBtn.style.display = 'block';
+    } else {
+      badge.textContent = '⚠️ Не підключено';
+      badge.style.background = 'rgba(234, 179, 8, 0.15)';
+      badge.style.color = '#eab308';
+    }
+  } catch (err) {
+    console.error('Load poster settings error:', err);
+  }
+
+  document.getElementById('btn-test-poster')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-test-poster');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Перевірка...';
+    try {
+      const saveRes = await fetch(`${API}/api/pos/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ venueId, posType: 'poster', url: 'https://joinposter.com/api', apiKey: apiKeyInput.value.trim(), login: '', password: '' })
+      });
+      if (!saveRes.ok) throw new Error('Помилка збереження');
+      const testRes = await fetch(`${API}/api/pos/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ venueId })
+      });
+      const testData = await testRes.json();
+      if (testData.success) {
+        badge.textContent = '✅ Підключено';
+        badge.style.background = 'rgba(34, 197, 94, 0.15)';
+        badge.style.color = '#22c55e';
+        if (disconnectBtn) disconnectBtn.style.display = 'block';
+        localStorage.setItem('barops_pos_connected', 'true');
+        showToast('З\'єднання з Poster успішне!');
+      } else {
+        throw new Error(testData.error || 'Помилка з\'єднання');
+      }
+    } catch (err) {
+      badge.textContent = '❌ Помилка';
+      badge.style.background = 'rgba(239, 68, 68, 0.15)';
+      badge.style.color = '#ef4444';
+      showToast(err.message || 'Помилка', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔍 Перевірити з\'єднання';
+    }
+  });
+
+  document.getElementById('btn-save-poster')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-save-poster');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Збереження...';
+    try {
+      const res = await fetch(`${API}/api/pos/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ venueId, posType: 'poster', url: 'https://joinposter.com/api', apiKey: apiKeyInput.value.trim(), login: '', password: '' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Налаштування Poster збережено!');
+      } else {
+        showToast(data.error || 'Помилка збереження', 'error');
+      }
+    } catch (err) {
+      showToast('Помилка мережі', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '💾 Зберегти';
+    }
+  });
+
+  disconnectBtn?.addEventListener('click', async () => {
+    if (!confirm('Відключити Poster?')) return;
+    try {
+      const res = await fetch(`${API}/api/pos/disconnect`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ venueId })
+      });
+      if (res.ok) {
+        if (apiKeyInput) apiKeyInput.value = '';
+        badge.textContent = '⚠️ Не підключено';
+        badge.style.background = 'rgba(234, 179, 8, 0.15)';
+        badge.style.color = '#eab308';
+        disconnectBtn.style.display = 'none';
+        localStorage.removeItem('barops_pos_connected');
+        showToast('Poster відключено');
+      }
+    } catch (err) {
+      showToast('Помилка відключення', 'error');
+    }
+  });
+}
+
 export default {
   render(params) {
     _venue = null;
@@ -650,10 +795,13 @@ export default {
     window.__ve = { save };
     setupListeners();
     
-    // Ініціалізуємо iiko секцію
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
     if (venueId) {
-            setTimeout(() => initIikoSection(venueId), 600);
+      if (_draft.posType === 'syrve') {
+        setTimeout(() => initIikoSection(venueId), 600);
+      } else if (_draft.posType === 'poster') {
+        setTimeout(() => initPosterSection(venueId), 600);
+      }
     }
   },
 };

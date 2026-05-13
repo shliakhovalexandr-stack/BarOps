@@ -473,7 +473,7 @@ function sectionVenues() {
     </div>
     ${v.telegramTopicId ? `
     <div class="mgr-venue-topic">
-      📱 Telegram Topic ID: <strong>${v.telegramTopicId}</strong>
+      📱 Telegram: <strong>Топік #${v.telegramTopicId} підключено</strong> · Акцизні фото → правильний чат
     </div>
     ` : `
     <div class="mgr-venue-topic" style="color:var(--amber)">
