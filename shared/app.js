@@ -302,8 +302,7 @@ export function switchVenue(id) {
   const page = PAGES[state.route];
   if (page) {
     const view = document.getElementById('app-view');
-    if (view) { view.innerHTML = await page.render({}); }
-    if (typeof page.init === 'function') page.init({});
+    if (view) { Promise.resolve(page.render({})).then(html => { view.innerHTML = html; if (typeof page.init === 'function') page.init({}); }); return; }
   }
 }
 
