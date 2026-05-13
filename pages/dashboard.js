@@ -385,7 +385,7 @@ ${CSS}
         </div>
         <span class="d-shift-time">${shiftDuration(s.shift.startedAt)}</span>` : `
         <div class="d-pill d-pill--none">Зміна не відкрита</div>
-        ${!isMgr ? `<button onclick="window.__barops.navigate('shift-log')"
+        ${!isMgr ? `<button onclick="window.__dash.openShift()"
           style="height:28px;padding:0 12px;border-radius:20px;border:0.5px solid var(--green);background:var(--green-bg);font-size:11px;color:var(--green);cursor:pointer;font-family:var(--font-b);white-space:nowrap">
           Відкрити зміну
         </button>` : ''}`}
@@ -685,6 +685,24 @@ export default {
     return buildHTML();
   },
   async init() {
+    async function openShift() {
+      try {
+        const token = localStorage.getItem('barops_token');
+        const res = await fetch(`${API}/api/shifts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadData();
+        } else {
+          alert(data.error || 'Помилка відкриття зміни');
+        }
+      } catch (err) {
+        console.error('[Dashboard] openShift error:', err);
+      }
+    }
+
     window.__dash = {
       toggleNotif() {
         _notifOpen = !_notifOpen;
