@@ -676,12 +676,13 @@ async function doLogin() {
    HELPERS
 ════════════════════════ */
 function saveSession(data) {
-  localStorage.setItem('barops_token',   data.token);
-  localStorage.setItem('barops_refresh', data.refreshToken);
-  localStorage.setItem('barops_venue',   data.user.venueName);
-  localStorage.setItem('barops_venueId', data.user.venueId || '');
-  localStorage.setItem('barops_role',    data.user.role);
-  localStorage.setItem('barops_user',    data.user.name);
+  localStorage.setItem('barops_token',          data.token);
+  localStorage.setItem('barops_refresh',        data.refreshToken);
+  localStorage.setItem('barops_venue',          data.user.venueName);
+  localStorage.setItem('barops_venueId',        data.user.venueId || '');
+  localStorage.setItem('barops_role',           data.user.role);
+  localStorage.setItem('barops_user',           data.user.name);
+  localStorage.setItem('barops_telegram_topic', data.user.telegramTopicId || '');
 
   state.role    = data.user.role;
   state.venue   = data.user.venueName;
