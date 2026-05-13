@@ -302,7 +302,7 @@ export function switchVenue(id) {
   const page = PAGES[state.route];
   if (page) {
     const view = document.getElementById('app-view');
-    if (view) { view.innerHTML = page.render({}); }
+    if (view) { view.innerHTML = await page.render({}); }
     if (typeof page.init === 'function') page.init({});
   }
 }
@@ -403,7 +403,7 @@ export async function navigate(route, opts = {}) {
   await new Promise(r => setTimeout(r, 60));
 
   try {
-    view.innerHTML = page.render(opts.params || {});
+    view.innerHTML = await page.render(opts.params || {});
   } catch (err) {
     console.error(`[BarOps] render error on "${route}":`, err);
     view.innerHTML = `<div style="padding:40px;text-align:center">
