@@ -378,17 +378,17 @@ ${CSS}
         </div>
       </div>
       <div class="d-shift-row">
-        ${s?.shift ? `
-        <div class="d-pill${isMgr ? ' d-pill--mgr' : ''}">
-          <div class="d-pill-dot${isMgr ? ' d-pill-dot--mgr' : ''}"></div>
+        ${!isMgr ? (s?.shift ? `
+        <div class="d-pill">
+          <div class="d-pill-dot"></div>
           <span>Зміна активна · ${s.shift.user}</span>
         </div>
         <span class="d-shift-time">${shiftDuration(s.shift.startedAt)}</span>` : `
         <div class="d-pill d-pill--none">Зміна не відкрита</div>
-        ${!isMgr ? `<button onclick="window.__dash.openShift()"
+        <button onclick="window.__dash.openShift()"
           style="height:28px;padding:0 12px;border-radius:20px;border:0.5px solid var(--green);background:var(--green-bg);font-size:11px;color:var(--green);cursor:pointer;font-family:var(--font-b);white-space:nowrap">
           Відкрити зміну
-        </button>` : ''}`}
+        </button>`) : ''}
       </div>
     </div>
 
