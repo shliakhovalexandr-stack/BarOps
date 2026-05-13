@@ -57,8 +57,16 @@ function extractTopicId(url) {
   const trimmed = url.trim();
   if (!trimmed) return null;
   if (/^\d+$/.test(trimmed)) return trimmed;
-  const match = trimmed.match(/[/_](\d+)(?:\?|$|#)/);
-  return match ? match[1] : null;
+  // https://t.me/c/CHATID/TOPICID
+  const tme = trimmed.match(/t\.me\/c\/\d+\/(\d+)/);
+  if (tme) return tme[1];
+  // https://web.telegram.org/a/#-CHATID_TOPICID
+  const web = trimmed.match(/_(\d+)(?:\?|$|#|\/)/);
+  if (web) return web[1];
+  // будь-яке число в кінці URL
+  const last = trimmed.match(/\/(\d+)\/?$/);
+  if (last) return last[1];
+  return null;
 }
 
 function showToast(message, type = 'success') {
