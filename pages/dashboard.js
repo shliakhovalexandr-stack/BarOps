@@ -677,6 +677,25 @@ async function saveSyrve() {
   }
 }
 
+async function openShift() {
+  try {
+    const tok = localStorage.getItem('barops_token');
+    const res = await fetch(`${API}/api/shifts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadStats();
+      fullRender();
+    } else {
+      alert(data.error || 'Помилка відкриття зміни');
+    }
+  } catch (err) {
+    console.error('[Dashboard] openShift error:', err);
+  }
+}
+
 export default {
   render() {
     _notifOpen      = false;
@@ -685,24 +704,6 @@ export default {
     return buildHTML();
   },
   async init() {
-    async function openShift() {
-      try {
-        const token = localStorage.getItem('barops_token');
-        const res = await fetch(`${API}/api/shifts`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (data.success) {
-          await loadData();
-        } else {
-          alert(data.error || 'Помилка відкриття зміни');
-        }
-      } catch (err) {
-        console.error('[Dashboard] openShift error:', err);
-      }
-    }
-
     window.__dash = {
       openShift,
       toggleNotif() {
