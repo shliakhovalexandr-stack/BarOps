@@ -35,6 +35,8 @@ let _search     = '';
 let _openId     = null;
 let _cdInterval = null;
 let _mgrOverlay = null; // name of product in mgr overlay
+let _syrveBalance = null; // залишки з Syrve
+let _syrveLoading = false;
 
 /* ════════════════════════
    CSS
@@ -606,6 +608,16 @@ function renderManager() {
   </div>
 
   <div class="inv-scroll">
+
+    <div style="margin:10px 14px 0;display:flex;gap:8px;align-items:center">
+      <button id="inv-syrve-btn" onclick="window.__inv.syncSyrve()"
+        style="flex:1;height:44px;background:var(--green);border:none;border-radius:12px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px">
+        🔄 Завантажити залишки Syrve
+      </button>
+    </div>
+
+    <div id="inv-syrve-result" style="margin:8px 14px 0"></div>
+
     <div class="inv-sec">Розклад сесій — Травень 2026</div>
     <div class="inv-cal">
       <div class="inv-cal-hdr">
@@ -989,6 +1001,67 @@ function updateFormula() {
 }
 
 /* ════════════════════════
+   SYRVE SYNC
+════════════════════════ */
+async function syncSyrve() {
+  if (_syrveLoading) return;
+  _syrveLoading = true;
+
+  const btn = document.getElementById('inv-syrve-btn');
+  const out = document.getElementById('inv-syrve-result');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Завантаження...'; }
+  if (out) out.innerHTML = '';
+
+  try {
+    const venueId = localStorage.getItem('barops_venueId');
+    const token   = localStorage.getItem('barops_token');
+    const API     = 'https://barops-backend-production.up.railway.app';
+
+    const res  = await fetch(`${API}/api/pos/balance/${venueId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || 'Помилка');
+
+    _syrveBalance = data.stores;
+
+    // Будуємо HTML таблицю залишків
+    let html = '';
+    for (const store of data.stores) {
+      html += `
+        <div style="margin-bottom:12px">
+          <div style="font-size:10px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-b);padding:8px 0 6px">
+            🏪 ${store.storeName}
+          </div>
+          <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+            ${store.items.length === 0
+              ? `<div style="padding:14px;font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center">Немає залишків</div>`
+              : store.items.map(i => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--border)">
+                  <div style="font-size:13px;color:var(--text1);font-family:var(--font-b)">${i.name}</div>
+                  <div style="font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)">
+                    ${Number(i.amount).toFixed(3)} <span style="font-size:10px;color:var(--text2);font-weight:400">${i.unit}</span>
+                  </div>
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>`;
+    }
+
+    if (out) out.innerHTML = html;
+    if (btn) { btn.disabled = false; btn.innerHTML = '✅ Оновлено · Оновити знову'; }
+
+  } catch (err) {
+    if (out) out.innerHTML = `<div style="padding:12px 14px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:12px;font-size:13px;color:var(--red);font-family:var(--font-b)">❌ ${err.message}</div>`;
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔄 Завантажити залишки Syrve'; }
+  } finally {
+    _syrveLoading = false;
+  }
+}
+
+/* ════════════════════════
    PAGE MODULE EXPORT
 ════════════════════════ */
 export default {
@@ -1005,7 +1078,7 @@ export default {
 
   init() {
     window.__inv = {
-      openLocked, openActive, openManager,
+      openLocked, openActive, openManager, syncSyrve,
       setFilter, doSearch, toggleProd, closeProd, switchMode,
       calcKg, changeFullBottles, saveKg,
       changeBottles, setFrac, saveSht, calcL, saveL,
