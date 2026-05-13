@@ -689,7 +689,12 @@ async function openShift() {
       await loadStats();
       fullRender();
     } else {
-      alert(data.error || 'Помилка відкриття зміни');
+      if (data.error === 'Зміна вже відкрита') {
+        await loadStats();
+        fullRender();
+      } else {
+        alert(data.error || 'Помилка відкриття зміни');
+      }
     }
   } catch (err) {
     console.error('[Dashboard] openShift error:', err);
