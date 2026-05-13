@@ -28,7 +28,7 @@ const STOCK = [
   { id:20, emoji:'🍋', name:'Лимон',                      cat:'Гарніри',    qty:12,   unit:'шт',norm:10,  status:'ok'  },
 ];
 
-const CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
+let CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
 
 let _filter = 'Всі';
 let _search = '';
@@ -208,6 +208,7 @@ function search(q)    { _search = q; fullRender(); }
           }
         }
         _isSyrve = true;
+        CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
         const v = document.getElementById('app-view');
         if (v) v.innerHTML = buildHTML();
       }
