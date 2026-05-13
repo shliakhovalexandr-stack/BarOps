@@ -6,7 +6,6 @@
 const CACHE_NAME = 'barops-v3';
 const STATIC_ASSETS = [
   '/manifest.json',
-  '/shared/app.js',
   '/shared/tokens.css',
   '/shared/components.css',
   '/shared/tab-bar.css',
