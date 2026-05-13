@@ -94,7 +94,7 @@ async function loadData() {
       fetch(`${API}/api/stats?venueId=${venueId}`,
                                           { headers: { Authorization: `Bearer ${token()}` } }),
       fetch(`${API}/api/register/plan`,   { headers: { Authorization: `Bearer ${token()}` } }),
-      fetch(`${API}/api/pos/settings/${venueId}`, { headers: { Authorization: `Bearer ${token()}` } }),
+      state.role === 'manager' ? fetch(`${API}/api/pos/settings/${venueId}`, { headers: { Authorization: `Bearer ${token()}` } }) : Promise.resolve({ ok: false }),
     ]);
 
     if (meRes.ok)    { const d = await meRes.json();    _profile = d.user; }
