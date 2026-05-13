@@ -683,6 +683,7 @@ function saveSession(data) {
   localStorage.setItem('barops_role',           data.user.role);
   localStorage.setItem('barops_user',           data.user.name);
   localStorage.setItem('barops_telegram_topic', data.user.telegramTopicId || '');
+  localStorage.setItem('barops_phone',          data.user.phone || '');
 
   state.role    = data.user.role;
   state.venue   = data.user.venueName;
