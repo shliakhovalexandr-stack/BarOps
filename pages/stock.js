@@ -173,7 +173,6 @@ function fullRender() {
 function setFilter(f) { _filter = f; fullRender(); }
 function search(q)    { _search = q; fullRender(); }
 
-export default {
   export default {
   render() {
     _filter = 'Всі'; _search = '';
