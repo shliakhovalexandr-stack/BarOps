@@ -386,17 +386,38 @@ ${CSS}
 
           <!-- Syrve fields -->
           <div id="modal-syrve" style="display:none">
-            <div class="ve-label">URL сервера</div>
-            <input class="ve-input" id="modal-iiko-url" type="url" placeholder="https://api-ru.iiko.services" value="https://api-ru.iiko.services">
-            <div class="ve-label">API ключ</div>
-            <input class="ve-input" id="modal-iiko-key" type="text" placeholder="Вставте API ключ з iiko">
-            <div class="ve-label">Логін</div>
-            <input class="ve-input" id="modal-iiko-login" type="text" placeholder="admin">
-            <div class="ve-label">Пароль</div>
-            <input class="ve-input" id="modal-iiko-password" type="password" placeholder="••••••">
-            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px;line-height:1.5;text-align:center">
-              Як отримати API ключ: iiko → Налаштування → API → Створити ключ
+
+            <!-- Перемикач Cloud / Self-hosted -->
+            <div class="ve-label">Тип підключення</div>
+            <div style="display:flex;gap:8px;margin-bottom:16px">
+              <button id="modal-tab-cloud" type="button" onclick="window.__ve.setModalSyrveMode('cloud')"
+                style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--green);background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-b)">
+                ☁️ Cloud
+              </button>
+              <button id="modal-tab-selfhosted" type="button" onclick="window.__ve.setModalSyrveMode('selfhosted')"
+                style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text1);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-b)">
+                🖥️ Self-hosted
+              </button>
             </div>
+
+            <!-- Cloud поля -->
+            <div id="modal-syrve-cloud">
+              <div class="ve-label">API Login</div>
+              <input class="ve-input" id="modal-iiko-key" type="text" placeholder="Вставте API Login з iiko">
+              <div class="ve-hint">iiko → Налаштування → API → API Login</div>
+            </div>
+
+            <!-- Self-hosted поля -->
+            <div id="modal-syrve-selfhosted" style="display:none">
+              <div class="ve-label">URL сервера</div>
+              <input class="ve-input" id="modal-iiko-url" type="url" placeholder="https://la-pasta.syrve.online">
+              <div class="ve-label">Логін</div>
+              <input class="ve-input" id="modal-iiko-login" type="text" placeholder="shliakhov">
+              <div class="ve-label">Пароль</div>
+              <input class="ve-input" id="modal-iiko-password" type="password" placeholder="••••••">
+              <div class="ve-hint">Пароль хешується MD5 — у відкритому вигляді не зберігається</div>
+            </div>
+
           </div>
 
           <!-- Poster fields -->
@@ -786,6 +807,26 @@ async function initIikoSection(venueId) {
   });
 }
 
+function setModalSyrveMode(mode) {
+  const cloudEl = document.getElementById('modal-syrve-cloud');
+  const selfEl  = document.getElementById('modal-syrve-selfhosted');
+  const tabC    = document.getElementById('modal-tab-cloud');
+  const tabS    = document.getElementById('modal-tab-selfhosted');
+  if (!cloudEl || !selfEl) return;
+
+  if (mode === 'cloud') {
+    cloudEl.style.display = 'block';
+    selfEl.style.display  = 'none';
+    tabC.style.background = 'var(--green)'; tabC.style.color = '#fff'; tabC.style.borderColor = 'var(--green)';
+    tabS.style.background = 'var(--bg3)';  tabS.style.color = 'var(--text1)'; tabS.style.borderColor = 'var(--border2)';
+  } else {
+    cloudEl.style.display = 'none';
+    selfEl.style.display  = 'block';
+    tabS.style.background = 'var(--green)'; tabS.style.color = '#fff'; tabS.style.borderColor = 'var(--green)';
+    tabC.style.background = 'var(--bg3)';  tabC.style.color = 'var(--text1)'; tabC.style.borderColor = 'var(--border2)';
+  }
+}
+
 function openPosModal() {
   const modal = document.getElementById('pos-modal');
   if (modal) { modal.style.display = 'flex'; }
@@ -812,11 +853,16 @@ async function savePosModal() {
   let url = '', apiKey = '', login = '', password = '';
 
   if (posType === 'syrve') {
-    url      = document.getElementById('modal-iiko-url').value.trim();
-    apiKey   = document.getElementById('modal-iiko-key').value.trim();
-    login    = document.getElementById('modal-iiko-login').value.trim();
-    password = document.getElementById('modal-iiko-password').value;
-    if (!apiKey) { showToast('Введіть API ключ', 'error'); return; }
+    const mode = document.getElementById('modal-syrve-selfhosted')?.style.display === 'none' ? 'cloud' : 'selfhosted';
+    if (mode === 'cloud') {
+      apiKey = document.getElementById('modal-iiko-key')?.value.trim();
+      if (!apiKey) { showToast('Введіть API Login', 'error'); return; }
+    } else {
+      url      = document.getElementById('modal-iiko-url')?.value.trim();
+      login    = document.getElementById('modal-iiko-login')?.value.trim();
+      password = document.getElementById('modal-iiko-password')?.value;
+      if (!url || !login || !password) { showToast('Введіть URL, логін та пароль', 'error'); return; }
+    }
   } else if (posType === 'poster') {
     url    = 'https://joinposter.com/api';
     apiKey = document.getElementById('modal-poster-key').value.trim();
@@ -982,7 +1028,7 @@ export default {
     return buildHTML();
   },
   init(params) {
-    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode };
+    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode, setModalSyrveMode };
     setupListeners();
     
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
