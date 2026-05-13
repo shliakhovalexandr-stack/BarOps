@@ -7,6 +7,8 @@
 
 import { navigate, state } from '../shared/app.js';
 
+const API = 'https://barops-backend-production.up.railway.app';
+
 /* ════════════════════════
    DATA
 ════════════════════════ */
@@ -370,7 +372,7 @@ function renderBartender() {
     </div>
     <div style="flex:1">
       <div class="sl-title">Журнал зміни</div>
-      <div class="sl-sub">08.05.2026 · Вечірня зміна</div>
+      <div class="sl-sub">${new Date().toLocaleDateString('uk-UA', { day:'numeric', month:'long', year:'numeric' })}</div>
     </div>
     <div class="sl-pill sl-pill-indigo" id="sl-tasks-pill">${done}/${total}</div>
   </div>
@@ -379,8 +381,8 @@ function renderBartender() {
     <!-- Shift header -->
     <div class="sl-header">
       <div class="sl-h-eyebrow">Вечірня зміна</div>
-      <div class="sl-h-date">П'ятниця, 08 травня 2026</div>
-      <div class="sl-h-who">Олексій Коваленко · ${state.venue}</div>
+      <div class="sl-h-date">${new Date().toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</div>
+      <div class="sl-h-who">${state.user || localStorage.getItem('barops_user') || ''} · ${state.venue}</div>
       <div class="sl-h-stats">
         <div class="sl-stat">
           <div class="sl-stat-val" style="color:${INDIGO_LIGHT}">${done}/${total}</div>
@@ -650,7 +652,32 @@ function saveNote() {
   if (btn) { btn.textContent = '✓ Збережено'; setTimeout(() => { if(btn) btn.textContent = 'Зберегти нотатку'; }, 1500); }
 }
 
-function closeShift() {
+async function closeShift() {
+  const token = localStorage.getItem('barops_token');
+  const btn   = document.querySelector('.sl-btn-indigo');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="opacity:.6">Закриваємо…</span>'; }
+
+  try {
+    // Знаходимо поточну відкриту зміну
+    const res  = await fetch(`${API}/api/shifts/current`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+
+    if (data.success && data.data) {
+      const shiftId = data.data.id;
+      const notes   = document.getElementById('sl-note-area')?.value || _noteText;
+
+      await fetch(`${API}/api/shifts/${shiftId}/close`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ notes }),
+      });
+    }
+  } catch (e) {
+    console.error('[closeShift]', e);
+  }
+
   _shiftClosed = true;
   fullRender();
 }
