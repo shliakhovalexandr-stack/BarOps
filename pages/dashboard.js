@@ -64,10 +64,10 @@ const QUICK_MANAGER = [
          <circle cx="13" cy="11" r="1.5" fill="currentColor" opacity=".7"/>` },
   { route:'ordering', badge:null, label:'Замовлення',  color:'#1f0f08', iconColor:'#EF9F27',
     svg:`<path d="M3 12h3v3H3zM7 8h3v7H7zM11 5h3v10h-3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
-  { route:'recipes',  badge:null, label:'Фудкост',     color:'#0a0a14', iconColor:'#7F77DD',
-    svg:`<rect x="2" y="3" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/>
-         <path d="M5 7h7M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-         <path d="M12 10l4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+  { route:'inventory', badge:null, label:'Інвентаризація', color:'#0a0a14', iconColor:'#7F77DD',
+    svg:`<rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/>
+         <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+         <path d="M13 10l2 2-1 1-2-2v-.5l1-1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>` },
 ];
 
 /* ════════════════════════
@@ -134,12 +134,12 @@ const CSS = `<style id="dash-css">
   padding:14px 20px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
 .d-sec-link{font-size:11px;color:var(--green);letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b);padding:0}
 /* quick grid */
-.d-quick{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:0 14px}
-.d-qbtn{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:12px 6px 10px;
-  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:all .18s;text-align:center;position:relative;overflow:hidden}
+.d-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:0 14px}
+.d-qbtn{background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:16px 12px 14px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:9px;transition:all .18s;text-align:center;position:relative;overflow:hidden}
 .d-qbtn:active{transform:scale(.95)}
-.d-qbtn-icon{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.d-qbtn-label{font-family:var(--font-h);font-size:11px;font-weight:600;color:var(--text0);line-height:1.2}
+.d-qbtn-icon{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.d-qbtn-label{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);line-height:1.2}
 .d-qbtn-badge{position:absolute;top:12px;right:12px;background:var(--red);border-radius:20px;
   padding:2px 7px;font-size:10px;color:#fff;font-family:var(--font-h);font-weight:600}
 /* kpi */
@@ -213,7 +213,7 @@ function quickGrid(items) {
   <div class="d-qbtn" onclick="window.__barops.navigate('${q.route}')">
     ${q.badge ? `<div class="d-qbtn-badge">${q.badge}</div>` : ''}
     <div class="d-qbtn-icon" style="background:${q.color}">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="color:${q.iconColor}">
+      <svg width="22" height="22" viewBox="0 0 18 18" fill="none" style="color:${q.iconColor}">
         ${q.svg}
       </svg>
     </div>
