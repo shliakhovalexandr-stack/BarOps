@@ -57,16 +57,8 @@ function extractTopicId(url) {
   const trimmed = url.trim();
   if (!trimmed) return null;
   if (/^\d+$/.test(trimmed)) return trimmed;
-  // https://t.me/c/CHATID/TOPICID
-  const tme = trimmed.match(/t\.me\/c\/\d+\/(\d+)/);
-  if (tme) return tme[1];
-  // https://web.telegram.org/a/#-CHATID_TOPICID
-  const web = trimmed.match(/_(\d+)(?:\?|$|#|\/)/);
-  if (web) return web[1];
-  // будь-яке число в кінці URL
-  const last = trimmed.match(/\/(\d+)\/?$/);
-  if (last) return last[1];
-  return null;
+  const match = trimmed.match(/[/_](\d+)(?:\?|$|#)/);
+  return match ? match[1] : null;
 }
 
 function showToast(message, type = 'success') {
@@ -276,36 +268,64 @@ ${CSS}
       ${_draft.posType === 'syrve' ? `
       <div class="ve-sec">🔗 Syrve / iiko інтеграція</div>
       <div class="ve-card" id="iiko-card">
+
+        <!-- Заголовок + статус -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
           <span style="font-size:20px">🔗</span>
           <div style="flex:1">
-            <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Syrve (iiko) Cloud</div>
-            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Синхронізація товарів та техкарт</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Syrve (iiko)</div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Синхронізація товарів та залишків</div>
           </div>
           <span id="iiko-status-badge" style="padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;font-family:var(--font-b);background:rgba(234,179,8,0.15);color:#eab308">Завантаження...</span>
         </div>
-        <div class="ve-label">URL сервера</div>
-        <input class="ve-input" id="iiko-url" type="url" placeholder="https://api-ru.iiko.services" value="${escapeHtml(_draft.posUrl) || 'https://api-ru.iiko.services'}">
-        <div class="ve-label">API ключ</div>
-        <input class="ve-input" id="iiko-api-key" type="text" placeholder="Вставте API ключ з iiko">
-        <div class="ve-label">Логін</div>
-        <input class="ve-input" id="iiko-login" type="text" placeholder="admin" value="${escapeHtml(_draft.posLogin)}">
-        <div class="ve-label">Пароль</div>
-        <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
-        <div style="display:flex;gap:12px;margin-top:20px">
-          <button type="button" id="btn-test-iiko" class="ve-btn" style="flex:1;background:transparent;border:1.5px solid var(--green);color:var(--green);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:48px;border-radius:14px">
+
+        <!-- Перемикач Cloud / Self-hosted -->
+        <div class="ve-label">Тип підключення</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button id="tab-cloud" type="button" onclick="window.__ve.setSyrveMode('cloud')"
+            style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--green);background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-b)">
+            ☁️ Cloud
+          </button>
+          <button id="tab-selfhosted" type="button" onclick="window.__ve.setSyrveMode('selfhosted')"
+            style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text1);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-b)">
+            🖥️ Self-hosted
+          </button>
+        </div>
+
+        <!-- Cloud поля -->
+        <div id="syrve-cloud-fields">
+          <div class="ve-label">API Login</div>
+          <input class="ve-input" id="iiko-api-key" type="text" placeholder="Вставте API Login з iiko (напр. abc123def456)">
+          <div class="ve-hint">iiko → Налаштування → API → API Login</div>
+        </div>
+
+        <!-- Self-hosted поля -->
+        <div id="syrve-selfhosted-fields" style="display:none">
+          <div class="ve-label">URL сервера</div>
+          <input class="ve-input" id="iiko-url" type="url" placeholder="https://la-pasta.syrve.online" value="${escapeHtml(_draft.posUrl) || ''}">
+          <div class="ve-hint">Наприклад: https://la-pasta.syrve.online</div>
+          <div class="ve-label">Логін</div>
+          <input class="ve-input" id="iiko-login" type="text" placeholder="shliakhov" value="${escapeHtml(_draft.posLogin)}">
+          <div class="ve-label">Пароль</div>
+          <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
+          <div class="ve-hint">Пароль хешується MD5 перед відправкою — у відкритому вигляді не зберігається</div>
+        </div>
+
+        <!-- Кнопки -->
+        <div style="display:flex;gap:12px;margin-top:8px">
+          <button type="button" id="btn-test-iiko" class="ve-btn"
+            style="flex:1;background:transparent;border:1.5px solid var(--green);color:var(--green);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:48px;border-radius:14px">
             🔍 Перевірити з'єднання
           </button>
-          <button type="button" id="btn-save-iiko" class="ve-btn ve-btn-green" style="flex:1;height:48px;border-radius:14px">
+          <button type="button" id="btn-save-iiko" class="ve-btn ve-btn-green"
+            style="flex:1;height:48px;border-radius:14px">
             💾 Зберегти
           </button>
         </div>
-        <button type="button" id="btn-disconnect-iiko" class="ve-btn" style="width:100%;margin-top:12px;background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
+        <button type="button" id="btn-disconnect-iiko" class="ve-btn"
+          style="width:100%;margin-top:12px;background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
           ❌ Відключити Syrve
         </button>
-        <div style="margin-top:16px;font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5;text-align:center">
-          Як отримати API ключ: iiko → Налаштування → API → Створити ключ
-        </div>
       </div>
       ` : _draft.posType === 'poster' ? `
       <div class="ve-sec">🍃 Poster інтеграція</div>
@@ -546,197 +566,219 @@ async function save() {
 }
 
 /* ════════════════════════
-   IIKO SETTINGS
+   SYRVE / iiko SETTINGS
 ════════════════════════ */
+
+let _syrveMode = 'cloud';
+
+function setSyrveMode(mode) {
+  _syrveMode = mode;
+  const cloudFields      = document.getElementById('syrve-cloud-fields');
+  const selfhostedFields = document.getElementById('syrve-selfhosted-fields');
+  const tabCloud         = document.getElementById('tab-cloud');
+  const tabSelf          = document.getElementById('tab-selfhosted');
+  if (!cloudFields || !selfhostedFields) return;
+
+  if (mode === 'cloud') {
+    cloudFields.style.display      = 'block';
+    selfhostedFields.style.display = 'none';
+    tabCloud.style.background  = 'var(--green)';
+    tabCloud.style.color       = '#fff';
+    tabCloud.style.borderColor = 'var(--green)';
+    tabSelf.style.background   = 'var(--bg3)';
+    tabSelf.style.color        = 'var(--text1)';
+    tabSelf.style.borderColor  = 'var(--border2)';
+  } else {
+    cloudFields.style.display      = 'none';
+    selfhostedFields.style.display = 'block';
+    tabSelf.style.background   = 'var(--green)';
+    tabSelf.style.color        = '#fff';
+    tabSelf.style.borderColor  = 'var(--green)';
+    tabCloud.style.background  = 'var(--bg3)';
+    tabCloud.style.color       = 'var(--text1)';
+    tabCloud.style.borderColor = 'var(--border2)';
+  }
+}
+
+function getSyrveFormData() {
+  if (_syrveMode === 'cloud') {
+    return {
+      url:      null,
+      apiKey:   document.getElementById('iiko-api-key')?.value.trim() || null,
+      login:    null,
+      password: null,
+    };
+  }
+  return {
+    url:      document.getElementById('iiko-url')?.value.trim()      || null,
+    apiKey:   null,
+    login:    document.getElementById('iiko-login')?.value.trim()    || null,
+    password: document.getElementById('iiko-password')?.value        || null,
+  };
+}
+
 async function initIikoSection(venueId) {
-  // Чекаємо поки DOM готовий
   await new Promise(r => setTimeout(r, 500));
-  
-  const badge = document.getElementById('iiko-status-badge');
-  
-  // Перевірка що елементи існують
-  if (!badge) {
-    console.warn('[iiko] badge not found, DOM not ready');
-    return;
-  }
-  
-  const urlInput = document.getElementById('iiko-url');
-  const apiKeyInput = document.getElementById('iiko-api-key');
-  const loginInput = document.getElementById('iiko-login');
-  const passwordInput = document.getElementById('iiko-password');
+
+  const badge         = document.getElementById('iiko-status-badge');
+  if (!badge) { console.warn('[Syrve] DOM not ready'); return; }
+
   const disconnectBtn = document.getElementById('btn-disconnect-iiko');
-  
-  const token = localStorage.getItem('barops_token');
-  
-  // Завантажити поточні налаштування
+  const authToken     = localStorage.getItem('barops_token');
+
+  // ── Завантажити поточні налаштування ──
   try {
-    const res = await fetch(`${API}/api/iiko/settings/${venueId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const res = await fetch(`${API}/api/pos/settings/${venueId}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` },
     });
-    
-        if (!res.ok) {
-      if (res.status === 401) {
-        badge.textContent = '❌ Помилка авторизації';
-        badge.style.background = 'rgba(239, 68, 68, 0.15)';
-        badge.style.color = '#ef4444';
-        return;
-      }
-      throw new Error('Не вдалося завантажити');
+
+    if (res.status === 401) {
+      badge.textContent      = '❌ Помилка авторизації';
+      badge.style.background = 'rgba(239,68,68,.15)';
+      badge.style.color      = '#ef4444';
+      return;
     }
-    
-    const data = await res.json();
-    const settings = data.settings;
-    
-    if (settings.iikoConnected) {
-      badge.textContent = '✅ Підключено';
-      badge.style.background = 'rgba(34, 197, 94, 0.15)';
-      badge.style.color = '#22c55e';
-      disconnectBtn.style.display = 'block';
+
+    const data     = await res.json();
+    const settings = data.settings || {};
+
+    // Визначити режим по збереженому url
+    const savedUrl = settings.posUrl || '';
+    const isCloud  = !savedUrl || savedUrl.includes('iiko.services') || savedUrl.includes('syrve.online') || savedUrl.includes('iiko.biz');
+    setSyrveMode(isCloud ? 'cloud' : 'selfhosted');
+
+    // Підставити збережені значення
+    const urlEl   = document.getElementById('iiko-url');
+    const loginEl = document.getElementById('iiko-login');
+    if (urlEl   && settings.posUrl)   urlEl.value   = settings.posUrl;
+    if (loginEl && settings.posLogin) loginEl.value = settings.posLogin;
+
+    // Статус badge
+    if (settings.posConnected) {
+      badge.textContent      = '✅ Підключено';
+      badge.style.background = 'rgba(34,197,94,.15)';
+      badge.style.color      = '#22c55e';
+      if (disconnectBtn) disconnectBtn.style.display = 'block';
     } else {
-      badge.textContent = '⚠️ Не підключено';
-      badge.style.background = 'rgba(234, 179, 8, 0.15)';
-      badge.style.color = '#eab308';
-      disconnectBtn.style.display = 'none';
+      badge.textContent      = settings.posLastError ? '❌ Помилка' : '⚠️ Не підключено';
+      badge.style.background = settings.posLastError ? 'rgba(239,68,68,.15)' : 'rgba(234,179,8,.15)';
+      badge.style.color      = settings.posLastError ? '#ef4444' : '#eab308';
+      badge.title            = settings.posLastError || '';
+      if (disconnectBtn) disconnectBtn.style.display = 'none';
     }
-    
-    if (settings.iikoUrl) urlInput.value = settings.iikoUrl;
-    if (settings.iikoLogin) loginInput.value = settings.iikoLogin;
-    
   } catch (err) {
-    badge.textContent = '⚠️ Не підключено';
-    badge.style.background = 'rgba(234, 179, 8, 0.15)';
-    badge.style.color = '#eab308';
-    disconnectBtn.style.display = 'none';
-    console.error('Load iiko settings error:', err);
+    badge.textContent      = '⚠️ Не підключено';
+    badge.style.background = 'rgba(234,179,8,.15)';
+    badge.style.color      = '#eab308';
+    console.error('[Syrve] Load settings error:', err);
   }
-  
-  // Обробник "Перевірити з'єднання"
-  document.getElementById('btn-test-iiko').addEventListener('click', async () => {
+
+  // ── Перевірити з'єднання ──
+  document.getElementById('btn-test-iiko')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-test-iiko');
-    btn.disabled = true;
+    btn.disabled  = true;
     btn.innerHTML = '⏳ Перевірка...';
-    
+
+    const { url, apiKey, login, password } = getSyrveFormData();
+
+    if (_syrveMode === 'cloud' && !apiKey) {
+      showToast('Введіть API Login', 'error');
+      btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
+    }
+    if (_syrveMode === 'selfhosted' && (!url || !login || !password)) {
+      showToast('Введіть URL, логін та пароль', 'error');
+      btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
+    }
+
     try {
-      // Спочатку зберігаємо
-      const saveRes = await fetch(`${API}/api/iiko/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          venueId: venueId,
-          url: urlInput.value.trim(),
-          apiKey: apiKeyInput.value.trim(),
-          login: loginInput.value.trim(),
-          password: passwordInput.value
-        })
+      const testRes  = await fetch(`${API}/api/pos/test`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body:    JSON.stringify({ venueId, posType: 'syrve', url, apiKey, login, password }),
       });
-      
-      if (!saveRes.ok) {
-        const saveData = await saveRes.json();
-        throw new Error(saveData.error || 'Помилка збереження');
-      }
-      
-      // Потім тестуємо
-      const testRes = await fetch(`${API}/api/iiko/connect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ venueId: venueId })
-      });
-      
       const testData = await testRes.json();
-      
+
       if (testData.success) {
-        badge.textContent = '✅ Підключено';
-        badge.style.background = 'rgba(34, 197, 94, 0.15)';
-        badge.style.color = '#22c55e';
-        disconnectBtn.style.display = 'block';
-        showToast('З\'єднання успішне!');
+        badge.textContent      = '✅ З\'єднання є';
+        badge.style.background = 'rgba(34,197,94,.15)';
+        badge.style.color      = '#22c55e';
+
+        const d = testData.details;
+        let msg = testData.message || 'З\'єднання успішне';
+        if (d?.organizations?.length) msg += ': ' + d.organizations.map(o => o.name).join(', ');
+        if (d?.stores?.length)        msg += ': ' + d.stores.map(s => s.name).join(', ');
+        showToast('✅ ' + msg);
       } else {
-        throw new Error(testData.error || 'Помилка з\'єднання');
+        throw new Error(testData.error || "Помилка з'єднання");
       }
     } catch (err) {
-      badge.textContent = '❌ Помилка з\'єднання';
-      badge.style.background = 'rgba(239, 68, 68, 0.15)';
-      badge.style.color = '#ef4444';
+      badge.textContent      = '❌ Помилка';
+      badge.style.background = 'rgba(239,68,68,.15)';
+      badge.style.color      = '#ef4444';
       showToast(err.message || 'Помилка', 'error');
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '🔍 Перевірити з\'єднання';
+      btn.disabled  = false;
+      btn.innerHTML = "🔍 Перевірити з'єднання";
     }
   });
-  
-  // Обробник "Зберегти"
-  document.getElementById('btn-save-iiko').addEventListener('click', async () => {
+
+  // ── Зберегти ──
+  document.getElementById('btn-save-iiko')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-save-iiko');
-    btn.disabled = true;
+    btn.disabled  = true;
     btn.innerHTML = '⏳ Збереження...';
-    
+
+    const { url, apiKey, login, password } = getSyrveFormData();
+
     try {
-      const res = await fetch(`${API}/api/iiko/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          venueId: venueId,
-          url: urlInput.value.trim(),
-          apiKey: apiKeyInput.value.trim(),
-          login: loginInput.value.trim(),
-          password: passwordInput.value
-        })
+      const res  = await fetch(`${API}/api/pos/save`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body:    JSON.stringify({ venueId, posType: 'syrve', url, apiKey, login, password }),
       });
-      
       const data = await res.json();
-      
+
       if (data.success) {
         showToast('Налаштування збережено!');
-        badge.textContent = '⚠️ Не підключено';
-        badge.style.background = 'rgba(234, 179, 8, 0.15)';
-        badge.style.color = '#eab308';
-        disconnectBtn.style.display = 'none';
+        badge.textContent      = '⚠️ Збережено — натисніть "Перевірити з\'єднання"';
+        badge.style.background = 'rgba(234,179,8,.15)';
+        badge.style.color      = '#eab308';
+        if (disconnectBtn) disconnectBtn.style.display = 'none';
       } else {
         showToast(data.error || 'Помилка збереження', 'error');
       }
     } catch (err) {
       showToast('Помилка мережі', 'error');
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '💾 Зберегти підключення';
+      btn.disabled  = false;
+      btn.innerHTML = '💾 Зберегти';
     }
   });
-  
-  // Обробник "Відключити"
-  disconnectBtn.addEventListener('click', async () => {
-    if (!confirm('Відключити iiko? Всі налаштування будуть видалені.')) return;
-    
+
+  // ── Відключити ──
+  disconnectBtn?.addEventListener('click', async () => {
+    if (!confirm('Відключити Syrve? Всі налаштування будуть видалені.')) return;
     try {
-      const res = await fetch(`${API}/api/iiko/disconnect`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ venueId: venueId })
+      const res = await fetch(`${API}/api/pos/disconnect`, {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body:    JSON.stringify({ venueId }),
       });
-      
       if (res.ok) {
-        urlInput.value = 'https://api-ru.iiko.services';
-        apiKeyInput.value = '';
-        loginInput.value = '';
-        passwordInput.value = '';
-        
-        badge.textContent = '⚠️ Не підключено';
-        badge.style.background = 'rgba(234, 179, 8, 0.15)';
-        badge.style.color = '#eab308';
+        const urlEl = document.getElementById('iiko-url');
+        const keyEl = document.getElementById('iiko-api-key');
+        const logEl = document.getElementById('iiko-login');
+        const pwEl  = document.getElementById('iiko-password');
+        if (urlEl) urlEl.value = '';
+        if (keyEl) keyEl.value = '';
+        if (logEl) logEl.value = '';
+        if (pwEl)  pwEl.value  = '';
+        badge.textContent      = '⚠️ Не підключено';
+        badge.style.background = 'rgba(234,179,8,.15)';
+        badge.style.color      = '#eab308';
         disconnectBtn.style.display = 'none';
-        
-        showToast('iiko відключено');
+        setSyrveMode('cloud');
+        showToast('Syrve відключено');
       }
     } catch (err) {
       showToast('Помилка відключення', 'error');
@@ -940,7 +982,7 @@ export default {
     return buildHTML();
   },
   init(params) {
-    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal };
+    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode };
     setupListeners();
     
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
