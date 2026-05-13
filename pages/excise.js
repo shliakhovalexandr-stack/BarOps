@@ -254,7 +254,29 @@ function handleFile(input) {
 async function send() {
   if (!_photoFile) return;
 
-  const { name, venueName, telegramTopicId } = getUserInfo();
+  const { name, venueName } = getUserInfo();
+
+  // Читаємо telegramTopicId з бекенду напряму
+  let telegramTopicId = '';
+  try {
+    const venueId = localStorage.getItem('barops_venueId');
+    const token = getToken();
+    if (venueId && token) {
+      const vRes = await fetch(`${API_URL}/api/venues`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const vData = await vRes.json();
+      if (vData.success && vData.venues) {
+        const venue = vData.venues.find(v => v.id === venueId);
+        if (venue?.telegramTopicId) telegramTopicId = venue.telegramTopicId;
+      }
+    }
+  } catch (e) {
+    console.warn('[Excise] Не вдалось завантажити топік з API:', e);
+    telegramTopicId = localStorage.getItem('barops_telegram_topic') || '';
+  }
+
+  console.log('[Excise] telegramTopicId для відправки:', telegramTopicId);
 
   _step = 'sending';
   rerender();
@@ -264,7 +286,7 @@ async function send() {
     formData.append('photo',           _photoFile);
     formData.append('venueName',       venueName);
     formData.append('barmanName',      name);
-    formData.append('telegramTopicId', telegramTopicId || '');
+    formData.append('telegramTopicId', telegramTopicId);
 
     const token = getToken();
     const res = await fetch(`${API_URL}/api/excise/photo`, {
