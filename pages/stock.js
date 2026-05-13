@@ -174,19 +174,23 @@ function setFilter(f) { _filter = f; fullRender(); }
 function search(q)    { _search = q; fullRender(); }
 
 export default {
-  async render() {
+  export default {
+  render() {
     _filter = 'Всі'; _search = '';
-    // Спробуємо завантажити залишки з Syrve
-    try {
-      const venueId = localStorage.getItem('barops_venueId');
-      const token   = localStorage.getItem('barops_token');
-      const API     = 'https://barops-backend-production.up.railway.app';
+    _isSyrve = false;
+    return buildHTML();
+  },
+  init() {
+    window.__stk = { setFilter, search };
+    const venueId = localStorage.getItem('barops_venueId');
+    const token   = localStorage.getItem('barops_token');
+    const API     = 'https://barops-backend-production.up.railway.app';
 
-      const res  = await fetch(`${API}/api/pos/balance/${venueId}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
-
+    fetch(`${API}/api/pos/balance/${venueId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    .then(r => r.json())
+    .then(data => {
       if (data.success && data.stores?.length) {
         STOCK.length = 0;
         let id = 1;
@@ -205,9 +209,10 @@ export default {
           }
         }
         _isSyrve = true;
+        const v = document.getElementById('app-view');
+        if (v) v.innerHTML = buildHTML();
       }
-    } catch { /* використовуємо демо-дані */ }
-    return buildHTML();
+    })
+    .catch(() => {});
   },
-  init() { window.__stk = { setFilter, search }; },
 };
