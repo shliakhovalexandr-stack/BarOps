@@ -384,7 +384,11 @@ ${CSS}
           <span>Зміна активна · ${s.shift.user}</span>
         </div>
         <span class="d-shift-time">${shiftDuration(s.shift.startedAt)}</span>` : `
-        <div class="d-pill d-pill--none">Зміна не відкрита</div>`}
+        <div class="d-pill d-pill--none">Зміна не відкрита</div>
+        ${!isMgr ? `<button onclick="window.__barops.navigate('shift-log')"
+          style="height:28px;padding:0 12px;border-radius:20px;border:0.5px solid var(--green);background:var(--green-bg);font-size:11px;color:var(--green);cursor:pointer;font-family:var(--font-b);white-space:nowrap">
+          Відкрити зміну
+        </button>` : ''}`}
       </div>
     </div>
 
