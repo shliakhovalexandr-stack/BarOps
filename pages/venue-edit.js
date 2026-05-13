@@ -157,6 +157,15 @@ async function loadVenue(venueId) {
 
   _loading = false;
   render();
+
+  // Ініціалізуємо POS-секцію після рендеру
+  if (_venue?.id) {
+    if (_draft.posType === 'syrve') {
+      setTimeout(() => initIikoSection(_venue.id), 300);
+    } else if (_draft.posType === 'poster') {
+      setTimeout(() => initPosterSection(_venue.id), 300);
+    }
+  }
 }
 
 function escapeHtml(str) {
@@ -1030,14 +1039,5 @@ export default {
   init(params) {
     window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode, setModalSyrveMode };
     setupListeners();
-    
-    const venueId = params?.venueId || localStorage.getItem('barops_venueId');
-    if (venueId) {
-      if (_draft.posType === 'syrve') {
-        setTimeout(() => initIikoSection(venueId), 600);
-      } else if (_draft.posType === 'poster') {
-        setTimeout(() => initPosterSection(venueId), 600);
-      }
-    }
   },
 };
