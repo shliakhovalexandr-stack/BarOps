@@ -32,6 +32,7 @@ const CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
 
 let _filter = 'Всі';
 let _search = '';
+let _isSyrve = false;
 
 const CSS = `<style id="stk-css">
 .stk-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -91,7 +92,7 @@ ${CSS}
     </div>
     <div style="flex:1">
       <div class="stk-title">Всі залишки</div>
-      <div class="stk-sub">${state.venue} · демо-дані</div>
+      <div class="stk-sub">${state.venue} · ${_isSyrve ? 'Syrve · реальні дані' : 'демо-дані'}</div>
     </div>
     <div style="background:${low>0?'var(--red-bg)':'var(--green-bg)'};border:0.5px solid ${low>0?'var(--red-border)':'var(--green-border)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${low>0?'var(--red)':'var(--green)'};font-family:var(--font-b)">${low > 0 ? `⚠ ${low} критично` : '✓ Все ок'}</div>
   </div>
@@ -175,20 +176,35 @@ function search(q)    { _search = q; fullRender(); }
 export default {
   async render() {
     _filter = 'Всі'; _search = '';
-    // Спробуємо завантажити реальні дані
+    // Спробуємо завантажити залишки з Syrve
     try {
-      const { productsAPI } = await import('../shared/api.js');
-      const data = await productsAPI.getAll();
-      if (data?.data?.length) {
-        // Оновлюємо STOCK реальними даними
+      const venueId = localStorage.getItem('barops_venueId');
+      const token   = localStorage.getItem('barops_token');
+      const API     = 'https://barops-backend-production.up.railway.app';
+
+      const res  = await fetch(`${API}/api/pos/balance/${venueId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (data.success && data.stores?.length) {
         STOCK.length = 0;
-        data.data.forEach((p, i) => STOCK.push({
-          id: i+1, emoji: '🍾',
-          name: p.name, cat: p.cat || 'Інше',
-          qty: p.stock || 0, unit: p.unit || 'л',
-          norm: p.minStock || 0,
-          status: (p.stock || 0) < (p.minStock || 0) ? 'low' : 'ok',
-        }));
+        let id = 1;
+        for (const store of data.stores) {
+          for (const item of store.items) {
+            STOCK.push({
+              id:     id++,
+              emoji:  '🍾',
+              name:   item.name,
+              cat:    item.category || store.storeName,
+              qty:    Number(item.amount) || 0,
+              unit:   item.unit || 'л',
+              norm:   0,
+              status: 'ok',
+            });
+          }
+        }
+        _isSyrve = true;
       }
     } catch { /* використовуємо демо-дані */ }
     return buildHTML();
