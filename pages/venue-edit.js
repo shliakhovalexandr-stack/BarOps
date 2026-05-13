@@ -336,7 +336,7 @@ ${CSS}
             <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Ручний облік</div>
             <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">Оберіть POS-систему в полі вище</div>
           </div>
-          <button onclick="document.getElementById('ve-pos').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('ve-pos').focus()"
+          <button onclick="const el=document.getElementById('ve-pos');const sc=document.querySelector('.ve-scroll');if(sc)sc.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>el&&el.focus(),400)"
             style="height:32px;padding:0 12px;border-radius:8px;border:0.5px solid var(--green);background:var(--green-bg);font-size:12px;color:var(--green);cursor:pointer;font-family:var(--font-b);white-space:nowrap;flex-shrink:0">
             ↑ Обрати
           </button>
