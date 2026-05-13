@@ -735,8 +735,44 @@ export default {
       state.venueId = localStorage.getItem('barops_venueId') || '';
       state.user    = localStorage.getItem('barops_user')    || '';
       fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => { if (r.ok) navigate('dashboard'); else { localStorage.clear(); } })
-        .catch(() => { if (state.venue && state.role) navigate('dashboard'); });
+        .then(async r => {
+          if (r.ok) {
+            const data = await r.json();
+            if (data.user) {
+              state.role    = data.user.role;
+              state.venue   = data.user.venueName;
+              state.venueId = data.user.venueId || '';
+              state.user    = data.user.name;
+            }
+            navigate('dashboard');
+          } else {
+            // Токен протух — пробуємо refresh
+            const refreshToken = localStorage.getItem('barops_refresh');
+            if (refreshToken) {
+              try {
+                const rr = await fetch(`${API}/api/auth/refresh`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ refreshToken }),
+                });
+                const rd = await rr.json();
+                if (rr.ok && rd.token) {
+                  localStorage.setItem('barops_token', rd.token);
+                  navigate('dashboard');
+                  return;
+                }
+              } catch {}
+            }
+            // Очищаємо тільки auth-ключі, не весь localStorage
+            ['barops_token','barops_refresh','barops_role','barops_user',
+             'barops_venue','barops_venueId','barops_phone','barops_telegram_topic'].forEach(k => localStorage.removeItem(k));
+            navigate('auth', { replace: true });
+          }
+        })
+        .catch(() => {
+          // Мережева помилка — пускаємо з кешованими даними
+          if (state.venue && state.role) navigate('dashboard');
+        });
     }
   },
 };
