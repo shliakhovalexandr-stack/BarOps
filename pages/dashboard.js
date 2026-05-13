@@ -367,13 +367,7 @@ ${CSS}
             <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">
               ${localStorage.getItem('barops_user') || ''} \u00B7 ${localStorage.getItem('barops_phone') || ''}
             </div>`}
-              <div class="d-venue-chev">
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                  <path d="M2 3l2 2 2-2" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>` : `
-            <div class="d-venue-name">${state.venue || '...'}</div>`}
+              </div>`}
           </div>
         </div>
         <div class="d-notif-btn" onclick="window.__dash.toggleNotif()">
