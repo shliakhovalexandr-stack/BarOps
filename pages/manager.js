@@ -523,6 +523,15 @@ function sectionSettings() {
     { lbl:'iiko',        sub:'Не підключено',                      on:false },
     { lbl:'R-Keeper',    sub:'Не підключено',                      on:false },
   ];
+  const posTypeMap = { manual:'✋ Вручну', poster:'🍃 Poster', syrve:'🔗 Syrve', rkeeper:'⚙️ R-Keeper' };
+  const posType = localStorage.getItem('barops_venue_pos') || 'manual';
+  const posConnected = localStorage.getItem('barops_iiko_connected') === 'true' || localStorage.getItem('barops_pos_connected') === 'true';
+  const posInfo = {
+    name: posTypeMap[posType] || '✋ Вручну',
+    icon: '',
+    connected: posConnected,
+  };
+
   const NOTIF = [
     { lbl:'Ціновий алерт (накладна)',    on:true  },
     { lbl:'Низький залишок',             on:true  },
@@ -533,16 +542,18 @@ function sectionSettings() {
   return `
   <div class="mgr-sec" style="padding-top:14px">POS Інтеграція</div>
   <div class="mgr-table-card" style="margin-bottom:8px">
-    ${TOGGLES.map((t,i) => `
-    <div class="mgr-setting-row" style="${i>0?'':''}">
+    <div class="mgr-setting-row">
       <div>
-        <div class="mgr-setting-lbl">${t.lbl}</div>
-        <div class="mgr-setting-sub" style="color:${t.on?'var(--green)':'var(--text2)'}">${t.sub}</div>
+        <div class="mgr-setting-lbl">${posInfo.icon} ${posInfo.name}</div>
+        <div class="mgr-setting-sub" style="color:${posInfo.connected?'var(--green)':'var(--text2)'}">
+          ${posInfo.connected ? '● Підключено · Синхронізація активна' : '○ Не підключено'}
+        </div>
       </div>
-      <div class="mgr-toggle ${t.on?'on':''}" onclick="this.classList.toggle('on');this.querySelector('.mgr-toggle-knob').style.left=this.classList.contains('on')?'18px':'2px'">
-        <div class="mgr-toggle-knob" style="left:${t.on?18:2}px"></div>
-      </div>
-    </div>`).join('')}
+      <button onclick="window.__barops.navigate('venue-edit')"
+        style="height:30px;padding:0 12px;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg3);font-size:11px;color:var(--text1);cursor:pointer;font-family:var(--font-b);white-space:nowrap">
+        ${posInfo.connected ? 'Налаштування' : 'Підключити'}
+      </button>
+    </div>
   </div>
 
   <div class="mgr-sec">Сповіщення</div>

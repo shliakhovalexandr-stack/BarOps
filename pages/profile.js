@@ -358,7 +358,7 @@ function posIntegrationBlock() {
     ${pos?.posLogin ? `<div class="prof-info-row"><div class="prof-info-lbl">Логін</div><div class="prof-info-val">${pos.posLogin}</div></div>` : ''}
   </div>
   <div style="margin:0 14px 14px">
-    <button onclick="window.__barops.navigate('pos-settings')" 
+    <button onclick="window.__barops.navigate('venue-edit')" 
       style="width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;font-size:14px;color:var(--text0);cursor:pointer;font-family:var(--font-b)">
       ${isConnected ? '⚙️ Налаштування POS' : '🔗 Підключити POS-систему'}
     </button>
