@@ -327,7 +327,18 @@ ${CSS}
           ❌ Відключити Poster
         </button>
       </div>
-      ` : ''}
+      ` : `
+      <div class="ve-sec">🔗 POS інтеграція</div>
+      <div class="ve-card">
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+          <span style="font-size:24px">✋</span>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Ручний облік</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">Оберіть POS-систему вище щоб підключити інтеграцію</div>
+          </div>
+        </div>
+      </div>
+      `}
     </div>
 
     <div style="padding:8px 14px 24px">

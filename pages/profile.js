@@ -373,6 +373,7 @@ export default {
     _plan    = null;
     _team    = null;
     _posSettings = null;
+    loadData();
     return buildHTML();
   },
 };
