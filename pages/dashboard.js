@@ -683,7 +683,7 @@ async function openShift() {
     const res = await fetch(`${API}/api/shifts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-    });
+    }).catch(() => ({ ok: false, json: async () => ({ error: 'Мережева помилка' }) }));
     const data = await res.json();
     if (data.success) {
       await loadStats();
