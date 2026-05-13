@@ -704,6 +704,7 @@ export default {
     }
 
     window.__dash = {
+      openShift,
       toggleNotif() {
         _notifOpen = !_notifOpen;
         document.getElementById('d-notif')?.classList.toggle('open', _notifOpen);
