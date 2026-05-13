@@ -334,12 +334,70 @@ ${CSS}
           <span style="font-size:24px">✋</span>
           <div style="flex:1">
             <div style="font-size:14px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Ручний облік</div>
-            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">Оберіть POS-систему в полі вище</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">Натисніть щоб підключити POS-систему</div>
           </div>
-          <button onclick="const el=document.getElementById('ve-pos');const sc=document.querySelector('.ve-scroll');if(sc)sc.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>el&&el.focus(),400)"
+          <button onclick="window.__ve.openPosModal()"
             style="height:32px;padding:0 12px;border-radius:8px;border:0.5px solid var(--green);background:var(--green-bg);font-size:12px;color:var(--green);cursor:pointer;font-family:var(--font-b);white-space:nowrap;flex-shrink:0">
-            ↑ Обрати
+            🔗 Підключити
           </button>
+        </div>
+      </div>
+
+      <!-- POS Modal -->
+      <div id="pos-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center">
+        <div style="width:100%;max-width:480px;background:var(--bg1);border:0.5px solid var(--border);border-radius:20px 20px 0 0;padding:20px;max-height:85vh;overflow-y:auto">
+          <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:16px">🔗 Підключити POS-систему</div>
+
+          <div class="ve-label">Оберіть систему</div>
+          <select class="ve-select" id="modal-pos-type" onchange="window.__ve.onModalPosChange(this.value)" style="margin-bottom:16px">
+            <option value="">— Оберіть —</option>
+            <option value="syrve">Syrve (iiko)</option>
+            <option value="poster">Poster</option>
+            <option value="rkeeper">R-Keeper</option>
+          </select>
+
+          <!-- Syrve fields -->
+          <div id="modal-syrve" style="display:none">
+            <div class="ve-label">URL сервера</div>
+            <input class="ve-input" id="modal-iiko-url" type="url" placeholder="https://api-ru.iiko.services" value="https://api-ru.iiko.services">
+            <div class="ve-label">API ключ</div>
+            <input class="ve-input" id="modal-iiko-key" type="text" placeholder="Вставте API ключ з iiko">
+            <div class="ve-label">Логін</div>
+            <input class="ve-input" id="modal-iiko-login" type="text" placeholder="admin">
+            <div class="ve-label">Пароль</div>
+            <input class="ve-input" id="modal-iiko-password" type="password" placeholder="••••••">
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px;line-height:1.5;text-align:center">
+              Як отримати API ключ: iiko → Налаштування → API → Створити ключ
+            </div>
+          </div>
+
+          <!-- Poster fields -->
+          <div id="modal-poster" style="display:none">
+            <div class="ve-label">API токен Poster</div>
+            <input class="ve-input" id="modal-poster-key" type="text" placeholder="Вставте токен з Poster">
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px;line-height:1.5;text-align:center">
+              Poster → Налаштування → Інтеграції → API → Скопіювати токен
+            </div>
+          </div>
+
+          <!-- R-Keeper fields -->
+          <div id="modal-rkeeper" style="display:none">
+            <div class="ve-label">URL сервера R-Keeper</div>
+            <input class="ve-input" id="modal-rkeeper-url" type="url" placeholder="https://...">
+            <div class="ve-label">API ключ</div>
+            <input class="ve-input" id="modal-rkeeper-key" type="text" placeholder="Вставте API ключ">
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button onclick="window.__ve.closePosModal()"
+              style="flex:1;height:48px;border-radius:12px;border:0.5px solid var(--border2);background:var(--bg3);font-size:14px;font-family:var(--font-h);color:var(--text1);cursor:pointer">
+              Скасувати
+            </button>
+            <button onclick="window.__ve.savePosModal()"
+              style="flex:1;height:48px;border-radius:12px;border:none;background:var(--green);font-size:14px;font-family:var(--font-h);font-weight:600;color:#fff;cursor:pointer">
+              💾 Зберегти
+            </button>
+          </div>
         </div>
       </div>
       `}
@@ -678,6 +736,73 @@ async function initIikoSection(venueId) {
   });
 }
 
+function openPosModal() {
+  const modal = document.getElementById('pos-modal');
+  if (modal) { modal.style.display = 'flex'; }
+}
+
+function closePosModal() {
+  const modal = document.getElementById('pos-modal');
+  if (modal) { modal.style.display = 'none'; }
+}
+
+function onModalPosChange(val) {
+  document.getElementById('modal-syrve').style.display   = val === 'syrve'   ? 'block' : 'none';
+  document.getElementById('modal-poster').style.display  = val === 'poster'  ? 'block' : 'none';
+  document.getElementById('modal-rkeeper').style.display = val === 'rkeeper' ? 'block' : 'none';
+}
+
+async function savePosModal() {
+  const posType = document.getElementById('modal-pos-type').value;
+  if (!posType) { showToast('Оберіть POS-систему', 'error'); return; }
+
+  const venueId = _venue?.id;
+  if (!venueId) { showToast('Заклад не завантажено', 'error'); return; }
+
+  let url = '', apiKey = '', login = '', password = '';
+
+  if (posType === 'syrve') {
+    url      = document.getElementById('modal-iiko-url').value.trim();
+    apiKey   = document.getElementById('modal-iiko-key').value.trim();
+    login    = document.getElementById('modal-iiko-login').value.trim();
+    password = document.getElementById('modal-iiko-password').value;
+    if (!apiKey) { showToast('Введіть API ключ', 'error'); return; }
+  } else if (posType === 'poster') {
+    url    = 'https://joinposter.com/api';
+    apiKey = document.getElementById('modal-poster-key').value.trim();
+    if (!apiKey) { showToast('Введіть API токен', 'error'); return; }
+  } else if (posType === 'rkeeper') {
+    url    = document.getElementById('modal-rkeeper-url').value.trim();
+    apiKey = document.getElementById('modal-rkeeper-key').value.trim();
+    if (!url || !apiKey) { showToast('Введіть URL та API ключ', 'error'); return; }
+  }
+
+  const authToken = localStorage.getItem('barops_token');
+
+  try {
+    const res = await fetch(`${API}/api/pos/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ venueId, posType, url, apiKey, login, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      _draft.posType  = posType;
+      _venue.posType  = posType;
+      _draft.posUrl   = url;
+      _draft.posLogin = login;
+      localStorage.setItem('barops_venue_pos', posType);
+      closePosModal();
+      showToast('✅ POS підключено!');
+      render();
+    } else {
+      showToast(data.error || 'Помилка збереження', 'error');
+    }
+  } catch (err) {
+    showToast('Помилка мережі', 'error');
+  }
+}
+
 async function initPosterSection(venueId) {
   await new Promise(r => setTimeout(r, 500));
   
@@ -807,7 +932,7 @@ export default {
     return buildHTML();
   },
   init(params) {
-    window.__ve = { save };
+    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal };
     setupListeners();
     
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
