@@ -1,87 +1,90 @@
 /* ============================================================
-   BarOps Design Tokens v1.0
-   Єдине джерело правди для всіх CSS-змінних.
-   Підключати першим у будь-якому файлі.
+   BarOps Design Tokens v2.0
+   Темна тема — сіро-синій фон, сучасна типографія
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;1,14..32,300&display=swap');
 
 :root {
   /* ── Backgrounds ── */
-  --bg:       #080808;
-  --bg1:      #0f0f0f;
-  --bg2:      #181818;
-  --bg3:      #222222;
-  --bg4:      #2a2a2a;
-  --bg5:      #333333;
+  --bg:       #10131E;
+  --bg1:      #1A1F2E;
+  --bg2:      #232840;
+  --bg3:      #2C3350;
+  --bg4:      #353C5A;
+  --bg5:      #3E4663;
 
   /* ── Borders ── */
-  --border:   rgba(255,255,255,.07);
-  --border2:  rgba(255,255,255,.12);
-  --border3:  rgba(255,255,255,.18);
+  --border:   rgba(255,255,255,.06);
+  --border2:  rgba(255,255,255,.10);
+  --border3:  rgba(255,255,255,.16);
 
   /* ── Brand green ── */
   --green:        #1D9E75;
   --green-d:      #0F6E56;
   --green-l:      #22B887;
-  --green-bg:     rgba(29,158,117,.08);
-  --green-border: rgba(29,158,117,.18);
-  --green-glow:   rgba(29,158,117,.14);
+  --green-bg:     rgba(29,158,117,.10);
+  --green-border: rgba(29,158,117,.20);
+  --green-glow:   rgba(29,158,117,.15);
 
   /* ── Semantic colours ── */
-  --amber:        #EF9F27;
-  --amber-bg:     rgba(239,159,39,.08);
-  --amber-border: rgba(239,159,39,.20);
+  --amber:        #F59E0B;
+  --amber-bg:     rgba(245,158,11,.10);
+  --amber-border: rgba(245,158,11,.22);
 
-  --red:          #E24B4A;
-  --red-d:        #B83A39;
-  --red-bg:       rgba(226,75,74,.08);
-  --red-border:   rgba(226,75,74,.20);
+  --red:          #FF6B6B;
+  --red-d:        #E05555;
+  --red-bg:       rgba(255,107,107,.10);
+  --red-border:   rgba(255,107,107,.22);
 
-  --purple:        #7F77DD;
-  --purple-bg:     rgba(127,119,221,.08);
-  --purple-border: rgba(127,119,221,.20);
+  --purple:        #C084FC;
+  --purple-bg:     rgba(192,132,252,.10);
+  --purple-border: rgba(192,132,252,.22);
 
-  --blue:         #4FA8E8;
-  --blue-bg:      rgba(79,168,232,.08);
-  --blue-border:  rgba(79,168,232,.20);
+  --blue:         #818CF8;
+  --blue-bg:      rgba(129,140,248,.10);
+  --blue-border:  rgba(129,140,248,.22);
 
-  --teal:         #14B8A6;
-  --teal-bg:      rgba(20,184,166,.08);
-  --teal-border:  rgba(20,184,166,.18);
+  --teal:         #2DD4BF;
+  --teal-bg:      rgba(45,212,191,.10);
+  --teal-border:  rgba(45,212,191,.20);
 
-  --gold:         #C9A84C;
-  --gold-bg:      rgba(201,168,76,.08);
-  --gold-border:  rgba(201,168,76,.18);
+  --pink:         #FF6B9D;
+  --pink-bg:      rgba(255,107,157,.10);
+  --pink-border:  rgba(255,107,157,.22);
 
-  --indigo:       #5B7FD4;
-  --indigo-bg:    rgba(91,127,212,.08);
-  --indigo-border:rgba(91,127,212,.20);
+  --indigo:       #6366F1;
+  --indigo-bg:    rgba(99,102,241,.10);
+  --indigo-border:rgba(99,102,241,.22);
+
+  --gold:         #F59E0B;
+  --gold-bg:      rgba(245,158,11,.10);
+  --gold-border:  rgba(245,158,11,.20);
 
   /* ── Text ── */
-  --text0: #F5F2EC;
-  --text1: #B0ADA6;
-  --text2: #6A6762;
-  --text3: #3A3835;
+  --text0: #F0EDE8;
+  --text1: #A8A4B8;
+  --text2: #6A7090;
+  --text3: #3A4060;
 
   /* ── Typography ── */
-  --font-h: 'Syne',     sans-serif;
-  --font-b: 'DM Sans',  sans-serif;
+  --font-h: 'Space Grotesk', sans-serif;
+  --font-b: 'Inter',         sans-serif;
 
   /* ── Radii ── */
   --r-xs:  6px;
-  --r-sm:  9px;
-  --r:     13px;
-  --r-lg:  18px;
+  --r-sm:  10px;
+  --r:     14px;
+  --r-lg:  20px;
   --r-xl:  24px;
-  --r-2xl: 36px;
-  --r-phone: 44px;
+  --r-2xl: 32px;
+  --r-phone: 40px;
 
-  /* ── Tab-bar height (safe area aware) ── */
+  /* ── Tab-bar height ── */
   --tab-bar-h: 80px;
 
   /* ── Phone frame ── */
-  --phone-w:   375px;
+  --phone-w:     375px;
   --phone-min-h: 780px;
 
   /* ── Transitions ── */

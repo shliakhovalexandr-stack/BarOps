@@ -16,7 +16,9 @@
 
 <!-- ── Fonts ── -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;1,14..32,300&display=swap" rel="stylesheet"/>
+<!-- Lucide icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
 <!-- ── Shared styles ── -->
 <link rel="stylesheet" href="shared/tokens.css"/>
@@ -36,7 +38,7 @@ body {
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(29,158,117,.07) 0%, transparent 65%),
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(29,158,117,.06) 0%, transparent 65%),
     var(--bg);
 }
 
@@ -59,14 +61,14 @@ body {
   width: var(--phone-w);
   background: var(--bg1);
   border-radius: var(--r-phone);
-  border: 6px solid #1c1c1c;
+  border: 6px solid #1E2438;
   box-shadow:
-    0 0 0 1px rgba(255,255,255,.05),
+    0 0 0 1px rgba(255,255,255,.04),
     0 48px 96px rgba(0,0,0,.72),
-    0 0 70px rgba(29,158,117,.05);
+    0 0 70px rgba(29,158,117,.04);
   display: flex;
   flex-direction: column;
-  height: 844px;          /* iPhone 14 logical px */
+  height: 844px;
   overflow: hidden;
   animation: frameIn .6s var(--ease-spring) both;
 }
