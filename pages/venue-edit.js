@@ -691,10 +691,6 @@ async function initIikoSection(venueId) {
       showToast('Введіть API Login', 'error');
       btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
     }
-    if (_syrveMode === 'selfhosted' && (!url || !login || !password)) {
-      showToast('Введіть URL, логін та пароль', 'error');
-      btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
-    }
 
     try {
       const testRes  = await fetch(`${API}/api/pos/test`, {
