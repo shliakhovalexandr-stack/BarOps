@@ -618,10 +618,9 @@ function setSyrveMode(mode) {
 
 function getSyrveFormData() {
   return {
-    url:      document.getElementById('iiko-cloud-url')?.value.trim() || null,
-    apiKey:   document.getElementById('iiko-api-key')?.value.trim()   || null,
-    apiSecret: document.getElementById('iiko-api-secret')?.value.trim() || null,
-    login:    null,
+    url:      document.getElementById('iiko-cloud-url')?.value.trim()  || null,
+    apiKey:   document.getElementById('iiko-api-secret')?.value.trim() || null,
+    login:    document.getElementById('iiko-api-key')?.value.trim()    || null,
     password: null,
   };
 }
