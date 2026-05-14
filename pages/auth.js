@@ -39,9 +39,9 @@ const CSS = `<style id="auth-styles">
 .auth-view.active{display:flex;animation:fadeUp 280ms ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .auth-logo-wrap{display:flex;align-items:center;gap:14px;margin-top:48px;margin-bottom:8px}
-.auth-logo-mark{width:52px;height:52px;border-radius:16px;background:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 28px rgba(29,158,117,.35);position:relative;overflow:hidden}
+.auth-logo-mark{width:52px;height:52px;border-radius:16px;background:#EF9F27;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 28px rgba(239,159,39,.35);position:relative;overflow:hidden}
 .auth-logo-mark::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.18) 0%,transparent 60%)}
-.auth-logo-text{font-family:var(--font-h);font-size:30px;font-weight:800;color:var(--text0);letter-spacing:-.03em}
+.auth-logo-text{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;color:var(--text0);letter-spacing:-.03em}
 .auth-logo-sub{font-size:11px;color:var(--text2);letter-spacing:.12em;text-transform:uppercase;font-family:var(--font-b)}
 .auth-tagline{margin-top:32px;font-family:var(--font-h);font-size:24px;font-weight:700;color:var(--text0);line-height:1.25;letter-spacing:-.02em}
 .auth-tagline span{color:var(--green)}

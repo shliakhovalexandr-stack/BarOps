@@ -1,87 +1,84 @@
 /* ============================================================
-   BarOps Design Tokens v2.0
-   Темна тема — сіро-синій фон, сучасна типографія
+   BarOps Design Tokens v2.1
+   Notion dark · помаранчевий акцент · Inter + Syne
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;1,14..32,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* ── Backgrounds ── */
-  --bg:       #10131E;
-  --bg1:      #1A1F2E;
-  --bg2:      #232840;
-  --bg3:      #2C3350;
-  --bg4:      #353C5A;
-  --bg5:      #3E4663;
+  --bg:       #111111;
+  --bg1:      #191919;
+  --bg2:      #222222;
+  --bg3:      #2A2A2A;
+  --bg4:      #333333;
+  --bg5:      #3D3D3D;
 
   /* ── Borders ── */
   --border:   rgba(255,255,255,.06);
   --border2:  rgba(255,255,255,.10);
   --border3:  rgba(255,255,255,.16);
 
-  /* ── Brand green ── */
-  --green:        #1D9E75;
-  --green-d:      #0F6E56;
-  --green-l:      #22B887;
-  --green-bg:     rgba(29,158,117,.10);
-  --green-border: rgba(29,158,117,.20);
-  --green-glow:   rgba(29,158,117,.15);
+  /* ── Brand amber (головний акцент) ── */
+  --green:        #EF9F27;
+  --green-d:      #C97F10;
+  --green-l:      #F5B84A;
+  --green-bg:     rgba(239,159,39,.10);
+  --green-border: rgba(239,159,39,.20);
+  --green-glow:   rgba(239,159,39,.15);
 
   /* ── Semantic colours ── */
-  --amber:        #F59E0B;
-  --amber-bg:     rgba(245,158,11,.10);
-  --amber-border: rgba(245,158,11,.22);
+  --amber:        #EF9F27;
+  --amber-bg:     rgba(239,159,39,.10);
+  --amber-border: rgba(239,159,39,.20);
 
-  --red:          #FF6B6B;
+  --red:          #F87171;
   --red-d:        #E05555;
-  --red-bg:       rgba(255,107,107,.10);
-  --red-border:   rgba(255,107,107,.22);
+  --red-bg:       rgba(248,113,113,.10);
+  --red-border:   rgba(248,113,113,.20);
 
-  --purple:        #C084FC;
-  --purple-bg:     rgba(192,132,252,.10);
-  --purple-border: rgba(192,132,252,.22);
+  --purple:        #A78BFA;
+  --purple-bg:     rgba(167,139,250,.10);
+  --purple-border: rgba(167,139,250,.20);
 
-  --blue:         #818CF8;
-  --blue-bg:      rgba(129,140,248,.10);
-  --blue-border:  rgba(129,140,248,.22);
+  --blue:         #60A5FA;
+  --blue-bg:      rgba(96,165,250,.10);
+  --blue-border:  rgba(96,165,250,.20);
 
   --teal:         #2DD4BF;
   --teal-bg:      rgba(45,212,191,.10);
-  --teal-border:  rgba(45,212,191,.20);
+  --teal-border:  rgba(45,212,191,.18);
 
-  --pink:         #FF6B9D;
-  --pink-bg:      rgba(255,107,157,.10);
-  --pink-border:  rgba(255,107,157,.22);
+  --gold:         #EF9F27;
+  --gold-bg:      rgba(239,159,39,.10);
+  --gold-border:  rgba(239,159,39,.18);
 
-  --indigo:       #6366F1;
-  --indigo-bg:    rgba(99,102,241,.10);
-  --indigo-border:rgba(99,102,241,.22);
-
-  --gold:         #F59E0B;
-  --gold-bg:      rgba(245,158,11,.10);
-  --gold-border:  rgba(245,158,11,.20);
+  --indigo:       #818CF8;
+  --indigo-bg:    rgba(129,140,248,.10);
+  --indigo-border:rgba(129,140,248,.20);
 
   /* ── Text ── */
-  --text0: #F0EDE8;
-  --text1: #A8A4B8;
-  --text2: #6A7090;
-  --text3: #3A4060;
+  --text0: #E8E8E8;
+  --text1: #A0A0A0;
+  --text2: #666666;
+  --text3: #444444;
 
   /* ── Typography ── */
-  --font-h: 'Space Grotesk', sans-serif;
-  --font-b: 'Inter',         sans-serif;
+  --font-h: 'Inter',  sans-serif;
+  --font-b: 'Inter',  sans-serif;
+  --font-logo: 'Syne', sans-serif;
 
   /* ── Radii ── */
-  --r-xs:  6px;
-  --r-sm:  10px;
-  --r:     14px;
-  --r-lg:  20px;
-  --r-xl:  24px;
-  --r-2xl: 32px;
-  --r-phone: 40px;
+  --r-xs:  4px;
+  --r-sm:  8px;
+  --r:     10px;
+  --r-lg:  12px;
+  --r-xl:  16px;
+  --r-2xl: 24px;
+  --r-phone: 24px;
 
   /* ── Tab-bar height ── */
-  --tab-bar-h: 80px;
+  --tab-bar-h: 76px;
 
   /* ── Phone frame ── */
   --phone-w:     375px;
@@ -90,7 +87,7 @@
   /* ── Transitions ── */
   --ease-spring: cubic-bezier(.22,1,.36,1);
   --ease-out:    cubic-bezier(.2,0,0,1);
-  --dur-fast:    150ms;
-  --dur-normal:  250ms;
-  --dur-slow:    400ms;
+  --dur-fast:    120ms;
+  --dur-normal:  220ms;
+  --dur-slow:    380ms;
 }
