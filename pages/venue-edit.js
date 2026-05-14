@@ -288,20 +288,16 @@ ${CSS}
           <span id="iiko-status-badge" style="padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;font-family:var(--font-b);background:rgba(234,179,8,0.15);color:#eab308">Завантаження...</span>
         </div>
 
-        <!-- Self-hosted поля -->
+        <!-- Syrve Cloud поля -->
         <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">URL СЕРВЕРА</label>
-          <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://terassa-chain.syrve.online">
-          <div class="ve-hint">Наприклад: https://terassa-chain.syrve.online</div>
+          <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://terassa-chain.syrve.app">
+          <div class="ve-hint">Наприклад: https://terassa-chain.syrve.app</div>
         </div>
         <div class="ve-field" style="margin-bottom:12px">
-          <label class="ve-label">ЛОГІН</label>
-          <input class="ve-input" id="iiko-login" type="text" placeholder="твій логін в Syrve">
-        </div>
-        <div class="ve-field" style="margin-bottom:12px">
-          <label class="ve-label">ПАРОЛЬ</label>
-          <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
-          <div class="ve-hint">Пароль хешується MD5 перед відправкою</div>
+          <label class="ve-label">API KEY</label>
+          <input class="ve-input" id="iiko-api-key" type="text" placeholder="BarOps_API">
+          <div class="ve-hint">API login з Syrve Cloud → Integrations</div>
         </div>
 
         <!-- Кнопки -->
@@ -659,8 +655,8 @@ async function initIikoSection(venueId) {
     if (urlEl   && settings.posUrl)   urlEl.value   = settings.posUrl;
     
     if (loginEl && settings.posLogin) loginEl.value = settings.posLogin;
-    const loginEl2 = document.getElementById('iiko-login');
-    if (loginEl2 && settings.posLogin) loginEl2.value = settings.posLogin;
+    const apiKeyEl = document.getElementById('iiko-api-key');
+    if (apiKeyEl && settings.posApiKey && !settings.posApiKey.includes('•')) apiKeyEl.value = settings.posApiKey;
 
     // Статус badge
     if (settings.posConnected) {
