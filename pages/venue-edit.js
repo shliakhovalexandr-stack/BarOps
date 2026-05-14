@@ -288,41 +288,16 @@ ${CSS}
           <span id="iiko-status-badge" style="padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;font-family:var(--font-b);background:rgba(234,179,8,0.15);color:#eab308">Завантаження...</span>
         </div>
 
-        <!-- Перемикач Cloud / Self-hosted -->
-        <div class="ve-label">Тип підключення</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button id="tab-cloud" type="button" onclick="window.__ve.setSyrveMode('cloud')"
-            style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--green);background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-b)">
-            ☁️ Cloud
-          </button>
-          <button id="tab-selfhosted" type="button" onclick="window.__ve.setSyrveMode('selfhosted')"
-            style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text1);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-b)">
-            🖥️ Self-hosted
-          </button>
-        </div>
-
         <!-- Cloud поля -->
-        <div id="syrve-cloud-fields">
-        <div class="ve-field" style="margin-bottom:10px">
-          <label class="ve-label">URL СЕРВЕРА (необов'язково)</label>
+        <div class="ve-field" style="margin-bottom:12px">
+          <label class="ve-label">URL СЕРВЕРА</label>
           <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://terassa-chain.syrve.app" value="${escapeHtml(_draft.posUrl) || ''}">
-          <div class="ve-hint">Залиш порожнім для стандартного Syrve Cloud</div>
+          <div class="ve-hint">Наприклад: https://terassa-chain.syrve.app</div>
         </div>
-          <div class="ve-label">API Login</div>
-          <input class="ve-input" id="iiko-api-key" type="text" placeholder="Вставте API Login з iiko (напр. abc123def456)">
-          <div class="ve-hint">iiko → Налаштування → API → API Login</div>
-        </div>
-
-        <!-- Self-hosted поля -->
-        <div id="syrve-selfhosted-fields" style="display:none">
-          <div class="ve-label">URL сервера</div>
-          <input class="ve-input" id="iiko-url" type="url" placeholder="https://la-pasta.syrve.online" value="${escapeHtml(_draft.posUrl) || ''}">
-          <div class="ve-hint">Наприклад: https://la-pasta.syrve.online</div>
-          <div class="ve-label">Логін</div>
-          <input class="ve-input" id="iiko-login" type="text" placeholder="shliakhov" value="${escapeHtml(_draft.posLogin)}">
-          <div class="ve-label">Пароль</div>
-          <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
-          <div class="ve-hint">Пароль хешується MD5 перед відправкою — у відкритому вигляді не зберігається</div>
+        <div class="ve-field" style="margin-bottom:12px">
+          <label class="ve-label">API LOGIN</label>
+          <input class="ve-input" id="iiko-api-key" type="text" placeholder="BarOps_API">
+          <div class="ve-hint">Назва інтеграції з Syrve Cloud API</div>
         </div>
 
         <!-- Кнопки -->
@@ -636,19 +611,11 @@ function setSyrveMode(mode) {
 }
 
 function getSyrveFormData() {
-  if (_syrveMode === 'cloud') {
-    return {
-      url:      document.getElementById('iiko-cloud-url')?.value.trim() || null,
-      apiKey:   document.getElementById('iiko-api-key')?.value.trim() || null,
-      login:    null,
-      password: null,
-    };
-  }
   return {
-    url:      document.getElementById('iiko-url')?.value.trim()      || null,
-    apiKey:   null,
-    login:    document.getElementById('iiko-login')?.value.trim()    || null,
-    password: document.getElementById('iiko-password')?.value        || null,
+    url:      document.getElementById('iiko-cloud-url')?.value.trim() || null,
+    apiKey:   document.getElementById('iiko-api-key')?.value.trim()   || null,
+    login:    null,
+    password: null,
   };
 }
 
@@ -720,7 +687,7 @@ async function initIikoSection(venueId) {
 
     const { url, apiKey, login, password } = getSyrveFormData();
 
-    if (_syrveMode === 'cloud' && !apiKey) {
+    if (!apiKey) {
       showToast('Введіть API Login', 'error');
       btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
     }
