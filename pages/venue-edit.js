@@ -690,7 +690,7 @@ async function initIikoSection(venueId) {
 
     const { url, apiKey, login, password } = getSyrveFormData();
 
-    if (!login) {
+    if (!login && !apiKey) {
       showToast('Введіть логін', 'error');
       btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
     }
