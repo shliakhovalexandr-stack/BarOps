@@ -689,6 +689,8 @@ async function initIikoSection(venueId) {
     const cloudUrlEl = document.getElementById('iiko-cloud-url');
     if (cloudUrlEl && settings.posUrl) cloudUrlEl.value = settings.posUrl;
     if (loginEl && settings.posLogin) loginEl.value = settings.posLogin;
+    const apiKeyEl = document.getElementById('iiko-api-key');
+    if (apiKeyEl && settings.posApiKey) apiKeyEl.value = settings.posApiKey;
 
     // Статус badge
     if (settings.posConnected) {
