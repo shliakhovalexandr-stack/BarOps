@@ -298,6 +298,12 @@ ${CSS}
           <label class="ve-label">API KEY</label>
           <input class="ve-input" id="iiko-api-key" type="text" placeholder="BarOps_API">
           <div class="ve-hint">API login з Syrve Cloud → Integrations</div>
+</div>
+          <div class="ve-field" style="margin-bottom:12px">
+          <label class="ve-label">API KEY (32 символи)</label>
+          <input class="ve-input" id="iiko-api-secret" type="text" placeholder="41911a8e...">
+          <div class="ve-hint">API key з Syrve Cloud → Integrations</div>
+</div>
         </div>
 
         <!-- Кнопки -->
@@ -614,6 +620,7 @@ function getSyrveFormData() {
   return {
     url:      document.getElementById('iiko-cloud-url')?.value.trim() || null,
     apiKey:   document.getElementById('iiko-api-key')?.value.trim()   || null,
+    apiSecret: document.getElementById('iiko-api-secret')?.value.trim() || null,
     login:    null,
     password: null,
   };
