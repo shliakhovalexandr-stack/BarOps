@@ -303,6 +303,11 @@ ${CSS}
 
         <!-- Cloud поля -->
         <div id="syrve-cloud-fields">
+        <div class="ve-field" style="margin-bottom:10px">
+          <label class="ve-label">URL СЕРВЕРА (необов'язково)</label>
+          <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://terassa-chain.syrve.app" value="${escapeHtml(_draft.posUrl) || ''}">
+          <div class="ve-hint">Залиш порожнім для стандартного Syrve Cloud</div>
+        </div>
           <div class="ve-label">API Login</div>
           <input class="ve-input" id="iiko-api-key" type="text" placeholder="Вставте API Login з iiko (напр. abc123def456)">
           <div class="ve-hint">iiko → Налаштування → API → API Login</div>
@@ -633,7 +638,7 @@ function setSyrveMode(mode) {
 function getSyrveFormData() {
   if (_syrveMode === 'cloud') {
     return {
-      url:      null,
+      url:      document.getElementById('iiko-cloud-url')?.value.trim() || null,
       apiKey:   document.getElementById('iiko-api-key')?.value.trim() || null,
       login:    null,
       password: null,
@@ -681,6 +686,8 @@ async function initIikoSection(venueId) {
     const urlEl   = document.getElementById('iiko-url');
     const loginEl = document.getElementById('iiko-login');
     if (urlEl   && settings.posUrl)   urlEl.value   = settings.posUrl;
+    const cloudUrlEl = document.getElementById('iiko-cloud-url');
+    if (cloudUrlEl && settings.posUrl) cloudUrlEl.value = settings.posUrl;
     if (loginEl && settings.posLogin) loginEl.value = settings.posLogin;
 
     // Статус badge
