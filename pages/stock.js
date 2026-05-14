@@ -129,10 +129,11 @@ ${CSS}
     </div>
 
     <!-- Плашка про POS -->
+    ${!_isSyrve ? `
     <div class="stk-note">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
       Демо-дані. Після підключення iiko тут будуть реальні залишки з вашої POS-системи в режимі реального часу.
-    </div>
+    </div>` : ''}
 
     <!-- Список -->
     <div class="stk-list">
@@ -185,11 +186,16 @@ function search(q)    { _search = q; fullRender(); }
     const token   = localStorage.getItem('barops_token');
     const API     = 'https://barops-backend-production.up.railway.app';
 
+    if (!venueId || !token) {
+      console.warn('[Stock] venueId або token відсутні');
+      return;
+    }
     fetch(`${API}/api/pos/balance/${venueId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
     .then(r => r.json())
     .then(data => {
+      console.log('[Stock] POS response:', JSON.stringify(data));
       if (data.success && data.stores?.length) {
         STOCK.length = 0;
         let id = 1;
@@ -213,6 +219,8 @@ function search(q)    { _search = q; fullRender(); }
         if (v) v.innerHTML = buildHTML();
       }
     })
-    .catch(() => {});
+    .catch(err => {
+      console.error('[Stock] POS fetch error:', err);
+    });
   },
 };
