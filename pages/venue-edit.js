@@ -290,6 +290,11 @@ ${CSS}
 
         <!-- Cloud поля -->
         <div class="ve-field" style="margin-bottom:12px">
+          <label class="ve-label">URL СЕРВЕРА</label>
+          <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://terassa-chain.syrve.app">
+          <div class="ve-hint">Наприклад: https://terassa-chain.syrve.app</div>
+        </div>
+        <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">API LOGIN</label>
           <input class="ve-input" id="iiko-api-key" type="text" placeholder="BarOps_API">
           <div class="ve-hint">Назва інтеграції з Syrve Cloud API</div>
@@ -607,7 +612,7 @@ function setSyrveMode(mode) {
 
 function getSyrveFormData() {
   return {
-    url:      null,
+    url:      document.getElementById('iiko-cloud-url')?.value.trim() || null,
     apiKey:   document.getElementById('iiko-api-key')?.value.trim()   || null,
     login:    null,
     password: null,
