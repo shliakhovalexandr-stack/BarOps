@@ -617,12 +617,12 @@ function setSyrveMode(mode) {
 }
 
 function getSyrveFormData() {
-  return {
-    url:      document.getElementById('iiko-cloud-url')?.value.trim()  || null,
-    apiKey:   document.getElementById('iiko-api-secret')?.value.trim() || null,
-    login:    document.getElementById('iiko-api-key')?.value.trim()    || null,
-    password: null,
-  };
+  const url      = document.getElementById('iiko-cloud-url')?.value.trim()  || null;
+  const login    = document.getElementById('iiko-api-key')?.value.trim()    || null;
+  const apiKey   = document.getElementById('iiko-api-secret')?.value.trim() || null;
+  const password = document.getElementById('iiko-password')?.value          || null;
+  console.log('[getSyrveFormData]', { url, login, hasApiKey: !!apiKey, hasPassword: !!password });
+  return { url, apiKey, login, password };
 }
 
 async function initIikoSection(venueId) {
@@ -656,13 +656,12 @@ async function initIikoSection(venueId) {
     setSyrveMode(isCloud ? 'cloud' : 'selfhosted');
 
     // Підставити збережені значення
-    const urlEl   = document.getElementById('iiko-url');
-    const loginEl = document.getElementById('iiko-login');
-    if (urlEl   && settings.posUrl)   urlEl.value   = settings.posUrl;
-    
-    if (loginEl && settings.posLogin) loginEl.value = settings.posLogin;
-    const apiKeyEl = document.getElementById('iiko-api-key');
-    if (apiKeyEl && settings.posApiKey && !settings.posApiKey.includes('•')) apiKeyEl.value = settings.posApiKey;
+    const urlEl    = document.getElementById('iiko-cloud-url');
+    const loginEl  = document.getElementById('iiko-api-key');
+    const secretEl = document.getElementById('iiko-api-secret');
+    if (urlEl    && settings.posUrl)    urlEl.value    = settings.posUrl;
+    if (loginEl  && settings.posLogin)  loginEl.value  = settings.posLogin;
+    if (secretEl && settings.posApiKey && !settings.posApiKey.includes('•')) secretEl.value = settings.posApiKey;
 
     // Статус badge
     if (settings.posConnected) {
