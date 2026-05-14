@@ -296,14 +296,8 @@ ${CSS}
         </div>
         <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">API KEY</label>
-          <input class="ve-input" id="iiko-api-key" type="text" placeholder="BarOps_API">
-          <div class="ve-hint">API login з Syrve Cloud → Integrations</div>
-</div>
-          <div class="ve-field" style="margin-bottom:12px">
-          <label class="ve-label">API KEY (32 символи)</label>
           <input class="ve-input" id="iiko-api-secret" type="text" placeholder="41911a8e...">
-          <div class="ve-hint">API key з Syrve Cloud → Integrations</div>
-</div>
+          <div class="ve-hint">Syrve → Live API Settings → BarOps_API → скопіювати API key</div>
         </div>
 
         <!-- Кнопки -->
@@ -397,9 +391,11 @@ ${CSS}
 
             <!-- Cloud поля -->
             <div id="modal-syrve-cloud">
-              <div class="ve-label">API Login</div>
-              <input class="ve-input" id="modal-iiko-key" type="text" placeholder="Вставте API Login з iiko">
-              <div class="ve-hint">iiko → Налаштування → API → API Login</div>
+              <div class="ve-label">URL СЕРВЕРА</div>
+              <input class="ve-input" id="modal-iiko-url-cloud" type="url" placeholder="https://terassa-chain.syrve.app">
+              <div class="ve-label">API KEY</div>
+              <input class="ve-input" id="modal-iiko-key" type="text" placeholder="41911a8e...">
+              <div class="ve-hint">Syrve → Live API Settings → скопіювати API key</div>
             </div>
 
             <!-- Self-hosted поля -->
@@ -618,11 +614,9 @@ function setSyrveMode(mode) {
 
 function getSyrveFormData() {
   const url      = document.getElementById('iiko-cloud-url')?.value.trim()  || null;
-  const login    = document.getElementById('iiko-api-key')?.value.trim()    || null;
   const apiKey   = document.getElementById('iiko-api-secret')?.value.trim() || null;
   const password = document.getElementById('iiko-password')?.value          || null;
-  console.log('[getSyrveFormData]', { url, login, hasApiKey: !!apiKey, hasPassword: !!password });
-  return { url, apiKey, login, password };
+  return { url, apiKey, login: null, password };
 }
 
 async function initIikoSection(venueId) {
@@ -657,10 +651,8 @@ async function initIikoSection(venueId) {
 
     // Підставити збережені значення
     const urlEl    = document.getElementById('iiko-cloud-url');
-    const loginEl  = document.getElementById('iiko-api-key');
     const secretEl = document.getElementById('iiko-api-secret');
     if (urlEl    && settings.posUrl)    urlEl.value    = settings.posUrl;
-    if (loginEl  && settings.posLogin)  loginEl.value  = settings.posLogin;
     if (secretEl && settings.posApiKey && !settings.posApiKey.includes('•')) secretEl.value = settings.posApiKey;
 
     // Статус badge
@@ -691,8 +683,8 @@ async function initIikoSection(venueId) {
 
     const { url, apiKey, login, password } = getSyrveFormData();
 
-    if (!login && !apiKey) {
-      showToast('Введіть логін', 'error');
+    if (!apiKey) {
+      showToast('Введіть API Key', 'error');
       btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
     }
 
@@ -771,14 +763,10 @@ async function initIikoSection(venueId) {
         body:    JSON.stringify({ venueId }),
       });
       if (res.ok) {
-        const urlEl = document.getElementById('iiko-url');
-        const keyEl = document.getElementById('iiko-api-key');
-        const logEl = document.getElementById('iiko-login');
-        const pwEl  = document.getElementById('iiko-password');
-        if (urlEl) urlEl.value = '';
-        if (keyEl) keyEl.value = '';
-        if (logEl) logEl.value = '';
-        if (pwEl)  pwEl.value  = '';
+        const urlEl    = document.getElementById('iiko-cloud-url');
+        const secretEl = document.getElementById('iiko-api-secret');
+        if (urlEl)    urlEl.value    = '';
+        if (secretEl) secretEl.value = '';
         badge.textContent      = '⚠️ Не підключено';
         badge.style.background = 'rgba(234,179,8,.15)';
         badge.style.color      = '#eab308';
@@ -840,8 +828,9 @@ async function savePosModal() {
   if (posType === 'syrve') {
     const mode = document.getElementById('modal-syrve-selfhosted')?.style.display === 'none' ? 'cloud' : 'selfhosted';
     if (mode === 'cloud') {
+      url    = document.getElementById('modal-iiko-url-cloud')?.value.trim();
       apiKey = document.getElementById('modal-iiko-key')?.value.trim();
-      if (!apiKey) { showToast('Введіть API Login', 'error'); return; }
+      if (!url || !apiKey) { showToast('Введіть URL та API Key', 'error'); return; }
     } else {
       url      = document.getElementById('modal-iiko-url')?.value.trim();
       login    = document.getElementById('modal-iiko-login')?.value.trim();
