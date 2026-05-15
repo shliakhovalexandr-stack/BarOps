@@ -143,7 +143,7 @@ ${CSS}
         return `
         <div class="stk-row">
           <div class="stk-status-dot" style="background:${color}"></div>
-          <div class="stk-emoji">${s.emoji}</div>
+          ${s.emoji ? `<div class="stk-emoji">${s.emoji}</div>` : ''}
           <div style="flex:1;min-width:0">
             <div class="stk-name">${s.name}</div>
             <div class="stk-cat">${s.cat} · Норма: ${s.norm} ${s.unit}</div>
@@ -203,7 +203,7 @@ function search(q)    { _search = q; fullRender(); }
           for (const item of store.items) {
             STOCK.push({
               id:     id++,
-              emoji:  '🍾',
+              emoji:  '',
               name:   item.name,
               cat:    item.category || store.storeName,
               qty:    Math.round((Number(item.amount) || 0) * 100) / 100,
