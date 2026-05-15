@@ -588,40 +588,6 @@ function selectVenue(id, name) {
   loadStats();
 }
 
-  _syrveSaving = true;
-  if (btn) btn.disabled = true;
-  if (errEl) errEl.textContent = '';
-
-  try {
-    const res  = await fetch(`${API}/api/venues/${_syrveVenueId}/connect-syrve`, {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization:  `Bearer ${token()}`,
-      },
-      body: JSON.stringify({ domain, apiLogin, terminalGroupId }),
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      // Оновлюємо posType у локальному списку
-      const v = _venues.find(v => v.id === _syrveVenueId);
-      if (v) v.posType = 'syrve';
-      _syrveSheetOpen = false;
-      _syrveError     = '';
-      fullRender();
-    } else {
-      if (errEl) errEl.textContent = data.error || 'Помилка збереження';
-      _syrveSaving = false;
-      if (btn) btn.disabled = false;
-    }
-  } catch (e) {
-    if (errEl) errEl.textContent = 'Мережева помилка';
-    _syrveSaving = false;
-    if (btn) btn.disabled = false;
-  }
-}
-
 async function openShift() {
   try {
     const tok = localStorage.getItem('barops_token');
