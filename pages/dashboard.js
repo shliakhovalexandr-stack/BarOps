@@ -608,6 +608,9 @@ function selectVenue(id, name) {
   _activeVenueName = name;
   _venueSheetOpen  = false;
   state.venue      = name;
+  state.venueId    = id;
+  localStorage.setItem('barops_venue',   name);
+  localStorage.setItem('barops_venueId', id);
   loadStats();
 }
 

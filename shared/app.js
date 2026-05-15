@@ -302,11 +302,7 @@ export function switchVenue(id) {
     localStorage.setItem('barops_venueId', v.id);
   }
   closeDrawer();
-  const page = PAGES[state.route];
-  if (page) {
-    const view = document.getElementById('app-view');
-    if (view) { Promise.resolve(page.render({})).then(html => { view.innerHTML = html; if (typeof page.init === 'function') page.init({}); }); return; }
-  }
+  navigate(state.route, { replace: true });
 }
 
 export function addVenuePrompt() {
