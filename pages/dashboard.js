@@ -525,37 +525,6 @@ ${CSS}
     </div>
   </div>
 
-        <div class="d-syrve-lbl">Домен Syrve (API URL)</div>
-        <input class="d-syrve-inp" id="syrve-domain" type="url"
-          placeholder="https://api-eu.syrve.live" value="${_syrveFields.domain}"
-          oninput="window.__dash.syrveField('domain',this.value)"/>
-
-        <div class="d-syrve-lbl">API Login</div>
-        <input class="d-syrve-inp" id="syrve-login" type="text"
-          placeholder="your-api-login" value="${_syrveFields.apiLogin}"
-          oninput="window.__dash.syrveField('apiLogin',this.value)"/>
-
-        <div class="d-syrve-lbl">Terminal Group ID</div>
-        <input class="d-syrve-inp" id="syrve-tgid" type="text"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="${_syrveFields.terminalGroupId}"
-          oninput="window.__dash.syrveField('terminalGroupId',this.value)"/>
-
-        <div class="d-syrve-err" id="syrve-err">${_syrveError}</div>
-
-        <button class="d-syrve-btn" id="syrve-save-btn"
-          onclick="window.__dash.saveSyrve()"
-          ${_syrveSaving ? 'disabled' : ''}>
-          ${_syrveSaving ? 'Збереження...' : 'Зберегти та підключити'}
-        </button>
-        <button onclick="window.__dash.closeSyrveSheet()"
-          style="width:100%;height:44px;background:none;border:none;color:var(--text2);font-size:13px;font-family:var(--font-b);cursor:pointer;margin-top:8px">
-          Скасувати
-        </button>
-      </div>
-    </div>
-  </div>
-  ` : ''}
-
 </div>`;
 }
 
