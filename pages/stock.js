@@ -1,6 +1,5 @@
 /* ============================================================
    BarOps — pages/stock.js
-   Екран всіх залишків (демо — після підключення iiko буде реальне)
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
@@ -16,23 +15,16 @@ const STOCK = [
   { id:8,  emoji:'🥂', name:'Moet Chandon 0.75л',         cat:'Шампанське', qty:0.75, unit:'л', norm:0.75,status:'ok'  },
   { id:9,  emoji:'🫙', name:'Angostura Bitters 0.2л',     cat:'Біттери',    qty:0.15, unit:'л', norm:0.1, status:'ok'  },
   { id:10, emoji:'🍵', name:'Сироп Монін Карамель 0.7л',  cat:'Сиропи',     qty:0.4,  unit:'л', norm:0.3, status:'ok'  },
-  { id:11, emoji:'🍬', name:'Сироп Монін Ваніль 0.7л',    cat:'Сиропи',     qty:0.1,  unit:'л', norm:0.3, status:'low' },
-  { id:12, emoji:'🍺', name:'Пиво Stella Artois 0.5л',    cat:'Пиво',       qty:24,   unit:'шт',norm:12,  status:'ok'  },
-  { id:13, emoji:'🍺', name:'Пиво Corona 0.33л',          cat:'Пиво',       qty:18,   unit:'шт',norm:12,  status:'ok'  },
-  { id:14, emoji:'💧', name:'Вода Evian 0.33л',           cat:'Безалк.',    qty:36,   unit:'шт',norm:24,  status:'ok'  },
-  { id:15, emoji:'🥤', name:'Coca-Cola 0.33л',            cat:'Безалк.',    qty:24,   unit:'шт',norm:24,  status:'ok'  },
-  { id:16, emoji:'🍋', name:'Сік Лимонний св/вижим',      cat:'Соки',       qty:0.8,  unit:'л', norm:0.5, status:'ok'  },
-  { id:17, emoji:'🍊', name:'Сік Апельсиновий св/вижим',  cat:'Соки',       qty:0.5,  unit:'л', norm:0.5, status:'ok'  },
-  { id:18, emoji:'🍹', name:'Cranberry Juice 1л',         cat:'Соки',       qty:0.3,  unit:'л', norm:0.5, status:'low' },
-  { id:19, emoji:'🧊', name:'Лід кубиковий',              cat:'Інше',       qty:8,    unit:'кг',norm:5.0, status:'ok'  },
-  { id:20, emoji:'🍋', name:'Лимон',                      cat:'Гарніри',    qty:12,   unit:'шт',norm:10,  status:'ok'  },
 ];
 
 let CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
-
 let _filter = 'Всі';
 let _search = '';
 let _isSyrve = false;
+let _categoryMap = {}; // productId → customCategory
+let _venueId = null;
+let _token = null;
+const API = 'https://barops-backend-production.up.railway.app';
 
 const CSS = `<style id="stk-css">
 .stk-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -58,19 +50,88 @@ const CSS = `<style id="stk-css">
 .stk-stat-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
 
 .stk-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.stk-row{display:flex;align-items:center;gap:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:11px 13px;transition:background .12s}
+.stk-row{display:flex;align-items:center;gap:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:11px 13px;transition:background .12s;user-select:none}
 .stk-row:active{background:var(--bg3)}
-.stk-emoji{font-size:18px;flex-shrink:0}
 .stk-name{font-size:13px;color:var(--text1);font-family:var(--font-b)}
 .stk-cat{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
-.stk-bar-wrap{flex:1;max-width:60px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;flex-shrink:0}
-.stk-bar-fill{height:100%;border-radius:2px}
 .stk-qty{font-family:var(--font-h);font-size:14px;font-weight:700;text-align:right;flex-shrink:0;min-width:44px}
 .stk-unit{font-size:10px;color:var(--text2);font-family:var(--font-b);text-align:right;margin-top:1px}
 .stk-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
 .stk-note{margin:0 14px 10px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:12px;padding:10px 13px;display:flex;gap:8px;font-size:11px;color:var(--blue);font-family:var(--font-b);line-height:1.5}
+
+/* Модалка редагування категорії */
+.stk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
+.stk-modal{background:var(--bg1);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:480px}
+.stk-modal-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-bottom:4px}
+.stk-modal-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px}
+.stk-modal-inp{width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:12px}
+.stk-modal-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.stk-modal-cat{height:28px;padding:0 12px;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center}
+.stk-modal-cat:active{background:var(--bg3)}
+.stk-modal-btn{width:100%;height:44px;border-radius:12px;background:var(--green);border:none;font-size:15px;font-family:var(--font-h);font-weight:700;color:#fff;cursor:pointer}
+.stk-modal-cancel{width:100%;height:40px;border-radius:12px;background:transparent;border:none;font-size:14px;font-family:var(--font-b);color:var(--text2);cursor:pointer;margin-top:6px}
 </style>`;
+
+let _editItem = null;
+
+function showEditModal(item) {
+  _editItem = item;
+  const existingCats = [...new Set(STOCK.map(s => s.cat))].filter(c => c && c !== item.cat);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'stk-modal-overlay';
+  overlay.id = 'stk-modal';
+  overlay.innerHTML = `
+    <div class="stk-modal">
+      <div class="stk-modal-title">Змінити категорію</div>
+      <div class="stk-modal-sub">${item.name}</div>
+      <input class="stk-modal-inp" id="stk-cat-inp" value="${item.cat}" placeholder="Назва категорії"/>
+      ${existingCats.length ? `
+      <div class="stk-modal-cats">
+        ${existingCats.map(c => `<div class="stk-modal-cat" onclick="document.getElementById('stk-cat-inp').value='${c}'">${c}</div>`).join('')}
+      </div>` : ''}
+      <button class="stk-modal-btn" onclick="window.__stk.saveCategory()">Зберегти</button>
+      <button class="stk-modal-cancel" onclick="window.__stk.closeModal()">Скасувати</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('stk-cat-inp')?.focus(), 100);
+}
+
+function closeModal() {
+  const m = document.getElementById('stk-modal');
+  if (m) m.remove();
+  _editItem = null;
+}
+
+async function saveCategory() {
+  const inp = document.getElementById('stk-cat-inp');
+  if (!inp || !_editItem) return;
+  const customCategory = inp.value.trim();
+  if (!customCategory) return;
+
+  try {
+    await fetch(`${API}/api/pos/category-mappings`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ venueId: _venueId, productId: _editItem.posId, customCategory }),
+    });
+
+    // Оновлюємо локально
+    _categoryMap[_editItem.posId] = customCategory;
+    const item = STOCK.find(s => s.posId === _editItem.posId);
+    if (item) item.cat = customCategory;
+    CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
+    closeModal();
+    fullRender();
+  } catch (err) {
+    console.error('[Stock] saveCategory error:', err);
+  }
+}
 
 function buildHTML() {
   const list = STOCK.filter(s => {
@@ -79,9 +140,9 @@ function buildHTML() {
     return catOk && srchOk;
   });
 
-  const total  = STOCK.length;
-  const low    = STOCK.filter(s => s.status === 'low').length;
-  const ok     = STOCK.filter(s => s.status === 'ok').length;
+  const total = STOCK.length;
+  const low   = STOCK.filter(s => s.status === 'low').length;
+  const ok    = STOCK.filter(s => s.status === 'ok').length;
 
   return `
 ${CSS}
@@ -98,14 +159,11 @@ ${CSS}
   </div>
 
   <div class="stk-scroll">
-    <!-- Пошук -->
     <div class="stk-search">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/><path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/></svg>
-      <input class="stk-search-inp" placeholder="Знайти товар…" value="${_search}"
-        oninput="window.__stk.search(this.value)"/>
+      <input class="stk-search-inp" placeholder="Знайти товар…" value="${_search}" oninput="window.__stk.search(this.value)"/>
     </div>
 
-    <!-- Зведення -->
     <div class="stk-summary">
       <div class="stk-stat">
         <div class="stk-stat-val" style="color:var(--text0)">${total}</div>
@@ -121,37 +179,32 @@ ${CSS}
       </div>
     </div>
 
-    <!-- Категорії -->
     <div class="stk-chips">
-      ${CATS.map(c => `
-      <div class="stk-chip ${_filter===c?'act':''}" onclick="window.__stk.setFilter('${c}')">${c}</div>
-      `).join('')}
+      ${CATS.map(c => `<div class="stk-chip ${_filter===c?'act':''}" onclick="window.__stk.setFilter('${c}')">${c}</div>`).join('')}
     </div>
 
-    <!-- Плашка про POS -->
     ${!_isSyrve ? `
     <div class="stk-note">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
       Демо-дані. Після підключення iiko тут будуть реальні залишки з вашої POS-системи в режимі реального часу.
     </div>` : ''}
 
-    <!-- Список -->
+    ${_isSyrve ? `<div style="padding:0 14px 8px;font-size:10px;color:var(--text3);font-family:var(--font-b)">Утримуйте товар щоб змінити категорію</div>` : ''}
+
     <div class="stk-list">
       ${list.map(s => {
-        const pct  = Math.min((s.qty / (s.norm * 2)) * 100, 100);
-        const color= s.status === 'low' ? 'var(--red)' : pct > 60 ? 'var(--green)' : 'var(--amber)';
+        const pct   = s.norm > 0 ? Math.min((s.qty / (s.norm * 2)) * 100, 100) : 50;
+        const color = s.status === 'low' ? 'var(--red)' : pct > 60 ? 'var(--green)' : 'var(--amber)';
+        const posId = s.posId ? `data-posid="${s.posId}"` : '';
         return `
-        <div class="stk-row">
+        <div class="stk-row" ${posId} oncontextmenu="return false"
+          ontouchstart="window.__stk.startHold('${s.posId || ''}')"
+          ontouchend="window.__stk.endHold()"
+          ontouchmove="window.__stk.endHold()">
           <div class="stk-status-dot" style="background:${color}"></div>
-          ${s.emoji ? `<div class="stk-emoji">${s.emoji}</div>` : ''}
           <div style="flex:1;min-width:0">
             <div class="stk-name">${s.name}</div>
             <div class="stk-cat">${s.cat} · Норма: ${s.norm} ${s.unit}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-            <div class="stk-bar-wrap">
-              <div class="stk-bar-fill" style="width:${pct}%;background:${color}"></div>
-            </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
             <div class="stk-qty" style="color:${color}">${Number.isInteger(s.qty) ? s.qty : s.qty.toFixed(2)}</div>
@@ -174,38 +227,68 @@ function fullRender() {
 function setFilter(f) { _filter = f; fullRender(); }
 function search(q)    { _search = q; fullRender(); }
 
-  export default {
+let _holdTimer = null;
+
+function startHold(posId) {
+  if (!posId || !_isSyrve) return;
+  _holdTimer = setTimeout(() => {
+    const item = STOCK.find(s => s.posId === posId);
+    if (item) showEditModal(item);
+  }, 600);
+}
+
+function endHold() {
+  if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
+}
+
+export default {
   render() {
     _filter = 'Всі'; _search = '';
     _isSyrve = false;
     return buildHTML();
   },
   init() {
-    window.__stk = { setFilter, search };
-    const venueId = localStorage.getItem('barops_venueId');
-    const token   = localStorage.getItem('barops_token');
-    const API     = 'https://barops-backend-production.up.railway.app';
+    window.__stk = { setFilter, search, saveCategory, closeModal, startHold, endHold };
+    _venueId = localStorage.getItem('barops_venueId');
+    _token   = localStorage.getItem('barops_token');
 
-    if (!venueId || !token) {
+    if (!_venueId || !_token) {
       console.warn('[Stock] venueId або token відсутні');
       return;
     }
-    fetch(`${API}/api/pos/balance/${venueId}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    })
-    .then(r => r.json())
-    .then(data => {
-      console.log('[Stock] POS response:', JSON.stringify(data));
-      if (data.success && data.stores?.length) {
+
+    // Завантажуємо mappings і баланс паралельно
+    Promise.all([
+      fetch(`${API}/api/pos/category-mappings/${_venueId}`, {
+        headers: { 'Authorization': `Bearer ${_token}` },
+      }).then(r => r.json()).catch(() => ({ mappings: [] })),
+
+      fetch(`${API}/api/pos/balance/${_venueId}`, {
+        headers: { 'Authorization': `Bearer ${_token}` },
+      }).then(r => r.json()),
+    ])
+    .then(([mappingsData, balanceData]) => {
+      // Будуємо словник кастомних категорій
+      _categoryMap = {};
+      if (mappingsData.mappings) {
+        for (const m of mappingsData.mappings) {
+          _categoryMap[m.productId] = m.customCategory;
+        }
+      }
+
+      if (balanceData.success && balanceData.stores?.length) {
         STOCK.length = 0;
         let id = 1;
-        for (const store of data.stores) {
+        for (const store of balanceData.stores) {
           for (const item of store.items) {
+            const defaultCat = item.category || store.storeName;
+            const customCat  = _categoryMap[item.id] || defaultCat;
             STOCK.push({
               id:     id++,
+              posId:  item.id,
               emoji:  '',
               name:   item.name,
-              cat:    item.category || store.storeName,
+              cat:    customCat,
               qty:    Math.round((Number(item.amount) || 0) * 100) / 100,
               unit:   item.unit || 'л',
               norm:   0,
@@ -220,7 +303,7 @@ function search(q)    { _search = q; fullRender(); }
       }
     })
     .catch(err => {
-      console.error('[Stock] POS fetch error:', err);
+      console.error('[Stock] fetch error:', err);
     });
   },
 };
