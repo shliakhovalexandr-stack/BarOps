@@ -585,7 +585,6 @@ export default {
   render() {
     _notifOpen      = false;
     _venueSheetOpen = false;
-    _syrveSheetOpen = false;
     return buildHTML();
   },
   async init() {
