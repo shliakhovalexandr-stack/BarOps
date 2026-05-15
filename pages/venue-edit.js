@@ -651,7 +651,7 @@ async function initIikoSection(venueId) {
 
     // Визначити режим по збереженому url
     const savedUrl = settings.posUrl || '';
-    const isCloud  = !savedUrl || savedUrl.includes('iiko.services') || savedUrl.includes('syrve.online') || savedUrl.includes('iiko.biz') || savedUrl.includes('syrve.app');
+    const isCloud  = !savedUrl || savedUrl.includes('iiko.services') || savedUrl.includes('iiko.biz') || savedUrl.includes('syrve.app');
     setSyrveMode(isCloud ? 'cloud' : 'selfhosted');
 
     // Підставити збережені значення
