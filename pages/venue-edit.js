@@ -288,16 +288,21 @@ ${CSS}
           <span id="iiko-status-badge" style="padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;font-family:var(--font-b);background:rgba(234,179,8,0.15);color:#eab308">Завантаження...</span>
         </div>
 
-        <!-- Syrve Cloud поля -->
+        <!-- Syrve поля -->
         <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">URL СЕРВЕРА</label>
           <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://terassa-chain.syrve.app">
           <div class="ve-hint">Наприклад: https://terassa-chain.syrve.app</div>
         </div>
         <div class="ve-field" style="margin-bottom:12px">
-          <label class="ve-label">API KEY</label>
-          <input class="ve-input" id="iiko-api-secret" type="text" placeholder="41911a8e...">
-          <div class="ve-hint">Syrve → Live API Settings → BarOps_API → скопіювати API key</div>
+          <label class="ve-label">ЛОГІН</label>
+          <input class="ve-input" id="iiko-login" type="text" placeholder="irina">
+          <div class="ve-hint">Логін співробітника Syrve</div>
+        </div>
+        <div class="ve-field" style="margin-bottom:12px">
+          <label class="ve-label">ПАРОЛЬ</label>
+          <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
+          <div class="ve-hint">Пароль співробітника Syrve</div>
         </div>
 
         <!-- Кнопки -->
@@ -614,9 +619,9 @@ function setSyrveMode(mode) {
 
 function getSyrveFormData() {
   const url      = document.getElementById('iiko-cloud-url')?.value.trim()  || null;
-  const apiKey   = document.getElementById('iiko-api-secret')?.value.trim() || null;
-  const password = document.getElementById('iiko-password')?.value          || null;
-  return { url, apiKey, login: null, password };
+  const login    = document.getElementById('iiko-login')?.value.trim()       || null;
+  const password = document.getElementById('iiko-password')?.value           || null;
+  return { url, apiKey: null, login, password };
 }
 
 async function initIikoSection(venueId) {
@@ -650,10 +655,11 @@ async function initIikoSection(venueId) {
     setSyrveMode(isCloud ? 'cloud' : 'selfhosted');
 
     // Підставити збережені значення
-    const urlEl    = document.getElementById('iiko-cloud-url');
-    const secretEl = document.getElementById('iiko-api-secret');
-    if (urlEl    && settings.posUrl)    urlEl.value    = settings.posUrl;
-    if (secretEl && settings.posApiKey && !settings.posApiKey.includes('•')) secretEl.value = settings.posApiKey;
+    const urlEl   = document.getElementById('iiko-cloud-url');
+    const loginEl = document.getElementById('iiko-login');
+    if (urlEl   && settings.posUrl)   urlEl.value   = settings.posUrl;
+    if (loginEl && settings.posLogin) loginEl.value = settings.posLogin;
+    // Пароль не підставляємо з міркувань безпеки
 
     // Статус badge
     if (settings.posConnected) {
@@ -683,8 +689,8 @@ async function initIikoSection(venueId) {
 
     const { url, apiKey, login, password } = getSyrveFormData();
 
-    if (!apiKey) {
-      showToast('Введіть API Key', 'error');
+    if (!login || !password) {
+      showToast('Введіть логін і пароль', 'error');
       btn.disabled = false; btn.innerHTML = "🔍 Перевірити з'єднання"; return;
     }
 
@@ -727,6 +733,11 @@ async function initIikoSection(venueId) {
     btn.innerHTML = '⏳ Збереження...';
 
     const { url, apiKey, login, password } = getSyrveFormData();
+
+    if (!login || !password) {
+      showToast('Введіть логін і пароль', 'error');
+      btn.disabled = false; btn.innerHTML = '💾 Зберегти'; return;
+    }
 
     try {
       const res  = await fetch(`${API}/api/pos/save`, {
