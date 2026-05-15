@@ -154,7 +154,7 @@ ${CSS}
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div class="stk-qty" style="color:${color}">${s.qty}</div>
+            <div class="stk-qty" style="color:${color}">${Number.isInteger(s.qty) ? s.qty : s.qty.toFixed(2)}</div>
             <div class="stk-unit">${s.unit}</div>
           </div>
         </div>`;
@@ -206,7 +206,7 @@ function search(q)    { _search = q; fullRender(); }
               emoji:  '🍾',
               name:   item.name,
               cat:    item.category || store.storeName,
-              qty:    Number(item.amount) || 0,
+              qty:    Math.round((Number(item.amount) || 0) * 100) / 100,
               unit:   item.unit || 'л',
               norm:   0,
               status: 'ok',
