@@ -207,6 +207,9 @@ function renderDrawer() {
           onclick="window.__barops.switchVenue('${v.id}')"
           oncontextmenu="event.preventDefault();window.__barops.openVenueMenu('${v.id}')"
           data-long-press-id="${v.id}"
+          ontouchstart="window.__barops.startVenueHold('${v.id}')"
+          ontouchend="window.__barops.endVenueHold()"
+          ontouchmove="window.__barops.endVenueHold()"
           style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
                  background:${v.id===_venueMenuId?'rgba(255,255,255,.04)':v.active?'rgba(29,158,117,.06)':'transparent'};
                  transition:background .12s">
@@ -526,6 +529,12 @@ export async function bootstrap() {
     navigate, goBack, setRole, state,
     openDrawer, closeDrawer, switchVenue, addVenuePrompt,
     openVenueMenu, archiveVenue, deleteVenue, editVenue,
+    startVenueHold(id) {
+      this._venueHoldTimer = setTimeout(() => window.__barops.openVenueMenu(id), 600);
+    },
+    endVenueHold() {
+      if (this._venueHoldTimer) { clearTimeout(this._venueHoldTimer); this._venueHoldTimer = null; }
+    },
     logout: function() {
       localStorage.removeItem('barops_token');
       localStorage.removeItem('barops_refresh');
