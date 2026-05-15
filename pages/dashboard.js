@@ -18,13 +18,6 @@ let _loading         = true;
 let _venueSheetOpen  = false;
 let _notifOpen       = false;
 
-// Syrve sheet
-let _syrveSheetOpen  = false;
-let _syrveVenueId    = '';
-let _syrveFields     = { domain: '', apiLogin: '', terminalGroupId: '' };
-let _syrveSaving     = false;
-let _syrveError      = '';
-
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
   'var(--red)', '#4FA8E8', '#E24B4A',
@@ -194,15 +187,6 @@ const CSS = `<style id="dash-css">
 /* skeleton */
 .d-skel{background:var(--bg2);border-radius:12px;animation:dSkel 1.2s ease-in-out infinite}
 @keyframes dSkel{0%,100%{opacity:.5}50%{opacity:1}}
-/* syrve sheet */
-.d-syrve-inp{width:100%;height:44px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;
-  color:var(--text0);font-size:14px;font-family:var(--font-b);padding:0 14px;box-sizing:border-box;outline:none;margin-bottom:10px}
-.d-syrve-inp:focus{border-color:var(--green)}
-.d-syrve-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
-.d-syrve-err{font-size:12px;color:var(--red);font-family:var(--font-b);min-height:18px;margin-bottom:8px}
-.d-syrve-btn{width:100%;height:48px;background:var(--green);border:none;border-radius:14px;
-  font-size:15px;font-family:var(--font-h);font-weight:700;color:#fff;cursor:pointer}
-.d-syrve-btn:disabled{opacity:.5;cursor:not-allowed}
 </style>`;
 
 /* ════════════════════════
@@ -541,16 +525,6 @@ ${CSS}
     </div>
   </div>
 
-  <!-- SYRVE CONNECT SHEET -->
-  <div class="d-vsheet-ov ${_syrveSheetOpen ? 'open' : ''}" onclick="window.__dash.closeSyrveSheet(event)">
-    <div class="d-vsheet" onclick="event.stopPropagation()" style="padding:0 0 40px">
-      <div class="d-vsheet-handle"></div>
-      <div class="d-vsheet-title">Підключити Syrve</div>
-      <div style="padding:0 18px">
-        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px">
-          Заклад: <span style="color:var(--text0)">${_syrveVenueId ? (_venues.find(v=>v.id===_syrveVenueId)?.name || '') : ''}</span>
-        </div>
-
         <div class="d-syrve-lbl">Домен Syrve (API URL)</div>
         <input class="d-syrve-inp" id="syrve-domain" type="url"
           placeholder="https://api-eu.syrve.live" value="${_syrveFields.domain}"
@@ -613,38 +587,6 @@ function selectVenue(id, name) {
   localStorage.setItem('barops_venueId', id);
   loadStats();
 }
-
-function openSyrveSheet(venueId, venueName) {
-  _syrveVenueId   = venueId;
-  _syrveFields    = { domain: '', apiLogin: '', terminalGroupId: '' };
-  _syrveError     = '';
-  _syrveSaving    = false;
-  _syrveSheetOpen = true;
-  _venueSheetOpen = false;
-  fullRender();
-}
-
-function closeSyrveSheet(e) {
-  if (!e || e.target.classList.contains('d-vsheet-ov')) {
-    _syrveSheetOpen = false;
-    _syrveError     = '';
-    fullRender();
-  }
-}
-
-function syrveField(field, value) {
-  _syrveFields[field] = value;
-}
-
-async function saveSyrve() {
-  const { domain, apiLogin, terminalGroupId } = _syrveFields;
-  const errEl = document.getElementById('syrve-err');
-  const btn   = document.getElementById('syrve-save-btn');
-
-  if (!domain || !apiLogin || !terminalGroupId) {
-    if (errEl) errEl.textContent = 'Заповніть всі поля';
-    return;
-  }
 
   _syrveSaving = true;
   if (btn) btn.disabled = true;
@@ -725,10 +667,6 @@ export default {
       toggleVenueSheet,
       closeVenueSheet,
       selectVenue,
-      openSyrveSheet,
-      closeSyrveSheet,
-      syrveField,
-      saveSyrve,
     };
 
     // Завантажуємо заклади і статистику
