@@ -389,7 +389,7 @@ export async function saveNewVenue() {
     const token = localStorage.getItem('barops_token');
     const res = await fetch('https://barops-backend-production.up.railway.app/api/venues', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({ name, posType: _addDraft.posType }),
     });
     const data = await res.json();
