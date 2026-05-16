@@ -26,6 +26,7 @@ let _team          = [];  // реальні дані з бекенду
 let _venues        = [];  // список закладів
 let _activeVenueId = '';  // активний заклад на сторінці команди
 let _activeVenueName = '';
+let _manualVenueSelect = false;
 let _loading    = true;
 let _openId     = null;   // відкритий профіль
 let _sheetMode  = null;   // null | 'add' | 'edit'
@@ -508,6 +509,7 @@ function selectVenue(id) {
 function switchTeamVenue(id, name) {
   _activeVenueId   = id;
   _activeVenueName = name;
+  _manualVenueSelect = true;
   loadTeam();
 }
 
@@ -729,17 +731,16 @@ async function loadTeam() {
       _venues = vData.venues;
       if (_venues.length > 0) {
         // Якщо _activeVenueId вже встановлений (напр. через switchTeamVenue) — перевіряємо валідність
-        const alreadyValid = _activeVenueId && _venues.find(v => v.id === _activeVenueId);
-        if (!alreadyValid) {
-          // Пріоритет: localStorage (заклад менеджера) → перший у списку
-          const fromStorage = _venues.find(v => v.id === (state.venueId || localStorage.getItem('barops_venueId')));
-          const current = fromStorage || _venues[0];
-          _activeVenueId   = current.id;
-          _activeVenueName = current.name;
-        }
+         if (!_manualVenueSelect) {
+           const fromStorage = _venues.find(v => v.id === (state.venueId || localStorage.getItem('barops_venueId')));
+           const current = fromStorage || _venues[0];
+           _activeVenueId   = current.id;
+           _activeVenueName = current.name;
+         }
+         _manualVenueSelect = false;
         console.log('[Team] activeVenueId після loadTeam:', _activeVenueId, _activeVenueName);
         console.log('[Team] localStorage venueId:', localStorage.getItem('barops_venueId'));
-      }
+         }
     }
 
     // Передаємо venueId щоб отримати команду конкретного закладу

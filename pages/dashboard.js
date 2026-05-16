@@ -244,7 +244,7 @@ async function loadVenues() {
     if (data.success) {
       _venues = data.venues;
       // Встановлюємо активний заклад менеджера за замовчуванням
-      if (!_activeVenueId && _venues.length > 0) {
+      if (_venues.length > 0) {
         const myVenue = _venues.find(v => v.id === (state.venueId || localStorage.getItem('barops_venueId')));
         const def = myVenue || _venues[0];
         _activeVenueId   = def.id;
