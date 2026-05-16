@@ -22,6 +22,7 @@ let _filter = 'Всі';
 let _search = '';
 let _isSyrve = false;
 let _categoryMap = {}; // productId → customCategory
+let _normsMap = {};    // productId → { reorderPoint, desiredStock }
 let _venueId = null;
 let _token = null;
 const API = 'https://barops-backend-production.up.railway.app';
@@ -78,31 +79,102 @@ let _editItem = null;
 function showEditModal(item) {
   _editItem = item;
   const existingCats = [...new Set(STOCK.map(s => s.cat))].filter(c => c && c !== item.cat);
+  const norm = _normsMap[item.posId] || { reorderPoint: 0, desiredStock: 0 };
 
   const overlay = document.createElement('div');
   overlay.className = 'stk-modal-overlay';
   overlay.id = 'stk-modal';
   overlay.innerHTML = `
     <div class="stk-modal">
-      <div class="stk-modal-title">Змінити категорію</div>
-      <div class="stk-modal-sub">${item.name}</div>
-      <input class="stk-modal-inp" id="stk-cat-inp" value="${item.cat}" placeholder="Назва категорії"/>
-      ${existingCats.length ? `
-      <div class="stk-modal-cats">
-        ${existingCats.map(c => `<div class="stk-modal-cat" onclick="document.getElementById('stk-cat-inp').value='${c}'">${c}</div>`).join('')}
-      </div>` : ''}
-      <button class="stk-modal-btn" onclick="window.__stk.saveCategory()">Зберегти</button>
+      <div class="stk-modal-title">${item.name}</div>
+
+      <div style="display:flex;gap:6px;margin-bottom:16px">
+        <button id="stk-tab-cat" onclick="window.__stk.switchTab('cat')"
+          style="flex:1;height:34px;border-radius:10px;border:0.5px solid var(--border2);
+                 background:var(--green);color:#fff;font-size:13px;font-family:var(--font-b);cursor:pointer">
+          Категорія
+        </button>
+        <button id="stk-tab-norm" onclick="window.__stk.switchTab('norm')"
+          style="flex:1;height:34px;border-radius:10px;border:0.5px solid var(--border2);
+                 background:var(--bg3);color:var(--text2);font-size:13px;font-family:var(--font-b);cursor:pointer">
+          Норми
+        </button>
+      </div>
+
+      <div id="stk-panel-cat">
+        <input class="stk-modal-inp" id="stk-cat-inp" value="${item.cat}" placeholder="Назва категорії"/>
+        ${existingCats.length ? `
+        <div class="stk-modal-cats">
+          ${existingCats.map(c => `<div class="stk-modal-cat" onclick="document.getElementById('stk-cat-inp').value='${c}'">${c}</div>`).join('')}
+        </div>` : ''}
+        <button class="stk-modal-btn" onclick="window.__stk.saveCategory()">Зберегти</button>
+      </div>
+
+      <div id="stk-panel-norm" style="display:none">
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Мінімальний залишок</div>
+        <input class="stk-modal-inp" id="stk-reorder-inp" type="number" min="0" step="0.1"
+          value="${norm.reorderPoint}" placeholder="0"/>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Бажаний залишок</div>
+        <input class="stk-modal-inp" id="stk-desired-inp" type="number" min="0" step="0.1"
+          value="${norm.desiredStock}" placeholder="0"/>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-bottom:14px">
+          Одиниця: ${item.unit}
+        </div>
+        <button class="stk-modal-btn" onclick="window.__stk.saveNorm()">Зберегти</button>
+      </div>
+
       <button class="stk-modal-cancel" onclick="window.__stk.closeModal()">Скасувати</button>
     </div>
   `;
   document.body.appendChild(overlay);
-  setTimeout(() => document.getElementById('stk-cat-inp')?.focus(), 100);
 }
 
 function closeModal() {
   const m = document.getElementById('stk-modal');
   if (m) m.remove();
   _editItem = null;
+}
+
+function switchTab(tab) {
+  const catPanel  = document.getElementById('stk-panel-cat');
+  const normPanel = document.getElementById('stk-panel-norm');
+  const catBtn    = document.getElementById('stk-tab-cat');
+  const normBtn   = document.getElementById('stk-tab-norm');
+  if (tab === 'cat') {
+    catPanel.style.display  = '';
+    normPanel.style.display = 'none';
+    catBtn.style.background  = 'var(--green)';  catBtn.style.color  = '#fff';
+    normBtn.style.background = 'var(--bg3)';    normBtn.style.color = 'var(--text2)';
+  } else {
+    catPanel.style.display  = 'none';
+    normPanel.style.display = '';
+    normBtn.style.background = 'var(--green)'; normBtn.style.color = '#fff';
+    catBtn.style.background  = 'var(--bg3)';   catBtn.style.color  = 'var(--text2)';
+  }
+}
+
+async function saveNorm() {
+  const reorderPoint = parseFloat(document.getElementById('stk-reorder-inp')?.value) || 0;
+  const desiredStock = parseFloat(document.getElementById('stk-desired-inp')?.value) || 0;
+  if (!_editItem) return;
+
+  try {
+    await fetch(`${API}/api/pos/norms`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ venueId: _venueId, productId: _editItem.posId, reorderPoint, desiredStock }),
+    });
+    _normsMap[_editItem.posId] = { reorderPoint, desiredStock };
+    const item = STOCK.find(s => s.posId === _editItem.posId);
+    if (item) {
+      item.norm   = desiredStock || reorderPoint;
+      item.status = item.qty < reorderPoint ? 'low' : 'ok';
+    }
+    closeModal();
+    fullRender();
+  } catch (err) {
+    console.error('[Stock] saveNorm error:', err);
+  }
 }
 
 async function saveCategory() {
@@ -248,7 +320,7 @@ export default {
     return buildHTML();
   },
   init() {
-    window.__stk = { setFilter, search, saveCategory, closeModal, startHold, endHold };
+    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, startHold, endHold };
     _venueId = localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
 
@@ -266,13 +338,24 @@ export default {
       fetch(`${API}/api/pos/balance/${_venueId}`, {
         headers: { 'Authorization': `Bearer ${_token}` },
       }).then(r => r.json()),
+
+      fetch(`${API}/api/pos/norms/${_venueId}`, {
+        headers: { 'Authorization': `Bearer ${_token}` },
+      }).then(r => r.json()).catch(() => ({ norms: [] })),
     ])
-    .then(([mappingsData, balanceData]) => {
+    .then(([mappingsData, balanceData, normsData]) => {
       // Будуємо словник кастомних категорій
       _categoryMap = {};
       if (mappingsData.mappings) {
         for (const m of mappingsData.mappings) {
           _categoryMap[m.productId] = m.customCategory;
+        }
+      }
+
+      _normsMap = {};
+      if (normsData.norms) {
+        for (const n of normsData.norms) {
+          _normsMap[n.productId] = { reorderPoint: n.reorderPoint, desiredStock: n.desiredStock };
         }
       }
 
@@ -291,8 +374,9 @@ export default {
               cat:    customCat,
               qty:    Math.round((Number(item.amount) || 0) * 100) / 100,
               unit:   item.unit || 'л',
-              norm:   0,
-              status: 'ok',
+              norm:   (_normsMap[item.id]?.desiredStock || _normsMap[item.id]?.reorderPoint || 0),
+              reorderPoint: (_normsMap[item.id]?.reorderPoint || 0),
+              status: (Number(item.amount) || 0) < (_normsMap[item.id]?.reorderPoint || 0) ? 'low' : 'ok',
             });
           }
         }
