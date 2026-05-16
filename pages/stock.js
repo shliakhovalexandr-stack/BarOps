@@ -61,6 +61,16 @@ const CSS = `<style id="stk-css">
 
 .stk-note{margin:0 14px 10px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:12px;padding:10px 13px;display:flex;gap:8px;font-size:11px;color:var(--blue);font-family:var(--font-b);line-height:1.5}
 
+/* Swipe row */
+.stk-row-wrap{position:relative;overflow:hidden;border-radius:13px;margin-bottom:0}
+.stk-row-actions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;opacity:0;pointer-events:none;transition:opacity .15s}
+.stk-row-act-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:72px;gap:4px;font-size:10px;font-family:var(--font-b);cursor:pointer;border:none}
+.stk-row-act-btn.edit{background:var(--green);color:#fff}
+.stk-row-act-btn.cat{background:var(--blue, #5B8DEF);color:#fff}
+.stk-row-wrap.swiped .stk-row-actions{opacity:1;pointer-events:auto}
+.stk-row-wrap.swiped .stk-row{transform:translateX(-144px);transition:transform .2s}
+.stk-row{transition:transform .2s}
+
 /* Модалка редагування категорії */
 .stk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
 .stk-modal{background:var(--bg1);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:480px}
@@ -261,7 +271,7 @@ ${CSS}
       Демо-дані. Після підключення iiko тут будуть реальні залишки з вашої POS-системи в режимі реального часу.
     </div>` : ''}
 
-    ${_isSyrve ? `<div style="padding:0 14px 8px;font-size:10px;color:var(--text3);font-family:var(--font-b)">Утримуйте товар щоб змінити категорію</div>` : ''}
+    ${_isSyrve ? `<div style="padding:0 14px 8px;font-size:10px;color:var(--text3);font-family:var(--font-b)">← Свайп вліво для редагування</div>` : ''}
 
     <div class="stk-list">
       ${list.map(s => {
@@ -269,18 +279,31 @@ ${CSS}
         const color = s.status === 'low' ? 'var(--red)' : pct > 60 ? 'var(--green)' : 'var(--amber)';
         const posId = s.posId ? `data-posid="${s.posId}"` : '';
         return `
-        <div class="stk-row" ${posId} oncontextmenu="return false"
-          ontouchstart="window.__stk.startHold('${s.posId || ''}')"
-          ontouchend="window.__stk.endHold()"
-          ontouchmove="window.__stk.endHold()">
-          <div class="stk-status-dot" style="background:${color}"></div>
-          <div style="flex:1;min-width:0">
-            <div class="stk-name">${s.name}</div>
-            <div class="stk-cat">${s.cat} · Норма: ${s.norm} ${s.unit}</div>
+        <div class="stk-row-wrap" id="wrap-${s.posId || s.id}"
+          ontouchstart="window.__stk.swipeStart(event,'${s.posId || ''}')"
+          ontouchmove="window.__stk.swipeMove(event)"
+          ontouchend="window.__stk.swipeEnd(event,'${s.posId || ''}')"
+          oncontextmenu="return false">
+          <div class="stk-row" ${posId}>
+            <div class="stk-status-dot" style="background:${color}"></div>
+            <div style="flex:1;min-width:0">
+              <div class="stk-name">${s.name}</div>
+              <div class="stk-cat">${s.cat} · Норма: ${s.norm} ${s.unit}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="stk-qty" style="color:${color}">${Number.isInteger(s.qty) ? s.qty : s.qty.toFixed(2)}</div>
+              <div class="stk-unit">${s.unit}</div>
+            </div>
           </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div class="stk-qty" style="color:${color}">${Number.isInteger(s.qty) ? s.qty : s.qty.toFixed(2)}</div>
-            <div class="stk-unit">${s.unit}</div>
+          <div class="stk-row-actions">
+            <button class="stk-row-act-btn cat" onclick="window.__stk.openTab('${s.posId || ''}','cat')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M3 9h8M3 13h5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Категорія
+            </button>
+            <button class="stk-row-act-btn edit" onclick="window.__stk.openTab('${s.posId || ''}','norm')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Норми
+            </button>
           </div>
         </div>`;
       }).join('')}
@@ -299,18 +322,51 @@ function fullRender() {
 function setFilter(f) { _filter = f; fullRender(); }
 function search(q)    { _search = q; fullRender(); }
 
-let _holdTimer = null;
+let _swipeStartX = 0;
+let _swipeStartY = 0;
+let _swipeActive = null;
+let _swipeLocked = false;
 
-function startHold(posId) {
-  if (!posId || !_isSyrve) return;
-  _holdTimer = setTimeout(() => {
-    const item = STOCK.find(s => s.posId === posId);
-    if (item) showEditModal(item);
-  }, 600);
+function swipeStart(e, posId) {
+  if (!_isSyrve) return;
+  _swipeStartX = e.touches[0].clientX;
+  _swipeStartY = e.touches[0].clientY;
+  _swipeActive = posId;
+  _swipeLocked = false;
 }
 
-function endHold() {
-  if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
+function swipeMove(e) {
+  if (!_swipeActive) return;
+  const dx = e.touches[0].clientX - _swipeStartX;
+  const dy = e.touches[0].clientY - _swipeStartY;
+  if (!_swipeLocked) {
+    if (Math.abs(dy) > Math.abs(dx)) { _swipeActive = null; return; }
+    _swipeLocked = true;
+  }
+  if (dx < -30) e.preventDefault();
+}
+
+function swipeEnd(e, posId) {
+  if (!_swipeActive) return;
+  const dx = e.changedTouches[0].clientX - _swipeStartX;
+  const wrap = document.getElementById('wrap-' + posId);
+  if (dx < -60 && wrap) {
+    // Close all other open swipes
+    document.querySelectorAll('.stk-row-wrap.swiped').forEach(el => {
+      if (el !== wrap) el.classList.remove('swiped');
+    });
+    wrap.classList.toggle('swiped');
+  } else if (dx > 20 && wrap) {
+    wrap.classList.remove('swiped');
+  }
+  _swipeActive = null;
+}
+
+function openTab(posId, tab) {
+  const wrap = document.getElementById('wrap-' + posId);
+  if (wrap) wrap.classList.remove('swiped');
+  const item = STOCK.find(s => s.posId === posId);
+  if (item) { showEditModal(item); setTimeout(() => switchTab(tab), 50); }
 }
 
 export default {
@@ -320,7 +376,7 @@ export default {
     return buildHTML();
   },
   init() {
-    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, startHold, endHold };
+    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab };
     _venueId = localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
 
