@@ -52,6 +52,10 @@ async function loadVenuesIntoDrawer() {
 
 let _drawerOpen = false;
 let _venueMenuId = null; // id закладу з відкритим контекстним меню
+let _addSheetOpen = false;
+let _addDraft = { name: '', posType: 'syrve' };
+let _addSaving = false;
+let _addError = '';
 
 /* ══════════════════════════════════════
    2. РЕЄСТР СТОРІНОК
@@ -281,7 +285,55 @@ function renderDrawer() {
         <span style="font-size:13px;color:var(--red);font-family:var(--font-b)">Вийти з акаунту</span>
       </div>
     </div>
-  </div>`;
+
+    ${_addSheetOpen ? `
+    <div onclick="window.__barops.closeAddSheet()"
+      style="position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.5)"></div>
+    <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;
+                background:var(--bg1);border-radius:20px 20px 0 0;
+                border-top:0.5px solid var(--border2);padding:20px 20px 44px">
+      <div style="width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:0 auto 20px"></div>
+      <div style="font-family:var(--font-h);font-size:18px;font-weight:700;
+                  color:var(--text0);margin-bottom:20px">Новий заклад</div>
+
+      <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);
+                  letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">Назва закладу</div>
+      <input id="add-venue-name" type="text" placeholder="Наприклад: Bar Noir"
+        value="${_addDraft.name}"
+        oninput="window.__barops.addDraftChange('name', this.value)"
+        style="width:100%;height:48px;background:var(--bg2);border:0.5px solid ${_addError&&!_addDraft.name?'var(--red)':'var(--border2)'};
+               border-radius:12px;padding:0 14px;font-size:15px;color:var(--text0);
+               font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:14px"/>
+
+      <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);
+                  letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">POS-система</div>
+      <select id="add-venue-pos"
+        onchange="window.__barops.addDraftChange('posType', this.value)"
+        style="width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border2);
+               border-radius:12px;padding:0 14px;font-size:15px;color:var(--text0);
+               font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:${_addError?'8px':'20px'};
+               appearance:none;-webkit-appearance:none;cursor:pointer">
+        <option value="syrve" ${_addDraft.posType==='syrve'?'selected':''}>Syrve (iiko)</option>
+        <option value="poster" ${_addDraft.posType==='poster'?'selected':''}>Poster</option>
+        <option value="manual" ${_addDraft.posType==='manual'?'selected':''}>Ручний облік</option>
+      </select>
+
+      ${_addError ? `<div style="font-size:12px;color:var(--red);font-family:var(--font-b);margin-bottom:12px">${_addError}</div>` : ''}
+
+      <button onclick="window.__barops.saveNewVenue()" ${_addSaving?'disabled':''}
+        style="width:100%;height:52px;background:${_addSaving?'var(--bg3)':'var(--green)'};
+               border:none;border-radius:14px;font-size:15px;font-weight:600;
+               color:${_addSaving?'var(--text2)':'#fff'};cursor:${_addSaving?'not-allowed':'pointer'};
+               font-family:var(--font-h);transition:background .2s">
+        ${_addSaving ? '⏳ Збереження...' : '+ Додати заклад'}
+      </button>
+      <button onclick="window.__barops.closeAddSheet()"
+        style="width:100%;height:44px;background:none;border:none;color:var(--text2);
+               font-size:13px;font-family:var(--font-b);cursor:pointer;margin-top:8px">
+        Скасувати
+      </button>
+    </div>` : ''}
+  </div>\`;
 }
 
 export function openDrawer()  {
@@ -306,11 +358,55 @@ export function switchVenue(id) {
 }
 
 export function addVenuePrompt() {
-  const name = prompt('Назва нового закладу:');
-  if (!name?.trim()) return;
-  const pos = prompt('POS-система (Poster / iiko / R-Keeper):') || 'Poster';
-  MANAGER_VENUES.push({ id:'v'+Date.now(), name:name.trim(), pos, active:false });
+  _addSheetOpen = true;
+  _addDraft = { name: '', posType: 'syrve' };
+  _addSaving = false;
+  _addError = '';
   renderDrawer();
+}
+
+export function closeAddSheet() {
+  _addSheetOpen = false;
+  renderDrawer();
+}
+
+export function addDraftChange(field, value) {
+  _addDraft[field] = value;
+}
+
+export async function saveNewVenue() {
+  const name = _addDraft.name.trim();
+  if (!name) {
+    _addError = 'Введіть назву закладу';
+    renderDrawer();
+    return;
+  }
+  _addSaving = true;
+  _addError = '';
+  renderDrawer();
+
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch('https://barops-backend-production.up.railway.app/api/venues', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name, posType: _addDraft.posType }),
+    });
+    const data = await res.json();
+    if (data.success || data.venue || data.id) {
+      _addSheetOpen = false;
+      _addSaving = false;
+      await loadVenuesIntoDrawer();
+    } else {
+      _addError = data.error || 'Помилка збереження';
+      _addSaving = false;
+      renderDrawer();
+    }
+  } catch {
+    _addError = 'Мережева помилка';
+    _addSaving = false;
+    renderDrawer();
+  }
 }
 
 export function openVenueMenu(id) {
@@ -523,7 +619,7 @@ export const STATUS_BAR_HTML = `
 export async function bootstrap() {
   window.__barops = {
     navigate, goBack, setRole, state,
-    openDrawer, closeDrawer, switchVenue, addVenuePrompt,
+    openDrawer, closeDrawer, switchVenue, addVenuePrompt, closeAddSheet, addDraftChange, saveNewVenue,
     openVenueMenu, archiveVenue, deleteVenue, editVenue,
     startVenueHold(id) {
       this._venueHoldTimer = setTimeout(() => window.__barops.openVenueMenu(id), 600);
