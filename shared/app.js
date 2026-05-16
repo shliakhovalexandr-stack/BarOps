@@ -333,7 +333,7 @@ function renderDrawer() {
         Скасувати
       </button>
     </div>` : ''}
-  </div>\`;
+  </div>`;
 }
 
 export function openDrawer()  {
