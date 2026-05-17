@@ -8,15 +8,17 @@ import { state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 
 let _venueId, _token, _role;
-let _dishes   = [];          // [{id, name, category, sellingPrice, ingredients}]
-let _prices   = {};          // productId → {unitPrice, salePrice}
-let _loading  = true;
-let _error    = '';
-let _search   = '';
-let _catSet   = new Set();   // обрані категорії (порожнє = всі)
-let _selected  = null;       // dish id shown in sheet
-let _priceEdit = null;       // {productId, field}
-let _priceDraft = '';
+let _dishes    = [];          // [{id, name, category, sellingPrice, ingredients}]
+let _prices    = {};          // productId → {unitPrice, salePrice}
+let _loading   = true;
+let _syncing   = false;
+let _syncMsg   = '';
+let _error     = '';
+let _search    = '';
+let _catSet    = new Set();   // обрані категорії (порожнє = всі)
+let _selected  = null;        // dish id shown in sheet
+let _priceEdit = null;        // {productId, field}
+let _priceDraft  = '';
 let _priceSaving = false;
 
 function catsKey() { return `barops_fc_cats_${_venueId}`; }
@@ -87,6 +89,32 @@ async function loadAll() {
   _loading = false; re();
 }
 
+async function syncPrices() {
+  _syncing = true; _syncMsg = ''; re();
+  try {
+    const res = await fetch(`${API}/api/pos/sync-prices/${_venueId}`, {
+      method: 'POST', headers: hdrs(),
+    });
+    const d = await res.json();
+    if (res.ok) {
+      _syncMsg = `Синхронізовано: ${d.updated} цін`;
+      // Reload prices
+      const pr = await fetch(`${API}/api/pos/syrve-prices?venueId=${_venueId}`, { headers: hdrs() });
+      if (pr.ok) {
+        const pd = await pr.json();
+        _prices = {};
+        for (const p of (pd.prices || []))
+          _prices[p.productId] = { unitPrice: p.unitPrice, salePrice: p.salePrice };
+      }
+    } else {
+      _syncMsg = d.error || 'Помилка синхронізації';
+    }
+  } catch (e) {
+    _syncMsg = e.message;
+  }
+  _syncing = false; re();
+}
+
 async function savePrice(productId, field, value) {
   _priceSaving = true; re();
   const cur  = _prices[productId] || { unitPrice: 0, salePrice: 0 };
@@ -136,7 +164,8 @@ function on(e) {
   if (act === 'price-edit')   { _priceEdit = { productId: pid, field: fld }; _priceDraft = String(_prices[pid]?.[fld] || ''); re(); return; }
   if (act === 'price-save')   { if (_priceEdit) savePrice(_priceEdit.productId, _priceEdit.field, _priceDraft); return; }
   if (act === 'price-cancel') { _priceEdit = null; _priceDraft = ''; re(); return; }
-  if (act === 'reload') { loadAll(); }
+  if (act === 'reload') { loadAll(); return; }
+  if (act === 'sync-prices') { if (!_syncing) syncPrices(); }
 }
 
 function onInput(e) {
@@ -236,8 +265,12 @@ function buildMain() {
   <div class="rec-topbar">
     <div style="flex:1">
       <div class="rec-title">Фудкост</div>
-      <div class="rec-sub">${_dishes.length} страв · Syrve</div>
+      <div class="rec-sub">${_dishes.length} страв · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
+    ${_role === 'manager' ? `
+    <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--green)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#fff'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
+      ${_syncing ? '⏳ Синхронізація...' : '↻ Ціни з Syrve'}
+    </button>` : ''}
   </div>
 
   <div class="rec-scroll">
