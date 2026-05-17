@@ -239,13 +239,15 @@ function token() {
 ════════════════════════ */
 async function loadVenues() {
   try {
-    const res  = await fetch(`${API}/api/auth/venues`);
+    const res  = await fetch(`${API}/api/auth/venues`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    });
     const data = await res.json();
     if (data.success) {
       _venues = data.venues;
-      // Встановлюємо активний заклад менеджера за замовчуванням
       if (_venues.length > 0) {
-        const myVenue = _venues.find(v => v.id === (state.venueId || localStorage.getItem('barops_venueId')));
+        const targetId = _activeVenueId || state.venueId || localStorage.getItem('barops_venueId');
+        const myVenue = _venues.find(v => v.id === targetId);
         const def = myVenue || _venues[0];
         _activeVenueId   = def.id;
         _activeVenueName = def.name;
@@ -602,6 +604,13 @@ export default {
       closeVenueSheet,
       selectVenue,
     };
+
+    // Синхронізуємо активний заклад з глобального state (перемикання в drawer)
+    const savedVenueId = state.venueId || localStorage.getItem('barops_venueId');
+    if (savedVenueId) {
+      _activeVenueId   = savedVenueId;
+      _activeVenueName = state.venue || localStorage.getItem('barops_venue') || _activeVenueName;
+    }
 
     // Завантажуємо заклади і статистику
     await loadVenues();

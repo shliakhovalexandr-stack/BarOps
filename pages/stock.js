@@ -268,7 +268,7 @@ ${CSS}
     ${!_isSyrve ? `
     <div class="stk-note">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
-      Демо-дані. Після підключення iiko тут будуть реальні залишки з вашої POS-системи в режимі реального часу.
+      ${_venueId ? 'Завантаження залишків з Syrve…' : 'Демо-дані. Після підключення iiko тут будуть реальні залишки з вашої POS-системи.'}
     </div>` : ''}
 
     ${_isSyrve ? `<div style="padding:0 14px 8px;font-size:10px;color:var(--text3);font-family:var(--font-b)">← Свайп вліво для редагування</div>` : ''}
@@ -373,11 +373,13 @@ export default {
   render() {
     _filter = 'Всі'; _search = '';
     _isSyrve = false;
+    STOCK.length = 0;
+    CATS = ['Всі'];
     return buildHTML();
   },
   init() {
     window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab };
-    _venueId = localStorage.getItem('barops_venueId');
+    _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
 
     if (!_venueId || !_token) {
