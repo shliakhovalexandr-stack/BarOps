@@ -13,11 +13,18 @@ let _prices   = {};          // productId → {unitPrice, salePrice}
 let _loading  = true;
 let _error    = '';
 let _search   = '';
-let _catFilter = 'all';
+let _catSet   = new Set();   // обрані категорії (порожнє = всі)
 let _selected  = null;       // dish id shown in sheet
 let _priceEdit = null;       // {productId, field}
 let _priceDraft = '';
 let _priceSaving = false;
+
+function catsKey() { return `barops_fc_cats_${_venueId}`; }
+function saveCats() { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
+function loadCats() {
+  try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); }
+  catch (_) { _catSet = new Set(); }
+}
 
 // ── helpers ──────────────────────────────────────────────────
 function hdrs() {
@@ -41,7 +48,10 @@ function calcFC(dish) {
 }
 function re() {
   const el = document.getElementById('rec-root');
-  if (el) el.innerHTML = buildPage();
+  if (el) {
+    el.innerHTML = buildPage();
+    if (!_loading && !_error) applyFilter();
+  }
 }
 
 // ── data loading ─────────────────────────────────────────────
@@ -106,8 +116,16 @@ function on(e) {
     _selected = null; _priceEdit = null; re(); return;
   }
   if (act === 'cat') {
-    _catFilter = id;
-    document.querySelectorAll('.rec-cat').forEach(c => c.classList.toggle('act', c.dataset.id === id));
+    if (id === 'all') {
+      _catSet.clear();
+    } else {
+      if (_catSet.has(id)) _catSet.delete(id); else _catSet.add(id);
+    }
+    saveCats();
+    document.querySelectorAll('.rec-cat').forEach(c => {
+      const isAll = c.dataset.id === 'all';
+      c.classList.toggle('act', isAll ? _catSet.size === 0 : _catSet.has(c.dataset.id));
+    });
     applyFilter();
     return;
   }
@@ -127,7 +145,7 @@ function applyFilter() {
   const q = _search.toLowerCase();
   document.querySelectorAll('.rec-card').forEach(card => {
     const nameMatch = !q || (card.dataset.name || '').includes(q);
-    const catMatch  = _catFilter === 'all' || card.dataset.cat === _catFilter;
+    const catMatch  = _catSet.size === 0 || _catSet.has(card.dataset.cat);
     card.style.display = nameMatch && catMatch ? '' : 'none';
   });
 }
@@ -246,9 +264,9 @@ function buildMain() {
     </div>
 
     <div class="rec-cats">
-      ${cats.map(c => `<div class="rec-cat ${_catFilter === c ? 'act' : ''}" data-act="cat" data-id="${c}">
-        ${c === 'all' ? `Всі (${_dishes.length})` : c}
-      </div>`).join('')}
+      <div class="rec-cat ${_catSet.size === 0 ? 'act' : ''}" data-act="cat" data-id="all">Всі</div>
+      ${cats.filter(c => c !== 'all').map(c => `
+      <div class="rec-cat ${_catSet.has(c) ? 'act' : ''}" data-act="cat" data-id="${c}">${c}</div>`).join('')}
     </div>
 
     ${_dishes.map(d => {
@@ -403,8 +421,9 @@ export default {
     _token      = state.token   || localStorage.getItem('barops_token');
     _role       = state.role    || localStorage.getItem('barops_role');
     _dishes     = []; _prices = {}; _loading = true;
-    _error      = ''; _search = ''; _catFilter = 'all';
+    _error      = ''; _search = '';
     _selected   = null; _priceEdit = null; _priceDraft = '';
+    loadCats();
     return `${CSS}<div id="rec-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
   init() {
