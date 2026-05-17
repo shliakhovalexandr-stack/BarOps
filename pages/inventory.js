@@ -885,25 +885,25 @@ function on(e) {
 
 export default {
   render() {
+    // Ініціалізуємо стан тут — до того як init() викликається асинхронно
+    _venueId       = state.venueId || localStorage.getItem('barops_venueId');
+    _token         = state.token   || localStorage.getItem('barops_token');
+    _role          = state.role    || localStorage.getItem('barops_role');
+    _view          = _role === 'manager' ? 'mgr' : 'bar';
     _submitted     = false;
     _openPid       = null;
     _showSchedForm = false;
     _error         = '';
-    return `<div id="inv-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>`;
+    _loading       = true;
+    return `<div id="inv-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
 
   async init(_params) {
-    _venueId = state.venueId || localStorage.getItem('barops_venueId');
-    _token   = state.token   || localStorage.getItem('barops_token');
-    _role    = state.role    || localStorage.getItem('barops_role');
-    _view    = _role === 'manager' ? 'mgr' : 'bar';
-
     const root = document.getElementById('inv-root');
     if (root) {
       root.addEventListener('click',  on);
       root.addEventListener('change', on);
     }
-
     await loadAll();
   },
 
