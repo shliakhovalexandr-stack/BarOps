@@ -43,8 +43,8 @@ function calcCost(dish) {
       cost += (ing.grossAmount || 0) * (_prices[ing.productId]?.unitPrice || 0);
     return cost;
   }
-  // Без ТТК: 1) вручну внесена, 2) з Syrve costPrice
-  return _prices[dish.id]?.unitPrice || dish.costPrice || 0;
+  // Без ТТК: вручну внесена собівартість або 0
+  return _prices[dish.id]?.unitPrice || 0;
 }
 function calcFC(dish) {
   const cost  = calcCost(dish);
