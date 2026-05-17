@@ -883,27 +883,29 @@ function on(e) {
 
 /* ════════════════════════ EXPORTS ════════════════════════ */
 
-export const render = () => {
-  _submitted    = false;
-  _openPid      = null;
-  _showSchedForm = false;
-  _error        = '';
-  return `<div id="inv-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>`;
-};
+export default {
+  render() {
+    _submitted     = false;
+    _openPid       = null;
+    _showSchedForm = false;
+    _error         = '';
+    return `<div id="inv-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>`;
+  },
 
-export const init = async (container) => {
-  _venueId = state.venueId || localStorage.getItem('barops_venueId');
-  _token   = state.token   || localStorage.getItem('barops_token');
-  _role    = state.role    || localStorage.getItem('barops_role');
-  _view    = _role === 'manager' ? 'mgr' : 'bar';
+  async init(container) {
+    _venueId = state.venueId || localStorage.getItem('barops_venueId');
+    _token   = state.token   || localStorage.getItem('barops_token');
+    _role    = state.role    || localStorage.getItem('barops_role');
+    _view    = _role === 'manager' ? 'mgr' : 'bar';
 
-  container.addEventListener('click',   on);
-  container.addEventListener('change',  on);
+    container.addEventListener('click',  on);
+    container.addEventListener('change', on);
 
-  await loadAll();
-};
+    await loadAll();
+  },
 
-export const cleanup = (container) => {
-  container.removeEventListener('click',   on);
-  container.removeEventListener('change',  on);
+  cleanup(container) {
+    container.removeEventListener('click',  on);
+    container.removeEventListener('change', on);
+  },
 };

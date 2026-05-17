@@ -78,10 +78,12 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
-    route: 'shift-log', label: 'Журнал',
+    route: 'inventory', label: 'Облік',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <rect x="4" y="3" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/>
-      <path d="M7 8h8M7 12h8M7 16h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M7 8h8M7 12h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="16" cy="15" r="3" fill="currentColor" opacity=".7"/>
+      <path d="M15 15l.8.8L17 14" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`,
   },
   {
@@ -148,12 +150,13 @@ const TAB_BAR_MANAGER = [
    4. DRAWER (менеджер)
    ══════════════════════════════════════ */
 const DRAWER_NAV = [
-  { route:'dashboard', label:'Дашборд',    icon:'🏠' },
-  { route:'team',      label:'Команда',    icon:'👥' },
-  { route:'ordering',  label:'Замовлення', icon:'📦' },
-  { route:'recipes',   label:'Фудкост',    icon:'🍸' },
-  { route:'analytics', label:'Аналітика',  icon:'📊' },
-  { route:'profile',   label:'Профіль',    icon:'👤' },
+  { route:'dashboard',  label:'Дашборд',        icon:'🏠' },
+  { route:'team',       label:'Команда',         icon:'👥' },
+  { route:'ordering',   label:'Замовлення',      icon:'📦' },
+  { route:'inventory',  label:'Інвентаризація',  icon:'📋' },
+  { route:'recipes',    label:'Фудкост',         icon:'🍸' },
+  { route:'analytics',  label:'Аналітика',       icon:'📊' },
+  { route:'profile',    label:'Профіль',         icon:'👤' },
 ];
 
 function renderDrawer() {
