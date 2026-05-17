@@ -34,8 +34,12 @@ function fcColor(fc) {
   return fc == null ? 'var(--text2)' : fc > 25 ? 'var(--red)' : fc > 20 ? 'var(--amber)' : 'var(--green)';
 }
 function calcCost(dish) {
+  if (!(dish.ingredients || []).length) {
+    // без ТТК: unitPrice = собівартість порції напряму
+    return _prices[dish.id]?.unitPrice || 0;
+  }
   let cost = 0;
-  for (const ing of (dish.ingredients || [])) {
+  for (const ing of dish.ingredients) {
     cost += (ing.grossAmount || 0) * (_prices[ing.productId]?.unitPrice || 0);
   }
   return cost;
@@ -337,13 +341,17 @@ function buildDetail(d) {
   </div>
 
   ${buildPriceRow(d.id, 'salePrice', price, 'Ціна продажу', '₴', isMgr)}
+  ${!(d.ingredients || []).length ? buildPriceRow(d.id, 'unitPrice', _prices[d.id]?.unitPrice || 0, 'Собівартість порції', '₴', isMgr) : ''}
 
   <div class="rec-sheet-scroll">
-    <div style="padding:10px 16px 4px;font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em">Технологічна карта (ТТК)</div>
+    ${(d.ingredients || []).length ? `
+    <div style="padding:10px 16px 4px;font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em">Технологічна карта (ТТК)</div>` : ''}
 
     ${(d.ingredients || []).length === 0 ? `
-    <div style="padding:24px;text-align:center;color:var(--text2);font-size:13px;font-family:var(--font-b)">
-      ТТК не знайдена — Syrve може не повертати склад страви
+    <div style="padding:16px 16px 4px">
+      <div style="background:var(--bg3);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.6">
+        ТТК в Syrve не задана. Вкажіть собівартість порції і ціну продажу вище — фудкост розрахується автоматично.
+      </div>
     </div>` : (d.ingredients || []).map(ing => {
       const ingPrice = _prices[ing.productId]?.unitPrice || 0;
       const ingCost  = (ing.grossAmount || 0) * ingPrice;
