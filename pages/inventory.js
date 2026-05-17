@@ -892,20 +892,26 @@ export default {
     return `<div id="inv-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>`;
   },
 
-  async init(container) {
+  async init(_params) {
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = state.token   || localStorage.getItem('barops_token');
     _role    = state.role    || localStorage.getItem('barops_role');
     _view    = _role === 'manager' ? 'mgr' : 'bar';
 
-    container.addEventListener('click',  on);
-    container.addEventListener('change', on);
+    const root = document.getElementById('inv-root');
+    if (root) {
+      root.addEventListener('click',  on);
+      root.addEventListener('change', on);
+    }
 
     await loadAll();
   },
 
-  cleanup(container) {
-    container.removeEventListener('click',  on);
-    container.removeEventListener('change', on);
+  cleanup(_params) {
+    const root = document.getElementById('inv-root');
+    if (root) {
+      root.removeEventListener('click',  on);
+      root.removeEventListener('change', on);
+    }
   },
 };
