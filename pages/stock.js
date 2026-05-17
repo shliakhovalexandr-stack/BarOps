@@ -21,6 +21,7 @@ let CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
 let _filter = 'Всі';
 let _search = '';
 let _isSyrve = false;
+let _balanceError = '';
 let _categoryMap = {}; // productId → customCategory
 let _normsMap = {};    // productId → { reorderPoint, desiredStock }
 let _venueId = null;
@@ -265,7 +266,11 @@ ${CSS}
       ${CATS.map(c => `<div class="stk-chip ${_filter===c?'act':''}" onclick="window.__stk.setFilter('${c}')">${c}</div>`).join('')}
     </div>
 
-    ${!_isSyrve ? `
+    ${!_isSyrve && _balanceError ? `
+    <div class="stk-note" style="background:var(--red-bg,#2d1b1b);border-color:var(--red-border,#5c2b2b)">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--red)" stroke-width="1.2"/><path d="M7 4v3M7 9v.5" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <span style="color:var(--red)">Помилка залишків: ${_balanceError}</span>
+    </div>` : !_isSyrve ? `
     <div class="stk-note">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
       ${_venueId ? 'Завантаження залишків з Syrve…' : 'Демо-дані. Після підключення iiko тут будуть реальні залишки з вашої POS-системи.'}
@@ -377,75 +382,72 @@ export default {
     CATS = ['Всі'];
     return buildHTML();
   },
-  init() {
+  async init() {
     window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab };
-    _venueId = state.venueId || localStorage.getItem('barops_venueId');
-    _token   = localStorage.getItem('barops_token');
+    _venueId      = state.venueId || localStorage.getItem('barops_venueId');
+    _token        = localStorage.getItem('barops_token');
+    _balanceError = '';
 
     if (!_venueId || !_token) {
       console.warn('[Stock] venueId або token відсутні');
       return;
     }
 
-    // Завантажуємо mappings і баланс паралельно
-    Promise.all([
+    // Завантажуємо mappings, баланс і норми паралельно
+    const [mappingsData, balanceData, normsData] = await Promise.all([
       fetch(`${API}/api/pos/category-mappings/${_venueId}`, {
         headers: { 'Authorization': `Bearer ${_token}` },
       }).then(r => r.json()).catch(() => ({ mappings: [] })),
 
       fetch(`${API}/api/pos/balance/${_venueId}`, {
         headers: { 'Authorization': `Bearer ${_token}` },
-      }).then(r => r.json()),
+      }).then(r => r.json()).catch(e => ({ success: false, error: e.message })),
 
       fetch(`${API}/api/pos/norms/${_venueId}`, {
         headers: { 'Authorization': `Bearer ${_token}` },
       }).then(r => r.json()).catch(() => ({ norms: [] })),
-    ])
-    .then(([mappingsData, balanceData, normsData]) => {
-      // Будуємо словник кастомних категорій
-      _categoryMap = {};
-      if (mappingsData.mappings) {
-        for (const m of mappingsData.mappings) {
-          _categoryMap[m.productId] = m.customCategory;
-        }
-      }
+    ]);
 
-      _normsMap = {};
-      if (normsData.norms) {
-        for (const n of normsData.norms) {
-          _normsMap[n.productId] = { reorderPoint: n.reorderPoint, desiredStock: n.desiredStock };
-        }
-      }
+    // Категорії
+    _categoryMap = {};
+    for (const m of (mappingsData.mappings || []))
+      _categoryMap[m.productId] = m.customCategory;
 
-      if (balanceData.success && balanceData.stores?.length) {
-        STOCK.length = 0;
-        let id = 1;
-        for (const store of balanceData.stores) {
-          for (const item of store.items) {
-            const defaultCat = item.category || store.storeName;
-            const customCat  = _categoryMap[item.id] || defaultCat;
-            STOCK.push({
-              id:     id++,
-              posId:  item.id,
-              emoji:  '',
-              name:   item.name,
-              cat:    customCat,
-              qty:    Math.round((Number(item.amount) || 0) * 100) / 100,
-              unit:   item.unit || 'л',
-              norm:   (_normsMap[item.id]?.desiredStock || _normsMap[item.id]?.reorderPoint || 0),
-              reorderPoint: (_normsMap[item.id]?.reorderPoint || 0),
-              status: (Number(item.amount) || 0) < (_normsMap[item.id]?.reorderPoint || 0) ? 'low' : 'ok',
-            });
-          }
+    // Норми
+    _normsMap = {};
+    for (const n of (normsData.norms || []))
+      _normsMap[n.productId] = { reorderPoint: n.reorderPoint, desiredStock: n.desiredStock };
+
+    // Баланс
+    if (balanceData.success && balanceData.stores?.length) {
+      STOCK.length = 0;
+      let id = 1;
+      for (const store of balanceData.stores) {
+        for (const item of store.items) {
+          const defaultCat = item.category || store.storeName;
+          const customCat  = _categoryMap[item.id] || defaultCat;
+          STOCK.push({
+            id:           id++,
+            posId:        item.id,
+            emoji:        '',
+            name:         item.name,
+            cat:          customCat,
+            qty:          Math.round((Number(item.amount) || 0) * 100) / 100,
+            unit:         item.unit || 'л',
+            norm:         (_normsMap[item.id]?.desiredStock || _normsMap[item.id]?.reorderPoint || 0),
+            reorderPoint: (_normsMap[item.id]?.reorderPoint || 0),
+            status:       (Number(item.amount) || 0) < (_normsMap[item.id]?.reorderPoint || 0) ? 'low' : 'ok',
+          });
         }
-        _isSyrve = true;
-        CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
-        const v = document.getElementById('app-view');
-        if (v) v.innerHTML = buildHTML();
       }
-    })
-    .catch(err => {
-      console.error('[Stock] fetch error:', err);
-    });
+      _isSyrve = true;
+      CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
+    } else {
+      _balanceError = balanceData.error || balanceData.warning || 'Порожня відповідь';
+      console.warn('[Stock] balance failed:', _balanceError);
+    }
+
+    const v = document.getElementById('app-view');
+    if (v) v.innerHTML = buildHTML();
   },
 };
