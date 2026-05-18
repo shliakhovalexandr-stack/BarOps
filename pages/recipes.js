@@ -26,16 +26,20 @@ let _showFCSettings = false;
 let _hidden      = new Set();   // сховані dish IDs
 let _showHidden  = false;       // показувати сховані у списку
 let _swipedId    = null;        // card зараз відкрита свайпом
+let _storeSet    = new Set();   // обрані склади (порожнє = всі)
 
 // ── storage ──────────────────────────────────────────────────
 function catsKey()    { return `barops_fc_cats_${_venueId}`; }
 function threshKey()  { return `barops_fc_thresh_${_venueId}`; }
 function hiddenKey()  { return `barops_hidden_${_venueId}`; }
 
-function saveCats()   { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
-function loadCats()   { try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); } catch { _catSet = new Set(); } }
-function saveHidden() { localStorage.setItem(hiddenKey(), JSON.stringify([..._hidden])); }
-function loadHidden() { try { _hidden = new Set(JSON.parse(localStorage.getItem(hiddenKey()) || '[]')); } catch { _hidden = new Set(); } }
+function storeKey()   { return `barops_fc_stores_${_venueId}`; }
+function saveCats()    { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
+function loadCats()    { try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); } catch { _catSet = new Set(); } }
+function saveHidden()  { localStorage.setItem(hiddenKey(), JSON.stringify([..._hidden])); }
+function loadHidden()  { try { _hidden = new Set(JSON.parse(localStorage.getItem(hiddenKey()) || '[]')); } catch { _hidden = new Set(); } }
+function saveStores()  { localStorage.setItem(storeKey(), JSON.stringify([..._storeSet])); }
+function loadStores()  { try { _storeSet = new Set(JSON.parse(localStorage.getItem(storeKey()) || '[]')); } catch { _storeSet = new Set(); } }
 
 function loadThresholds() {
   try {
@@ -51,8 +55,10 @@ function saveThresholds() {
 // ── filtered dishes ───────────────────────────────────────────
 // KPI і список рахуються тільки по видимих стравах
 function filteredDishes() {
-  let arr = _catSet.size === 0 ? _dishes : _dishes.filter(d => _catSet.has(d.category));
-  if (!_showHidden) arr = arr.filter(d => !_hidden.has(d.id));
+  let arr = _dishes;
+  if (_storeSet.size > 0) arr = arr.filter(d => _storeSet.has(d.store));
+  if (_catSet.size > 0)   arr = arr.filter(d => _catSet.has(d.category));
+  if (!_showHidden)       arr = arr.filter(d => !_hidden.has(d.id));
   return arr;
 }
 
@@ -271,7 +277,14 @@ function on(e) {
     if (id === 'all') _catSet.clear();
     else { if (_catSet.has(id)) _catSet.delete(id); else _catSet.add(id); }
     saveCats();
-    re(); // повний ре-рендер щоб KPI теж оновився
+    re();
+    return;
+  }
+  if (act === 'store') {
+    if (id === 'all') _storeSet.clear();
+    else { if (_storeSet.has(id)) _storeSet.delete(id); else _storeSet.add(id); }
+    saveStores();
+    re();
     return;
   }
   if (act === 'hide-dish') {
@@ -368,9 +381,64 @@ function toggleSection(cat) {
   if (_catSet.has(cat)) _catSet.delete(cat);
   else _catSet.add(cat);
   saveCats();
-  // Re-render sheet in place to update checkmarks
   closeSectionFilter();
   openSectionFilter();
+  re();
+}
+
+function openStoreFilter() {
+  const existing = document.getElementById('rec-store-sheet');
+  if (existing) { existing.remove(); return; }
+  const stores = [...new Set(_dishes.map(d => d.store).filter(Boolean))].sort();
+  if (stores.length === 0) return;
+  const isAll = _storeSet.size === 0;
+  const sheet = document.createElement('div');
+  sheet.id = 'rec-store-sheet';
+  sheet.className = 'rec-sheet-ov open';
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:200';
+  sheet.innerHTML = `
+    <div class="rec-sheet" style="max-height:75vh;overflow-y:auto">
+      <div class="rec-sheet-handle"></div>
+      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">Склад</div>
+      <div class="rec-section-row ${isAll ? 'sel' : ''}" onclick="window.__rec.selectAllStores()">
+        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">Всі склади</div>
+        ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>
+      ${stores.map(s => {
+        const dishCount = _dishes.filter(d => d.store === s).length;
+        return `
+      <div class="rec-section-row ${_storeSet.has(s) ? 'sel' : ''}" onclick="window.__rec.toggleStore('${s.replace(/'/g,"\\'")}')">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${s}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${dishCount} страв</div>
+        </div>
+        ${_storeSet.has(s) ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>`;
+      }).join('')}
+      <div style="height:24px"></div>
+    </div>`;
+  sheet.addEventListener('click', e => { if (e.target === sheet) closeStoreFilter(); });
+  document.body.appendChild(sheet);
+}
+
+function closeStoreFilter() {
+  const s = document.getElementById('rec-store-sheet');
+  if (s) s.remove();
+}
+
+function selectAllStores() {
+  _storeSet.clear();
+  saveStores();
+  closeStoreFilter();
+  re();
+}
+
+function toggleStore(store) {
+  if (_storeSet.has(store)) _storeSet.delete(store);
+  else _storeSet.add(store);
+  saveStores();
+  closeStoreFilter();
+  openStoreFilter();
   re();
 }
 
@@ -475,6 +543,10 @@ function buildMain() {
   const filterLabel = _catSet.size === 0 ? 'Розділ'
     : _catSet.size === 1 ? (activeSingle.slice(0, 10) + (activeSingle.length > 10 ? '…' : ''))
     : `${_catSet.size} розд.`;
+  const storeLabel = _storeSet.size === 0 ? 'Склад'
+    : _storeSet.size === 1 ? ([..._storeSet][0].slice(0, 10) + ([..._storeSet][0].length > 10 ? '…' : ''))
+    : `${_storeSet.size} скл.`;
+  const allStores = [...new Set(_dishes.map(d => d.store).filter(Boolean))].sort();
 
   const subtitleCount = visible.length < _dishes.length
     ? `${visible.length}/${_dishes.length} страв`
@@ -487,6 +559,10 @@ function buildMain() {
     <div style="flex:1">
       <div class="rec-title">Фудкост</div>
       <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
+    </div>
+    <div class="rec-filter-btn ${_storeSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openStoreFilter()" ${allStores.length === 0 ? 'style="display:none"' : ''}>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 11V5.5L7 2l5 3.5V11H9.5V8H4.5v3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      ${storeLabel}
     </div>
     <div class="rec-filter-btn ${_catSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openSectionFilter()">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -731,10 +807,11 @@ export default {
     loadCats();
     loadThresholds();
     loadHidden();
+    loadStores();
     return `${CSS}<div id="rec-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
   init() {
-    window.__rec = { openSectionFilter, closeSectionFilter, selectSection, toggleSection };
+    window.__rec = { openSectionFilter, closeSectionFilter, selectSection, toggleSection, openStoreFilter, closeStoreFilter, selectAllStores, toggleStore };
     const root = document.getElementById('rec-root');
     if (root) {
       root.addEventListener('click', on);
