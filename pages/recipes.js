@@ -94,8 +94,28 @@ function fetchWithTimeout(url, opts, timeoutMs) {
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
 }
 
+const DISHES_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 годин
+function dishCacheKey() { return `barops_dishes_${_venueId}`; }
+function loadDishesFromCache() {
+  try {
+    const raw = localStorage.getItem(dishCacheKey());
+    if (!raw) return null;
+    const { dishes, ts } = JSON.parse(raw);
+    if (Date.now() - ts > DISHES_CACHE_TTL) return null;
+    return dishes;
+  } catch { return null; }
+}
+function saveDishesToCache(dishes) {
+  try { localStorage.setItem(dishCacheKey(), JSON.stringify({ dishes, ts: Date.now() })); } catch {}
+}
+
 async function loadAll(attempt = 1) {
-  _loading = true; _error = ''; re();
+  // Показуємо кешовані страви одразу — не чекаємо мережу
+  const cached = loadDishesFromCache();
+  if (cached && _dishes.length === 0) { _dishes = cached; }
+  _loading = !cached || _dishes.length === 0;
+  _error = '';
+  re();
 
   const [dishResult, priceResult] = await Promise.allSettled([
     fetchWithTimeout(`${API}/api/pos/dishes/${_venueId}`, { headers: hdrs() }, 120000),
@@ -105,18 +125,21 @@ async function loadAll(attempt = 1) {
   // Страви
   if (dishResult.status === 'fulfilled' && dishResult.value.ok) {
     const d = await dishResult.value.json().catch(() => ({}));
-    _dishes = d.dishes || [];
+    if (d.dishes?.length) {
+      _dishes = d.dishes;
+      saveDishesToCache(_dishes);
+    }
   } else if (dishResult.status === 'rejected') {
     const isNetwork = dishResult.reason?.name === 'AbortError' || dishResult.reason?.message?.includes('fetch');
-    if (isNetwork && attempt < 3) {
-      console.warn(`[Recipes] loadAll retry ${attempt}/3`);
-      await new Promise(r => setTimeout(r, 2000 * attempt));
+    if (isNetwork && attempt < 4) {
+      console.warn(`[Recipes] loadAll retry ${attempt}/4`);
+      await new Promise(r => setTimeout(r, 3000 * attempt));
       return loadAll(attempt + 1);
     }
-    _error = 'Не вдалося завантажити страви. Перевірте підключення.';
+    if (_dishes.length === 0) _error = 'Немає зв\'язку. Перевірте інтернет.';
   } else if (dishResult.status === 'fulfilled' && !dishResult.value.ok) {
     const d = await dishResult.value.json().catch(() => ({}));
-    _error = d.error || 'Помилка завантаження страв';
+    if (_dishes.length === 0) _error = d.error || 'Помилка завантаження страв';
   }
 
   // Ціни (не критично — продовжуємо навіть якщо впали)
