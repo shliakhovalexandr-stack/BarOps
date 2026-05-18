@@ -26,6 +26,8 @@ let _categoryMap = {}; // productId → customCategory
 let _normsMap = {};    // productId → { reorderPoint, desiredStock }
 let _venueId = null;
 let _token = null;
+let _availableStores = []; // [{storeId, storeName}]
+let _storeFilter = null;   // UUID or null = all stores
 const API = 'https://barops-backend-production.up.railway.app';
 
 const CSS = `<style id="stk-css">
@@ -71,6 +73,13 @@ const CSS = `<style id="stk-css">
 .stk-row-wrap.swiped .stk-row-actions{opacity:1;pointer-events:auto}
 .stk-row-wrap.swiped .stk-row{transform:translateX(-144px);transition:transform .2s}
 .stk-row{transition:transform .2s}
+
+/* Filter button */
+.stk-filter-btn{height:32px;padding:0 10px;border-radius:16px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.stk-filter-btn.active{background:var(--green-bg,#1a3320);border-color:var(--green);color:var(--green)}
+.stk-store-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border2);cursor:pointer;margin-bottom:6px;transition:background .12s}
+.stk-store-row:active{background:var(--bg3)}
+.stk-store-row.sel{background:var(--green-bg,#1a3320);border-color:var(--green)}
 
 /* Модалка редагування категорії */
 .stk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
@@ -217,15 +226,25 @@ async function saveCategory() {
 }
 
 function buildHTML() {
-  const list = STOCK.filter(s => {
-    const catOk = _filter === 'Всі' || s.cat === _filter;
+  const storeStock = _storeFilter
+    ? STOCK.filter(s => s.storeId === _storeFilter)
+    : STOCK;
+
+  const storeCats = ['Всі', ...new Set(storeStock.map(s => s.cat))];
+  const activeFilter = storeCats.includes(_filter) ? _filter : 'Всі';
+
+  const list = storeStock.filter(s => {
+    const catOk = activeFilter === 'Всі' || s.cat === activeFilter;
     const srchOk = !_search || s.name.toLowerCase().includes(_search.toLowerCase());
     return catOk && srchOk;
   });
 
-  const total = STOCK.length;
-  const low   = STOCK.filter(s => s.status === 'low').length;
-  const ok    = STOCK.filter(s => s.status === 'ok').length;
+  const total = storeStock.length;
+  const low   = storeStock.filter(s => s.status === 'low').length;
+  const ok    = storeStock.filter(s => s.status === 'ok').length;
+  const activeStoreName = _storeFilter
+    ? (_availableStores.find(s => s.storeId === _storeFilter)?.storeName || 'Склад')
+    : null;
 
   return `
 ${CSS}
@@ -235,10 +254,15 @@ ${CSS}
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div style="flex:1">
-      <div class="stk-title">Всі залишки</div>
+      <div class="stk-title">Залишки${activeStoreName ? ` · ${activeStoreName}` : ''}</div>
       <div class="stk-sub">${state.venue} · ${_isSyrve ? 'Syrve · реальні дані' : 'демо-дані'}</div>
     </div>
     <div style="background:${low>0?'var(--red-bg)':'var(--green-bg)'};border:0.5px solid ${low>0?'var(--red-border)':'var(--green-border)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${low>0?'var(--red)':'var(--green)'};font-family:var(--font-b)">${low > 0 ? `⚠ ${low} критично` : '✓ Все ок'}</div>
+    ${_isSyrve && _availableStores.length > 1 ? `
+    <div class="stk-filter-btn ${_storeFilter ? 'active' : ''}" onclick="window.__stk.openFilters()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      ${_storeFilter ? 'Склад ✓' : 'Фільтри'}
+    </div>` : ''}
   </div>
 
   <div class="stk-scroll">
@@ -263,7 +287,7 @@ ${CSS}
     </div>
 
     <div class="stk-chips">
-      ${CATS.map(c => `<div class="stk-chip ${_filter===c?'act':''}" onclick="window.__stk.setFilter('${c}')">${c}</div>`).join('')}
+      ${storeCats.map(c => `<div class="stk-chip ${activeFilter===c?'act':''}" onclick="window.__stk.setFilter('${c}')">${c}</div>`).join('')}
     </div>
 
     ${!_isSyrve && _balanceError ? `
@@ -327,6 +351,46 @@ function fullRender() {
 function setFilter(f) { _filter = f; fullRender(); }
 function search(q)    { _search = q; fullRender(); }
 
+function openFilters() {
+  const existing = document.getElementById('stk-store-sheet');
+  if (existing) { existing.remove(); return; }
+  const sheet = document.createElement('div');
+  sheet.id = 'stk-store-sheet';
+  sheet.className = 'stk-modal-overlay';
+  const allOption = { storeId: null, storeName: 'Всі склади' };
+  const options = [allOption, ..._availableStores];
+  sheet.innerHTML = `
+    <div class="stk-modal" style="max-height:70vh;overflow-y:auto">
+      <div class="stk-modal-title">Вибір складу</div>
+      <div class="stk-modal-sub">Оберіть склад для перегляду залишків</div>
+      ${options.map(s => `
+        <div class="stk-store-row ${_storeFilter === s.storeId ? 'sel' : ''}"
+          onclick="window.__stk.setStoreFilter(${s.storeId ? `'${s.storeId}'` : 'null'})">
+          <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">${s.storeName}</div>
+          ${_storeFilter === s.storeId ? `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
+        </div>`).join('')}
+      <button class="stk-modal-cancel" onclick="window.__stk.closeFilters()">Закрити</button>
+    </div>`;
+  document.body.appendChild(sheet);
+}
+
+function closeFilters() {
+  const s = document.getElementById('stk-store-sheet');
+  if (s) s.remove();
+}
+
+function setStoreFilter(storeId) {
+  _storeFilter = storeId === 'null' ? null : storeId;
+  if (_storeFilter && _venueId) {
+    localStorage.setItem(`barops_stock_store_${_venueId}`, _storeFilter);
+  } else if (_venueId) {
+    localStorage.removeItem(`barops_stock_store_${_venueId}`);
+  }
+  _filter = 'Всі';
+  closeFilters();
+  fullRender();
+}
+
 let _swipeStartX = 0;
 let _swipeStartY = 0;
 let _swipeActive = null;
@@ -378,12 +442,14 @@ export default {
   render() {
     _filter = 'Всі'; _search = '';
     _isSyrve = false;
+    _availableStores = [];
+    _storeFilter = null;
     STOCK.length = 0;
     CATS = ['Всі'];
     return buildHTML();
   },
   async init() {
-    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab };
+    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab, openFilters, closeFilters, setStoreFilter };
     _venueId      = state.venueId || localStorage.getItem('barops_venueId');
     _token        = localStorage.getItem('barops_token');
     _balanceError = '';
@@ -421,6 +487,12 @@ export default {
     // Баланс
     if (balanceData.success && balanceData.stores?.length) {
       STOCK.length = 0;
+      _availableStores = balanceData.stores.map(s => ({ storeId: s.storeId, storeName: s.storeName }));
+      // Restore saved store filter
+      const savedFilter = localStorage.getItem(`barops_stock_store_${_venueId}`);
+      if (savedFilter && _availableStores.some(s => s.storeId === savedFilter)) {
+        _storeFilter = savedFilter;
+      }
       let id = 1;
       for (const store of balanceData.stores) {
         for (const item of store.items) {
@@ -429,6 +501,7 @@ export default {
           STOCK.push({
             id:           id++,
             posId:        item.id,
+            storeId:      store.storeId,
             emoji:        '',
             name:         item.name,
             cat:          customCat,
