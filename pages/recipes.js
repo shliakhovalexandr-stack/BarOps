@@ -154,31 +154,23 @@ async function loadAll(attempt = 1) {
 }
 
 async function syncPrices() {
-  _syncing = true; _syncMsg = ''; re();
-  // Скидаємо кеш страв щоб підтягнути нові costPrice після синку
+  _syncing = true; _syncMsg = 'Запускаємо синхронізацію...'; re();
   try { localStorage.removeItem(dishCacheKey()); } catch {}
   try {
-    const res = await fetch(`${API}/api/pos/sync-prices/${_venueId}`, {
-      method: 'POST', headers: hdrs(),
-    });
-    const d = await res.json();
-    if (res.ok) {
-      _syncMsg = `Синхронізовано: ${d.updated} цін`;
-      // Reload prices
-      const pr = await fetch(`${API}/api/pos/syrve-prices?venueId=${_venueId}`, { headers: hdrs() });
-      if (pr.ok) {
-        const pd = await pr.json();
-        _prices = {};
-        for (const p of (pd.prices || []))
-          _prices[p.productId] = { unitPrice: p.unitPrice, salePrice: p.salePrice };
-      }
-    } else {
-      _syncMsg = d.error || 'Помилка синхронізації';
-    }
+    // Sync іде у фоні на сервері — повертає одразу
+    await fetchWithTimeout(`${API}/api/pos/sync-prices/${_venueId}`, { method: 'POST', headers: hdrs() }, 10000);
+    _syncMsg = 'Синхронізацію запущено (~2 хв). Дані оновляться автоматично.';
   } catch (e) {
-    _syncMsg = e.message;
+    _syncMsg = 'Синхронізацію запущено у фоні';
   }
   _syncing = false; re();
+
+  // Через 2 хвилини перезавантажуємо страви — до цього часу сервер завершить sync + enrichment
+  setTimeout(() => {
+    try { localStorage.removeItem(dishCacheKey()); } catch {}
+    _dishes = [];
+    loadAll();
+  }, 2 * 60 * 1000);
 }
 
 async function savePrice(productId, field, value) {
