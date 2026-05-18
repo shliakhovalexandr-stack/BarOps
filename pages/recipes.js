@@ -42,8 +42,13 @@ function saveThresholds() {
   localStorage.setItem(threshKey(), JSON.stringify({ min: _fcMin, max: _fcMax }));
 }
 function fmtFC(fc) {
-  if (fc === null) return '—';
-  return fc.toFixed(1).replace('.', ',') + '%';
+  if (fc === null || fc === undefined || isNaN(fc) || !isFinite(fc)) return '—';
+  // calcFC вже повертає відсоток (32.45), не частку (0.3245)
+  return fc.toFixed(2).replace('.', ',') + '%';
+}
+function fmtPrice(val) {
+  if (!val) return '—';
+  return val.toFixed(2).replace('.', ',') + ' ₴';
 }
 
 // ── helpers ──────────────────────────────────────────────────
@@ -70,8 +75,10 @@ function calcCost(dish) {
 function calcFC(dish) {
   const cost  = calcCost(dish);
   const price = _prices[dish.id]?.salePrice || dish.sellingPrice || 0;
-  if (!price || !cost) return null;
-  return cost / price * 100;
+  if (!price || !cost || price <= 0) return null;
+  const fc = (cost / price) * 100;
+  // Захист від аномалій (>999% = невалідні дані)
+  return isFinite(fc) && fc <= 999 ? fc : null;
 }
 function re() {
   const el = document.getElementById('rec-root');
@@ -298,6 +305,9 @@ const CSS = `<style id="rec-css">
 .rec-price-inp{width:70px;height:28px;background:var(--bg3);border:1px solid var(--green);border-radius:7px;color:var(--text0);font-size:12px;text-align:right;padding:0 6px;outline:none}
 .rec-btn-ok{height:28px;padding:0 8px;background:var(--green);border:none;border-radius:7px;color:#fff;font-size:11px;cursor:pointer;font-family:var(--font-b)}
 .rec-btn-cancel{height:28px;padding:0 8px;background:var(--bg3);border:none;border-radius:7px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font-b)}
+.rec-card.warn-low{border-color:var(--amber)!important}
+.rec-card.warn-high{border-color:var(--red)!important}
+.rec-warn-icon{width:18px;height:18px;flex-shrink:0}
 .rec-settings-bar{display:flex;align-items:center;gap:8px;padding:0 14px 10px;flex-wrap:wrap}
 .rec-thresh-inp{width:52px;height:30px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text0);font-size:13px;text-align:center;padding:0 6px;outline:none;font-family:var(--font-b)}
 .rec-thresh-inp:focus{border-color:var(--green)}
@@ -417,12 +427,22 @@ function buildMain() {
       const fc    = calcFC(d);
       const price = _prices[d.id]?.salePrice || d.sellingPrice || 0;
       const color = fcColor(fc);
+      const isHigh = fc !== null && fc > _fcMax;
+      const isLow  = fc !== null && _fcMin > 0 && fc < _fcMin;
+      const warnClass = isHigh ? 'warn-high' : isLow ? 'warn-low' : '';
+      const warnIcon = isHigh
+        ? `<svg class="rec-warn-icon" viewBox="0 0 18 18" fill="none"><path d="M9 2L16.5 15H1.5L9 2Z" stroke="var(--red)" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 7v4M9 12.5v.5" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round"/></svg>`
+        : isLow
+        ? `<svg class="rec-warn-icon" viewBox="0 0 18 18" fill="none"><path d="M9 2L16.5 15H1.5L9 2Z" stroke="var(--amber)" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 7v4M9 12.5v.5" stroke="var(--amber)" stroke-width="1.3" stroke-linecap="round"/></svg>`
+        : '';
       return `
-    <div class="rec-card" data-act="open" data-id="${d.id}"
+    <div class="rec-card ${warnClass}" data-act="open" data-id="${d.id}"
          data-name="${(d.name || '').toLowerCase()}" data-cat="${d.category || ''}">
       <div class="rec-card-top">
         <div style="flex:1;min-width:0">
-          <div class="rec-name">${d.name}</div>
+          <div class="rec-name" style="display:flex;align-items:center;gap:6px">
+            ${d.name}${warnIcon}
+          </div>
           <div class="rec-cat-lbl">${d.category || '—'} · ${(d.ingredients || []).length} інгр.</div>
         </div>
         <div class="rec-fc-badge" style="background:${color}22;color:${color}">
@@ -431,11 +451,11 @@ function buildMain() {
       </div>
       <div class="rec-metrics">
         <div class="rec-metric">
-          <div class="rec-metric-val">${price ? price + ' ₴' : '—'}</div>
+          <div class="rec-metric-val">${price ? price.toFixed(2).replace('.', ',') + ' ₴' : '—'}</div>
           <div class="rec-metric-lbl">Ціна</div>
         </div>
         <div class="rec-metric">
-          <div class="rec-metric-val">${cost ? cost.toFixed(2).replace('.', ',') + ' ₴' : '—'}</div>
+          <div class="rec-metric-val">${fmtPrice(cost || null)}</div>
           <div class="rec-metric-lbl">Собівартість</div>
         </div>
         <div class="rec-metric">
@@ -526,7 +546,7 @@ function buildDetail(d) {
     <!-- Totals -->
     <div style="padding:12px 16px;background:var(--bg3);display:flex;justify-content:space-between;align-items:center;margin-top:4px;flex-shrink:0">
       <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Собівартість</div>
-      <div style="font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">${cost ? cost.toFixed(2) + ' ₴' : '—'}</div>
+      <div style="font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">${fmtPrice(cost || null)}</div>
     </div>
     ${fc !== null ? `
     <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
