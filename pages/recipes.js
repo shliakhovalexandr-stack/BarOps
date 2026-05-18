@@ -8,42 +8,57 @@ import { state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 
 let _venueId, _token, _role;
-let _dishes    = [];          // [{id, name, category, sellingPrice, ingredients}]
-let _prices    = {};          // productId → {unitPrice, salePrice}
+let _dishes    = [];
+let _prices    = {};
 let _loading   = true;
 let _syncing   = false;
 let _syncMsg   = '';
 let _error     = '';
 let _search    = '';
-let _catSet    = new Set();   // обрані категорії (порожнє = всі)
-let _selected  = null;        // dish id shown in sheet
-let _priceEdit = null;        // {productId, field}
+let _catSet    = new Set();
+let _selected  = null;
+let _priceEdit = null;
 let _priceDraft  = '';
 let _priceSaving = false;
-let _fcMin        = 0;        // мінімальна межа FC%
-let _fcMax        = 25;       // максимальна межа FC%
-let _showFCSettings = false;  // панель налаштування меж
+let _fcMin        = 0;
+let _fcMax        = 25;
+let _showFCSettings = false;
+let _hidden      = new Set();   // сховані dish IDs
+let _showHidden  = false;       // показувати сховані у списку
+let _swipedId    = null;        // card зараз відкрита свайпом
 
-function catsKey()   { return `barops_fc_cats_${_venueId}`; }
-function threshKey() { return `barops_fc_thresh_${_venueId}`; }
-function saveCats() { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
-function loadCats() {
-  try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); }
-  catch (_) { _catSet = new Set(); }
-}
+// ── storage ──────────────────────────────────────────────────
+function catsKey()    { return `barops_fc_cats_${_venueId}`; }
+function threshKey()  { return `barops_fc_thresh_${_venueId}`; }
+function hiddenKey()  { return `barops_hidden_${_venueId}`; }
+
+function saveCats()   { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
+function loadCats()   { try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); } catch { _catSet = new Set(); } }
+function saveHidden() { localStorage.setItem(hiddenKey(), JSON.stringify([..._hidden])); }
+function loadHidden() { try { _hidden = new Set(JSON.parse(localStorage.getItem(hiddenKey()) || '[]')); } catch { _hidden = new Set(); } }
+
 function loadThresholds() {
   try {
     const t = JSON.parse(localStorage.getItem(threshKey()) || '{}');
     _fcMin = t.min ?? 0;
     _fcMax = t.max ?? 25;
-  } catch (_) { _fcMin = 0; _fcMax = 25; }
+  } catch { _fcMin = 0; _fcMax = 25; }
 }
 function saveThresholds() {
   localStorage.setItem(threshKey(), JSON.stringify({ min: _fcMin, max: _fcMax }));
 }
+
+// ── filtered dishes ───────────────────────────────────────────
+// KPI і список рахуються тільки по видимих стравах
+function filteredDishes() {
+  let arr = _catSet.size === 0 ? _dishes : _dishes.filter(d => _catSet.has(d.category));
+  if (!_showHidden) arr = arr.filter(d => !_hidden.has(d.id));
+  return arr;
+}
+
+// ── format helpers ────────────────────────────────────────────
 function fmtFC(fc) {
   if (fc === null || fc === undefined || isNaN(fc) || !isFinite(fc)) return '—';
-  // calcFC вже повертає відсоток (32.45), не частку (0.3245)
   return fc.toFixed(2).replace('.', ',') + '%';
 }
 function fmtPrice(val) {
@@ -51,7 +66,7 @@ function fmtPrice(val) {
   return val.toFixed(2).replace('.', ',') + ' ₴';
 }
 
-// ── helpers ──────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────
 function hdrs() {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` };
 }
@@ -68,7 +83,6 @@ function calcCost(dish) {
       cost += (ing.grossAmount || 0) * (_prices[ing.productId]?.unitPrice || 0);
     if (cost > 0) return cost;
   }
-  // Тільки OLAP-собівартість з Syrve (unitPrice для страв містить некоректні дані)
   return dish.costPrice || 0;
 }
 function calcFC(dish) {
@@ -76,10 +90,11 @@ function calcFC(dish) {
   const price = _prices[dish.id]?.salePrice || dish.sellingPrice || 0;
   if (!price || !cost || price <= 0) return null;
   const fc = (cost / price) * 100;
-  // Захист від аномалій (>999% = невалідні дані)
   return isFinite(fc) && fc <= 999 ? fc : null;
 }
+
 function re() {
+  _swipedId = null; // DOM rebuild closes any open swipe
   const el = document.getElementById('rec-root');
   if (el) {
     el.innerHTML = buildPage();
@@ -87,14 +102,66 @@ function re() {
   }
 }
 
-// ── data loading ─────────────────────────────────────────────
+// ── swipe to hide ─────────────────────────────────────────────
+let _tStartX = 0, _tStartY = 0, _tCardEl = null;
+
+function initCardSwipe(root) {
+  root.addEventListener('touchstart', e => {
+    const card = e.target.closest('.rec-card');
+    if (!card) { _closeSwipe(); return; }
+    _tStartX = e.touches[0].clientX;
+    _tStartY = e.touches[0].clientY;
+    _tCardEl = card;
+  }, { passive: true });
+
+  root.addEventListener('touchmove', e => {
+    if (!_tCardEl) return;
+    const dx = e.touches[0].clientX - _tStartX;
+    const dy = Math.abs(e.touches[0].clientY - _tStartY);
+    if (dy > 40) { _tCardEl = null; return; }
+    if (dx < 0 && !_swipedId) {
+      const offset = Math.max(dx, -88);
+      _tCardEl.style.transform = `translateX(${offset}px)`;
+      _tCardEl.style.transition = 'none';
+    } else if (dx > 20 && _swipedId === _tCardEl.dataset.id) {
+      _tCardEl.style.transform = 'none';
+      _tCardEl.style.transition = 'transform .2s ease';
+      _swipedId = null;
+      _tCardEl  = null;
+    }
+  }, { passive: true });
+
+  root.addEventListener('touchend', e => {
+    if (!_tCardEl) return;
+    const dx = e.changedTouches[0].clientX - _tStartX;
+    if (dx < -55) {
+      _tCardEl.style.transform = 'translateX(-88px)';
+      _tCardEl.style.transition = 'transform .2s ease';
+      _swipedId = _tCardEl.dataset.id;
+    } else {
+      _tCardEl.style.transform = 'none';
+      _tCardEl.style.transition = 'transform .2s ease';
+    }
+    _tCardEl = null;
+  }, { passive: true });
+}
+
+function _closeSwipe() {
+  if (_swipedId) {
+    const el = document.querySelector(`.rec-card[data-id="${_swipedId}"]`);
+    if (el) { el.style.transform = 'none'; el.style.transition = 'transform .2s ease'; }
+    _swipedId = null;
+  }
+}
+
+// ── data loading ──────────────────────────────────────────────
 function fetchWithTimeout(url, opts, timeoutMs) {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), timeoutMs);
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
 }
 
-const DISHES_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 годин
+const DISHES_CACHE_TTL = 12 * 60 * 60 * 1000;
 function dishCacheKey() { return `barops_dishes_${_venueId}`; }
 function loadDishesFromCache() {
   try {
@@ -110,7 +177,6 @@ function saveDishesToCache(dishes) {
 }
 
 async function loadAll(attempt = 1) {
-  // Показуємо кешовані страви одразу — не чекаємо мережу
   const cached = loadDishesFromCache();
   if (cached && _dishes.length === 0) { _dishes = cached; }
   _loading = !cached || _dishes.length === 0;
@@ -122,17 +188,12 @@ async function loadAll(attempt = 1) {
     fetchWithTimeout(`${API}/api/pos/syrve-prices?venueId=${_venueId}`, { headers: hdrs() }, 30000),
   ]);
 
-  // Страви
   if (dishResult.status === 'fulfilled' && dishResult.value.ok) {
     const d = await dishResult.value.json().catch(() => ({}));
-    if (d.dishes?.length) {
-      _dishes = d.dishes;
-      saveDishesToCache(_dishes);
-    }
+    if (d.dishes?.length) { _dishes = d.dishes; saveDishesToCache(_dishes); }
   } else if (dishResult.status === 'rejected') {
     const isNetwork = dishResult.reason?.name === 'AbortError' || dishResult.reason?.message?.includes('fetch');
     if (isNetwork && attempt < 4) {
-      console.warn(`[Recipes] loadAll retry ${attempt}/4`);
       await new Promise(r => setTimeout(r, 3000 * attempt));
       return loadAll(attempt + 1);
     }
@@ -142,7 +203,6 @@ async function loadAll(attempt = 1) {
     if (_dishes.length === 0) _error = d.error || 'Помилка завантаження страв';
   }
 
-  // Ціни (не критично — продовжуємо навіть якщо впали)
   if (priceResult.status === 'fulfilled' && priceResult.value.ok) {
     const d = await priceResult.value.json().catch(() => ({}));
     _prices = {};
@@ -157,15 +217,13 @@ async function syncPrices() {
   _syncing = true; _syncMsg = 'Запускаємо синхронізацію...'; re();
   try { localStorage.removeItem(dishCacheKey()); } catch {}
   try {
-    // Sync іде у фоні на сервері — повертає одразу
     await fetchWithTimeout(`${API}/api/pos/sync-prices/${_venueId}`, { method: 'POST', headers: hdrs() }, 10000);
     _syncMsg = 'Синхронізацію запущено (~2 хв). Дані оновляться автоматично.';
-  } catch (e) {
+  } catch {
     _syncMsg = 'Синхронізацію запущено у фоні';
   }
   _syncing = false; re();
 
-  // Через 2 хвилини перезавантажуємо страви — до цього часу сервер завершить sync + enrichment
   setTimeout(() => {
     try { localStorage.removeItem(dishCacheKey()); } catch {}
     _dishes = [];
@@ -190,40 +248,54 @@ async function savePrice(productId, field, value) {
       const d = await res.json();
       _prices[productId] = { unitPrice: d.price.unitPrice, salePrice: d.price.salePrice };
     }
-  } catch (_) {}
+  } catch {}
   _priceEdit = null; _priceDraft = ''; _priceSaving = false; re();
 }
 
-// ── events ───────────────────────────────────────────────────
+// ── events ────────────────────────────────────────────────────
 function on(e) {
   const btn = e.target.closest('[data-act]');
-  if (!btn) return;
+  if (!btn) { _closeSwipe(); return; }
   const { act, id, pid, fld } = btn.dataset;
 
-  if (act === 'open')   { _selected = id; _priceEdit = null; re(); return; }
-  if (act === 'close')  {
+  if (act === 'open') {
+    if (_swipedId === id) { _closeSwipe(); return; }
+    _closeSwipe();
+    _selected = id; _priceEdit = null; re(); return;
+  }
+  if (act === 'close') {
     if (e.target.closest('.rec-sheet')) return;
     _selected = null; _priceEdit = null; re(); return;
   }
   if (act === 'cat') {
-    if (id === 'all') {
-      _catSet.clear();
-    } else {
-      if (_catSet.has(id)) _catSet.delete(id); else _catSet.add(id);
-    }
+    if (id === 'all') _catSet.clear();
+    else { if (_catSet.has(id)) _catSet.delete(id); else _catSet.add(id); }
     saveCats();
-    document.querySelectorAll('.rec-cat').forEach(c => {
-      const isAll = c.dataset.id === 'all';
-      c.classList.toggle('act', isAll ? _catSet.size === 0 : _catSet.has(c.dataset.id));
-    });
-    applyFilter();
+    re(); // повний ре-рендер щоб KPI теж оновився
+    return;
+  }
+  if (act === 'hide-dish') {
+    _hidden.add(id);
+    saveHidden();
+    re();
+    return;
+  }
+  if (act === 'unhide-dish') {
+    _hidden.delete(id);
+    saveHidden();
+    re();
+    return;
+  }
+  if (act === 'toggle-hidden') {
+    _showHidden = !_showHidden;
+    re();
     return;
   }
   if (act === 'price-edit')   { _priceEdit = { productId: pid, field: fld }; _priceDraft = String(_prices[pid]?.[fld] || ''); re(); return; }
   if (act === 'price-save')   { if (_priceEdit) savePrice(_priceEdit.productId, _priceEdit.field, _priceDraft); return; }
   if (act === 'price-cancel') { _priceEdit = null; _priceDraft = ''; re(); return; }
-  if (act === 'reload') { loadAll(); return; }
-  if (act === 'sync-prices') { if (!_syncing) syncPrices(); return; }
+  if (act === 'reload')       { loadAll(); return; }
+  if (act === 'sync-prices')  { if (!_syncing) syncPrices(); return; }
   if (act === 'toggle-settings') { _showFCSettings = !_showFCSettings; re(); return; }
   if (act === 'save-thresh') {
     const minEl = document.getElementById('rec-fc-min');
@@ -243,12 +315,11 @@ function onInput(e) {
   if (el.dataset.role === 'search')      { _search = el.value; applyFilter(); }
 }
 
+// Search-only filter (categories already pre-filtered in filteredDishes())
 function applyFilter() {
   const q = _search.toLowerCase();
-  document.querySelectorAll('.rec-card').forEach(card => {
-    const nameMatch = !q || (card.dataset.name || '').includes(q);
-    const catMatch  = _catSet.size === 0 || _catSet.has(card.dataset.cat);
-    card.style.display = nameMatch && catMatch ? '' : 'none';
+  document.querySelectorAll('.rec-card-wrap').forEach(wrap => {
+    wrap.style.display = !q || (wrap.dataset.name || '').includes(q) ? '' : 'none';
   });
 }
 
@@ -256,7 +327,6 @@ function openSectionFilter() {
   const existing = document.getElementById('rec-section-sheet');
   if (existing) { existing.remove(); return; }
   const cats = [...new Set(_dishes.map(d => d.category).filter(Boolean))].sort();
-  const activeSingle = _catSet.size === 1 ? [..._catSet][0] : null;
   const isAll = _catSet.size === 0;
   const sheet = document.createElement('div');
   sheet.id = 'rec-section-sheet';
@@ -271,9 +341,9 @@ function openSectionFilter() {
         ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
       </div>
       ${cats.map(c => `
-      <div class="rec-section-row ${activeSingle===c ? 'sel' : ''}" onclick="window.__rec.selectSection('${c.replace(/'/g,"\\'")}')">
+      <div class="rec-section-row ${_catSet.has(c) ? 'sel' : ''}" onclick="window.__rec.toggleSection('${c.replace(/'/g,"\\'")}')">
         <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">${c}</div>
-        ${activeSingle===c ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+        ${_catSet.has(c) ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
       </div>`).join('')}
       <div style="height:24px"></div>
     </div>`;
@@ -294,7 +364,17 @@ function selectSection(cat) {
   re();
 }
 
-// ── CSS ──────────────────────────────────────────────────────
+function toggleSection(cat) {
+  if (_catSet.has(cat)) _catSet.delete(cat);
+  else _catSet.add(cat);
+  saveCats();
+  // Re-render sheet in place to update checkmarks
+  closeSectionFilter();
+  openSectionFilter();
+  re();
+}
+
+// ── CSS ───────────────────────────────────────────────────────
 const CSS = `<style id="rec-css">
 .rec-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .rec-scroll{overflow-y:auto;flex:1}.rec-scroll::-webkit-scrollbar{width:0}
@@ -311,8 +391,11 @@ const CSS = `<style id="rec-css">
 .rec-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:10px;text-align:center}
 .rec-kpi-val{font-family:var(--font-h);font-size:18px;font-weight:700;line-height:1}
 .rec-kpi-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
-.rec-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;transition:background .12s}
+.rec-card-wrap{position:relative;margin:0 14px 8px;overflow:hidden;border-radius:16px}
+.rec-hide-action{position:absolute;right:0;top:0;bottom:0;width:88px;background:var(--red,#c0392b);border:none;color:#fff;font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:0 16px 16px 0;z-index:0}
+.rec-card{margin:0;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;transition:background .12s;position:relative;z-index:1;will-change:transform}
 .rec-card:active{background:var(--bg3)}
+.rec-card.hidden-card{opacity:.45}
 .rec-card-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
 .rec-name{font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);line-height:1.2}
 .rec-cat-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
@@ -335,8 +418,8 @@ const CSS = `<style id="rec-css">
 .rec-price-inp{width:70px;height:28px;background:var(--bg3);border:1px solid var(--green);border-radius:7px;color:var(--text0);font-size:12px;text-align:right;padding:0 6px;outline:none}
 .rec-btn-ok{height:28px;padding:0 8px;background:var(--green);border:none;border-radius:7px;color:#fff;font-size:11px;cursor:pointer;font-family:var(--font-b)}
 .rec-btn-cancel{height:28px;padding:0 8px;background:var(--bg3);border:none;border-radius:7px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font-b)}
-.rec-card.warn-low{border-color:var(--amber)!important}
-.rec-card.warn-high{border-color:var(--red)!important}
+.rec-card-wrap.warn-low{border:1px solid var(--amber)}
+.rec-card-wrap.warn-high{border:1px solid var(--red)}
 .rec-warn-icon{width:18px;height:18px;flex-shrink:0}
 .rec-settings-bar{display:flex;align-items:center;gap:8px;padding:0 14px 10px;flex-wrap:wrap}
 .rec-thresh-inp{width:52px;height:30px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text0);font-size:13px;text-align:center;padding:0 6px;outline:none;font-family:var(--font-b)}
@@ -346,9 +429,11 @@ const CSS = `<style id="rec-css">
 .rec-section-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:0.5px solid var(--border);cursor:pointer;transition:background .1s}
 .rec-section-row:hover{background:var(--bg3)}
 .rec-section-row.sel{background:var(--green-bg,#1a3320)}
+.rec-hidden-bar{padding:0 14px 8px;display:flex;align-items:center;justify-content:space-between}
+.rec-hidden-toggle{font-size:11px;color:var(--text2);font-family:var(--font-b);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0}
 </style>`;
 
-// ── build HTML ───────────────────────────────────────────────
+// ── build HTML ────────────────────────────────────────────────
 function buildPage() {
   if (_loading) return buildSkel();
   if (_error)   return buildError();
@@ -377,25 +462,35 @@ function buildError() {
 }
 
 function buildMain() {
-  const cats    = ['all', ...new Set(_dishes.map(d => d.category).filter(Boolean))];
-  const withFC  = _dishes.filter(d => calcFC(d) !== null);
-  const avgFCv  = withFC.length ? withFC.reduce((a, d) => a + calcFC(d), 0) / withFC.length : null;
-  const alerts  = withFC.filter(d => {
+  const visible  = filteredDishes();
+  const withFC   = visible.filter(d => calcFC(d) !== null);
+  const avgFCv   = withFC.length ? withFC.reduce((a, d) => a + calcFC(d), 0) / withFC.length : null;
+  const alerts   = withFC.filter(d => {
     const fc = calcFC(d);
     return fc !== null && (fc > _fcMax || (_fcMin > 0 && fc < _fcMin));
   }).length;
-  const detail  = _selected ? _dishes.find(d => d.id === _selected) : null;
+  const detail   = _selected ? _dishes.find(d => d.id === _selected) : null;
   const activeSingle = _catSet.size === 1 ? [..._catSet][0] : null;
+
+  const filterLabel = _catSet.size === 0 ? 'Розділ'
+    : _catSet.size === 1 ? (activeSingle.slice(0, 10) + (activeSingle.length > 10 ? '…' : ''))
+    : `${_catSet.size} розд.`;
+
+  const subtitleCount = visible.length < _dishes.length
+    ? `${visible.length}/${_dishes.length} страв`
+    : `${_dishes.length} страв`;
+
+  const hiddenCount = _hidden.size;
 
   return `<div class="rec-wrap">
   <div class="rec-topbar">
     <div style="flex:1">
       <div class="rec-title">Фудкост</div>
-      <div class="rec-sub">${_dishes.length} страв · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
+      <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
     <div class="rec-filter-btn ${_catSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openSectionFilter()">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      ${activeSingle ? activeSingle.slice(0, 10) + (activeSingle.length > 10 ? '…' : '') : 'Розділ'}
+      ${filterLabel}
     </div>
     ${_role === 'manager' ? `
     <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#fff'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
@@ -428,7 +523,7 @@ function buildMain() {
         </div>
       </div>
       <div class="rec-kpi">
-        <div class="rec-kpi-val">${withFC.length}<span style="font-size:11px;font-weight:400;color:var(--text2)">/${_dishes.length}</span></div>
+        <div class="rec-kpi-val">${withFC.length}<span style="font-size:11px;font-weight:400;color:var(--text2)">/${visible.length}</span></div>
         <div class="rec-kpi-lbl">З ціною</div>
       </div>
     </div>
@@ -446,51 +541,65 @@ function buildMain() {
       <button data-act="save-thresh" style="height:28px;padding:0 10px;background:var(--green);border:none;border-radius:8px;color:#fff;font-size:11px;cursor:pointer;font-family:var(--font-b);margin-left:auto">Зберегти</button>
     </div>` : ''}
 
-    <div class="rec-cats">
-      <div class="rec-cat ${_catSet.size === 0 ? 'act' : ''}" data-act="cat" data-id="all">Всі</div>
-      ${cats.filter(c => c !== 'all').map(c => `
-      <div class="rec-cat ${_catSet.has(c) ? 'act' : ''}" data-act="cat" data-id="${c}">${c}</div>`).join('')}
-    </div>
+    ${hiddenCount > 0 ? `
+    <div class="rec-hidden-bar">
+      <span style="font-size:11px;color:var(--text2);font-family:var(--font-b)">
+        Свайп вліво → Сховати страву зі статистики
+      </span>
+      <button class="rec-hidden-toggle" data-act="toggle-hidden">
+        ${_showHidden ? 'Ховати приховані' : `Сховано: ${hiddenCount}`}
+      </button>
+    </div>` : `
+    <div style="padding:0 14px 6px">
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b)">← Свайп вліво на страві → Сховати</div>
+    </div>`}
 
-    ${_dishes.map(d => {
+    ${visible.map(d => {
       const cost  = calcCost(d);
       const fc    = calcFC(d);
       const price = _prices[d.id]?.salePrice || d.sellingPrice || 0;
       const color = fcColor(fc);
       const isHigh = fc !== null && fc > _fcMax;
       const isLow  = fc !== null && _fcMin > 0 && fc < _fcMin;
-      const warnClass = isHigh ? 'warn-high' : isLow ? 'warn-low' : '';
+      const wrapClass = isHigh ? 'warn-high' : isLow ? 'warn-low' : '';
+      const isHiddenDish = _hidden.has(d.id);
       const warnIcon = isHigh
         ? `<svg class="rec-warn-icon" viewBox="0 0 18 18" fill="none"><path d="M9 2L16.5 15H1.5L9 2Z" stroke="var(--red)" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 7v4M9 12.5v.5" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round"/></svg>`
         : isLow
         ? `<svg class="rec-warn-icon" viewBox="0 0 18 18" fill="none"><path d="M9 2L16.5 15H1.5L9 2Z" stroke="var(--amber)" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 7v4M9 12.5v.5" stroke="var(--amber)" stroke-width="1.3" stroke-linecap="round"/></svg>`
         : '';
       return `
-    <div class="rec-card ${warnClass}" data-act="open" data-id="${d.id}"
-         data-name="${(d.name || '').toLowerCase()}" data-cat="${d.category || ''}">
-      <div class="rec-card-top">
-        <div style="flex:1;min-width:0">
-          <div class="rec-name" style="display:flex;align-items:center;gap:6px">
-            ${d.name}${warnIcon}
+    <div class="rec-card-wrap ${wrapClass}" data-name="${(d.name || '').toLowerCase()}" data-id="${d.id}">
+      <button class="rec-hide-action" data-act="${isHiddenDish ? 'unhide-dish' : 'hide-dish'}" data-id="${d.id}">
+        ${isHiddenDish
+          ? `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="#fff" stroke-width="1.3"/><circle cx="8" cy="8" r="2.5" stroke="#fff" stroke-width="1.3"/></svg>Відновити`
+          : `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M6.4 3.5A7 7 0 0115 8s-.8 1.5-2 2.8M10 12.3A7 7 0 011 8s1-2 3-3.5" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>Сховати`}
+      </button>
+      <div class="rec-card${isHiddenDish ? ' hidden-card' : ''}" data-act="open" data-id="${d.id}">
+        <div class="rec-card-top">
+          <div style="flex:1;min-width:0">
+            <div class="rec-name" style="display:flex;align-items:center;gap:6px">
+              ${d.name}${warnIcon}
+            </div>
+            <div class="rec-cat-lbl">${d.category || '—'} · ${(d.ingredients || []).length} інгр.</div>
           </div>
-          <div class="rec-cat-lbl">${d.category || '—'} · ${(d.ingredients || []).length} інгр.</div>
+          <div class="rec-fc-badge" style="background:${color}22;color:${color}">
+            ${fc !== null ? 'FC ' + fmtFC(fc) : '—'}
+          </div>
         </div>
-        <div class="rec-fc-badge" style="background:${color}22;color:${color}">
-          ${fc !== null ? 'FC ' + fmtFC(fc) : '—'}
-        </div>
-      </div>
-      <div class="rec-metrics">
-        <div class="rec-metric">
-          <div class="rec-metric-val">${price ? price.toFixed(2).replace('.', ',') + ' ₴' : '—'}</div>
-          <div class="rec-metric-lbl">Ціна</div>
-        </div>
-        <div class="rec-metric">
-          <div class="rec-metric-val">${fmtPrice(cost || null)}</div>
-          <div class="rec-metric-lbl">Собівартість</div>
-        </div>
-        <div class="rec-metric">
-          <div class="rec-metric-val" style="color:${color}">${fmtFC(fc)}</div>
-          <div class="rec-metric-lbl">FC</div>
+        <div class="rec-metrics">
+          <div class="rec-metric">
+            <div class="rec-metric-val">${price ? price.toFixed(2).replace('.', ',') + ' ₴' : '—'}</div>
+            <div class="rec-metric-lbl">Ціна</div>
+          </div>
+          <div class="rec-metric">
+            <div class="rec-metric-val">${fmtPrice(cost || null)}</div>
+            <div class="rec-metric-lbl">Собівартість</div>
+          </div>
+          <div class="rec-metric">
+            <div class="rec-metric-val" style="color:${color}">${fmtFC(fc)}</div>
+            <div class="rec-metric-lbl">FC</div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -518,7 +627,6 @@ function buildDetail(d) {
   const color = fcColor(fc);
 
   return `
-  <!-- Sheet header -->
   <div style="padding:0 16px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:0.5px solid var(--border)">
     <div style="flex:1;min-width:0">
       <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);line-height:1.2">${d.name}</div>
@@ -573,7 +681,6 @@ function buildDetail(d) {
     </div>`;
     }).join('')}
 
-    <!-- Totals -->
     <div style="padding:12px 16px;background:var(--bg3);display:flex;justify-content:space-between;align-items:center;margin-top:4px;flex-shrink:0">
       <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Собівартість</div>
       <div style="font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">${fmtPrice(cost || null)}</div>
@@ -611,7 +718,7 @@ function buildPriceRow(productId, field, currentVal, label, suffix, editable) {
   </div>`;
 }
 
-// ── export ───────────────────────────────────────────────────
+// ── export ────────────────────────────────────────────────────
 export default {
   render() {
     _venueId    = state.venueId || localStorage.getItem('barops_venueId');
@@ -620,17 +727,19 @@ export default {
     _dishes     = []; _prices = {}; _loading = true;
     _error      = ''; _search = '';
     _selected   = null; _priceEdit = null; _priceDraft = '';
-    _showFCSettings = false;
+    _showFCSettings = false; _showHidden = false; _swipedId = null;
     loadCats();
     loadThresholds();
+    loadHidden();
     return `${CSS}<div id="rec-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
   init() {
-    window.__rec = { openSectionFilter, closeSectionFilter, selectSection };
+    window.__rec = { openSectionFilter, closeSectionFilter, selectSection, toggleSection };
     const root = document.getElementById('rec-root');
     if (root) {
       root.addEventListener('click', on);
       root.addEventListener('input', onInput);
+      initCardSwipe(root);
     }
     loadAll();
   },
