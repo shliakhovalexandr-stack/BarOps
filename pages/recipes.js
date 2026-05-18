@@ -26,20 +26,24 @@ let _showFCSettings = false;
 let _hidden      = new Set();   // сховані dish IDs
 let _showHidden  = false;       // показувати сховані у списку
 let _swipedId    = null;        // card зараз відкрита свайпом
-let _storeSet    = new Set();   // обрані склади (порожнє = всі)
+let _storeSet    = new Set();   // обрані групи товарів (порожнє = всі)
+let _goodsCatSet = new Set();  // обрані категорії товарів (порожнє = всі)
 
 // ── storage ──────────────────────────────────────────────────
 function catsKey()    { return `barops_fc_cats_${_venueId}`; }
 function threshKey()  { return `barops_fc_thresh_${_venueId}`; }
 function hiddenKey()  { return `barops_hidden_${_venueId}`; }
 
-function storeKey()   { return `barops_fc_stores_${_venueId}`; }
-function saveCats()    { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
-function loadCats()    { try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); } catch { _catSet = new Set(); } }
-function saveHidden()  { localStorage.setItem(hiddenKey(), JSON.stringify([..._hidden])); }
-function loadHidden()  { try { _hidden = new Set(JSON.parse(localStorage.getItem(hiddenKey()) || '[]')); } catch { _hidden = new Set(); } }
-function saveStores()  { localStorage.setItem(storeKey(), JSON.stringify([..._storeSet])); }
-function loadStores()  { try { _storeSet = new Set(JSON.parse(localStorage.getItem(storeKey()) || '[]')); } catch { _storeSet = new Set(); } }
+function storeKey()    { return `barops_fc_stores_${_venueId}`; }
+function goodsCatKey() { return `barops_fc_goodscats_${_venueId}`; }
+function saveCats()      { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
+function loadCats()      { try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); } catch { _catSet = new Set(); } }
+function saveHidden()    { localStorage.setItem(hiddenKey(), JSON.stringify([..._hidden])); }
+function loadHidden()    { try { _hidden = new Set(JSON.parse(localStorage.getItem(hiddenKey()) || '[]')); } catch { _hidden = new Set(); } }
+function saveStores()    { localStorage.setItem(storeKey(), JSON.stringify([..._storeSet])); }
+function loadStores()    { try { _storeSet = new Set(JSON.parse(localStorage.getItem(storeKey()) || '[]')); } catch { _storeSet = new Set(); } }
+function saveGoodsCats() { localStorage.setItem(goodsCatKey(), JSON.stringify([..._goodsCatSet])); }
+function loadGoodsCats() { try { _goodsCatSet = new Set(JSON.parse(localStorage.getItem(goodsCatKey()) || '[]')); } catch { _goodsCatSet = new Set(); } }
 
 function loadThresholds() {
   try {
@@ -56,9 +60,10 @@ function saveThresholds() {
 // KPI і список рахуються тільки по видимих стравах
 function filteredDishes() {
   let arr = _dishes;
-  if (_storeSet.size > 0) arr = arr.filter(d => _storeSet.has(d.store));
-  if (_catSet.size > 0)   arr = arr.filter(d => _catSet.has(d.category));
-  if (!_showHidden)       arr = arr.filter(d => !_hidden.has(d.id));
+  if (_storeSet.size > 0)    arr = arr.filter(d => _storeSet.has(d.store));
+  if (_goodsCatSet.size > 0) arr = arr.filter(d => _goodsCatSet.has(d.goodsCategory));
+  if (_catSet.size > 0)      arr = arr.filter(d => _catSet.has(d.category));
+  if (!_showHidden)          arr = arr.filter(d => !_hidden.has(d.id));
   return arr;
 }
 
@@ -287,6 +292,13 @@ function on(e) {
     re();
     return;
   }
+  if (act === 'goodscat') {
+    if (id === 'all') _goodsCatSet.clear();
+    else { if (_goodsCatSet.has(id)) _goodsCatSet.delete(id); else _goodsCatSet.add(id); }
+    saveGoodsCats();
+    re();
+    return;
+  }
   if (act === 'hide-dish') {
     _hidden.add(id);
     saveHidden();
@@ -442,6 +454,62 @@ function toggleStore(store) {
   re();
 }
 
+function openGoodsCatFilter() {
+  const existing = document.getElementById('rec-goodscat-sheet');
+  if (existing) { existing.remove(); return; }
+  const cats = [...new Set(_dishes.map(d => d.goodsCategory).filter(Boolean))].sort();
+  if (cats.length === 0) return;
+  const isAll = _goodsCatSet.size === 0;
+  const sheet = document.createElement('div');
+  sheet.id = 'rec-goodscat-sheet';
+  sheet.className = 'rec-sheet-ov open';
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:200';
+  sheet.innerHTML = `
+    <div class="rec-sheet" style="max-height:75vh;overflow-y:auto">
+      <div class="rec-sheet-handle"></div>
+      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">Категорія товарів</div>
+      <div class="rec-section-row ${isAll ? 'sel' : ''}" onclick="window.__rec.selectAllGoodsCats()">
+        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">Всі категорії</div>
+        ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>
+      ${cats.map(c => {
+        const dishCount = _dishes.filter(d => d.goodsCategory === c).length;
+        return `
+      <div class="rec-section-row ${_goodsCatSet.has(c) ? 'sel' : ''}" onclick="window.__rec.toggleGoodsCat('${c.replace(/'/g,"\\'")}')">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${c}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${dishCount} страв</div>
+        </div>
+        ${_goodsCatSet.has(c) ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>`;
+      }).join('')}
+      <div style="height:24px"></div>
+    </div>`;
+  sheet.addEventListener('click', e => { if (e.target === sheet) closeGoodsCatFilter(); });
+  document.body.appendChild(sheet);
+}
+
+function closeGoodsCatFilter() {
+  const s = document.getElementById('rec-goodscat-sheet');
+  if (s) s.remove();
+}
+
+function selectAllGoodsCats() {
+  _goodsCatSet.clear();
+  saveGoodsCats();
+  closeGoodsCatFilter();
+  re();
+}
+
+function toggleGoodsCat(cat) {
+  if (_goodsCatSet.has(cat)) _goodsCatSet.delete(cat);
+  else _goodsCatSet.add(cat);
+  saveGoodsCats();
+  closeGoodsCatFilter();
+  openGoodsCatFilter();
+  re();
+}
+
 // ── CSS ───────────────────────────────────────────────────────
 const CSS = `<style id="rec-css">
 .rec-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
@@ -543,10 +611,14 @@ function buildMain() {
   const filterLabel = _catSet.size === 0 ? 'Розділ'
     : _catSet.size === 1 ? (activeSingle.slice(0, 10) + (activeSingle.length > 10 ? '…' : ''))
     : `${_catSet.size} розд.`;
-  const storeLabel = _storeSet.size === 0 ? 'Склад'
+  const storeLabel = _storeSet.size === 0 ? 'Група'
     : _storeSet.size === 1 ? ([..._storeSet][0].slice(0, 10) + ([..._storeSet][0].length > 10 ? '…' : ''))
-    : `${_storeSet.size} скл.`;
+    : `${_storeSet.size} гр.`;
+  const goodsCatLabel = _goodsCatSet.size === 0 ? 'Категорія'
+    : _goodsCatSet.size === 1 ? ([..._goodsCatSet][0].slice(0, 10) + ([..._goodsCatSet][0].length > 10 ? '…' : ''))
+    : `${_goodsCatSet.size} кат.`;
   const allStores = [...new Set(_dishes.map(d => d.store).filter(Boolean))].sort();
+  const allGoodsCats = [...new Set(_dishes.map(d => d.goodsCategory).filter(Boolean))].sort();
 
   const subtitleCount = visible.length < _dishes.length
     ? `${visible.length}/${_dishes.length} страв`
@@ -563,6 +635,10 @@ function buildMain() {
     <div class="rec-filter-btn ${_storeSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openStoreFilter()" ${allStores.length === 0 ? 'style="display:none"' : ''}>
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 11V5.5L7 2l5 3.5V11H9.5V8H4.5v3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
       ${storeLabel}
+    </div>
+    <div class="rec-filter-btn ${_goodsCatSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openGoodsCatFilter()" ${allGoodsCats.length === 0 ? 'style="display:none"' : ''}>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h7M2 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      ${goodsCatLabel}
     </div>
     <div class="rec-filter-btn ${_catSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openSectionFilter()">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -808,10 +884,11 @@ export default {
     loadThresholds();
     loadHidden();
     loadStores();
+    loadGoodsCats();
     return `${CSS}<div id="rec-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
   init() {
-    window.__rec = { openSectionFilter, closeSectionFilter, selectSection, toggleSection, openStoreFilter, closeStoreFilter, selectAllStores, toggleStore };
+    window.__rec = { openSectionFilter, closeSectionFilter, selectSection, toggleSection, openStoreFilter, closeStoreFilter, selectAllStores, toggleStore, openGoodsCatFilter, closeGoodsCatFilter, selectAllGoodsCats, toggleGoodsCat };
     const root = document.getElementById('rec-root');
     if (root) {
       root.addEventListener('click', on);
