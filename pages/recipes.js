@@ -68,8 +68,8 @@ function calcCost(dish) {
       cost += (ing.grossAmount || 0) * (_prices[ing.productId]?.unitPrice || 0);
     if (cost > 0) return cost;
   }
-  // Пріоритет: готова собівартість з Syrve → вручну внесена → 0
-  return dish.costPrice || _prices[dish.id]?.unitPrice || 0;
+  // Тільки OLAP-собівартість з Syrve (unitPrice для страв містить некоректні дані)
+  return dish.costPrice || 0;
 }
 function calcFC(dish) {
   const cost  = calcCost(dish);
@@ -155,6 +155,8 @@ async function loadAll(attempt = 1) {
 
 async function syncPrices() {
   _syncing = true; _syncMsg = ''; re();
+  // Скидаємо кеш страв щоб підтягнути нові costPrice після синку
+  try { localStorage.removeItem(dishCacheKey()); } catch {}
   try {
     const res = await fetch(`${API}/api/pos/sync-prices/${_venueId}`, {
       method: 'POST', headers: hdrs(),
