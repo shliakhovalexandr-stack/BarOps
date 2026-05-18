@@ -20,12 +20,30 @@ let _selected  = null;        // dish id shown in sheet
 let _priceEdit = null;        // {productId, field}
 let _priceDraft  = '';
 let _priceSaving = false;
+let _fcMin        = 0;        // мінімальна межа FC%
+let _fcMax        = 25;       // максимальна межа FC%
+let _showFCSettings = false;  // панель налаштування меж
 
-function catsKey() { return `barops_fc_cats_${_venueId}`; }
+function catsKey()   { return `barops_fc_cats_${_venueId}`; }
+function threshKey() { return `barops_fc_thresh_${_venueId}`; }
 function saveCats() { localStorage.setItem(catsKey(), JSON.stringify([..._catSet])); }
 function loadCats() {
   try { _catSet = new Set(JSON.parse(localStorage.getItem(catsKey()) || '[]')); }
   catch (_) { _catSet = new Set(); }
+}
+function loadThresholds() {
+  try {
+    const t = JSON.parse(localStorage.getItem(threshKey()) || '{}');
+    _fcMin = t.min ?? 0;
+    _fcMax = t.max ?? 25;
+  } catch (_) { _fcMin = 0; _fcMax = 25; }
+}
+function saveThresholds() {
+  localStorage.setItem(threshKey(), JSON.stringify({ min: _fcMin, max: _fcMax }));
+}
+function fmtFC(fc) {
+  if (fc === null) return '—';
+  return fc.toFixed(1).replace('.', ',') + '%';
 }
 
 // ── helpers ──────────────────────────────────────────────────
@@ -33,7 +51,10 @@ function hdrs() {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` };
 }
 function fcColor(fc) {
-  return fc == null ? 'var(--text2)' : fc > 25 ? 'var(--red)' : fc > 20 ? 'var(--amber)' : 'var(--green)';
+  if (fc == null) return 'var(--text2)';
+  if (fc > _fcMax) return 'var(--red)';
+  if (_fcMin > 0 && fc < _fcMin) return 'var(--amber)';
+  return 'var(--green)';
 }
 function calcCost(dish) {
   if ((dish.ingredients || []).length) {
@@ -165,7 +186,18 @@ function on(e) {
   if (act === 'price-save')   { if (_priceEdit) savePrice(_priceEdit.productId, _priceEdit.field, _priceDraft); return; }
   if (act === 'price-cancel') { _priceEdit = null; _priceDraft = ''; re(); return; }
   if (act === 'reload') { loadAll(); return; }
-  if (act === 'sync-prices') { if (!_syncing) syncPrices(); }
+  if (act === 'sync-prices') { if (!_syncing) syncPrices(); return; }
+  if (act === 'toggle-settings') { _showFCSettings = !_showFCSettings; re(); return; }
+  if (act === 'save-thresh') {
+    const minEl = document.getElementById('rec-fc-min');
+    const maxEl = document.getElementById('rec-fc-max');
+    if (minEl) _fcMin = parseFloat(minEl.value) || 0;
+    if (maxEl) _fcMax = parseFloat(maxEl.value) || 25;
+    saveThresholds();
+    _showFCSettings = false;
+    re();
+    return;
+  }
 }
 
 function onInput(e) {
@@ -181,6 +213,48 @@ function applyFilter() {
     const catMatch  = _catSet.size === 0 || _catSet.has(card.dataset.cat);
     card.style.display = nameMatch && catMatch ? '' : 'none';
   });
+}
+
+function openSectionFilter() {
+  const existing = document.getElementById('rec-section-sheet');
+  if (existing) { existing.remove(); return; }
+  const cats = [...new Set(_dishes.map(d => d.category).filter(Boolean))].sort();
+  const activeSingle = _catSet.size === 1 ? [..._catSet][0] : null;
+  const isAll = _catSet.size === 0;
+  const sheet = document.createElement('div');
+  sheet.id = 'rec-section-sheet';
+  sheet.className = 'rec-sheet-ov open';
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:200';
+  sheet.innerHTML = `
+    <div class="rec-sheet" style="max-height:75vh;overflow-y:auto">
+      <div class="rec-sheet-handle"></div>
+      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">Розділ меню</div>
+      <div class="rec-section-row ${isAll ? 'sel' : ''}" onclick="window.__rec.selectSection(null)">
+        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">Всі розділи</div>
+        ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>
+      ${cats.map(c => `
+      <div class="rec-section-row ${activeSingle===c ? 'sel' : ''}" onclick="window.__rec.selectSection('${c.replace(/'/g,"\\'")}')">
+        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">${c}</div>
+        ${activeSingle===c ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>`).join('')}
+      <div style="height:24px"></div>
+    </div>`;
+  sheet.addEventListener('click', e => { if (e.target === sheet) closeSectionFilter(); });
+  document.body.appendChild(sheet);
+}
+
+function closeSectionFilter() {
+  const s = document.getElementById('rec-section-sheet');
+  if (s) s.remove();
+}
+
+function selectSection(cat) {
+  _catSet.clear();
+  if (cat) _catSet.add(cat);
+  saveCats();
+  closeSectionFilter();
+  re();
 }
 
 // ── CSS ──────────────────────────────────────────────────────
@@ -224,6 +298,14 @@ const CSS = `<style id="rec-css">
 .rec-price-inp{width:70px;height:28px;background:var(--bg3);border:1px solid var(--green);border-radius:7px;color:var(--text0);font-size:12px;text-align:right;padding:0 6px;outline:none}
 .rec-btn-ok{height:28px;padding:0 8px;background:var(--green);border:none;border-radius:7px;color:#fff;font-size:11px;cursor:pointer;font-family:var(--font-b)}
 .rec-btn-cancel{height:28px;padding:0 8px;background:var(--bg3);border:none;border-radius:7px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font-b)}
+.rec-settings-bar{display:flex;align-items:center;gap:8px;padding:0 14px 10px;flex-wrap:wrap}
+.rec-thresh-inp{width:52px;height:30px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text0);font-size:13px;text-align:center;padding:0 6px;outline:none;font-family:var(--font-b)}
+.rec-thresh-inp:focus{border-color:var(--green)}
+.rec-filter-btn{height:32px;padding:0 10px;border-radius:16px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.rec-filter-btn.active{background:var(--green-bg,#1a3320);border-color:var(--green);color:var(--green)}
+.rec-section-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:0.5px solid var(--border);cursor:pointer;transition:background .1s}
+.rec-section-row:hover{background:var(--bg3)}
+.rec-section-row.sel{background:var(--green-bg,#1a3320)}
 </style>`;
 
 // ── build HTML ───────────────────────────────────────────────
@@ -258,8 +340,12 @@ function buildMain() {
   const cats    = ['all', ...new Set(_dishes.map(d => d.category).filter(Boolean))];
   const withFC  = _dishes.filter(d => calcFC(d) !== null);
   const avgFCv  = withFC.length ? withFC.reduce((a, d) => a + calcFC(d), 0) / withFC.length : null;
-  const alerts  = withFC.filter(d => calcFC(d) > 25).length;
+  const alerts  = withFC.filter(d => {
+    const fc = calcFC(d);
+    return fc !== null && (fc > _fcMax || (_fcMin > 0 && fc < _fcMin));
+  }).length;
   const detail  = _selected ? _dishes.find(d => d.id === _selected) : null;
+  const activeSingle = _catSet.size === 1 ? [..._catSet][0] : null;
 
   return `<div class="rec-wrap">
   <div class="rec-topbar">
@@ -267,9 +353,13 @@ function buildMain() {
       <div class="rec-title">Фудкост</div>
       <div class="rec-sub">${_dishes.length} страв · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
+    <div class="rec-filter-btn ${_catSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openSectionFilter()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      ${activeSingle ? activeSingle.slice(0, 10) + (activeSingle.length > 10 ? '…' : '') : 'Розділ'}
+    </div>
     ${_role === 'manager' ? `
-    <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--green)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#fff'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
-      ${_syncing ? '⏳ Синхронізація...' : '↻ Ціни з Syrve'}
+    <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#fff'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
+      ${_syncing ? '⏳...' : '↻ Ціни'}
     </button>` : ''}
   </div>
 
@@ -287,18 +377,34 @@ function buildMain() {
 
     <div class="rec-kpi-row">
       <div class="rec-kpi">
-        <div class="rec-kpi-val" style="color:${fcColor(avgFCv)}">${avgFCv !== null ? avgFCv.toFixed(1) + '%' : '—'}</div>
+        <div class="rec-kpi-val" style="color:${fcColor(avgFCv)}">${fmtFC(avgFCv)}</div>
         <div class="rec-kpi-lbl">Сер. FC</div>
       </div>
-      <div class="rec-kpi">
+      <div class="rec-kpi" data-act="toggle-settings" style="cursor:pointer">
         <div class="rec-kpi-val" style="color:${alerts > 0 ? 'var(--red)' : 'var(--green)'}">${alerts}</div>
-        <div class="rec-kpi-lbl">FC > 25%</div>
+        <div class="rec-kpi-lbl" style="display:flex;align-items:center;justify-content:center;gap:3px">
+          Поза межами
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2.5M5 6.5v.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+        </div>
       </div>
       <div class="rec-kpi">
-        <div class="rec-kpi-val">${_dishes.length}</div>
-        <div class="rec-kpi-lbl">Страв</div>
+        <div class="rec-kpi-val">${withFC.length}<span style="font-size:11px;font-weight:400;color:var(--text2)">/${_dishes.length}</span></div>
+        <div class="rec-kpi-lbl">З ціною</div>
       </div>
     </div>
+
+    ${_showFCSettings ? `
+    <div class="rec-settings-bar" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;margin:0 14px 10px;padding:10px 14px">
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);flex-shrink:0">Межі FC:</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);flex-shrink:0">мін</div>
+      <input class="rec-thresh-inp" id="rec-fc-min" type="number" min="0" max="100" step="1" value="${_fcMin}"/>
+      <div style="font-size:11px;color:var(--text2)">%</div>
+      <div style="font-size:11px;color:var(--text3);padding:0 2px">—</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);flex-shrink:0">макс</div>
+      <input class="rec-thresh-inp" id="rec-fc-max" type="number" min="0" max="500" step="1" value="${_fcMax}"/>
+      <div style="font-size:11px;color:var(--text2)">%</div>
+      <button data-act="save-thresh" style="height:28px;padding:0 10px;background:var(--green);border:none;border-radius:8px;color:#fff;font-size:11px;cursor:pointer;font-family:var(--font-b);margin-left:auto">Зберегти</button>
+    </div>` : ''}
 
     <div class="rec-cats">
       <div class="rec-cat ${_catSet.size === 0 ? 'act' : ''}" data-act="cat" data-id="all">Всі</div>
@@ -320,7 +426,7 @@ function buildMain() {
           <div class="rec-cat-lbl">${d.category || '—'} · ${(d.ingredients || []).length} інгр.</div>
         </div>
         <div class="rec-fc-badge" style="background:${color}22;color:${color}">
-          ${fc !== null ? 'FC ' + fc.toFixed(1) + '%' : '—'}
+          ${fc !== null ? 'FC ' + fmtFC(fc) : '—'}
         </div>
       </div>
       <div class="rec-metrics">
@@ -329,11 +435,11 @@ function buildMain() {
           <div class="rec-metric-lbl">Ціна</div>
         </div>
         <div class="rec-metric">
-          <div class="rec-metric-val">${cost ? cost.toFixed(2) + ' ₴' : '—'}</div>
+          <div class="rec-metric-val">${cost ? cost.toFixed(2).replace('.', ',') + ' ₴' : '—'}</div>
           <div class="rec-metric-lbl">Собівартість</div>
         </div>
         <div class="rec-metric">
-          <div class="rec-metric-val" style="color:${color}">${fc !== null ? fc.toFixed(1) + '%' : '—'}</div>
+          <div class="rec-metric-val" style="color:${color}">${fmtFC(fc)}</div>
           <div class="rec-metric-lbl">FC</div>
         </div>
       </div>
@@ -369,7 +475,7 @@ function buildDetail(d) {
       <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${d.category || '—'}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:var(--font-h);font-size:18px;font-weight:700;color:${color}">${fc !== null ? 'FC ' + fc.toFixed(1) + '%' : '—'}</div>
+      <div style="font-family:var(--font-h);font-size:18px;font-weight:700;color:${color}">${fc !== null ? 'FC ' + fmtFC(fc) : '—'}</div>
     </div>
   </div>
 
@@ -425,7 +531,7 @@ function buildDetail(d) {
     ${fc !== null ? `
     <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Фудкост</div>
-      <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:${color}">${fc.toFixed(1)}%</div>
+      <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:${color}">${fmtFC(fc)}</div>
     </div>` : `
     <div style="padding:14px 16px;text-align:center;font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.6">
       ${isMgr ? 'Вкажіть ціни інгредієнтів і ціну продажу для розрахунку фудкосту' : 'Менеджер ще не вніс ціни'}
@@ -464,10 +570,13 @@ export default {
     _dishes     = []; _prices = {}; _loading = true;
     _error      = ''; _search = '';
     _selected   = null; _priceEdit = null; _priceDraft = '';
+    _showFCSettings = false;
     loadCats();
+    loadThresholds();
     return `${CSS}<div id="rec-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
   init() {
+    window.__rec = { openSectionFilter, closeSectionFilter, selectSection };
     const root = document.getElementById('rec-root');
     if (root) {
       root.addEventListener('click', on);
