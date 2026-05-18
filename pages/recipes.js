@@ -510,6 +510,13 @@ function toggleGoodsCat(cat) {
   re();
 }
 
+function clearAllFilters() {
+  _storeSet.clear(); saveStores();
+  _goodsCatSet.clear(); saveGoodsCats();
+  _catSet.clear(); saveCats();
+  re();
+}
+
 // ── CSS ───────────────────────────────────────────────────────
 const CSS = `<style id="rec-css">
 .rec-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
@@ -632,18 +639,6 @@ function buildMain() {
       <div class="rec-title">Фудкост</div>
       <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
-    <div class="rec-filter-btn ${_storeSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openStoreFilter()" ${allStores.length === 0 ? 'style="display:none"' : ''}>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 11V5.5L7 2l5 3.5V11H9.5V8H4.5v3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-      ${storeLabel}
-    </div>
-    <div class="rec-filter-btn ${_goodsCatSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openGoodsCatFilter()" ${allGoodsCats.length === 0 ? 'style="display:none"' : ''}>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h7M2 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      ${goodsCatLabel}
-    </div>
-    <div class="rec-filter-btn ${_catSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openSectionFilter()">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      ${filterLabel}
-    </div>
     ${_role === 'manager' ? `
     <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#fff'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
       ${_syncing ? '⏳...' : '↻ Ціни'}
@@ -653,6 +648,27 @@ function buildMain() {
   <div class="rec-scroll">
     <div class="rec-search-wrap">
       <input class="rec-search" placeholder="🔍 Пошук страви..." value="${_search}" data-role="search"/>
+    </div>
+
+    <div style="display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto">
+      ${allStores.length > 0 ? `
+      <div class="rec-filter-btn ${_storeSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openStoreFilter()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 3L6.5 1l5 2V7c0 2.5-2.5 4-5 5C4 11 1.5 9.5 1.5 7z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        ${storeLabel}
+      </div>` : ''}
+      ${allGoodsCats.length > 0 ? `
+      <div class="rec-filter-btn ${_goodsCatSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openGoodsCatFilter()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 10V5.5L6.5 2l5 3.5V10H9V7.5H4V10z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        ${goodsCatLabel}
+      </div>` : ''}
+      <div class="rec-filter-btn ${_catSet.size > 0 ? 'active' : ''}" onclick="window.__rec.openSectionFilter()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 3.5h10M1.5 6.5h7M1.5 9.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        ${filterLabel}
+      </div>
+      ${(_storeSet.size > 0 || _goodsCatSet.size > 0 || _catSet.size > 0) ? `
+      <div class="rec-filter-btn" onclick="window.__rec.clearAllFilters()" style="color:var(--red);border-color:var(--red)">
+        ✕ Скинути
+      </div>` : ''}
     </div>
 
     ${_dishes.length === 0 ? `
@@ -888,7 +904,7 @@ export default {
     return `${CSS}<div id="rec-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
   init() {
-    window.__rec = { openSectionFilter, closeSectionFilter, selectSection, toggleSection, openStoreFilter, closeStoreFilter, selectAllStores, toggleStore, openGoodsCatFilter, closeGoodsCatFilter, selectAllGoodsCats, toggleGoodsCat };
+    window.__rec = { openSectionFilter, closeSectionFilter, selectSection, toggleSection, openStoreFilter, closeStoreFilter, selectAllStores, toggleStore, openGoodsCatFilter, closeGoodsCatFilter, selectAllGoodsCats, toggleGoodsCat, clearAllFilters };
     const root = document.getElementById('rec-root');
     if (root) {
       root.addEventListener('click', on);
