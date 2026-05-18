@@ -89,31 +89,45 @@ function re() {
 }
 
 // ── data loading ─────────────────────────────────────────────
-async function loadAll() {
+function fetchWithTimeout(url, opts, timeoutMs) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+}
+
+async function loadAll(attempt = 1) {
   _loading = true; _error = ''; re();
-  try {
-    const [dRes, pRes] = await Promise.all([
-      fetch(`${API}/api/pos/dishes/${_venueId}`,           { headers: hdrs() }),
-      fetch(`${API}/api/pos/syrve-prices?venueId=${_venueId}`, { headers: hdrs() }),
-    ]);
 
-    if (dRes.ok) {
-      const d = await dRes.json();
-      _dishes = d.dishes || [];
-    } else {
-      const d = await dRes.json().catch(() => ({}));
-      _error = d.error || 'Помилка завантаження страв';
-    }
+  const [dishResult, priceResult] = await Promise.allSettled([
+    fetchWithTimeout(`${API}/api/pos/dishes/${_venueId}`, { headers: hdrs() }, 120000),
+    fetchWithTimeout(`${API}/api/pos/syrve-prices?venueId=${_venueId}`, { headers: hdrs() }, 30000),
+  ]);
 
-    if (pRes.ok) {
-      const d = await pRes.json();
-      _prices = {};
-      for (const p of (d.prices || []))
-        _prices[p.productId] = { unitPrice: p.unitPrice, salePrice: p.salePrice };
+  // Страви
+  if (dishResult.status === 'fulfilled' && dishResult.value.ok) {
+    const d = await dishResult.value.json().catch(() => ({}));
+    _dishes = d.dishes || [];
+  } else if (dishResult.status === 'rejected') {
+    const isNetwork = dishResult.reason?.name === 'AbortError' || dishResult.reason?.message?.includes('fetch');
+    if (isNetwork && attempt < 3) {
+      console.warn(`[Recipes] loadAll retry ${attempt}/3`);
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+      return loadAll(attempt + 1);
     }
-  } catch (e) {
-    _error = e.message;
+    _error = 'Не вдалося завантажити страви. Перевірте підключення.';
+  } else if (dishResult.status === 'fulfilled' && !dishResult.value.ok) {
+    const d = await dishResult.value.json().catch(() => ({}));
+    _error = d.error || 'Помилка завантаження страв';
   }
+
+  // Ціни (не критично — продовжуємо навіть якщо впали)
+  if (priceResult.status === 'fulfilled' && priceResult.value.ok) {
+    const d = await priceResult.value.json().catch(() => ({}));
+    _prices = {};
+    for (const p of (d.prices || []))
+      _prices[p.productId] = { unitPrice: p.unitPrice, salePrice: p.salePrice };
+  }
+
   _loading = false; re();
 }
 
