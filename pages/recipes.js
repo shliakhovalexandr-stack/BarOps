@@ -63,14 +63,13 @@ function fcColor(fc) {
 }
 function calcCost(dish) {
   if ((dish.ingredients || []).length) {
-    // З ТТК: сума ingredient.grossAmount × ціна інгредієнту
     let cost = 0;
     for (const ing of dish.ingredients)
       cost += (ing.grossAmount || 0) * (_prices[ing.productId]?.unitPrice || 0);
-    return cost;
+    if (cost > 0) return cost;
   }
-  // Без ТТК: вручну внесена собівартість або 0
-  return _prices[dish.id]?.unitPrice || 0;
+  // Пріоритет: готова собівартість з Syrve → вручну внесена → 0
+  return dish.costPrice || _prices[dish.id]?.unitPrice || 0;
 }
 function calcFC(dish) {
   const cost  = calcCost(dish);
