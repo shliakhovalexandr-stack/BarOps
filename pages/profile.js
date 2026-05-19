@@ -341,7 +341,7 @@ function posIntegrationBlock() {
   const pos = _posSettings;
   const currentType = pos?.posType || 'manual';
   const sys = POS_SYSTEMS[currentType] || POS_SYSTEMS.manual;
-  const isConnected = pos?.posConnected;
+  const isConnected = pos?.posConnected || (pos?.posLastSyncAt && !pos?.posLastError);
 
   return `
   <div class="prof-sec">POS-інтеграція</div>
