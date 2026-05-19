@@ -10,11 +10,12 @@ const FC_MAX  = 30;   // небезпечний FC %
 const FC_WARN = 25;   // попереджувальний FC %
 const FC_TARGET = 28; // цільовий FC для оптимізації ціни
 
-let _venues    = [];
-let _dishes    = [];
-let _loading   = true;
-let _fcLoading = true;
-let _venueId   = null;
+let _venues      = [];
+let _dishes      = [];
+let _loading     = true;
+let _fcLoading   = true;
+let _venueId     = null;
+let _groupFilter = new Set();
 
 function tok() { return localStorage.getItem('barops_token') || ''; }
 const VENUE_COLORS = ['var(--green)', 'var(--amber)', 'var(--purple)', 'var(--red)', '#4FA8E8'];
@@ -229,7 +230,48 @@ const CSS = `<style id="an-css">
 .an-opt-row:last-child{border-bottom:none}
 .an-opt-arrow{font-size:11px;color:var(--text2);font-family:var(--font-b);margin:2px 0}
 .an-opt-badge{background:var(--green-bg,#1a3320);border:0.5px solid var(--green-border);border-radius:8px;padding:3px 8px;font-size:12px;font-family:var(--font-h);font-weight:700;color:var(--green);white-space:nowrap}
+
+/* Filter chips */
+.an-filter-bar{padding:0 14px 8px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.an-filter-row{display:flex;align-items:center;gap:6px;overflow-x:auto;padding-bottom:2px}
+.an-filter-row::-webkit-scrollbar{height:0}
+.an-filter-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0}
+.an-chip{background:var(--bg2);border:0.5px solid var(--border2);border-radius:20px;padding:5px 13px;font-size:12px;font-family:var(--font-b);color:var(--text1);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.an-chip.active{background:var(--green);border-color:var(--green);color:#fff}
+.an-chip-clr{background:none;border:0.5px solid var(--border2);border-radius:20px;padding:5px 10px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0}
 </style>`;
+
+// ── Filter bar ────────────────────────────────────────────────
+function buildFilterBar() {
+  const rows = [];
+
+  if (_venues.length > 1) {
+    const chips = _venues.map(v => {
+      const vid   = v.id || v.venueId || v._id || '';
+      const label = v.name.length > 16 ? v.name.slice(0, 16) + '…' : v.name;
+      return `<button class="an-chip${vid && _venueId === vid ? ' active' : ''}" onclick="window.__an.setVenue('${vid}','${v.name.replace(/'/g, "\\'")}')">
+        ${label}
+      </button>`;
+    }).join('');
+    rows.push(`<div class="an-filter-row">${chips}</div>`);
+  }
+
+  if (!_fcLoading && _dishes.length > 0) {
+    const groups = [...new Set(_dishes.map(d => d.store).filter(Boolean))].sort();
+    if (groups.length > 1) {
+      const chips = groups.map(g =>
+        `<button class="an-chip${_groupFilter.has(g) ? ' active' : ''}" onclick="window.__an.toggleGroup('${g.replace(/'/g, "\\'")}')">
+          ${g}
+        </button>`
+      ).join('');
+      const clrBtn = _groupFilter.size > 0
+        ? `<button class="an-chip-clr" onclick="window.__an.clearGroups()">✕</button>` : '';
+      rows.push(`<div class="an-filter-row"><span class="an-filter-lbl">Група:</span>${chips}${clrBtn}</div>`);
+    }
+  }
+
+  return rows.length ? `<div class="an-filter-bar">${rows.join('')}</div>` : '';
+}
 
 // ── Data loading ──────────────────────────────────────────────
 async function loadData() {
@@ -278,7 +320,8 @@ function buildFCCockpit() {
     </div>`;
   }
 
-  const fc = computeFC(_dishes);
+  const dishes = _groupFilter.size > 0 ? _dishes.filter(d => _groupFilter.has(d.store)) : _dishes;
+  const fc = computeFC(dishes);
   const { withFC, noPrice, noCost, danger, warning, good, avgFC, byCat } = fc;
   const insights = buildInsights(fc);
 
@@ -332,7 +375,7 @@ function buildFCCockpit() {
     <div class="an-fc-kpi">
       <div class="an-fc-kpi-val">${withFC.length}</div>
       <div class="an-fc-kpi-lbl">Страв з FC</div>
-      <div class="an-fc-kpi-sub" style="color:var(--text2)">з ${_dishes.length} у меню</div>
+      <div class="an-fc-kpi-sub" style="color:var(--text2)">з ${dishes.length}${_groupFilter.size > 0 ? ' у групі' : ' у меню'}</div>
     </div>
     <div class="an-fc-kpi">
       <div class="an-fc-kpi-val" style="color:${noPrice.length > 0 ? 'var(--amber)' : 'var(--green)'}">${noPrice.length}</div>
@@ -486,6 +529,8 @@ function buildHTML() {
     <div style="background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--green);font-family:var(--font-b)">${_venues.length} заклади</div>
   </div>
 
+  ${buildFilterBar()}
+
   <div class="an-scroll">
 
     <!-- Operational KPIs -->
@@ -586,9 +631,36 @@ function buildHTML() {
 function render() {
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
+  window.__an = {
+    setVenue(id) {
+      if (!id || id === _venueId) return;
+      _venueId = id;
+      _dishes = [];
+      _fcLoading = true;
+      _groupFilter.clear();
+      render();
+      fetch(`${API}/api/pos/dishes/${id}`, { headers: { Authorization: `Bearer ${tok()}` } })
+        .then(r => r.json())
+        .then(data => {
+          if (data.dishes?.length) _dishes = data.dishes;
+          _fcLoading = false;
+          render();
+        })
+        .catch(() => { _fcLoading = false; render(); });
+    },
+    toggleGroup(g) {
+      if (_groupFilter.has(g)) _groupFilter.delete(g);
+      else _groupFilter.add(g);
+      render();
+    },
+    clearGroups() {
+      _groupFilter.clear();
+      render();
+    },
+  };
 }
 
 export default {
-  render() { _loading = true; _fcLoading = true; _venues = []; _dishes = []; return buildHTML(); },
+  render() { _loading = true; _fcLoading = true; _venues = []; _dishes = []; _groupFilter.clear(); return buildHTML(); },
   init()   { loadData(); },
 };
