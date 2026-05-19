@@ -320,7 +320,6 @@ ${CSS}
           style="width:100%;margin-top:12px;background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
           ❌ Відключити Syrve
         </button>
-        <div id="syrve-store-picker" style="margin-top:16px"></div>
       </div>
       ` : _draft.posType === 'poster' ? `
       <div class="ve-sec">🍃 Poster інтеграція</div>
@@ -790,70 +789,8 @@ async function initIikoSection(venueId) {
       showToast('Помилка відключення', 'error');
     }
   });
-// ── Завантажити склади ──
-  loadSyrveStores(venueId);
 }
 
-async function loadSyrveStores(venueId) {
-  const authToken  = localStorage.getItem('barops_token');
-  const container  = document.getElementById('syrve-store-picker');
-  if (!container) return;
-
-  container.innerHTML = '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">⏳ Завантаження складів...</div>';
-
-  try {
-    const res  = await fetch(`${API}/api/pos/stores/${venueId}`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-    });
-    const data = await res.json();
-
-    if (!data.success || !data.stores?.length) {
-      container.innerHTML = '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Склади не знайдено</div>';
-      return;
-    }
-
-    const options = data.stores.map(s =>
-      `<option value="${s.id}" ${s.id === data.currentStoreId ? 'selected' : ''}>${s.name}</option>`
-    ).join('');
-
-    container.innerHTML = `
-      <div class="ve-label" style="margin-top:4px">СКЛАД (Залишки)</div>
-      <select class="ve-select" id="syrve-store-select">${options}</select>
-      <button type="button" id="btn-save-store" class="ve-btn ve-btn-green" style="height:44px;border-radius:12px;font-size:14px">
-        💾 Зберегти склад
-      </button>
-    `;
-
-    document.getElementById('btn-save-store')?.addEventListener('click', async () => {
-      const btn     = document.getElementById('btn-save-store');
-      const storeId = document.getElementById('syrve-store-select')?.value;
-      if (!storeId) return;
-      btn.disabled  = true;
-      btn.innerHTML = '⏳...';
-      try {
-        const r = await fetch(`${API}/api/pos/store/${venueId}`, {
-          method:  'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-          body:    JSON.stringify({ storeId }),
-        });
-        const d = await r.json();
-        if (d.success) {
-          showToast('✅ Склад збережено!');
-        } else {
-          showToast(d.error || 'Помилка', 'error');
-        }
-      } catch {
-        showToast('Помилка мережі', 'error');
-      } finally {
-        btn.disabled  = false;
-        btn.innerHTML = '💾 Зберегти склад';
-      }
-    });
-
-  } catch (err) {
-    container.innerHTML = `<div style="font-size:12px;color:var(--red);font-family:var(--font-b)">Помилка: ${err.message}</div>`;
-  }
-}
 
 function setModalSyrveMode(mode) {
   const cloudEl = document.getElementById('modal-syrve-cloud');
