@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/ocr.js
    Сканування накладної: Фото → Аналіз AI → Перевірка → Готово
    Реальні дані з 3 українських накладних (Баядера, Клас І К, РОМА)
@@ -89,15 +89,15 @@ const CSS = `<style id="ocr-css">
 .ocr-scroll{overflow-y:auto;flex:1}.ocr-scroll::-webkit-scrollbar{width:0}
 
 /* step indicator */
-.ocr-steps{display:flex;gap:0;padding:10px 14px 4px;align-items:center}
+.ocr-steps{display:flex;gap:0;padding:10px 20px 4px;align-items:center}
 .ocr-step-btn{
   display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;
   border:none;background:transparent;color:var(--text2);font-family:var(--font-b);
   font-size:11px;letter-spacing:.02em;cursor:pointer;transition:all .18s;
 }
-.ocr-step-btn.act{background:var(--green);color:#fff}
+.ocr-step-btn.act{background:var(--green);color:#000}
 .ocr-step-btn.done{color:var(--text2)}
-.ocr-step-btn.done .ocr-snum{background:rgba(29,158,117,.3);color:var(--green)}
+.ocr-step-btn.done .ocr-snum{background:rgba(168,139,255,.30);color:var(--green)}
 .ocr-snum{
   width:16px;height:16px;border-radius:50%;
   background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;
@@ -106,70 +106,64 @@ const CSS = `<style id="ocr-css">
 .ocr-step-sep{width:20px;height:1px;background:var(--border2);flex-shrink:0}
 
 /* topbar */
-.ocr-topbar{display:flex;align-items:center;gap:12px;padding:6px 18px 10px;flex-shrink:0}
+.ocr-topbar{display:flex;align-items:center;gap:12px;padding:6px 20px 10px;flex-shrink:0}
 .ocr-back{
-  width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);
+  width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);
   display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
 }
-.ocr-back:active{background:var(--bg3)}
-.ocr-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);letter-spacing:-.01em}
+.ocr-back:active{background:rgba(255,255,255,.08)}
+.ocr-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
 .ocr-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
 
 /* ── STEP 1: camera ── */
 .ocr-cam{
-  margin:0 14px;border-radius:16px;overflow:hidden;background:#090909;
-  border:0.5px solid var(--border2);aspect-ratio:3/4;position:relative;
-  display:flex;align-items:center;justify-content:center;
+  margin:0 20px 16px;border-radius:18px;overflow:hidden;background:var(--bg2);
+  border:0.5px solid var(--border);aspect-ratio:3/4;position:relative;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
-.ocr-doc-ghost{
-  width:68%;height:80%;background:linear-gradient(160deg,#1e1e1e,#151515);
-  border-radius:4px;opacity:.6;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
-}
-.ocr-corner{position:absolute;width:22px;height:22px;border-color:var(--green);border-style:solid}
-.ocr-tl{top:14px;left:14px;border-width:2.5px 0 0 2.5px;border-radius:3px 0 0 0}
-.ocr-tr{top:14px;right:14px;border-width:2.5px 2.5px 0 0;border-radius:0 3px 0 0}
-.ocr-bl{bottom:14px;left:14px;border-width:0 0 2.5px 2.5px;border-radius:0 0 0 3px}
-.ocr-br{bottom:14px;right:14px;border-width:0 2.5px 2.5px 0;border-radius:0 0 3px 0}
+.ocr-cam-center{text-align:center;position:relative;z-index:1;padding:0 20px}
+.ocr-cam-icon{width:64px;height:64px;border-radius:18px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.ocr-cam-label{font-size:15px;font-weight:500;color:var(--text0);margin-bottom:4px}
+.ocr-cam-sub{font-size:12px;color:var(--text2);line-height:1.4}
+.ocr-corner{position:absolute;width:32px;height:32px;overflow:hidden}
+.ocr-tl{top:14px;left:14px}
+.ocr-tr{top:14px;right:14px}
+.ocr-bl{bottom:14px;left:14px}
+.ocr-br{bottom:14px;right:14px}
 .ocr-scan-line{
-  position:absolute;left:14px;right:14px;height:2px;
-  background:linear-gradient(90deg,transparent,var(--green),transparent);
-  opacity:.85;animation:ocrScan 2.2s ease-in-out infinite;
+  position:absolute;left:14px;right:14px;height:1px;
+  background:var(--green);opacity:.7;
+  box-shadow:0 0 12px var(--green);
+  animation:ocrScan 2.2s ease-in-out infinite;
 }
 @keyframes ocrScan{0%,100%{top:16%}50%{top:76%}}
-.ocr-cam-lbl{
-  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.65);backdrop-filter:blur(8px);border-radius:20px;
-  padding:5px 14px;font-size:11px;color:var(--text1);font-family:var(--font-b);
-  white-space:nowrap;border:0.5px solid var(--border2);
-}
-.ocr-hint{text-align:center;padding:10px 18px 4px;font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
-.ocr-cam-btns{padding:8px 14px 4px;display:flex;gap:8px}
+.ocr-hint{text-align:center;padding:10px 20px 4px;font-size:12px;color:var(--text2);line-height:1.5}
+.ocr-cam-btns{padding:0 20px 14px;display:flex;gap:10px}
 .ocr-btn-icon{
-  width:52px;height:52px;background:var(--bg2);border:0.5px solid var(--border2);
-  border-radius:12px;display:flex;align-items:center;justify-content:center;
+  width:56px;height:56px;background:var(--bg2);border:0.5px solid var(--border2);
+  border-radius:14px;display:flex;align-items:center;justify-content:center;
   cursor:pointer;flex-shrink:0;transition:background .15s;
 }
-.ocr-btn-icon:active{background:var(--bg3)}
+.ocr-btn-icon:active{background:rgba(255,255,255,.08)}
 .ocr-btn-shoot{
-  flex:1;height:52px;background:var(--green);border:none;border-radius:12px;
-  font-size:15px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);
+  flex:1;height:56px;background:var(--green);border:none;border-radius:14px;
+  font-size:15px;font-weight:600;color:#000;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;
 }
-.ocr-btn-shoot:active{background:var(--green-d);transform:scale(.97)}
-.ocr-tips{display:flex;gap:6px;padding:4px 14px 12px}
+.ocr-btn-shoot:active{opacity:.85;transform:scale(.97)}
+.ocr-tips{display:flex;gap:6px;padding:4px 20px 12px}
 .ocr-tip{
-  background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;
+  background:var(--bg1);border:0.5px solid var(--border);border-radius:9px;
   padding:8px;flex:1;text-align:center;font-size:10px;color:var(--text2);
-  font-family:var(--font-b);line-height:1.4;
-  display:flex;flex-direction:column;align-items:center;gap:4px;
+  line-height:1.4;display:flex;flex-direction:column;align-items:center;gap:4px;
 }
 /* demo selector */
-.ocr-demo-label{font-size:10px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-b);padding:4px 14px 5px}
-.ocr-sel-row{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}
+.ocr-demo-label{font-size:10px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;padding:4px 20px 5px}
+.ocr-sel-row{display:flex;gap:6px;padding:0 20px 10px;overflow-x:auto}
 .ocr-sel-row::-webkit-scrollbar{height:0}
 .ocr-sel{
   flex-shrink:0;font-size:11px;padding:5px 13px;border-radius:20px;
-  border:0.5px solid var(--border2);color:var(--text2);background:transparent;
+  border:0.5px solid var(--border);color:var(--text2);background:transparent;
   cursor:pointer;font-family:var(--font-b);transition:all .15s;white-space:nowrap;
 }
 .ocr-sel.act{background:var(--bg3);border-color:var(--border3);color:var(--text0)}
@@ -187,7 +181,7 @@ const CSS = `<style id="ocr-css">
 .ocr-proc-steps{margin-top:24px;width:100%;display:flex;flex-direction:column;gap:7px}
 .ocr-pstep{
   display:flex;align-items:center;gap:12px;padding:10px 14px;
-  background:var(--bg2);border-radius:9px;border:0.5px solid var(--border);
+  background:var(--bg1);border-radius:9px;border:0.5px solid var(--border);
 }
 .ocr-pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .ocr-pdot-done{background:var(--green)}
@@ -198,14 +192,14 @@ const CSS = `<style id="ocr-css">
 .ocr-pval{font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:right}
 .ocr-skip{
   margin-top:16px;height:44px;width:100%;background:var(--bg2);
-  border:0.5px solid var(--border2);border-radius:12px;
+  border:0.5px solid var(--border);border-radius:12px;
   font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:color .15s;
 }
 .ocr-skip:hover{color:var(--text1)}
 
 /* ── STEP 3: result ── */
 .ocr-supplier{
-  margin:0 14px 8px;background:var(--green-bg);border:0.5px solid var(--green-border);
+  margin:0 20px 8px;background:var(--green-bg);border:0.5px solid var(--green-border);
   border-radius:13px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;
 }
 .ocr-supp-icon{
@@ -219,7 +213,7 @@ const CSS = `<style id="ocr-css">
 
 /* supplier edit inline */
 .ocr-supp-edit{
-  margin:0 14px 8px;background:var(--bg3);border:0.5px solid var(--border2);
+  margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);
   border-radius:12px;padding:13px;display:none;flex-direction:column;gap:9px;
 }
 .ocr-supp-edit.open{display:flex}
@@ -227,42 +221,42 @@ const CSS = `<style id="ocr-css">
 .ocr-edit-grp{display:flex;flex-direction:column;gap:4px;flex:1}
 .ocr-edit-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase}
 .ocr-edit-inp{
-  height:40px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:9px;
+  height:40px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;
   padding:0 11px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;
   transition:border-color .2s;width:100%;
 }
-.ocr-edit-inp:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,.1)}
+.ocr-edit-inp:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .ocr-edit-save{
   height:38px;flex:1;background:var(--green);border:none;border-radius:9px;
   font-size:13px;color:#fff;cursor:pointer;font-family:var(--font-h);transition:background .15s;
 }
 .ocr-edit-save:active{background:var(--green-d)}
 .ocr-edit-cancel{
-  height:38px;width:80px;background:var(--bg2);border:0.5px solid var(--border2);
+  height:38px;width:80px;background:var(--bg2);border:0.5px solid var(--border);
   border-radius:9px;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--font-b);
 }
 
 /* warn strips */
 .ocr-warn{
-  margin:0 14px 7px;border-radius:9px;padding:9px 12px;
-  display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--font-b);
+  margin:0 20px 7px;border-radius:9px;padding:9px 12px;
+  display:flex;align-items:center;gap:8px;font-size:12px;
 }
-.ocr-warn-amber{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
+.ocr-warn-amber{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
 .ocr-warn-purple{background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple)}
-.ocr-warn-red{background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red)}
+.ocr-warn-red{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
 
 /* filter tabs */
-.ocr-filter{display:flex;gap:2px;margin:0 14px 9px;background:var(--bg2);border-radius:9px;padding:3px;border:0.5px solid var(--border)}
+.ocr-filter{display:flex;gap:2px;margin:0 20px 9px;background:var(--bg1);border-radius:9px;padding:3px;border:0.5px solid var(--border)}
 .ocr-ftab{flex:1;height:27px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .ocr-ftab.act{background:var(--bg3);color:var(--text0)}
 
 /* item cards */
-.ocr-items{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.ocr-item{background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;overflow:hidden;transition:border-color .15s}
+.ocr-items{padding:0 20px;display:flex;flex-direction:column;gap:6px}
+.ocr-item{background:var(--bg1);border:0.5px solid var(--border);border-radius:13px;overflow:hidden;transition:border-color .15s}
 .ocr-item.warn{border-left:3px solid var(--amber)}
 .ocr-item.ok{border-left:3px solid var(--green)}
 .ocr-item.new{border-left:3px solid var(--purple)}
-.ocr-item.editing{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,.1)}
+.ocr-item.editing{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .ocr-item-row{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer}
 .ocr-idot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .ocr-iname{font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
@@ -270,7 +264,7 @@ const CSS = `<style id="ocr-css">
 .ocr-iprice{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);text-align:right;flex-shrink:0}
 .ocr-ipsub{font-size:10px;font-family:var(--font-b);margin-top:2px;text-align:right}
 .ocr-iedit{
-  width:27px;height:27px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border2);
+  width:27px;height:27px;border-radius:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);
   display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s;
 }
 .ocr-iedit:hover{background:var(--bg4)}
@@ -283,13 +277,13 @@ const CSS = `<style id="ocr-css">
 .ocr-egrp{display:flex;flex-direction:column;gap:4px;flex:1}
 .ocr-elbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase}
 .ocr-einp{
-  height:40px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:9px;
-  padding:0 11px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;
+  height:40px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;
+  padding:0 11px;font-size:13px;color:var(--text0);outline:none;
   transition:border-color .2s;width:100%;
 }
-.ocr-einp:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,.1)}
+.ocr-einp:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .ocr-eunit{
-  height:40px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:9px;
+  height:40px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;
   padding:0 9px;font-size:13px;color:var(--text0);font-family:var(--font-b);
   outline:none;cursor:pointer;min-width:62px;
   -webkit-appearance:none;
@@ -299,29 +293,29 @@ const CSS = `<style id="ocr-css">
 .ocr-eact{display:flex;gap:6px;margin-top:2px}
 .ocr-esave{
   flex:1;height:37px;background:var(--green);border:none;border-radius:9px;
-  font-size:13px;color:#fff;cursor:pointer;font-family:var(--font-h);transition:background .15s;
+  font-size:13px;color:#000;font-weight:600;cursor:pointer;transition:opacity .15s;
 }
-.ocr-esave:active{background:var(--green-d)}
+.ocr-esave:active{opacity:.85}
 .ocr-ecancel{
-  width:74px;height:37px;background:var(--bg2);border:0.5px solid var(--border2);
+  width:74px;height:37px;background:var(--bg2);border:0.5px solid var(--border);
   border-radius:9px;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--font-b);
 }
 .ocr-edel{
-  width:37px;height:37px;background:var(--red-bg);border:0.5px solid var(--red-border);
+  width:37px;height:37px;background:var(--red-bg);border:1px solid var(--red-border);
   border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;
 }
 
 /* add item btn */
 .ocr-add{
   display:flex;align-items:center;gap:10px;padding:11px 14px;
-  margin:4px 14px 0;background:var(--bg2);border:0.5px dashed var(--border2);
+  margin:4px 20px 0;background:var(--bg1);border:0.5px dashed var(--border2);
   border-radius:12px;cursor:pointer;transition:all .15s;
 }
 .ocr-add:hover{border-color:var(--green);background:var(--green-bg)}
 
 /* total */
 .ocr-total{
-  margin:8px 14px 0;background:var(--bg2);border:0.5px solid var(--border);
+  margin:8px 20px 0;background:var(--bg1);border:0.5px solid var(--border);
   border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;
 }
 .ocr-total-lbl{font-size:12px;color:var(--text2);font-family:var(--font-b)}
@@ -329,15 +323,15 @@ const CSS = `<style id="ocr-css">
 .ocr-total-sum{font-family:var(--font-h);font-size:19px;font-weight:700;color:var(--text0)}
 
 /* actions bar */
-.ocr-actions{padding:8px 14px 18px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.ocr-actions{padding:8px 20px 18px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
 .ocr-btn-confirm{
-  width:100%;height:52px;background:var(--green);border:none;border-radius:13px;
-  font-size:15px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);
+  width:100%;height:52px;background:var(--green);border:none;border-radius:14px;
+  font-size:15px;font-weight:600;color:#000;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;
 }
-.ocr-btn-confirm:active{background:var(--green-d)}
+.ocr-btn-confirm:active{opacity:.85}
 .ocr-btn-edit-all{
-  width:100%;height:44px;background:var(--bg2);border:0.5px solid var(--border2);
+  width:100%;height:44px;background:var(--bg2);border:0.5px solid var(--border);
   border-radius:13px;font-size:13px;color:var(--text1);cursor:pointer;font-family:var(--font-b);
   display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;
 }
@@ -348,7 +342,7 @@ const CSS = `<style id="ocr-css">
 .ocr-success{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;text-align:center}
 .ocr-succ-icon{
   width:72px;height:72px;border-radius:50%;background:var(--green-bg);
-  border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;
   margin-bottom:20px;animation:ocrPop .4s cubic-bezier(.22,1,.36,1);
 }
 @keyframes ocrPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
@@ -356,7 +350,7 @@ const CSS = `<style id="ocr-css">
 .ocr-succ-sub{font-size:14px;color:var(--text2);font-family:var(--font-b);line-height:1.55}
 .ocr-succ-pills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
 .ocr-succ-pill{
-  background:var(--bg2);border:0.5px solid var(--border2);border-radius:20px;
+  background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;
   padding:5px 13px;font-size:12px;color:var(--text1);font-family:var(--font-b);
 }
 </style>`;
@@ -418,31 +412,39 @@ function renderStep1() {
 
   <div class="ocr-scroll">
     <div class="ocr-cam">
-      <div class="ocr-doc-ghost"></div>
-      <div class="ocr-corner ocr-tl"></div>
-      <div class="ocr-corner ocr-tr"></div>
-      <div class="ocr-corner ocr-bl"></div>
-      <div class="ocr-corner ocr-br"></div>
+      <!-- corner brackets -->
+      <svg class="ocr-corner ocr-tl" width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <path d="M2 16V4a2 2 0 012-2h12" stroke="var(--green)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <svg class="ocr-corner ocr-tr" width="32" height="32" viewBox="0 0 32 32" fill="none" style="transform:rotate(90deg)">
+        <path d="M2 16V4a2 2 0 012-2h12" stroke="var(--green)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <svg class="ocr-corner ocr-bl" width="32" height="32" viewBox="0 0 32 32" fill="none" style="transform:rotate(270deg)">
+        <path d="M2 16V4a2 2 0 012-2h12" stroke="var(--green)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <svg class="ocr-corner ocr-br" width="32" height="32" viewBox="0 0 32 32" fill="none" style="transform:rotate(180deg)">
+        <path d="M2 16V4a2 2 0 012-2h12" stroke="var(--green)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
       <div class="ocr-scan-line"></div>
-      <div class="ocr-cam-lbl">Наведіть на накладну</div>
+      <div class="ocr-cam-center">
+        <div class="ocr-cam-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 3v18"/>
+          </svg>
+        </div>
+        <div class="ocr-cam-label">Сфоткайте накладну</div>
+        <div class="ocr-cam-sub">AI розпізнає позиції<br>автоматично</div>
+      </div>
     </div>
 
-    <div class="ocr-hint">Тримайте документ рівно в рамці · без тіней і відблисків</div>
-
     <div class="ocr-cam-btns">
-      <label for="ocr-gallery-input" class="ocr-btn-icon" title="Галерея" style="cursor:pointer;display:flex;align-items:center;justify-content:center">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect x="2" y="4" width="16" height="13" rx="2.5" stroke="var(--text1)" stroke-width="1.2"/>
-          <circle cx="7" cy="9.5" r="2" stroke="var(--text1)" stroke-width="1.2"/>
-          <path d="M2 16l4-4.5 3.5 3.5 3-3.5 5.5 4.5" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/>
-        </svg>
-      </label>
       <label for="ocr-cam-input" class="ocr-btn-shoot" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <rect x="2" y="4" width="14" height="10" rx="2" stroke="#fff" stroke-width="1.2"/>
-          <circle cx="9" cy="9" r="3" stroke="#fff" stroke-width="1.2"/>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.8">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+          <circle cx="12" cy="13" r="4"/>
         </svg>
-        Зробити фото
+        Сфотографувати
       </label>
       <div class="ocr-btn-icon" id="ocr-flash-btn" title="Спалах"
         style="cursor:pointer" onclick="window.__ocr.toggleFlash()">
@@ -450,6 +452,13 @@ function renderStep1() {
           <path d="M11 2L5 11h6l-2 7 8-10h-6l2-6z" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/>
         </svg>
       </div>
+      <label for="ocr-gallery-input" class="ocr-btn-icon" title="Галерея" style="cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="1.4">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="9" cy="9" r="2"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+      </label>
     </div>
 
     <div class="ocr-tips">
@@ -712,7 +721,7 @@ function renderStep3() {
 
     <!-- Add item -->
     <div class="ocr-add" onclick="window.__ocr.addItem()">
-      <div style="width:30px;height:30px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <div style="width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
           <path d="M6.5 2v9M2 6.5h9" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
@@ -771,7 +780,7 @@ function renderStep4() {
       ${pills.map(p => `<div class="ocr-succ-pill">${p}</div>`).join('')}
     </div>
   </div>
-  <div style="padding:0 14px 22px;display:flex;flex-direction:column;gap:8px">
+  <div style="padding:0 20px 22px;display:flex;flex-direction:column;gap:8px">
     <button class="ocr-btn-confirm" onclick="window.__ocr.goStep(1)">
       Сканувати наступну накладну
     </button>

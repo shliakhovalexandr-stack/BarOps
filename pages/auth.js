@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/auth.js
    welcome | login-choice | manager-login | register (3 кроки) | phone | pin
    ============================================================ */
@@ -8,7 +8,7 @@ import { navigate, state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 
 // Стан
-let _view = 'welcome'; // welcome | login-choice | manager-login | reg-1 | reg-2 | reg-3 | phone | pin
+let _view = 'phone'; // phone | pin | manager-login | reg-1 | reg-2 | reg-3
 let _phone = '';
 let _pin   = '';
 
@@ -22,9 +22,22 @@ let _mgr = { email: '', password: '' };
 let _mgrLoading = false;
 let _mgrError   = '';
 
-const LOGO_SVG = `<svg width="26" height="26" viewBox="0 0 28 28" fill="none">
-  <path d="M7 4h14l-4 10H11L7 4z" stroke="white" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
-  <path d="M11 14v8M17 14v8M9 22h10" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+const BOTTLE_SVG = `<svg width="52" height="90" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="18" y="1" width="16" height="9" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
+  <line x1="21" y1="4.5" x2="33" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="21" y1="7.5" x2="33" y2="7.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M18 10 h16 v10 c0 0 8 8 8 20 v40 a6 6 0 01-6 6 h-20 a6 6 0 01-6-6 V40 c0-12 8-20 8-20 V10" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="12" y="52" width="28" height="22" rx="4" fill="#A88BFF"/>
+  <text x="26" y="68" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,system-ui,sans-serif" font-size="14" font-weight="800" fill="#0A0A0A">B</text>
+</svg>`;
+
+const BOTTLE_SVG_SMALL = `<svg width="28" height="48" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="18" y="1" width="16" height="9" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
+  <line x1="21" y1="4.5" x2="33" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="21" y1="7.5" x2="33" y2="7.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M18 10 h16 v10 c0 0 8 8 8 20 v40 a6 6 0 01-6 6 h-20 a6 6 0 01-6-6 V40 c0-12 8-20 8-20 V10" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="12" y="52" width="28" height="22" rx="4" fill="#A88BFF"/>
+  <text x="26" y="68" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,system-ui,sans-serif" font-size="14" font-weight="800" fill="#0A0A0A">B</text>
 </svg>`;
 const BACK_SVG = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
@@ -39,74 +52,72 @@ const CSS = `<style id="auth-styles">
 .auth-view.active{display:flex;animation:fadeUp 280ms ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .auth-logo-wrap{display:flex;align-items:center;gap:14px;margin-top:48px;margin-bottom:8px}
-.auth-logo-mark{width:52px;height:52px;border-radius:16px;background:#EF9F27;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 28px rgba(239,159,39,.35);position:relative;overflow:hidden}
-.auth-logo-mark::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.18) 0%,transparent 60%)}
-.auth-logo-text{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;color:var(--text0);letter-spacing:-.03em}
+.auth-logo-mark{display:none}
+.auth-logo-text{font-family:var(--font-logo);font-size:30px;font-weight:800;color:var(--text0);letter-spacing:-.03em}
 .auth-logo-sub{font-size:11px;color:var(--text2);letter-spacing:.12em;text-transform:uppercase;font-family:var(--font-b)}
 .auth-tagline{margin-top:32px;font-family:var(--font-h);font-size:24px;font-weight:700;color:var(--text0);line-height:1.25;letter-spacing:-.02em}
 .auth-tagline span{color:var(--green)}
 .auth-desc{margin-top:10px;font-size:13px;color:var(--text1);line-height:1.65;font-family:var(--font-b);font-weight:300}
 .auth-pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:20px}
-.auth-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:20px;padding:5px 11px;font-size:11px;color:var(--text1);font-family:var(--font-b)}
+.auth-pill{display:flex;align-items:center;gap:6px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:20px;padding:5px 11px;font-size:11px;color:var(--text1);font-family:var(--font-b)}
 .auth-pill-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0}
 .auth-spacer{flex:1;min-height:24px}
-.auth-btn{width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);letter-spacing:.01em;transition:all .18s}
-.auth-btn-primary{background:var(--green);color:#fff;box-shadow:0 4px 20px rgba(29,158,117,.28)}
-.auth-btn-primary:active{background:var(--green-d);transform:scale(.98)}
-.auth-btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none}
-.auth-btn-ghost{background:transparent;color:var(--text2);border:0.5px solid var(--border2);margin-top:10px}
-.auth-btn-ghost:active{background:rgba(255,255,255,.04)}
-.auth-btn-outline{background:transparent;color:var(--green);border:1.5px solid var(--green);margin-top:10px}
-.auth-btn-outline:active{background:var(--green-bg)}
+.auth-btn{width:100%;height:56px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);letter-spacing:.01em;transition:all .18s}
+.auth-btn-primary{background:var(--green);color:#000;}
+.auth-btn-primary:active{filter:brightness(.90);transform:scale(.98)}
+.auth-btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none}
+.auth-btn-ghost{background:var(--glass-bg);color:var(--text2);border:0.5px solid var(--border);margin-top:10px}
+.auth-btn-ghost:active{background:rgba(255,255,255,.09)}
+.auth-btn-outline{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);margin-top:10px}
+.auth-btn-outline:active{background:rgba(168,139,255,.18)}
 .auth-cta{display:flex;flex-direction:column;gap:0;padding-bottom:4px}
 .auth-header{display:flex;align-items:center;gap:12px;margin-top:24px;margin-bottom:28px}
-.auth-back{width:38px;height:38px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.auth-back:active{background:var(--bg3)}
+.auth-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.auth-back:active{background:rgba(255,255,255,.10)}
 .auth-screen-title{font-family:var(--font-h);font-size:21px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
 .auth-screen-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 /* inputs */
 .auth-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;margin-top:16px}
-.auth-inp{width:100%;height:54px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:14px;color:var(--text0);font-size:16px;font-family:var(--font-h);font-weight:500;padding:0 16px;box-sizing:border-box;outline:none;transition:border-color .2s;-webkit-text-fill-color:var(--text0)}
-.auth-inp:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.08)}
-.auth-inp::placeholder{color:var(--text2);font-size:14px;font-weight:400;font-family:var(--font-b)}
+.auth-inp{width:100%;height:54px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;color:var(--text0);font-size:16px;font-family:var(--font-h);font-weight:500;padding:0 16px;box-sizing:border-box;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-text-fill-color:var(--text0)}
+.auth-inp:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
+.auth-inp::placeholder{color:var(--text3);font-size:14px;font-weight:400;font-family:var(--font-b)}
 /* phone */
-.auth-phone-wrap{background:var(--bg2);border:1.5px solid var(--border2);border-radius:16px;display:flex;align-items:center;gap:0;overflow:hidden;margin-bottom:8px;transition:border-color .2s}
-.auth-phone-wrap:focus-within{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.08)}
-.auth-phone-flag{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-right:0.5px solid var(--border2);flex-shrink:0;font-size:24px}
+.auth-phone-wrap{background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;display:flex;align-items:center;padding:0 14px;height:56px;margin-bottom:14px;transition:border-color .2s,box-shadow .2s}
+.auth-phone-wrap:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 /* pin */
 .auth-pin-squares{display:flex;gap:12px;justify-content:center;margin:8px 0 28px}
-.auth-pin-sq{width:58px;height:68px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:28px;font-weight:700;color:var(--text0);transition:all .15s;position:relative}
-.auth-pin-sq.active{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,.15)}
+.auth-pin-sq{width:58px;height:68px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:28px;font-weight:700;color:var(--text0);transition:all .15s;position:relative}
+.auth-pin-sq.active{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .auth-pin-sq.filled{border-color:var(--green);background:var(--green-bg)}
 .auth-pin-sq.filled::after{content:'●';color:var(--green);font-size:20px}
 .auth-pin-sq.error{border-color:var(--red);background:var(--red-bg);animation:shake .3s ease}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .auth-pin-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
-.auth-phone-badge{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:24px;cursor:pointer}
-.auth-phone-badge:active{background:var(--bg3)}
+.auth-phone-badge{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:24px;cursor:pointer}
+.auth-phone-badge:active{background:rgba(255,255,255,.09)}
 /* error */
-.auth-error{background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);font-family:var(--font-b);display:none;margin-bottom:14px;text-align:center}
+.auth-error{background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);font-family:var(--font-b);display:none;margin-bottom:14px;text-align:center}
 .auth-error.show{display:block;animation:fadeUp .2s ease}
 /* spinner */
 .auth-spinner{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* steps */
 .auth-steps{display:flex;gap:6px;justify-content:center;margin-bottom:28px}
-.auth-step{height:3px;border-radius:2px;flex:1;background:var(--bg3);transition:background .3s}
+.auth-step{height:3px;border-radius:2px;flex:1;background:var(--border);transition:background .3s}
 .auth-step.done{background:var(--green)}
-.auth-step.active{background:var(--green);opacity:.5}
+.auth-step.active{background:var(--green);opacity:.6}
 /* trial badge */
-.auth-trial-badge{background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:14px;padding:16px;margin-bottom:20px;text-align:center}
+.auth-trial-badge{background:var(--green-bg);border:1px solid var(--green-border);border-radius:14px;padding:16px;margin-bottom:20px;text-align:center}
 .auth-trial-num{font-family:var(--font-h);font-size:48px;font-weight:800;color:var(--green);line-height:1}
 .auth-trial-lbl{font-size:13px;color:var(--green);font-family:var(--font-b);margin-top:4px}
 /* login choice */
-.auth-choice-btn{width:100%;height:64px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;display:flex;align-items:center;gap:16px;padding:0 20px;cursor:pointer;transition:all .15s;margin-bottom:10px;text-align:left}
-.auth-choice-btn:active{background:var(--bg3);transform:scale(.98)}
+.auth-choice-btn{width:100%;height:64px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;display:flex;align-items:center;gap:16px;padding:0 20px;cursor:pointer;transition:all .15s;margin-bottom:10px;text-align:left}
+.auth-choice-btn:active{background:rgba(255,255,255,.09);transform:scale(.98)}
 .auth-choice-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .auth-choice-title{font-family:var(--font-h);font-size:15px;font-weight:600;color:var(--text0)}
 .auth-choice-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 /* expired banner */
-.auth-expired{background:rgba(226,75,74,.08);border:0.5px solid var(--red-border);border-radius:14px;padding:16px;margin-bottom:20px;text-align:center}
+.auth-expired{background:rgba(248,113,113,.08);border:1px solid var(--red-border);border-radius:14px;padding:16px;margin-bottom:20px;text-align:center}
 </style>`;
 
 /* ════════════════════════
@@ -118,11 +129,7 @@ function viewWelcome() {
     <div class="auth-inner">
       <div style="flex:1;min-height:40px"></div>
       <div class="auth-logo-wrap">
-        <div class="auth-logo-mark">${LOGO_SVG}</div>
-        <div>
-          <div class="auth-logo-text">BarOps</div>
-          <div class="auth-logo-sub">Bar Management AI</div>
-        </div>
+        <div style="font-family:'Geist',system-ui,sans-serif;font-size:42px;font-weight:600;color:#fff;letter-spacing:-.045em;line-height:1">bar<span style="color:#A88BFF">ops.</span></div>
       </div>
       <div class="auth-tagline">Розумний<br/>помічник<br/><span>для вашого бару</span></div>
       <div class="auth-desc">Автоматизація інвентаризації, накладних та замовлень для HoReCa.</div>
@@ -208,7 +215,7 @@ function viewManagerLogin() {
   <div class="auth-view ${_view==='manager-login'?'active':''}" id="auth-manager-login">
     <div class="auth-inner">
       <div class="auth-header">
-        <div class="auth-back" onclick="window.__auth.goTo('login-choice')">${BACK_SVG}</div>
+        <div class="auth-back" onclick="window.__auth.goTo('phone')">${BACK_SVG}</div>
         <div>
           <div class="auth-screen-title">Вхід менеджера</div>
           <div class="auth-screen-sub">Email і пароль</div>
@@ -324,7 +331,7 @@ function viewReg2() {
         oninput="window.__auth.regField('venueName',this.value)"
         onkeydown="if(event.key==='Enter')window.__auth.doRegister()"/>
 
-      <div style="margin-top:16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px">
+      <div style="margin-top:16px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px">
         <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Що ви отримуєте</div>
         ${['Повний доступ до всіх функцій','Команда барменів','Накладні та OCR','Списання та інвентар','Аналітика та звіти'].map(f=>`
         <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
@@ -358,7 +365,7 @@ function viewReg3() {
   return `
   <div class="auth-view ${_view==='reg-3'?'active':''}" id="auth-reg-3">
     <div class="auth-inner" style="align-items:center;justify-content:center;text-align:center">
-      <div style="width:80px;height:80px;border-radius:24px;background:var(--green);display:flex;align-items:center;justify-content:center;margin-bottom:24px;box-shadow:0 0 40px rgba(29,158,117,.4)">
+      <div style="width:80px;height:80px;border-radius:24px;background:var(--green);display:flex;align-items:center;justify-content:center;margin-bottom:24px;box-shadow:0 0 48px rgba(168,139,255,.50)">
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
           <path d="M10 20l7 7 13-13" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -389,33 +396,54 @@ function viewPhone() {
   const phoneDigits = _phone ? _phone.replace('+380', '') : '';
   return `
   <div class="auth-view ${_view==='phone'?'active':''}" id="auth-phone">
-    <div class="auth-inner">
-      <div class="auth-header">
-        <div class="auth-back" onclick="window.__auth.goTo('login-choice')">${BACK_SVG}</div>
-        <div>
-          <div class="auth-screen-title">Номер телефону</div>
-          <div class="auth-screen-sub">Введіть ваш номер для входу</div>
-        </div>
+    <div class="auth-inner" style="align-items:stretch">
+
+      <!-- Logo block -->
+      <div style="display:flex;flex-direction:column;align-items:center;margin-top:52px;margin-bottom:0">
+        ${BOTTLE_SVG}
       </div>
-      <div class="auth-phone-wrap" id="phone-wrap" onclick="document.getElementById('phone-inp').focus()">
-        <div class="auth-phone-flag">🇺🇦</div>
-        <div style="display:flex;align-items:center;flex:1">
-          <span style="font-size:17px;font-family:var(--font-h);font-weight:600;color:var(--text2);white-space:nowrap;padding-left:2px">+38</span>
-          <input id="phone-inp" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel"
-            placeholder="" value="${phoneDigits}"
+
+      <!-- Wordmark + tagline -->
+      <div style="text-align:center;margin-top:20px">
+        <div style="font-family:'Geist',system-ui,sans-serif;font-size:38px;font-weight:600;color:#fff;letter-spacing:-.045em;line-height:1">bar<span style="color:#A88BFF">ops.</span></div>
+        <div style="margin-top:10px;font-size:14px;color:var(--text2);font-family:var(--font-b);line-height:1.55">Операції бару — спокійно<br/>і під контролем.</div>
+      </div>
+
+      <div class="auth-spacer"></div>
+
+      <!-- Phone input section -->
+      <div>
+        <div class="auth-lbl">Номер телефону</div>
+        <div class="auth-phone-wrap" id="phone-wrap" onclick="document.getElementById('phone-inp').focus()">
+          <span style="font-family:var(--font-b);font-size:15px;color:var(--text1);white-space:nowrap;flex-shrink:0;letter-spacing:.01em">+380</span>
+          <span style="width:1px;height:22px;background:var(--border2);flex-shrink:0;margin:0 14px"></span>
+          <input id="phone-inp" type="tel" inputmode="numeric" maxlength="9" autocomplete="tel"
+            placeholder="67 123 4567" value="${phoneDigits}"
             oninput="window.__auth.onPhoneInput(this)"
             onkeydown="if(event.key==='Enter')window.__auth.submitPhone()"
-            style="flex:1;height:56px;background:transparent;border:none;outline:none;font-size:18px;font-family:var(--font-h);font-weight:600;color:var(--text0);padding:0 8px;-webkit-text-fill-color:var(--text0)"/>
+            style="flex:1;height:100%;background:transparent;border:none;outline:none;font-size:17px;font-family:var(--font-h);font-weight:600;color:var(--text0);padding:0;-webkit-text-fill-color:var(--text0);letter-spacing:.02em"/>
+        </div>
+        <div class="auth-error" id="phone-err">Введіть коректний номер</div>
+        <button class="auth-btn auth-btn-primary" id="phone-next-btn"
+          onclick="window.__auth.submitPhone()" ${phoneDigits.length >= 9 ? '' : 'disabled'}>
+          Отримати код →
+        </button>
+
+        <!-- Secondary links -->
+        <div style="display:flex;justify-content:center;gap:28px;margin-top:18px">
+          <span onclick="window.__auth.goTo('manager-login')"
+            style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
+            Менеджер →
+          </span>
+          <span onclick="window.__auth.goTo('reg-1')"
+            style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
+            Реєстрація →
+          </span>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding-left:4px;margin-bottom:16px">Україна · +38</div>
-      <div class="auth-error" id="phone-err">Введіть коректний номер</div>
-      <div class="auth-spacer"></div>
-      <button class="auth-btn auth-btn-primary" id="phone-next-btn"
-        onclick="window.__auth.submitPhone()" ${phoneDigits.length >= 10 ? '' : 'disabled'}>
-        Далі →
-      </button>
-      <div style="height:12px"></div>
+
+      <!-- Version -->
+      <div style="text-align:center;margin-top:20px;margin-bottom:4px;font-size:11px;color:var(--text3);font-family:var(--font-b)">v3.2 · ред. 128</div>
     </div>
   </div>`;
 }
@@ -600,20 +628,21 @@ function onPhoneInput(inp) {
   let digits = inp.value.replace(/\D/g, '');
   if (digits.startsWith('380')) digits = digits.slice(3);
   else if (digits.startsWith('38')) digits = digits.slice(2);
-  digits = digits.slice(0, 10);
+  else if (digits.startsWith('0')) digits = digits.slice(1);
+  digits = digits.slice(0, 9);
   inp.value = digits;
-  _phone = '+38' + digits;
+  _phone = '+380' + digits;
   const btn = document.getElementById('phone-next-btn');
-  if (btn) btn.disabled = digits.length < 10;
+  if (btn) btn.disabled = digits.length < 9;
   document.getElementById('phone-err')?.classList.remove('show');
-  if (digits.length === 10) setTimeout(() => submitPhone(), 400);
+  if (digits.length === 9) setTimeout(() => submitPhone(), 400);
 }
 
 function submitPhone() {
   const inp    = document.getElementById('phone-inp');
   const digits = (inp?.value || '').replace(/\D/g, '');
-  if (digits.length < 10) { document.getElementById('phone-err')?.classList.add('show'); return; }
-  _phone = '+38' + digits;
+  if (digits.length < 9) { document.getElementById('phone-err')?.classList.add('show'); return; }
+  _phone = '+380' + digits;
   goTo('pin');
 }
 
@@ -702,7 +731,7 @@ function saveSession(data) {
 ════════════════════════ */
 export default {
   render() {
-    _view       = 'welcome';
+    _view       = 'phone';
     _phone      = '';
     _pin        = '';
     _mgrError   = '';

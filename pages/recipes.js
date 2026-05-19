@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/recipes.js
    Фудкост: страви з Syrve + ТТК + розрахунок собівартості
    ============================================================ */
@@ -84,8 +84,14 @@ function hdrs() {
 function fcColor(fc) {
   if (fc == null) return 'var(--text2)';
   if (fc > _fcMax) return 'var(--red)';
-  if (_fcMin > 0 && fc < _fcMin) return 'var(--amber)';
-  return 'var(--green)';
+  if (_fcMin > 0 && fc < _fcMin) return 'var(--green)';
+  return 'var(--amber)';
+}
+function fcBg(fc) {
+  if (fc == null) return 'var(--bg3)';
+  if (fc > _fcMax) return 'var(--red-bg)';
+  if (_fcMin > 0 && fc < _fcMin) return 'var(--green-bg)';
+  return 'var(--amber-bg)';
 }
 function calcCost(dish) {
   if ((dish.ingredients || []).length) {
@@ -525,52 +531,48 @@ const CSS = `<style id="rec-css">
 .rec-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .rec-scroll{overflow-y:auto;flex:1}.rec-scroll::-webkit-scrollbar{width:0}
 .rec-topbar{padding:8px 16px 6px;display:flex;align-items:center;gap:10px;flex-shrink:0}
-.rec-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);flex:1}
+.rec-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);flex:1}
 .rec-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
-.rec-search-wrap{padding:0 14px 8px}
-.rec-search{width:100%;box-sizing:border-box;height:38px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:11px;color:var(--text0);font-size:14px;font-family:var(--font-b);padding:0 12px;outline:none}
+.rec-search-wrap{padding:0 20px 12px}
+.rec-search{width:100%;box-sizing:border-box;height:42px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;color:var(--text0);font-size:14px;font-family:var(--font-b);padding:0 14px;outline:none}
 .rec-search:focus{border-color:var(--green)}
 .rec-cats{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}.rec-cats::-webkit-scrollbar{display:none}
 .rec-cat{flex-shrink:0;height:28px;padding:0 12px;border-radius:14px;border:0.5px solid var(--border);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b)}
-.rec-cat.act{background:var(--green);border-color:var(--green);color:#fff}
-.rec-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px 10px}
-.rec-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:10px;text-align:center}
-.rec-kpi-val{font-family:var(--font-h);font-size:18px;font-weight:700;line-height:1}
-.rec-kpi-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
-.rec-card-wrap{position:relative;margin:0 14px 6px;overflow:hidden;border-radius:13px}
-.rec-hide-action{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--red,#c0392b);border:none;color:#fff;font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:0 13px 13px 0;z-index:0}
-.rec-card{margin:0;background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:10px 12px;cursor:pointer;transition:background .12s;position:relative;z-index:1;will-change:transform}
-.rec-card:active{background:var(--bg3)}
-.rec-card.hidden-card{opacity:.45}
-.rec-card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px}
-.rec-name{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0);line-height:1.2}
+.rec-cat.act{background:var(--green);border-color:var(--green);color:#000}
+.rec-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin:0 20px 14px;border:0.5px solid var(--border)}
+.rec-kpi{background:var(--bg1);padding:14px 12px;text-align:center;cursor:default;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rec-kpi-val{font-family:var(--font-h);font-size:18px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.rec-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;line-height:1.3}
+.rec-list{margin:0 20px}
+.rec-card-wrap{position:relative;overflow:hidden;border-bottom:0.5px solid var(--border)}
+.rec-card-wrap:last-child{border-bottom:none}
+.rec-hide-action{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--red,#c0392b);border:none;color:#fff;font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:0;z-index:0}
+.rec-card{margin:0;background:var(--bg);border:none;border-radius:0;padding:12px 0;cursor:pointer;transition:opacity .12s;position:relative;z-index:1;will-change:transform;display:flex;align-items:center;gap:14px;width:100%}
+.rec-card:active{opacity:.7}
+.rec-card.hidden-card{opacity:.38}
+.rec-name{font-family:var(--font-h);font-size:14px;font-weight:500;color:var(--text0);line-height:1.2}
 .rec-cat-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.rec-fc-badge{height:22px;padding:0 8px;border-radius:11px;font-size:11px;font-family:var(--font-h);font-weight:700;display:flex;align-items:center;flex-shrink:0}
-.rec-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
-.rec-metric{background:var(--bg3);border-radius:8px;padding:6px;text-align:center}
-.rec-metric-val{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0)}
-.rec-metric-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:1px;text-transform:uppercase;letter-spacing:.04em}
 .rec-skel{background:var(--bg2);border-radius:14px;animation:rSkel 1.2s ease-in-out infinite;margin:0 14px 8px}
 @keyframes rSkel{0%,100%{opacity:.5}50%{opacity:1}}
-.rec-sheet-ov{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;flex-direction:column;justify-content:flex-end}
+.rec-sheet-ov{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.78);display:none;flex-direction:column;justify-content:flex-end}
 .rec-sheet-ov.open{display:flex;animation:rsOvIn .2s ease}
 @keyframes rsOvIn{from{opacity:0}to{opacity:1}}
-.rec-sheet{background:var(--bg2);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border2);max-height:88vh;display:flex;flex-direction:column;animation:rsSlide .3s cubic-bezier(.22,1,.36,1)}
+.rec-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);max-height:88vh;display:flex;flex-direction:column;animation:rsSlide .3s cubic-bezier(.22,1,.36,1)}
 @keyframes rsSlide{from{transform:translateY(100%)}to{transform:none}}
 .rec-sheet-handle{width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:14px auto 12px;flex-shrink:0}
 .rec-sheet-scroll{overflow-y:auto;flex:1;padding:0 0 40px}.rec-sheet-scroll::-webkit-scrollbar{width:0}
-.rec-ing-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid var(--border)}
+.rec-ing-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border)}
 .rec-ing-row:last-child{border-bottom:none}
 .rec-price-inp{width:70px;height:28px;background:var(--bg3);border:1px solid var(--green);border-radius:7px;color:var(--text0);font-size:12px;text-align:right;padding:0 6px;outline:none}
-.rec-btn-ok{height:28px;padding:0 8px;background:var(--green);border:none;border-radius:7px;color:#fff;font-size:11px;cursor:pointer;font-family:var(--font-b)}
+.rec-btn-ok{height:28px;padding:0 8px;background:var(--green);border:none;border-radius:7px;color:#000;font-size:11px;cursor:pointer;font-family:var(--font-b)}
 .rec-btn-cancel{height:28px;padding:0 8px;background:var(--bg3);border:none;border-radius:7px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font-b)}
-.rec-card-wrap.warn-low{border:1px solid var(--amber)}
-.rec-card-wrap.warn-high{border:1px solid var(--red)}
+.rec-card-wrap.warn-low{}
+.rec-card-wrap.warn-high{}
 .rec-warn-icon{width:18px;height:18px;flex-shrink:0}
 .rec-settings-bar{display:flex;align-items:center;gap:8px;padding:0 14px 10px;flex-wrap:wrap}
-.rec-thresh-inp{width:52px;height:30px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text0);font-size:13px;text-align:center;padding:0 6px;outline:none;font-family:var(--font-b)}
+.rec-thresh-inp{width:52px;height:30px;background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;color:var(--text0);font-size:13px;text-align:center;padding:0 6px;outline:none;font-family:var(--font-b)}
 .rec-thresh-inp:focus{border-color:var(--green)}
-.rec-filter-btn{height:32px;padding:0 10px;border-radius:16px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.rec-filter-btn{height:32px;padding:0 10px;border-radius:16px;border:0.5px solid var(--border);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:all .15s}
 .rec-filter-btn.active{background:var(--green-bg,#1a3320);border-color:var(--green);color:var(--green)}
 .rec-section-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:0.5px solid var(--border);cursor:pointer;transition:background .1s}
 .rec-section-row:hover{background:var(--bg3)}
@@ -602,7 +604,7 @@ function buildError() {
       <div style="font-size:36px;margin-bottom:14px">⚠️</div>
       <div style="font-family:var(--font-h);font-size:15px;color:var(--text0);margin-bottom:8px">${_error}</div>
       <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:20px;line-height:1.6">Перевірте налаштування POS — Syrve має бути підключено</div>
-      <button data-act="reload" style="height:36px;padding:0 20px;background:var(--green);border:none;border-radius:10px;color:#fff;font-size:13px;cursor:pointer;font-family:var(--font-b)">Спробувати знову</button>
+      <button data-act="reload" style="height:36px;padding:0 20px;background:var(--green);border:none;border-radius:10px;color:#000;font-size:13px;cursor:pointer;font-family:var(--font-b)">Спробувати знову</button>
     </div>
   </div>`;
 }
@@ -643,7 +645,7 @@ function buildMain() {
       <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
     ${_role === 'manager' ? `
-    <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#fff'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
+    <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#000'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
       ${_syncing ? '⏳...' : '↻ Ціни'}
     </button>` : ''}
   </div>
@@ -700,7 +702,7 @@ function buildMain() {
     </div>
 
     ${_showFCSettings ? `
-    <div class="rec-settings-bar" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;margin:0 14px 10px;padding:10px 14px">
+    <div class="rec-settings-bar" style="background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;margin:0 14px 10px;padding:10px 14px">
       <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);flex-shrink:0">Межі FC:</div>
       <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);flex-shrink:0">мін</div>
       <input class="rec-thresh-inp" id="rec-fc-min" type="number" min="0" max="100" step="1" value="${_fcMin}"/>
@@ -709,7 +711,7 @@ function buildMain() {
       <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);flex-shrink:0">макс</div>
       <input class="rec-thresh-inp" id="rec-fc-max" type="number" min="0" max="500" step="1" value="${_fcMax}"/>
       <div style="font-size:11px;color:var(--text2)">%</div>
-      <button data-act="save-thresh" style="height:28px;padding:0 10px;background:var(--green);border:none;border-radius:8px;color:#fff;font-size:11px;cursor:pointer;font-family:var(--font-b);margin-left:auto">Зберегти</button>
+      <button data-act="save-thresh" style="height:28px;padding:0 10px;background:var(--green);border:none;border-radius:8px;color:#000;font-size:11px;cursor:pointer;font-family:var(--font-b);margin-left:auto">Зберегти</button>
     </div>` : ''}
 
     ${hiddenCount > 0 ? `
@@ -725,6 +727,7 @@ function buildMain() {
       <div style="font-size:11px;color:var(--text3);font-family:var(--font-b)">← Свайп вліво на страві → Сховати</div>
     </div>`}
 
+    <div class="rec-list">
     ${visible.map(d => {
       const cost  = calcCost(d);
       const fc    = calcFC(d);
@@ -740,41 +743,27 @@ function buildMain() {
         ? `<svg class="rec-warn-icon" viewBox="0 0 18 18" fill="none"><path d="M9 2L16.5 15H1.5L9 2Z" stroke="var(--amber)" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 7v4M9 12.5v.5" stroke="var(--amber)" stroke-width="1.3" stroke-linecap="round"/></svg>`
         : '';
       return `
-    <div class="rec-card-wrap ${wrapClass}" data-name="${(d.name || '').toLowerCase()}" data-id="${d.id}">
+    <div class="rec-card-wrap${wrapClass ? ' ' + wrapClass : ''}" data-name="${(d.name || '').toLowerCase()}" data-id="${d.id}">
       <button class="rec-hide-action" data-act="${isHiddenDish ? 'unhide-dish' : 'hide-dish'}" data-id="${d.id}">
         ${isHiddenDish
           ? `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="#fff" stroke-width="1.3"/><circle cx="8" cy="8" r="2.5" stroke="#fff" stroke-width="1.3"/></svg>Відновити`
           : `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M6.4 3.5A7 7 0 0115 8s-.8 1.5-2 2.8M10 12.3A7 7 0 011 8s1-2 3-3.5" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>Сховати`}
       </button>
       <div class="rec-card${isHiddenDish ? ' hidden-card' : ''}" data-act="open" data-id="${d.id}">
-        <div class="rec-card-top">
-          <div style="flex:1;min-width:0">
-            <div class="rec-name" style="display:flex;align-items:center;gap:6px">
-              ${d.name}${warnIcon}
-            </div>
-            <div class="rec-cat-lbl">${d.category || '—'} · ${(d.ingredients || []).length} інгр.</div>
+        <div style="flex:1;min-width:0">
+          <div class="rec-name" style="display:flex;align-items:center;gap:6px">
+            ${d.name}${warnIcon}
           </div>
-          <div class="rec-fc-badge" style="background:${color}22;color:${color}">
-            ${fc !== null ? 'FC ' + fmtFC(fc) : '—'}
-          </div>
+          <div class="rec-cat-lbl">${d.category || '—'} · соб. ${fmtPrice(cost || null)} · ціна ${price ? price.toFixed(0) + ' ₴' : '—'}</div>
         </div>
-        <div class="rec-metrics">
-          <div class="rec-metric">
-            <div class="rec-metric-val">${price ? price.toFixed(2).replace('.', ',') + ' ₴' : '—'}</div>
-            <div class="rec-metric-lbl">Ціна</div>
-          </div>
-          <div class="rec-metric">
-            <div class="rec-metric-val">${fmtPrice(cost || null)}</div>
-            <div class="rec-metric-lbl">Собівартість</div>
-          </div>
-          <div class="rec-metric">
-            <div class="rec-metric-val" style="color:${color}">${fmtFC(fc)}</div>
-            <div class="rec-metric-lbl">FC</div>
-          </div>
+        <div style="text-align:right;min-width:56px;flex-shrink:0">
+          <div style="font-family:var(--font-h);font-size:14px;font-weight:600;color:${color};letter-spacing:-0.02em;line-height:1">${fc !== null ? fmtFC(fc) : '—'}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--font-b)">фудкост</div>
         </div>
       </div>
     </div>`;
     }).join('')}
+    </div>
     `}
 
     <div style="height:20px"></div>
@@ -798,7 +787,7 @@ function buildDetail(d) {
   const color = fcColor(fc);
 
   return `
-  <div style="padding:0 16px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:0.5px solid var(--border)">
+  <div style="padding:0 16px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid var(--border)">
     <div style="flex:1;min-width:0">
       <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);line-height:1.2">${d.name}</div>
       <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${d.category || '—'}</div>
@@ -871,7 +860,7 @@ function buildPriceRow(productId, field, currentVal, label, suffix, editable) {
   if (!editable) return '';
   const isEditing = _priceEdit?.productId === productId && _priceEdit?.field === field;
   return `
-  <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
     <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);flex:1">${label}</div>
     ${isEditing ? `
     <div style="display:flex;align-items:center;gap:6px">

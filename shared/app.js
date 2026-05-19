@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps App Core — app.js
    Router, стан, tab bar (бармен), drawer (менеджер)
    ============================================================ */
@@ -150,13 +150,13 @@ const TAB_BAR_MANAGER = [
    4. DRAWER (менеджер)
    ══════════════════════════════════════ */
 const DRAWER_NAV = [
-  { route:'dashboard',  label:'Дашборд',        icon:'🏠' },
-  { route:'team',       label:'Команда',         icon:'👥' },
-  { route:'ordering',   label:'Замовлення',      icon:'📦' },
-  { route:'inventory',  label:'Інвентаризація',  icon:'📋' },
-  { route:'recipes',    label:'Фудкост',         icon:'🍸' },
-  { route:'analytics',  label:'Аналітика',       icon:'📊' },
-  { route:'profile',    label:'Профіль',         icon:'👤' },
+  { route:'dashboard',  label:'Дашборд',        svg:`<path d="M2 9l5-5 3 3 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="12" width="4" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/>` },
+  { route:'team',       label:'Команда',        svg:`<circle cx="6" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M2 14c0-2.2 1.8-4 4-4h2M9 14c0-2.2 1.8-4 4-4h0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
+  { route:'ordering',   label:'Замовлення',     svg:`<rect x="3" y="2" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h5M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+  { route:'inventory',  label:'Інвентаризація', svg:`<rect x="2" y="3" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 12l2 2 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>` },
+  { route:'recipes',    label:'Фудкост',        svg:`<path d="M5 2v5a3 3 0 006 0V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
+  { route:'analytics',  label:'Аналітика',      svg:`<path d="M2 13h3V8H2zM7 13h3V4H7zM12 13h3V9h-3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>` },
+  { route:'profile',    label:'Профіль',        svg:`<circle cx="9" cy="5" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
 ];
 
 function renderDrawer() {
@@ -166,18 +166,17 @@ function renderDrawer() {
   <div id="app-drawer-overlay"
     style="position:fixed;inset:0;z-index:200;
            background:rgba(0,0,0,${_drawerOpen?'.72':'0'});
-           backdrop-filter:blur(${_drawerOpen?'4px':'0'});
            pointer-events:${_drawerOpen?'all':'none'};
-           transition:background .25s,backdrop-filter .25s"
+           transition:background .25s"
     onclick="window.__barops.closeDrawer()"></div>
   <div style="position:fixed;top:0;left:0;bottom:0;z-index:201;width:280px;
-              background:var(--bg1);border-right:0.5px solid var(--border2);
+              background:var(--bg1);border-right:0.5px solid var(--border);
               transform:translateX(${_drawerOpen?'0':'-100%'});
               transition:transform .3s cubic-bezier(.22,1,.36,1);
               display:flex;flex-direction:column;overflow:hidden">
-    <div style="padding:52px 20px 16px;border-bottom:0.5px solid var(--border2)">
+    <div style="padding:52px 20px 16px;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-family:var(--font-b);font-size:12px;color:var(--text2)">👨‍💼 Менеджер</div>
+        <div style="font-family:var(--font-b);font-size:12px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase">Менеджер</div>
         <div onclick="window.__barops.closeDrawer()"
           style="width:28px;height:28px;border-radius:50%;background:var(--bg2);
                  border:0.5px solid var(--border2);display:flex;align-items:center;
@@ -196,16 +195,16 @@ function renderDrawer() {
         return `
         <div onclick="window.__barops.navigate('${item.route}');window.__barops.closeDrawer()"
           style="display:flex;align-items:center;gap:12px;padding:12px 20px;cursor:pointer;
-                 background:${isActive?'rgba(29,158,117,.08)':'transparent'};
+                 background:${isActive?'rgba(168,139,255,.10)':'transparent'};
                  border-right:${isActive?'3px solid var(--green)':'3px solid transparent'};
                  transition:background .12s">
-          <span style="font-size:18px;width:24px;text-align:center">${item.icon}</span>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="flex-shrink:0;color:${isActive?'var(--green)':'var(--text2)'}">${item.svg}</svg>
           <span style="font-family:var(--font-b);font-size:14px;
                        color:${isActive?'var(--green)':'var(--text1)'};
                        font-weight:${isActive?'600':'400'}">${item.label}</span>
         </div>`;
       }).join('')}
-      <div style="height:1px;background:var(--border2);margin:8px 20px"></div>
+      <div style="height:1px;background:var(--border);margin:8px 20px"></div>
       <div style="padding:8px 20px 6px;font-size:10px;color:var(--text2);
                   letter-spacing:.10em;text-transform:uppercase;font-family:var(--font-b)">Заклади</div>
       ${MANAGER_VENUES.map(v => `
@@ -218,7 +217,7 @@ function renderDrawer() {
           ontouchend="window.__barops.endVenueHold()"
           ontouchmove="window.__barops.endVenueHold()"
           style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
-                 background:${v.id===_venueMenuId?'rgba(255,255,255,.04)':v.active?'rgba(29,158,117,.06)':'transparent'};
+                 background:${v.id===_venueMenuId?'rgba(255,255,255,.04)':v.active?'rgba(168,139,255,.08)':'transparent'};
                  transition:background .12s">
           <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;
                       background:${v.active?'var(--green)':'var(--bg4)'};
@@ -246,7 +245,7 @@ function renderDrawer() {
                     border:0.5px solid var(--border2);overflow:hidden">
           <div onclick="window.__barops.editVenue('${v.id}','${v.name}')"
             style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
-                   border-bottom:0.5px solid var(--border2)">
+                   border-bottom:1px solid var(--border)">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M2 14l2-2 8-8 2 2-8 8-2 2H2v-2z" stroke="var(--green)" stroke-width="1.3" stroke-linejoin="round"/>
               <path d="M10 4l2 2" stroke="var(--green)" stroke-width="1.3" stroke-linecap="round"/>
@@ -255,7 +254,7 @@ function renderDrawer() {
           </div>
           <div onclick="window.__barops.archiveVenue('${v.id}')"
             style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
-                   border-bottom:0.5px solid var(--border2)">
+                   border-bottom:1px solid var(--border)">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <rect x="2" y="5" width="12" height="9" rx="1.5" stroke="var(--amber)" stroke-width="1.3"/>
               <path d="M2 5h12M6 2h4" stroke="var(--amber)" stroke-width="1.3" stroke-linecap="round"/>
@@ -278,7 +277,7 @@ function renderDrawer() {
         <div style="font-size:13px;color:var(--green);font-family:var(--font-b)">+ Підключити заклад</div>
       </div>
     </div>
-    <div style="padding:12px 20px 32px;border-top:0.5px solid var(--border2)">
+    <div style="padding:12px 20px 32px;border-top:1px solid var(--border)">
       <div onclick="localStorage.clear();window.__barops.navigate('auth');window.__barops.closeDrawer()"
         style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 0">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -295,7 +294,7 @@ function renderDrawer() {
     <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;
                 background:var(--bg1);border-radius:20px 20px 0 0;
                 border-top:0.5px solid var(--border2);padding:20px 20px 44px">
-      <div style="width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:0 auto 20px"></div>
+      <div style="width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>
       <div style="font-family:var(--font-h);font-size:18px;font-weight:700;
                   color:var(--text0);margin-bottom:20px">Новий заклад</div>
 
@@ -324,7 +323,7 @@ function renderDrawer() {
       ${_addError ? `<div style="font-size:12px;color:var(--red);font-family:var(--font-b);margin-bottom:12px">${_addError}</div>` : ''}
 
       <button onclick="window.__barops.saveNewVenue()" ${_addSaving?'disabled':''}
-        style="width:100%;height:52px;background:${_addSaving?'var(--bg3)':'var(--green)'};
+        style="width:100%;height:52px;background:${_addSaving?'rgba(255,255,255,.06)':'var(--grad-primary)'};
                border:none;border-radius:14px;font-size:15px;font-weight:600;
                color:${_addSaving?'var(--text2)':'#fff'};cursor:${_addSaving?'not-allowed':'pointer'};
                font-family:var(--font-h);transition:background .2s">

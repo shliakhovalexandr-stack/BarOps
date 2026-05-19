@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/writeoff.js
    Списання: Бармен (список + 4-крокова форма) + Менеджер (аналітика + журнал)
    ============================================================ */
@@ -86,10 +86,10 @@ const CSS = `<style id="wo-css">
 
 /* topbar */
 .wo-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.wo-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.wo-back:active{background:var(--bg3)}
-.wo-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
-.wo-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
+.wo-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.wo-back:active{background:rgba(255,255,255,.08)}
+.wo-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
+.wo-sub{font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
 
 /* today summary */
 .wo-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px 10px}
@@ -100,8 +100,8 @@ const CSS = `<style id="wo-css">
 .wo-stat-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase;line-height:1.3}
 
 /* alert strip */
-.wo-alert{margin:0 14px 10px;border-radius:12px;padding:10px 13px;display:flex;align-items:center;gap:9px;font-size:12px;font-family:var(--font-b);line-height:1.5;background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
-.wo-alert-icon{width:26px;height:26px;border-radius:8px;background:rgba(239,159,39,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.wo-alert{margin:0 14px 10px;border-radius:12px;padding:10px 13px;display:flex;align-items:center;gap:9px;font-size:12px;font-family:var(--font-b);line-height:1.5;background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.wo-alert-icon{width:26px;height:26px;border-radius:8px;background:rgba(251,191,36,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 /* sec label */
 .wo-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:10px 18px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
@@ -110,7 +110,7 @@ const CSS = `<style id="wo-css">
 /* cat pills */
 .wo-pills{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}
 .wo-pills::-webkit-scrollbar{height:0}
-.wo-pill{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:5px 13px;border-radius:20px;border:0.5px solid var(--border2);color:var(--text2);background:transparent;cursor:pointer;font-size:12px;font-family:var(--font-b);transition:all .15s}
+.wo-pill{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:5px 13px;border-radius:20px;border:0.5px solid var(--border);color:var(--text2);background:transparent;cursor:pointer;font-size:12px;font-family:var(--font-b);transition:all .15s}
 .wo-pill-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .wo-pill.pill-all.act{background:var(--red-bg);border-color:var(--red-border);color:var(--text0)}
 .wo-pill.pill-biy.act{background:var(--red-bg);border-color:var(--red-border);color:var(--text0)}
@@ -120,7 +120,7 @@ const CSS = `<style id="wo-css">
 
 /* write-off list */
 .wo-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.wo-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px;padding:11px 13px;transition:background .12s}
+.wo-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px;padding:11px 13px;transition:background .12s}
 .wo-bar{width:3px;height:38px;border-radius:2px;flex-shrink:0}
 .wo-emoji{width:34px;height:34px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .wo-info{flex:1;min-width:0}
@@ -132,21 +132,21 @@ const CSS = `<style id="wo-css">
 
 /* add button */
 .wo-add{display:flex;align-items:center;gap:10px;padding:13px;background:var(--red-bg);border:0.5px dashed var(--red-border);border-radius:12px;cursor:pointer;transition:all .15s}
-.wo-add:hover{background:rgba(226,75,74,.12)}
+.wo-add:hover{background:rgba(248,113,113,.12)}
 .wo-add:active{transform:scale(.98)}
-.wo-add-icon{width:34px;height:34px;border-radius:9px;background:rgba(226,75,74,.12);border:0.5px solid var(--red-border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.wo-add-icon{width:34px;height:34px;border-radius:9px;background:rgba(248,113,113,.12);border:1px solid var(--red-border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .wo-add-text{font-size:14px;color:var(--red);font-family:var(--font-b);font-weight:500}
-.wo-add-sub{font-size:11px;color:rgba(226,75,74,.5);font-family:var(--font-b);margin-top:1px}
+.wo-add-sub{font-size:11px;color:rgba(248,113,113,.50);font-family:var(--font-b);margin-top:1px}
 
 /* ── FORM SHEET ── */
-.wo-form-overlay{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:none;flex-direction:column;justify-content:flex-end}
+.wo-form-overlay{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.75);display:none;flex-direction:column;justify-content:flex-end}
 .wo-form-overlay.open{display:flex}
-.wo-sheet{background:var(--bg2);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border2);padding:0 0 28px;animation:woSlide .32s cubic-bezier(.22,1,.36,1);max-height:92%;display:flex;flex-direction:column}
+.wo-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 28px;animation:woSlide .32s cubic-bezier(.22,1,.36,1);max-height:92%;display:flex;flex-direction:column}
 @keyframes woSlide{from{transform:translateY(100%)}to{transform:none}}
 .wo-sheet-handle{width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:14px auto 16px;flex-shrink:0}
 .wo-sheet-hdr{padding:0 18px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .wo-sheet-title{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
-.wo-sheet-close{width:30px;height:30px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.wo-sheet-close{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.06);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer}
 
 /* step dots */
 .wo-dots{display:flex;gap:5px;justify-content:center;margin-bottom:18px;flex-shrink:0}
@@ -164,7 +164,7 @@ const CSS = `<style id="wo-css">
 
 /* cat grid */
 .wo-cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.wo-cat-card{background:var(--bg3);border:0.5px solid var(--border2);border-radius:16px;padding:14px 12px;cursor:pointer;transition:all .18s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.wo-cat-card{background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:16px;padding:14px 12px;cursor:pointer;transition:all .18s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
 .wo-cat-card:active{transform:scale(.96)}
 .wo-cat-icon{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px}
 .wo-cat-name{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0)}
@@ -177,12 +177,12 @@ const CSS = `<style id="wo-css">
 /* prod list */
 .wo-prod-search-wrap{position:relative}
 .wo-prod-search-ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none}
-.wo-prod-inp{width:100%;height:48px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px 0 38px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s}
-.wo-prod-inp:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(226,75,74,.1)}
+.wo-prod-inp{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px 0 38px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s}
+.wo-prod-inp:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.10)}
 .wo-prod-inp::placeholder{color:var(--text2)}
 .wo-prod-list{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto}
 .wo-prod-list::-webkit-scrollbar{width:0}
-.wo-prod-item{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--bg3);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s}
+.wo-prod-item{display:flex;align-items:center;gap:10px;padding:10px 13px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s}
 .wo-prod-item:active{transform:scale(.98)}
 .wo-prod-item.sel{border-color:var(--red-border);background:var(--red-bg)}
 .wo-pi-emoji{width:32px;height:32px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
@@ -193,14 +193,14 @@ const CSS = `<style id="wo-css">
 
 /* volume step */
 .wo-vol-row{display:flex;gap:8px;align-items:stretch}
-.wo-vol-field{flex:1;height:64px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;font-size:28px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;text-align:center;transition:border-color .2s}
-.wo-vol-field:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(226,75,74,.1)}
-.wo-vol-unit{width:72px;height:64px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;flex-shrink:0;-webkit-appearance:none;appearance:none;text-align:center}
+.wo-vol-field{flex:1;height:64px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;font-size:28px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;text-align:center;transition:border-color .2s}
+.wo-vol-field:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.10)}
+.wo-vol-unit{width:72px;height:64px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;flex-shrink:0;-webkit-appearance:none;appearance:none;text-align:center}
 .wo-presets{display:flex;gap:6px;flex-wrap:wrap}
-.wo-preset{flex:1;min-width:56px;height:36px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:9px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b);transition:all .15s}
+.wo-preset{flex:1;min-width:56px;height:36px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .wo-preset:active{transform:scale(.95)}
 .wo-preset.act{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
-.wo-stock-preview{background:var(--bg3);border:0.5px solid var(--border);border-radius:9px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center}
+.wo-stock-preview{background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center}
 .wo-sp-label{font-size:11px;color:var(--text2);font-family:var(--font-b)}
 .wo-sp-name{font-family:var(--font-h);font-size:13px;color:var(--text0);font-weight:600;margin-top:2px}
 .wo-sp-before{font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:right}
@@ -208,18 +208,18 @@ const CSS = `<style id="wo-css">
 
 /* reason step */
 .wo-reason-list{display:flex;flex-direction:column;gap:6px}
-.wo-reason-item{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;cursor:pointer;transition:all .15s}
+.wo-reason-item{display:flex;align-items:center;gap:10px;padding:10px 13px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s}
 .wo-reason-item:active{transform:scale(.98)}
 .wo-reason-item.sel{border-color:var(--red-border);background:var(--red-bg)}
 .wo-reason-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .wo-reason-text{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
 .wo-custom-lbl{font-size:10px;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:5px}
-.wo-textarea{width:100%;height:78px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:11px 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;line-height:1.5;transition:border-color .2s}
-.wo-textarea:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(226,75,74,.1)}
+.wo-textarea{width:100%;height:78px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:11px 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;line-height:1.5;transition:border-color .2s}
+.wo-textarea:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.10)}
 .wo-textarea::placeholder{color:var(--text2)}
 
 /* summary */
-.wo-summary-card{background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:9px}
+.wo-summary-card{background:var(--red-bg);border:1px solid var(--red-border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:9px}
 .wo-sum-row{display:flex;justify-content:space-between;align-items:center}
 .wo-sum-label{font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .wo-sum-val{font-size:13px;color:var(--text1);font-family:var(--font-b);text-align:right}
@@ -228,35 +228,35 @@ const CSS = `<style id="wo-css">
 
 /* form nav */
 .wo-fnav{display:flex;gap:8px;padding:14px 18px 0;flex-shrink:0}
-.wo-fnext{flex:1;height:50px;background:var(--red);border:none;border-radius:12px;font-size:15px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
-.wo-fnext:active{background:var(--red-d)}
+.wo-fnext{flex:1;height:52px;background:var(--green);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
+.wo-fnext:active{opacity:.85}
 .wo-fnext:disabled{opacity:.35;cursor:default}
-.wo-fback{width:50px;height:50px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s}
+.wo-fback{width:50px;height:50px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s}
 .wo-fback:active{background:var(--bg4)}
 
 /* success overlay */
-.wo-succ-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+.wo-succ-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.8);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
 .wo-succ-overlay.open{display:flex}
-.wo-succ-icon{width:72px;height:72px;border-radius:50%;background:var(--red-bg);border:0.5px solid var(--red-border);display:flex;align-items:center;justify-content:center;margin-bottom:18px;animation:woPop .4s cubic-bezier(.22,1,.36,1)}
+.wo-succ-icon{width:72px;height:72px;border-radius:50%;background:var(--red-bg);border:1px solid var(--red-border);display:flex;align-items:center;justify-content:center;margin-bottom:18px;animation:woPop .4s cubic-bezier(.22,1,.36,1)}
 @keyframes woPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 .wo-succ-title{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);margin-bottom:8px}
 .wo-succ-sub{font-size:14px;color:var(--text2);font-family:var(--font-b);line-height:1.6;margin-bottom:6px}
-.wo-succ-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:20px;font-size:12px;color:var(--red);font-family:var(--font-b);margin-bottom:22px}
+.wo-succ-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:20px;font-size:12px;color:var(--red);font-family:var(--font-b);margin-bottom:22px}
 .wo-succ-btn{width:100%;max-width:280px;height:50px;background:var(--red);border:none;border-radius:12px;font-size:14px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px}
 .wo-succ-btn:active{background:var(--red-d)}
 .wo-succ-ghost{width:100%;max-width:280px;height:44px;background:transparent;border:none;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b);margin-top:8px}
 
 /* ── MANAGER VIEW ── */
-.wo-period-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:3px}
+.wo-period-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:9px;padding:3px}
 .wo-pt{flex:1;height:28px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .wo-pt.act{background:var(--bg3);color:var(--text0)}
 
 .wo-mgr-kpi{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px 4px}
-.wo-mk{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:11px 10px;text-align:center}
+.wo-mk{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:11px 10px;text-align:center}
 .wo-mk-val{font-family:var(--font-h);font-size:20px;font-weight:700;line-height:1}
 .wo-mk-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
 
-.wo-chart-card{margin:0 14px 4px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:16px}
+.wo-chart-card{margin:0 14px 4px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:16px}
 .wo-chart-title{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);margin-bottom:12px}
 .wo-chart-bars{display:flex;align-items:flex-end;gap:4px;height:60px;margin-bottom:6px}
 .wo-cbar{flex:1;display:flex;flex-direction:column;justify-content:flex-end}
@@ -268,7 +268,7 @@ const CSS = `<style id="wo-css">
 .wo-cl-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
 
 .wo-cat-breakdown{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.wo-cb-row{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px}
+.wo-cb-row{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px}
 .wo-cb-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .wo-cb-name{font-size:13px;color:var(--text1);font-family:var(--font-b)}
 .wo-cb-bar-wrap{height:4px;background:var(--bg3);border-radius:2px;margin-top:5px;overflow:hidden}
@@ -283,26 +283,26 @@ const CSS = `<style id="wo-css">
 .wo-rcbtn{flex:1;height:40px;border:none;border-radius:9px;cursor:pointer;font-size:12px;font-family:var(--font-b);font-weight:500;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
 .wo-rcbtn:active{transform:scale(.96)}
 .wo-rcbtn-pdf{background:var(--red);color:#fff}
-.wo-rcbtn-csv{background:var(--bg3);border:0.5px solid var(--border2);color:var(--text1)}
+.wo-rcbtn-csv{background:rgba(255,255,255,.06);border:0.5px solid var(--border);color:var(--text1)}
 .wo-rcbtn-tg{background:var(--blue-bg);border:0.5px solid var(--blue-border);color:var(--blue)}
 
 .wo-filter-row{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}
 .wo-filter-row::-webkit-scrollbar{height:0}
-.wo-fr-pill{flex-shrink:0;padding:5px 12px;border-radius:20px;border:0.5px solid var(--border2);color:var(--text2);background:transparent;font-size:11px;font-family:var(--font-b);cursor:pointer;transition:all .15s}
+.wo-fr-pill{flex-shrink:0;padding:5px 12px;border-radius:20px;border:0.5px solid var(--border);color:var(--text2);background:transparent;font-size:11px;font-family:var(--font-b);cursor:pointer;transition:all .15s}
 .wo-fr-pill.act{background:var(--bg3);border-color:var(--border3);color:var(--text0)}
 
-.wo-log{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.wo-log-item{display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s}
+.wo-log{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.wo-log-item{display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
 .wo-log-item:last-child{border-bottom:none}
-.wo-log-item:active{background:var(--bg3)}
+.wo-log-item:active{background:rgba(255,255,255,.08)}
 .wo-log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .wo-log-title{font-size:13px;color:var(--text1);font-family:var(--font-b)}
 .wo-log-meta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 .wo-log-qty{font-family:var(--font-h);font-size:13px;font-weight:700;text-align:right}
 .wo-log-time{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-align:right}
 
-.wo-toplosers{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.wo-loser-row{display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:0.5px solid var(--border)}
+.wo-toplosers{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.wo-loser-row{display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--border)}
 .wo-loser-row:last-child{border-bottom:none}
 .wo-loser-rank{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text3);width:18px;flex-shrink:0}
 .wo-loser-name{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
@@ -748,9 +748,9 @@ function renderManager() {
       Налаштування причин списання
       <button class="wo-sec-link" style="color:var(--green)" onclick="window.__wo.addCustomReason()">+ Додати</button>
     </div>
-    <div style="margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden">
+    <div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden">
       ${Object.entries(REASONS).map(([cat, reasons]) => `
-      <div style="padding:10px 14px;border-bottom:0.5px solid var(--border)">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
         <div style="font-size:11px;color:${CAT[cat].color};font-family:var(--font-b);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
           ${CAT[cat].label}
         </div>
@@ -759,7 +759,7 @@ function renderManager() {
           <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:8px">
             <span style="flex:1;font-size:12px;color:var(--text1);font-family:var(--font-b)">${r}</span>
             <div onclick="window.__wo.removeReason('${cat}',${i})"
-              style="width:20px;height:20px;border-radius:6px;background:var(--red-bg);border:0.5px solid var(--red-border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              style="width:20px;height:20px;border-radius:6px;background:var(--red-bg);border:1px solid var(--red-border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
             </div>
           </div>`).join('')}

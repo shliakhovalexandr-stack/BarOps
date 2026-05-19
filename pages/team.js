@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/team.js
    Команда: менеджер додає барменів у свій заклад
    Реальний API: GET/POST/PUT/DELETE /api/auth/team
@@ -46,76 +46,76 @@ const CSS = `<style id="tm-css">
 
 /* topbar */
 .tm-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.tm-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.tm-back:active{background:var(--bg3)}
-.tm-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
+.tm-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.tm-back:active{background:rgba(255,255,255,.08)}
+.tm-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
 .tm-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
 
 /* sec */
 .tm-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:12px 18px 8px;font-family:var(--font-b)}
 
 /* summary */
-.tm-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 14px 10px}
-.tm-stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px;text-align:center}
-.tm-stat-val{font-family:var(--font-h);font-size:22px;font-weight:700;line-height:1}
-.tm-stat-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
+.tm-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px 16px}
+.tm-stat{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:14px 12px;text-align:center}
+.tm-stat-val{font-family:var(--font-h);font-size:24px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.tm-stat-lbl{font-size:10px;color:var(--text2);margin-top:5px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em}
 
 /* cards */
-.tm-list{padding:0 14px;display:flex;flex-direction:column;gap:8px}
-.tm-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all .15s}
-.tm-card:active{background:var(--bg3)}
+.tm-list{padding:0 20px;display:flex;flex-direction:column;gap:8px}
+.tm-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all .15s}
+.tm-card:active{background:rgba(255,255,255,.08)}
 .tm-card.inactive{opacity:.5}
-.tm-card-main{display:flex;align-items:center;gap:12px;padding:14px}
-.tm-avatar{width:46px;height:46px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.tm-name{font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);letter-spacing:-.01em}
+.tm-card.live{border-color:var(--green-border)}
+.tm-card-main{display:flex;align-items:center;gap:14px;padding:14px 16px}
+.tm-name{font-family:var(--font-h);font-size:14px;font-weight:500;color:var(--text0)}
 .tm-role-badge{display:inline-flex;align-items:center;gap:4px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:20px;padding:2px 8px;font-size:10px;color:var(--green);font-family:var(--font-b);margin-top:4px}
 .tm-role-badge.mgr{background:rgba(127,119,221,.1);border-color:rgba(127,119,221,.3);color:#7F77DD}
 .tm-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
 /* add button */
 .tm-add-btn{display:flex;align-items:center;gap:12px;padding:14px;margin:0 14px;background:var(--green-bg);border:0.5px dashed var(--green-border);border-radius:14px;cursor:pointer;transition:all .15s}
-.tm-add-btn:active{background:rgba(29,158,117,.12)}
-.tm-add-icon{width:38px;height:38px;border-radius:11px;background:rgba(29,158,117,.12);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tm-add-btn:active{background:rgba(168,139,255,.12)}
+.tm-add-icon{width:38px;height:38px;border-radius:11px;background:rgba(168,139,255,.12);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .tm-add-text{font-size:14px;color:var(--green);font-family:var(--font-b);font-weight:500}
-.tm-add-sub{font-size:11px;color:rgba(29,158,117,.5);font-family:var(--font-b);margin-top:1px}
+.tm-add-sub{font-size:11px;color:rgba(168,139,255,.50);font-family:var(--font-b);margin-top:1px}
 
 /* ── PROFILE OVERLAY ── */
 .tm-profile{position:absolute;inset:0;z-index:50;background:var(--bg1);display:none;flex-direction:column;animation:tmSlide .3s cubic-bezier(.22,1,.36,1)}
 .tm-profile.open{display:flex}
 @keyframes tmSlide{from{transform:translateX(100%);opacity:.5}to{transform:none;opacity:1}}
-.tm-ph-hero{padding:16px 18px;background:linear-gradient(160deg,var(--green-bg) 0%,transparent 60%);border-bottom:0.5px solid var(--border2);flex-shrink:0}
+.tm-ph-hero{padding:16px 18px;background:var(--green-bg);border-bottom:1px solid var(--border);flex-shrink:0}
 .tm-ph-back{display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer}
-.tm-ph-back-arrow{width:32px;height:32px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center}
+.tm-ph-back-arrow{width:32px;height:32px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center}
 .tm-ph-back-lbl{font-size:13px;color:var(--text2);font-family:var(--font-b)}
 .tm-ph-scroll{overflow-y:auto;flex:1}.tm-ph-scroll::-webkit-scrollbar{width:0}
 .tm-ph-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:13px 18px 8px;font-family:var(--font-b)}
-.tm-ph-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
-.tm-ph-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:0.5px solid var(--border)}
+.tm-ph-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.tm-ph-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border)}
 .tm-ph-row:last-child{border-bottom:none}
 .tm-ph-row-lbl{font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .tm-ph-row-val{font-size:13px;color:var(--text0);font-family:var(--font-b)}
 .tm-ph-actions{padding:8px 14px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
 .tm-btn{width:100%;height:50px;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
-.tm-btn-green{background:var(--green);color:#fff}.tm-btn-green:active{background:var(--green-d)}
-.tm-btn-ghost{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1)}.tm-btn-ghost:active{background:var(--bg3)}
-.tm-btn-red{background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red)}.tm-btn-red:active{background:rgba(226,75,74,.15)}
+.tm-btn-green{background:var(--green);color:#000}.tm-btn-green:active{opacity:.85}
+.tm-btn-ghost{background:var(--bg2);border:0.5px solid var(--border);color:var(--text1)}.tm-btn-ghost:active{background:rgba(255,255,255,.08)}
+.tm-btn-red{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}.tm-btn-red:active{background:rgba(248,113,113,.15)}
 .tm-btn:disabled{opacity:.5;cursor:not-allowed}
 
 /* ── SHEET (add / edit) ── */
-.tm-sheet-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;flex-direction:column;justify-content:flex-end}
+.tm-sheet-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.78);display:none;flex-direction:column;justify-content:flex-end}
 .tm-sheet-overlay.open{display:flex;animation:tmOvFade .2s ease}
 @keyframes tmOvFade{from{opacity:0}to{opacity:1}}
-.tm-sheet{background:var(--bg2);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border2);padding:0 18px 32px;animation:tmSheetUp .3s cubic-bezier(.22,1,.36,1);max-height:90vh;overflow-y:auto}
+.tm-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 18px 32px;animation:tmSheetUp .3s cubic-bezier(.22,1,.36,1);max-height:90vh;overflow-y:auto}
 @keyframes tmSheetUp{from{transform:translateY(100%)}to{transform:none}}
 .tm-sh-handle{width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:14px auto 18px}
 .tm-sh-title{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);margin-bottom:4px;letter-spacing:-.02em}
 .tm-sh-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:20px;line-height:1.5}
 .tm-sh-lbl{font-size:10px;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:5px}
-.tm-sh-inp{width:100%;height:48px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s;margin-bottom:12px}
-.tm-sh-inp:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,.1)}
+.tm-sh-inp{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s;margin-bottom:12px}
+.tm-sh-inp:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .tm-sh-inp::placeholder{color:var(--text2)}
 .tm-sh-roles{display:flex;gap:6px;margin-bottom:16px}
-.tm-sh-role{flex:1;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:9px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b);transition:all .15s;display:flex;align-items:center;justify-content:center}
+.tm-sh-role{flex:1;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b);transition:all .15s;display:flex;align-items:center;justify-content:center}
 .tm-sh-role.sel{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 
 /* PIN dots in sheet */
@@ -123,15 +123,15 @@ const CSS = `<style id="tm-css">
 .tm-pin-dot{width:16px;height:16px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--border2);transition:all .2s}
 .tm-pin-dot.filled{background:var(--green);border-color:var(--green)}
 .tm-pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-.tm-pin-key{height:52px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;font-family:var(--font-h);font-size:20px;font-weight:600;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;user-select:none}
+.tm-pin-key{height:52px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;font-family:var(--font-h);font-size:20px;font-weight:600;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;user-select:none}
 .tm-pin-key:active{background:var(--bg4);transform:scale(.95)}
 .tm-pin-key.del{font-size:14px;color:var(--text2)}
 
-.tm-sh-send{width:100%;height:52px;background:var(--green);border:none;border-radius:12px;font-size:15px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px}
-.tm-sh-send:active{background:var(--green-d)}
+.tm-sh-send{width:100%;height:52px;background:var(--green);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h);transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px}
+.tm-sh-send:active{opacity:.85}
 .tm-sh-send:disabled{opacity:.5;cursor:not-allowed}
 .tm-sh-cancel{width:100%;height:40px;background:transparent;border:none;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b)}
-.tm-sh-err{background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);font-family:var(--font-b);display:none;margin-bottom:12px}
+.tm-sh-err{background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);font-family:var(--font-b);display:none;margin-bottom:12px}
 .tm-sh-err.show{display:block}
 
 /* Loading */
@@ -149,9 +149,17 @@ function roleLabel(role) {
 function roleClass(role) {
   return role === 'manager' || role === 'MANAGER' ? 'mgr' : '';
 }
-function avatarEmoji(name) {
-  const emojis = ['🧑','👩','🧔','👨','👱','🧕'];
-  return emojis[(name || '').charCodeAt(0) % emojis.length];
+function initials(name) {
+  return (name || '').split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+}
+function avatarHTML(name, size = 46, isLive = false) {
+  const bg  = isLive ? 'var(--green)' : 'var(--bg3)';
+  const col = isLive ? '#000' : 'var(--text0)';
+  const fontSize = Math.round(size * 0.35);
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${col};display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;font-weight:600;font-family:var(--font-h);flex-shrink:0;position:relative">
+    ${initials(name)}
+    ${isLive ? `<span style="position:absolute;bottom:0;right:0;width:13px;height:13px;border-radius:50%;background:var(--amber);border:2.5px solid var(--bg)"></span>` : ''}
+  </div>`;
 }
 function lastLoginStr(d) {
   if (!d) return 'Ніколи';
@@ -169,38 +177,37 @@ function teamListHTML() {
   return `
   <div class="tm-summary">
     <div class="tm-stat">
-      <div class="tm-stat-val" style="color:var(--green)">${_team.length}</div>
-      <div class="tm-stat-lbl">Всього<br/>у закладі</div>
+      <div class="tm-stat-val">${_team.length}</div>
+      <div class="tm-stat-lbl">Всього</div>
     </div>
     <div class="tm-stat">
       <div class="tm-stat-val" style="color:var(--green)">${active}</div>
-      <div class="tm-stat-lbl">Активних<br/>акаунтів</div>
+      <div class="tm-stat-lbl">Активних</div>
     </div>
     <div class="tm-stat">
-      <div class="tm-stat-val" style="color:${inactive > 0 ? 'var(--amber)' : 'var(--text0)'}">${inactive}</div>
-      <div class="tm-stat-lbl">Деактиво-<br/>ваних</div>
+      <div class="tm-stat-val" style="color:${inactive > 0 ? 'var(--amber)' : 'var(--text2)'}">${inactive}</div>
+      <div class="tm-stat-lbl">Вдома</div>
     </div>
   </div>
 
   <div class="tm-list">
-    ${_team.map(t => `
-    <div class="tm-card ${t.status === 'inactive' ? 'inactive' : ''}"
+    ${_team.map(t => {
+      const isInactive = t.status === 'inactive';
+      return `
+    <div class="tm-card${isInactive ? ' inactive' : ''}"
          onclick="window.__tm.openProfile('${t.id}')">
       <div class="tm-card-main">
-        <div class="tm-avatar">${avatarEmoji(t.name)}</div>
+        ${avatarHTML(t.name, 44, false)}
         <div style="flex:1;min-width:0">
           <div class="tm-name">${t.name}</div>
-          <div class="tm-role-badge ${roleClass(t.role)}">${roleLabel(t.role)}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end">
-            <div class="tm-status-dot" style="background:${t.status === 'active' ? 'var(--green)' : 'var(--text2)'}"></div>
-            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b)">${t.status === 'active' ? 'Активний' : 'Деактивовано'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">
+            <span style="color:var(--text1)">${roleLabel(t.role)}</span> · ${t.phone}
           </div>
-          <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:4px">${t.phone}</div>
         </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
       </div>
-    </div>`).join('')}
+    </div>`;
+    }).join('')}
 
     <div class="tm-add-btn" onclick="window.__tm.openAdd()">
       <div class="tm-add-icon">
@@ -230,7 +237,7 @@ function profileHTML(t) {
         <div class="tm-ph-back-lbl">Назад до команди</div>
       </div>
       <div style="display:flex;align-items:center;gap:14px">
-        <div style="width:60px;height:60px;border-radius:50%;background:var(--bg2);border:2px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:26px">${avatarEmoji(t.name)}</div>
+        ${avatarHTML(t.name, 60, false)}
         <div>
           <div style="font-family:var(--font-h);font-size:20px;font-weight:800;color:var(--text0)">${t.name}</div>
           <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${roleLabel(t.role)} · ${t.venue?.name || state.venue}</div>
@@ -273,7 +280,7 @@ function profileHTML(t) {
       ? `<button class="tm-btn tm-btn-red" onclick="window.__tm.deactivate('${t.id}')">Деактивувати акаунт</button>`
       : `<button class="tm-btn tm-btn-ghost" onclick="window.__tm.activate('${t.id}')">Відновити акаунт</button>`}
     <button class="tm-btn" onclick="window.__tm.hardDelete('${t.id}')"
-      style="background:transparent;border:0.5px solid var(--red-border);color:var(--red);opacity:.6;margin-top:4px;height:40px;font-size:12px">
+      style="background:transparent;border:1px solid var(--red-border);color:var(--red);opacity:.6;margin-top:4px;height:40px;font-size:12px">
       🗑 Видалити повністю
     </button>
   </div>`;
@@ -330,7 +337,7 @@ function addSheetHTML() {
       </div>
 
       <div class="tm-sh-lbl">Заклад</div>
-      <div style="background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <div style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
         <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${_activeVenueName || state.venue || 'Поточний заклад'}</div>
       </div>
@@ -402,8 +409,8 @@ ${CSS}
       <div class="tm-sub">${_activeVenueName || state.venue || 'Всі заклади'} · ${_team.length} учасників</div>
     </div>
     <button onclick="window.__tm.openAdd()"
-      style="height:34px;padding:0 14px;background:var(--green);border:none;border-radius:20px;font-size:12px;font-family:var(--font-b);color:#fff;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px">
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      style="height:34px;padding:0 14px;background:var(--green);border:none;border-radius:20px;font-size:12px;font-family:var(--font-b);color:#000;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="#000" stroke-width="1.6" stroke-linecap="round"/></svg>
       Додати
     </button>
   </div>

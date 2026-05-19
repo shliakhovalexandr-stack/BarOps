@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/price-alert.js
    Алерт ціни:
    • Бармен  — push-preview → hero-алерт → графік → вплив на FC → рішення
@@ -57,23 +57,23 @@ const CSS = `<style id="pa-css">
 .pa-scroll{overflow-y:auto;flex:1}.pa-scroll::-webkit-scrollbar{width:0}
 
 /* topbar */
-.pa-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.pa-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.pa-back:active{background:var(--bg3)}
-.pa-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
+.pa-topbar{display:flex;align-items:center;gap:12px;padding:8px 20px 12px;flex-shrink:0}
+.pa-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.pa-back:active{background:rgba(255,255,255,.08)}
+.pa-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
 .pa-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
-.pa-notif-btn{position:relative;width:36px;height:36px;background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.pa-notif-btn{position:relative;width:36px;height:36px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:50%;display:flex;align-items:center;justify-content:center}
 .pa-notif-badge{position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:var(--amber);border-radius:50%;border:2px solid var(--bg1);display:flex;align-items:center;justify-content:center;font-size:9px;font-family:var(--font-h);font-weight:700;color:#fff}
 
 /* sec label */
-.pa-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:12px 18px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
+.pa-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:12px 20px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
 .pa-sec-link{font-size:11px;color:var(--amber);letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b)}
 
 /* ── PUSH PREVIEW ── */
-.pa-push{margin:0 14px 12px;background:var(--bg2);border:0.5px solid var(--amber-border);border-radius:16px;padding:14px 15px;display:flex;align-items:flex-start;gap:12px;box-shadow:0 4px 32px rgba(239,159,39,.08);animation:paPop .5s cubic-bezier(.22,1,.36,1) both}
+.pa-push{margin:0 20px 12px;background:var(--bg1);border:0.5px solid var(--amber-border);border-radius:16px;padding:14px 15px;display:flex;align-items:flex-start;gap:12px;animation:paPop .5s cubic-bezier(.22,1,.36,1) both}
 @keyframes paPop{from{opacity:0;transform:scale(.95) translateY(-8px)}to{opacity:1;transform:none}}
 .pa-push-icon{width:40px;height:40px;border-radius:12px;background:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden}
-.pa-push-icon::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.18) 0%,transparent 60%)}
+.pa-push-icon::before{display:none}
 .pa-push-icon svg{position:relative;z-index:1}
 .pa-push-app{font-size:11px;color:var(--text2);font-family:var(--font-b);letter-spacing:.04em;text-transform:uppercase}
 .pa-push-time{font-size:11px;color:var(--text2);font-family:var(--font-b)}
@@ -82,28 +82,24 @@ const CSS = `<style id="pa-css">
 .pa-push-btns{display:flex;gap:6px;margin-top:10px}
 .pa-push-btn{flex:1;height:32px;border-radius:8px;font-size:12px;font-family:var(--font-b);cursor:pointer;border:none;transition:all .14s;display:flex;align-items:center;justify-content:center}
 .pa-push-open{background:var(--amber);color:#fff}.pa-push-open:active{background:#d48c20}
-.pa-push-dismiss{background:var(--bg3);border:0.5px solid var(--border2);color:var(--text2)}.pa-push-dismiss:active{background:var(--bg4)}
+.pa-push-dismiss{background:rgba(255,255,255,.06);border:0.5px solid var(--border);color:var(--text2)}.pa-push-dismiss:active{background:var(--bg4)}
 
 /* ── HERO ALERT ── */
-.pa-hero{margin:0 14px 10px;background:linear-gradient(135deg,rgba(239,159,39,.12) 0%,rgba(239,159,39,.04) 50%,rgba(226,75,74,.06) 100%);border:0.5px solid var(--amber-border);border-radius:22px;padding:18px;position:relative;overflow:hidden}
-.pa-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(239,159,39,.1) 0%,transparent 70%);pointer-events:none}
-.pa-eyebrow{font-size:10px;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.pa-eyebrow::before{content:'';width:20px;height:1px;background:var(--amber)}
-.pa-product{font-family:var(--font-h);font-size:19px;font-weight:800;color:var(--text0);letter-spacing:-.02em;margin-bottom:3px}
-.pa-supplier{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:14px}
-.pa-prices{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-bottom:14px}
-.pa-price-blk{text-align:center;background:var(--bg2);border-radius:12px;padding:11px 8px;border:0.5px solid var(--border)}
-.pa-price-lbl{font-size:9px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:4px}
-.pa-price-val{font-family:var(--font-h);font-size:22px;font-weight:800;color:var(--text0);letter-spacing:-.02em}
-.pa-price-unit{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.pa-arrow-col{text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
-.pa-delta{font-family:var(--font-h);font-size:16px;font-weight:800;background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:9px;padding:5px 10px;color:var(--amber);white-space:nowrap}
-.pa-chips{display:flex;gap:6px;flex-wrap:wrap}
-.pa-chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--text1);font-family:var(--font-b)}
-.pa-chip-dot{width:5px;height:5px;border-radius:50%}
+.pa-hero{margin:0 20px 18px;background:var(--amber-bg);border:0.5px solid rgba(251,191,36,.28);border-radius:16px;padding:18px}
+.pa-eyebrow{font-size:11px;color:var(--amber);letter-spacing:.10em;text-transform:uppercase;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.pa-product{font-size:19px;font-weight:600;letter-spacing:-.015em;margin-bottom:4px}
+.pa-supplier{font-size:12px;color:var(--text2);margin-bottom:0}
+.pa-price-row{display:flex;align-items:baseline;justify-content:space-between;margin-top:16px;padding:14px 0;border-top:0.5px solid rgba(251,191,36,.20);border-bottom:0.5px solid rgba(251,191,36,.20)}
+.pa-price-blk{display:flex;flex-direction:column}
+.pa-price-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.pa-price-old{font-size:24px;font-weight:500;letter-spacing:-.02em;color:var(--text2);text-decoration:line-through}
+.pa-price-new{font-size:30px;font-weight:600;letter-spacing:-.02em;color:var(--amber)}
+.pa-price-new-lbl{font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.pa-delta{padding:5px 10px;background:var(--amber);color:#000;font-size:14px;font-weight:700;border-radius:6px;align-self:center}
+.pa-impact{margin-top:14px;font-size:12px;color:var(--text1);line-height:1.5}
 
 /* ── CHART ── */
-.pa-chart-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:16px}
+.pa-chart-card{margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;padding:16px}
 .pa-cc-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .pa-cc-title{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0)}
 .pa-cc-period{font-size:11px;color:var(--text2);font-family:var(--font-b)}
@@ -111,7 +107,7 @@ const CSS = `<style id="pa-css">
 .pa-chart-x{display:flex;justify-content:space-between;font-size:9px;color:var(--text2);font-family:var(--font-b);padding:0 4px}
 
 /* ── FC IMPACT ── */
-.pa-fc-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px}
+.pa-fc-card{margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px}
 .pa-fc-title{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);margin-bottom:12px}
 .pa-recipe-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg3);border-radius:9px;margin-bottom:6px;border-left:2.5px solid transparent}
 .pa-recipe-row:last-child{margin-bottom:0}
@@ -123,21 +119,21 @@ const CSS = `<style id="pa-css">
 .pa-rr-delta{font-size:10px;font-family:var(--font-b);margin-top:2px;text-align:right}
 
 /* ── DECISION CARD ── */
-.pa-decision-card{margin:0 14px 8px;border-radius:16px;overflow:hidden;border:0.5px solid var(--amber-border)}
+.pa-decision-card{margin:0 20px 8px;border-radius:16px;overflow:hidden;border:0.5px solid var(--border)}
 .pa-dc-header{background:var(--amber-bg);padding:12px 15px;display:flex;align-items:center;gap:8px}
 .pa-dc-header-title{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--amber)}
-.pa-dc-option{display:flex;align-items:flex-start;gap:12px;padding:13px 15px;background:var(--bg2);border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .14s}
+.pa-dc-option{display:flex;align-items:flex-start;gap:12px;padding:13px 15px;background:var(--bg2);border-bottom:1px solid var(--border);cursor:pointer;transition:background .14s}
 .pa-dc-option:last-child{border-bottom:none}
-.pa-dc-option:active{background:var(--bg3)}
-.pa-dc-option.sel{background:rgba(29,158,117,.06);border-left:3px solid var(--green)}
+.pa-dc-option:active{background:rgba(255,255,255,.08)}
+.pa-dc-option.sel{background:rgba(168,139,255,.08);border-left:3px solid var(--green)}
 .pa-dc-num{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--border3);display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:11px;font-weight:700;color:var(--text2);flex-shrink:0;margin-top:1px;transition:all .15s}
-.pa-dc-option.sel .pa-dc-num{background:var(--green);border-color:var(--green);color:#fff}
+.pa-dc-option.sel .pa-dc-num{background:var(--green);border-color:var(--green);color:#000}
 .pa-dc-opt-title{font-size:13px;color:var(--text0);font-family:var(--font-b);font-weight:500}
 .pa-dc-opt-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px;line-height:1.4}
 
 /* ── HISTORY LIST ── */
-.pa-hist-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.pa-hist-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:0.5px solid var(--border)}
+.pa-hist-card{margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.pa-hist-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)}
 .pa-hist-row:last-child{border-bottom:none}
 .pa-hist-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
 .pa-hist-prod{font-size:13px;color:var(--text1);font-family:var(--font-b)}
@@ -146,7 +142,7 @@ const CSS = `<style id="pa-css">
 .pa-hist-prices{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-align:right}
 
 /* ── SUCCESS OVERLAY ── */
-.pa-success{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+.pa-success{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.82);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
 .pa-success.open{display:flex;animation:paFade .3s ease}
 @keyframes paFade{from{opacity:0}to{opacity:1}}
 .pa-succ-icon{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:18px;animation:paPop .4s cubic-bezier(.22,1,.36,1)}
@@ -155,15 +151,15 @@ const CSS = `<style id="pa-css">
 .pa-succ-btn{width:100%;max-width:280px;height:50px;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:all .18s}
 
 /* ── ACTIONS BAR ── */
-.pa-actions{padding:8px 14px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.pa-actions{padding:8px 20px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
 .pa-btn{width:100%;height:52px;border:none;border-radius:13px;font-size:15px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;letter-spacing:.02em}
-.pa-btn-amber{background:var(--amber);color:#fff;box-shadow:0 4px 20px rgba(239,159,39,.22)}
+.pa-btn-amber{background:var(--amber);color:#fff;box-shadow:0 4px 20px rgba(251,191,36,.22)}
 .pa-btn-amber:active{background:#d48c20}
-.pa-btn-ghost{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1)}
-.pa-btn-ghost:active{background:var(--bg3)}
+.pa-btn-ghost{background:var(--bg2);border:0.5px solid var(--border);color:var(--text1)}
+.pa-btn-ghost:active{background:rgba(255,255,255,.08)}
 
 /* ── MANAGER HEADER ── */
-.pa-mgr-header{margin:0 14px 10px;background:linear-gradient(135deg,rgba(239,159,39,.1) 0%,rgba(244,114,43,.06) 100%);border:0.5px solid var(--amber-border);border-radius:22px;padding:18px;position:relative;overflow:hidden}
+.pa-mgr-header{margin:0 20px 10px;background:var(--amber-bg);border:0.5px solid rgba(251,191,36,.28);border-radius:16px;padding:18px}
 .pa-mgr-badge{display:inline-flex;align-items:center;gap:6px;background:var(--amber);border-radius:20px;padding:4px 12px;font-size:11px;color:#fff;font-family:var(--font-b);font-weight:500;margin-bottom:10px}
 .pa-mgr-badge-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:paBlink .8s ease-in-out infinite}
 @keyframes paBlink{0%,100%{opacity:1}50%{opacity:.35}}
@@ -175,13 +171,13 @@ const CSS = `<style id="pa-css">
 .pa-mgr-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
 
 /* manager tabs */
-.pa-mgr-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:3px}
+.pa-mgr-tabs{display:flex;gap:2px;margin:0 20px 10px;background:var(--bg1);border:0.5px solid var(--border);border-radius:9px;padding:3px}
 .pa-mt{flex:1;height:28px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .pa-mt.act{background:var(--bg3);color:var(--text0)}
 
 /* analysis card */
-.pa-analysis-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px}
-.pa-anal-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.pa-analysis-card{margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px}
+.pa-anal-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
 .pa-anal-row:last-child{border-bottom:none}
 .pa-anal-lbl{font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .pa-anal-val{font-size:13px;color:var(--text0);font-family:var(--font-b);text-align:right}
@@ -190,22 +186,22 @@ const CSS = `<style id="pa-css">
 .pa-anal-val.bad{color:var(--red)}
 
 /* AI recommendation */
-.pa-ai-rec{margin:0 14px 8px;background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:16px;padding:14px 15px;display:flex;gap:11px}
+.pa-ai-rec{margin:0 20px 8px;background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:16px;padding:14px 15px;display:flex;gap:11px}
 .pa-ai-icon{width:34px;height:34px;border-radius:10px;background:rgba(127,119,221,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .pa-ai-title{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0);margin-bottom:6px}
 .pa-ai-text{font-size:12px;color:var(--text1);font-family:var(--font-b);line-height:1.55}
 .pa-ai-opts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .pa-ai-opt{font-size:11px;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--font-b);border:none;transition:all .15s}
 .pa-ai-opt-primary{background:var(--purple);color:#fff}.pa-ai-opt-primary:active{background:#6560cc}
-.pa-ai-opt-secondary{background:var(--bg3);border:0.5px solid var(--border2);color:var(--text1)}.pa-ai-opt-secondary:active{background:var(--bg4)}
+.pa-ai-opt-secondary{background:rgba(255,255,255,.06);border:0.5px solid var(--border);color:var(--text1)}.pa-ai-opt-secondary:active{background:var(--bg4)}
 
 /* manager decision buttons */
-.pa-mgr-btns{display:flex;gap:8px;padding:8px 14px 20px;flex-shrink:0}
+.pa-mgr-btns{display:flex;gap:8px;padding:8px 20px 20px;flex-shrink:0}
 .pa-db{flex:1;height:50px;border:none;border-radius:12px;cursor:pointer;font-size:13px;font-family:var(--font-b);font-weight:500;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
 .pa-db:active{transform:scale(.97)}
-.pa-db-accept{background:var(--green);color:#fff;box-shadow:0 4px 16px rgba(29,158,117,.2)}.pa-db-accept:active{background:var(--green-d)}
-.pa-db-recalc{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
-.pa-db-reject{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text2)}
+.pa-db-accept{background:var(--green);color:#000}.pa-db-accept:active{opacity:.85}
+.pa-db-recalc{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.pa-db-reject{background:var(--bg2);border:0.5px solid var(--border);color:var(--text2)}
 </style>`;
 
 /* ════════════════════════
@@ -215,8 +211,8 @@ const CHART_SVG = (gradId) => `
 <svg width="100%" height="100%" viewBox="0 0 300 100" preserveAspectRatio="none">
   <defs>
     <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgba(239,159,39,.25)"/>
-      <stop offset="100%" stop-color="rgba(239,159,39,.0)"/>
+      <stop offset="0%" stop-color="rgba(251,191,36,.25)"/>
+      <stop offset="100%" stop-color="rgba(251,191,36,.0)"/>
     </linearGradient>
   </defs>
   <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
@@ -229,9 +225,9 @@ const CHART_SVG = (gradId) => `
   <path d="M22,78 L62,72 L102,68 L142,70 L182,67 L222,65 L262,65 L302,22" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   ${[22,62,102,142,182,222,262].map(x=>`<circle cx="${x}" cy="${[78,72,68,70,67,65,65][[22,62,102,142,182,222,262].indexOf(x)]}" r="3" fill="var(--amber)" opacity=".7"/>`).join('')}
   <circle cx="302" cy="22" r="5" fill="var(--amber)" stroke="var(--bg2)" stroke-width="2"/>
-  <rect x="258" y="6" width="48" height="14" rx="4" fill="rgba(239,159,39,.15)" stroke="rgba(239,159,39,.3)" stroke-width=".5"/>
+  <rect x="258" y="6" width="48" height="14" rx="4" fill="rgba(251,191,36,.15)" stroke="rgba(251,191,36,.30)" stroke-width=".5"/>
   <text x="282" y="16" font-size="8" fill="var(--amber)" font-family="Syne" font-weight="700" text-anchor="middle">816 ₴</text>
-  <line x1="302" y1="22" x2="302" y2="100" stroke="rgba(239,159,39,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="302" y1="22" x2="302" y2="100" stroke="rgba(251,191,36,.20)" stroke-width="1" stroke-dasharray="3,3"/>
 </svg>`;
 
 /* ════════════════════════
@@ -291,29 +287,29 @@ function renderBartender() {
 
     <!-- Hero alert -->
     <div class="pa-hero">
-      <div class="pa-eyebrow">Алерт закупівельної ціни</div>
-      <div class="pa-product">${ALERT.emoji} ${ALERT.product}</div>
-      <div class="pa-supplier">${ALERT.supplier} · Накладна ${ALERT.invoice} · ${ALERT.date}</div>
-      <div class="pa-prices">
-        <div class="pa-price-blk">
-          <div class="pa-price-lbl">Попередня</div>
-          <div class="pa-price-val" style="color:var(--text2)">${ALERT.oldPrice}</div>
-          <div class="pa-price-unit">₴ / пляш.</div>
-        </div>
-        <div class="pa-arrow-col">
-          <div class="pa-delta">${ALERT.delta}</div>
-          <span style="font-size:14px;color:var(--text3)">→</span>
-        </div>
-        <div class="pa-price-blk" style="border-color:var(--amber-border)">
-          <div class="pa-price-lbl">Нова ціна</div>
-          <div class="pa-price-val" style="color:var(--amber)">${ALERT.newPrice}</div>
-          <div class="pa-price-unit">₴ / пляш.</div>
-        </div>
+      <div class="pa-eyebrow">
+        <span style="width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
+        Підвищення ціни
       </div>
-      <div class="pa-chips">
-        <div class="pa-chip"><div class="pa-chip-dot" style="background:var(--amber)"></div>+${ALERT.newPrice-ALERT.oldPrice} ₴ / пляшка</div>
-        <div class="pa-chip"><div class="pa-chip-dot" style="background:var(--red)"></div>Вперше за 3 місяці</div>
-        <div class="pa-chip"><div class="pa-chip-dot" style="background:var(--text2)"></div>${ALERT.qty} пляш. у накладній</div>
+      <div class="pa-product">${ALERT.product}</div>
+      <div class="pa-supplier">${ALERT.supplier} · ${ALERT.invoice}</div>
+      <div class="pa-price-row">
+        <div class="pa-price-blk">
+          <div class="pa-price-lbl">Було</div>
+          <div class="pa-price-old">${ALERT.oldPrice} ₴</div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0;align-self:center">
+          <path d="M4 10h12M12 5l5 5-5 5" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="pa-price-blk">
+          <div class="pa-price-new-lbl">Стало</div>
+          <div class="pa-price-new">${ALERT.newPrice} ₴</div>
+        </div>
+        <div class="pa-delta">${ALERT.delta}</div>
+      </div>
+      <div class="pa-impact">
+        Вплине на <span style="color:var(--text0);font-weight:500">${ALERT.affectedRecipes.length} коктейлі</span>.
+        Old Fashioned: FC ${ALERT.affectedRecipes[0].oldFc}% → ${ALERT.affectedRecipes[0].newFc}%
       </div>
     </div>
 
@@ -404,7 +400,7 @@ function renderBartender() {
 
   <!-- SUCCESS OVERLAY -->
   <div class="pa-success ${_confirmed?'open':''}" id="pa-success">
-    <div class="pa-succ-icon" style="background:var(--green-bg);border:0.5px solid var(--green-border)">
+    <div class="pa-succ-icon" style="background:var(--green-bg);border:1px solid var(--green-border)">
       <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
         <path d="M6 16l7 7 13-13" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
@@ -415,7 +411,7 @@ function renderBartender() {
             onclick="window.__barops.navigate('dashboard')">
       На головний екран
     </button>
-    <button class="pa-succ-btn" style="background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1)"
+    <button class="pa-succ-btn" style="background:var(--bg2);border:0.5px solid var(--border);color:var(--text1)"
             onclick="window.__pa.resetSuccess()">
       Переглянути ще раз
     </button>
@@ -489,7 +485,7 @@ function mgrTabContent() {
   // impact tab
   return `
   <div class="pa-sec">Вплив на фудкост рецептів</div>
-  <div class="pa-fc-card" style="margin:0 14px 8px">
+  <div class="pa-fc-card">
     <div class="pa-fc-title">Необхідно переглянути ціни меню</div>
     ${ALERT.affectedRecipes.map(r => {
       const col   = r.newFc > 22 ? 'var(--red)' : r.newFc > 18 ? 'var(--amber)' : 'var(--text0)';
@@ -508,8 +504,8 @@ function mgrTabContent() {
       </div>`;
     }).join('')}
   </div>
-  <div style="padding:0 14px;margin-bottom:8px">
-    <button style="width:100%;height:46px;font-size:14px;background:var(--amber);color:#fff;border:none;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px" onclick="alert('Перерахунок цін меню...')">
+  <div style="padding:0 20px;margin-bottom:8px">
+    <button style="width:100%;height:46px;font-size:14px;background:var(--green);color:#000;border:none;border-radius:14px;cursor:pointer;font-family:var(--font-h);font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px" onclick="alert('Перерахунок цін меню...')">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Перерахувати ціни меню
     </button>
@@ -527,7 +523,7 @@ function renderManager() {
       <div class="pa-title">Алерт ціни</div>
       <div class="pa-sub">Менеджер · Перегляд</div>
     </div>
-    <div style="background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--amber);font-family:var(--font-b)">Нове</div>
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--amber);font-family:var(--font-b)">Нове</div>
   </div>
 
   <div class="pa-scroll">

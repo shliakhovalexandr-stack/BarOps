@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/venue-edit.js (FIXED v4)
    Редагування закладу: назва, Telegram Topic ID, POS
    ============================================================ */
@@ -26,28 +26,28 @@ const CSS = `<style id="ve-css">
 .ve-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .ve-scroll{overflow-y:auto;flex:1;padding-bottom:24px}.ve-scroll::-webkit-scrollbar{width:0}
 .ve-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.ve-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.ve-back:active{background:var(--bg3)}
-.ve-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);flex:1;letter-spacing:-.02em}
+.ve-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.ve-back:active{background:rgba(255,255,255,.08)}
+.ve-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);flex:1;letter-spacing:-.02em}
 .ve-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 18px 8px;font-family:var(--font-b)}
-.ve-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden;padding:16px}
+.ve-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden;padding:16px}
 .ve-label{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
-.ve-input{width:100%;height:48px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;margin-bottom:14px;box-sizing:border-box}
-.ve-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+.ve-input{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;margin-bottom:14px;box-sizing:border-box}
+.ve-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .ve-input::placeholder{color:var(--text3)}
 .ve-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px;line-height:1.5}
-.ve-select{width:100%;height:48px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;margin-bottom:14px;box-sizing:border-box;appearance:none;-webkit-appearance:none}
+.ve-select{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;margin-bottom:14px;box-sizing:border-box;appearance:none;-webkit-appearance:none}
 .ve-btn{width:100%;height:52px;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
-.ve-btn-green{background:var(--green);color:#fff}
-.ve-btn-green:active{background:var(--green-d);transform:scale(.98)}
+.ve-btn-green{background:var(--green);color:#000}
+.ve-btn-green:active{opacity:.85}
 .ve-btn-green:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.ve-btn-ghost{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1);margin-top:8px}
-.ve-btn-ghost:active{background:var(--bg3)}
+.ve-btn-ghost{background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);margin-top:8px}
+.ve-btn-ghost:active{background:rgba(255,255,255,.08)}
 .ve-topic-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;font-family:var(--font-b)}
-.ve-topic-status.ok{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
-.ve-topic-status.warn{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
-.ve-success{background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:12px;padding:12px 14px;margin:0 14px 14px;font-size:13px;color:var(--green);font-family:var(--font-b);display:flex;align-items:center;gap:8px;animation:veFadeIn .3s ease}
-.ve-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);color:var(--text0);padding:12px 24px;border-radius:12px;font-family:var(--font-b);font-size:14px;border:0.5px solid var(--border2);z-index:1000;opacity:0;transition:all .3s ease;pointer-events:none;white-space:nowrap}
+.ve-topic-status.ok{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+.ve-topic-status.warn{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.ve-success{background:var(--green-bg);border:1px solid var(--green-border);border-radius:12px;padding:12px 14px;margin:0 14px 14px;font-size:13px;color:var(--green);font-family:var(--font-b);display:flex;align-items:center;gap:8px;animation:veFadeIn .3s ease}
+.ve-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);color:var(--text0);padding:12px 24px;border-radius:12px;font-family:var(--font-b);font-size:14px;border:0.5px solid var(--border);z-index:1000;opacity:0;transition:all .3s ease;pointer-events:none;white-space:nowrap}
 .ve-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .ve-toast.error{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
 </style>`;
@@ -317,7 +317,7 @@ ${CSS}
           </button>
         </div>
         <button type="button" id="btn-disconnect-iiko" class="ve-btn"
-          style="width:100%;margin-top:12px;background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
+          style="width:100%;margin-top:12px;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
           ❌ Відключити Syrve
         </button>
       </div>
@@ -345,7 +345,7 @@ ${CSS}
             💾 Зберегти
           </button>
         </div>
-        <button type="button" id="btn-disconnect-poster" class="ve-btn" style="width:100%;margin-top:12px;background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
+        <button type="button" id="btn-disconnect-poster" class="ve-btn" style="width:100%;margin-top:12px;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
           ❌ Відключити Poster
         </button>
       </div>
@@ -366,7 +366,7 @@ ${CSS}
       </div>
 
       <!-- POS Modal -->
-      <div id="pos-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center">
+      <div id="pos-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);align-items:flex-end;justify-content:center">
         <div style="width:100%;max-width:480px;background:var(--bg1);border:0.5px solid var(--border);border-radius:20px 20px 0 0;padding:20px;max-height:85vh;overflow-y:auto">
           <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:16px">🔗 Підключити POS-систему</div>
 
@@ -385,7 +385,7 @@ ${CSS}
             <div class="ve-label">Тип підключення</div>
             <div style="display:flex;gap:8px;margin-bottom:16px">
               <button id="modal-tab-cloud" type="button" onclick="window.__ve.setModalSyrveMode('cloud')"
-                style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--green);background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-b)">
+                style="flex:1;height:40px;border-radius:10px;border:1.5px solid var(--green);background:var(--green);color:#000;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-b)">
                 ☁️ Cloud
               </button>
               <button id="modal-tab-selfhosted" type="button" onclick="window.__ve.setModalSyrveMode('selfhosted')"
@@ -435,11 +435,11 @@ ${CSS}
 
           <div style="display:flex;gap:10px;margin-top:8px">
             <button onclick="window.__ve.closePosModal()"
-              style="flex:1;height:48px;border-radius:12px;border:0.5px solid var(--border2);background:var(--bg3);font-size:14px;font-family:var(--font-h);color:var(--text1);cursor:pointer">
+              style="flex:1;height:48px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg3);font-size:14px;font-family:var(--font-h);color:var(--text1);cursor:pointer">
               Скасувати
             </button>
             <button onclick="window.__ve.savePosModal()"
-              style="flex:1;height:48px;border-radius:12px;border:none;background:var(--green);font-size:14px;font-family:var(--font-h);font-weight:600;color:#fff;cursor:pointer">
+              style="flex:1;height:48px;border-radius:12px;border:none;background:var(--green);font-size:14px;font-family:var(--font-h);font-weight:600;color:#000;cursor:pointer">
               💾 Зберегти
             </button>
           </div>

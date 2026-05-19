@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/analytics.js
    Аналітика: операційні дані + FC Cockpit
    ============================================================ */
@@ -150,28 +150,28 @@ const CSS = `<style id="an-css">
 .an-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .an-scroll{overflow-y:auto;flex:1}.an-scroll::-webkit-scrollbar{width:0}
 .an-topbar{display:flex;align-items:center;gap:10px;padding:8px 16px 12px;flex-shrink:0}
-.an-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);flex:1;letter-spacing:-.01em}
+.an-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);flex:1;letter-spacing:-.01em}
 .an-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
 .an-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:10px 18px 8px;font-family:var(--font-b)}
-.an-total{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 4px}
-.an-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px;position:relative;overflow:hidden}
-.an-kpi-val{font-family:var(--font-h);font-size:24px;font-weight:800;line-height:1;letter-spacing:-.02em}
-.an-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+.an-total{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin:0 14px 10px;border:0.5px solid var(--border)}
+.an-kpi{background:var(--bg1);padding:14px;position:relative;overflow:hidden}
+.an-kpi-val{font-family:var(--font-h);font-size:22px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.an-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-transform:uppercase;letter-spacing:.06em}
 .an-kpi-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
 .an-kpi-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden}
 .an-kpi-fill{height:100%;border-radius:2px}
 .an-venue-list{padding:0 14px;display:flex;flex-direction:column;gap:8px}
-.an-venue-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.an-vc-hdr{padding:13px 14px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid var(--border)}
+.an-venue-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.an-vc-hdr{padding:13px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
 .an-vc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .an-vc-name{font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);flex:1}
 .an-vc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
-.an-vs{padding:10px 8px;text-align:center;border-right:0.5px solid var(--border)}
+.an-vs{padding:10px 8px;text-align:center;border-right:1px solid var(--border)}
 .an-vs:last-child{border-right:none}
 .an-vs-val{font-family:var(--font-h);font-size:15px;font-weight:700}
 .an-vs-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.04em;line-height:1.3}
-.an-cmp{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
-.an-cmp-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:10px 12px;border-bottom:0.5px solid var(--border);gap:4px}
+.an-cmp{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.an-cmp-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:10px 12px;border-bottom:1px solid var(--border);gap:4px}
 .an-cmp-row:last-child{border-bottom:none}
 .an-cmp-row.hdr{background:var(--bg3)}
 .an-cmp-cell{font-size:11px;font-family:var(--font-b);color:var(--text2)}
@@ -188,28 +188,25 @@ const CSS = `<style id="an-css">
 
 /* FC Cockpit */
 .an-fc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 4px}
-.an-fc-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:12px 14px}
+.an-fc-kpi{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:13px;padding:12px 14px}
 .an-fc-kpi-val{font-family:var(--font-h);font-size:22px;font-weight:800;line-height:1;letter-spacing:-.02em}
 .an-fc-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
 .an-fc-kpi-sub{font-size:10px;font-family:var(--font-b);margin-top:2px}
 
 /* Insights */
-.an-insights{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.an-insight{border-radius:13px;padding:11px 13px;display:flex;gap:10px;align-items:flex-start}
-.an-insight.danger{background:rgba(220,60,50,.1);border:0.5px solid rgba(220,60,50,.25)}
-.an-insight.warning{background:rgba(200,150,30,.1);border:0.5px solid rgba(200,150,30,.25)}
-.an-insight.good{background:rgba(40,180,100,.08);border:0.5px solid rgba(40,180,100,.2)}
-.an-insight-icon{font-size:16px;line-height:1;flex-shrink:0;margin-top:1px}
-.an-insight-title{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0);line-height:1.3}
-.an-insight-body{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px;line-height:1.4}
-.an-insight-action{font-size:10px;font-family:var(--font-b);margin-top:4px;font-style:italic}
-.an-insight.danger .an-insight-action{color:var(--red)}
-.an-insight.warning .an-insight-action{color:var(--amber)}
-.an-insight.good .an-insight-action{color:var(--green)}
+.an-insights{padding:0 14px;display:flex;flex-direction:column;gap:8px}
+.an-insight{border-radius:12px;padding:14px 16px;background:var(--bg1);border:0.5px solid var(--border);cursor:pointer}
+.an-insight.danger{border-left:2px solid var(--red)}
+.an-insight.warning{border-left:2px solid var(--amber)}
+.an-insight.good{border-left:2px solid var(--green)}
+.an-insight-icon{display:none}
+.an-insight-title{font-size:13px;font-weight:500;color:var(--text0);line-height:1.3}
+.an-insight-body{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:4px;line-height:1.45}
+.an-insight-action{display:none}
 
 /* Category table */
 .an-cat-table{margin:0 14px;border-radius:13px;overflow:hidden;border:0.5px solid var(--border)}
-.an-cat-row{display:grid;grid-template-columns:1fr 54px 54px 58px;padding:9px 12px;border-bottom:0.5px solid var(--border);align-items:center;gap:4px}
+.an-cat-row{display:grid;grid-template-columns:1fr 54px 54px 58px;padding:9px 12px;border-bottom:1px solid var(--border);align-items:center;gap:4px}
 .an-cat-row:last-child{border-bottom:none}
 .an-cat-row.head{background:var(--bg3)}
 .an-cat-name{font-size:12px;font-family:var(--font-b);color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -220,7 +217,7 @@ const CSS = `<style id="an-css">
 
 /* Top lists */
 .an-toplist{margin:0 14px;border-radius:13px;overflow:hidden;border:0.5px solid var(--border)}
-.an-tl-row{display:grid;padding:9px 12px;border-bottom:0.5px solid var(--border);gap:4px;align-items:center}
+.an-tl-row{display:grid;padding:9px 12px;border-bottom:1px solid var(--border);gap:4px;align-items:center}
 .an-tl-row.head{background:var(--bg3)}
 .an-tl-row:last-child{border-bottom:none}
 .an-tl-name{font-size:12px;font-family:var(--font-b);color:var(--text1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -229,19 +226,19 @@ const CSS = `<style id="an-css">
 .an-tl-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);text-align:right;margin-top:1px}
 
 /* Optimize */
-.an-opt-row{display:grid;grid-template-columns:1fr auto;padding:9px 12px;border-bottom:0.5px solid var(--border);gap:8px;align-items:center}
+.an-opt-row{display:grid;grid-template-columns:1fr auto;padding:9px 12px;border-bottom:1px solid var(--border);gap:8px;align-items:center}
 .an-opt-row:last-child{border-bottom:none}
 .an-opt-arrow{font-size:11px;color:var(--text2);font-family:var(--font-b);margin:2px 0}
-.an-opt-badge{background:var(--green-bg,#1a3320);border:0.5px solid var(--green-border);border-radius:8px;padding:3px 8px;font-size:12px;font-family:var(--font-h);font-weight:700;color:var(--green);white-space:nowrap}
+.an-opt-badge{background:var(--green-bg,#1a3320);border:1px solid var(--green-border);border-radius:8px;padding:3px 8px;font-size:12px;font-family:var(--font-h);font-weight:700;color:var(--green);white-space:nowrap}
 
 /* Filter chips */
 .an-filter-bar{padding:0 14px 8px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
 .an-filter-row{display:flex;align-items:center;gap:6px;overflow-x:auto;padding-bottom:2px}
 .an-filter-row::-webkit-scrollbar{height:0}
 .an-filter-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0}
-.an-chip{background:var(--bg2);border:0.5px solid var(--border2);border-radius:20px;padding:5px 13px;font-size:12px;font-family:var(--font-b);color:var(--text1);cursor:pointer;white-space:nowrap;flex-shrink:0}
-.an-chip.active{background:var(--green);border-color:var(--green);color:#fff}
-.an-chip-clr{background:none;border:0.5px solid var(--border2);border-radius:20px;padding:5px 10px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.an-chip{background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;font-family:var(--font-b);color:var(--text1);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.an-chip.active{background:var(--green);border-color:var(--green);color:#000}
+.an-chip-clr{background:none;border:0.5px solid var(--border);border-radius:20px;padding:5px 10px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0}
 
 /* Swipe-to-dismiss */
 .an-swipe-wrap{overflow:hidden}
@@ -369,29 +366,48 @@ function buildFCCockpit() {
       diff:     Math.ceil(d.costPrice / (FC_TARGET / 100)) - d.sellingPrice,
     }));
 
+  const pctInNorm = withFC.length > 0 ? Math.round((good.length / withFC.length) * 100) : 0;
+  const heroColor = fcColor(avgFC);
+  const donutR = 30, donutC = 2 * Math.PI * donutR;
+
   return `
-  <!-- FC KPIs -->
+  <!-- FC Hero Card -->
   <div class="an-sec">FC Аналітика · ${state.venue || 'Заклад'}</div>
-  <div class="an-fc-kpis">
-    <div class="an-fc-kpi">
-      <div class="an-fc-kpi-val" style="color:${fcColor(avgFC)}">${fmtFC(avgFC)}</div>
-      <div class="an-fc-kpi-lbl">Середній FC</div>
-      <div class="an-fc-kpi-sub" style="color:${fcColor(avgFC)}">${avgFC > FC_MAX ? 'Перевищення норми' : avgFC > FC_WARN ? 'Увага — близько до межі' : 'В нормі'}</div>
+  <div style="margin:0 14px 10px;padding:20px 18px;background:var(--bg1);border:0.5px solid var(--border);border-radius:18px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.10em;margin-bottom:8px">Середній фудкост</div>
+        <div style="display:flex;align-items:baseline;gap:4px">
+          <span style="font-family:var(--font-h);font-size:42px;font-weight:600;color:${heroColor};letter-spacing:-0.03em;line-height:1">${avgFC > 0 ? avgFC.toFixed(1) : '—'}</span>
+          <span style="font-size:18px;color:var(--text2)">%</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:6px">з ${withFC.length} страв · ціль ≤ ${FC_WARN}%</div>
+      </div>
+      <div style="width:70px;height:70px;position:relative;flex-shrink:0">
+        <svg width="70" height="70" viewBox="0 0 70 70" style="transform:rotate(-90deg)">
+          <circle cx="35" cy="35" r="${donutR}" fill="none" stroke="var(--bg3)" stroke-width="6"/>
+          <circle cx="35" cy="35" r="${donutR}" fill="none" stroke="${heroColor}" stroke-width="6" stroke-linecap="round"
+            stroke-dasharray="${donutC.toFixed(2)}"
+            stroke-dashoffset="${(donutC * (1 - pctInNorm / 100)).toFixed(2)}"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:14px;font-weight:600;color:${heroColor}">${pctInNorm}%</div>
+      </div>
     </div>
-    <div class="an-fc-kpi">
-      <div class="an-fc-kpi-val" style="color:${danger.length > 0 ? 'var(--red)' : 'var(--green)'}">${danger.length}</div>
-      <div class="an-fc-kpi-lbl">Небезпечних (>${FC_MAX}%)</div>
-      <div class="an-fc-kpi-sub" style="color:var(--text2)">${warning.length} на межі · ${good.length} ок</div>
+  </div>
+
+  <!-- Status breakdown -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 14px 10px">
+    <div style="padding:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px">
+      <div style="font-family:var(--font-h);font-size:24px;font-weight:600;color:var(--green);letter-spacing:-0.02em;line-height:1">${String(good.length).padStart(2,'0')}</div>
+      <div style="font-size:10px;color:var(--text2);margin-top:5px">У нормі</div>
     </div>
-    <div class="an-fc-kpi">
-      <div class="an-fc-kpi-val">${withFC.length}</div>
-      <div class="an-fc-kpi-lbl">Страв з FC</div>
-      <div class="an-fc-kpi-sub" style="color:var(--text2)">з ${dishes.length}${_groupFilter.size > 0 ? ' у групі' : ' у меню'}</div>
+    <div style="padding:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px">
+      <div style="font-family:var(--font-h);font-size:24px;font-weight:600;color:var(--amber);letter-spacing:-0.02em;line-height:1">${String(warning.length).padStart(2,'0')}</div>
+      <div style="font-size:10px;color:var(--text2);margin-top:5px">Попередження</div>
     </div>
-    <div class="an-fc-kpi">
-      <div class="an-fc-kpi-val" style="color:${noPrice.length > 0 ? 'var(--amber)' : 'var(--green)'}">${noPrice.length}</div>
-      <div class="an-fc-kpi-lbl">Без ціни</div>
-      <div class="an-fc-kpi-sub" style="color:var(--text2)">${noCost.length} без собівартості</div>
+    <div style="padding:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px">
+      <div style="font-family:var(--font-h);font-size:24px;font-weight:600;color:var(--red);letter-spacing:-0.02em;line-height:1">${String(danger.length).padStart(2,'0')}</div>
+      <div style="font-size:10px;color:var(--text2);margin-top:5px">Критично</div>
     </div>
   </div>
 
@@ -424,20 +440,18 @@ function buildFCCockpit() {
 
   <!-- Category Performance -->
   ${catRows.length > 0 ? `
-  <div class="an-sec">Категорії за FC</div>
-  <div class="an-cat-table">
-    <div class="an-cat-row head">
-      <div class="an-cat-name">Категорія</div>
-      <div class="an-cat-num" style="font-size:9px;font-family:var(--font-b);font-weight:400;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Страв</div>
-      <div class="an-cat-num" style="font-size:9px;font-family:var(--font-b);font-weight:400;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Сер. FC</div>
-      <div class="an-cat-num" style="font-size:9px;font-family:var(--font-b);font-weight:400;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Маржа ₴</div>
-    </div>
-    ${catRows.map(c => `
-    <div class="an-cat-row" style="background:var(--bg2)">
-      <div class="an-cat-name">${c.name}</div>
-      <div class="an-cat-num" style="color:var(--text2)">${c.count}</div>
-      <div class="an-cat-num" style="color:${fcColor(c.avgFC)}">${fmtFC(c.avgFC)}</div>
-      <div class="an-cat-num" style="color:var(--text1)">${c.avgMrg > 0 ? c.avgMrg.toFixed(0) + ' ₴' : '—'}</div>
+  <div class="an-sec">Категорії · фудкост</div>
+  <div style="margin:0 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden">
+    ${catRows.map((c, i, arr) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;${i < arr.length-1 ? 'border-bottom:0.5px solid var(--border)' : ''}">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:var(--text0)">${c.name}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${c.count} страв</div>
+      </div>
+      <div style="width:80px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;flex-shrink:0">
+        <div style="width:${Math.min(100, c.avgFC * 3)}%;height:100%;background:${fcColor(c.avgFC)}"></div>
+      </div>
+      <div style="min-width:50px;text-align:right;font-family:var(--font-h);font-size:15px;font-weight:600;color:${fcColor(c.avgFC)};letter-spacing:-0.01em;flex-shrink:0">${fmtFC(c.avgFC)}</div>
     </div>`).join('')}
   </div>` : ''}
 
@@ -446,7 +460,7 @@ function buildFCCockpit() {
   <div class="an-sec">Топ — найвища маржа ₴</div>
   <div class="an-toplist">
     ${topMargin.map((d, i) => `
-    <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
+    <div class="an-swipe-wrap" style="border-bottom:1px solid var(--border)">
       <div class="an-swipe-track">
         <div class="an-swipe-con an-tl-row" style="grid-template-columns:auto 1fr auto;background:var(--bg2);border-bottom:none">
           <div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text2);width:20px">${['🥇','🥈','🥉','4.','5.'][i]}</div>
@@ -469,7 +483,7 @@ function buildFCCockpit() {
   <div class="an-sec">Небезпечний FC — потрібна дія</div>
   <div class="an-toplist">
     ${topDanger.map(d => `
-    <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
+    <div class="an-swipe-wrap" style="border-bottom:1px solid var(--border)">
       <div class="an-swipe-track">
         <div class="an-swipe-con an-tl-row" style="grid-template-columns:1fr auto;background:var(--bg2);border-bottom:none">
           <div style="min-width:0">
@@ -491,7 +505,7 @@ function buildFCCockpit() {
   <div class="an-sec">Оптимізатор цін — ціль FC ${FC_TARGET}%</div>
   <div class="an-toplist">
     ${optimizer.map(d => `
-    <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
+    <div class="an-swipe-wrap" style="border-bottom:1px solid var(--border)">
       <div class="an-swipe-track">
         <div class="an-swipe-con an-opt-row" style="background:var(--bg2);border-bottom:none">
           <div style="min-width:0">
@@ -523,7 +537,7 @@ function buildHTML() {
     <div class="an-wrap">
       <div class="an-topbar">
         <div onclick="window.__barops.openDrawer()"
-          style="width:36px;height:36px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0">
+          style="width:36px;height:36px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0">
           <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
           <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
           <div style="width:10px;height:1.5px;background:var(--text1);border-radius:1px;align-self:flex-start;margin-left:8px"></div>
@@ -549,7 +563,7 @@ function buildHTML() {
   <div class="an-topbar">
     <div onclick="window.__barops.openDrawer()"
       style="width:36px;height:36px;border-radius:10px;background:var(--bg2);
-             border:0.5px solid var(--border2);display:flex;flex-direction:column;
+             border:0.5px solid var(--border);display:flex;flex-direction:column;
              align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0">
       <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
       <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
@@ -559,7 +573,7 @@ function buildHTML() {
       <div class="an-title">Аналітика</div>
       <div class="an-sub">Всі заклади · ${_venues.length} локацій · сьогодні</div>
     </div>
-    <div style="background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--green);font-family:var(--font-b)">${_venues.length} заклади</div>
+    <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--green);font-family:var(--font-b)">${_venues.length} заклади</div>
   </div>
 
   ${buildFilterBar()}

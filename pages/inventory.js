@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/inventory.js
    Інвентаризація: реальні дані з DB + Syrve
    ============================================================ */
@@ -32,121 +32,126 @@ const CSS = `<style id="inv-css">
 .inv-scroll{overflow-y:auto;flex:1}.inv-scroll::-webkit-scrollbar{width:0}
 
 /* Role tabs */
-.inv-role-tabs{display:flex;gap:2px;margin:8px 14px 4px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:3px;flex-shrink:0}
+.inv-role-tabs{display:flex;gap:2px;margin:8px 20px 4px;background:var(--bg1);border:0.5px solid var(--border);border-radius:9px;padding:3px;flex-shrink:0}
 .inv-rtab{flex:1;height:30px;border-radius:7px;border:none;background:transparent;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
-.inv-rtab.act{background:var(--bg3);color:var(--text0);border:0.5px solid var(--border2)}
+.inv-rtab.act{background:var(--bg3);color:var(--text0);border:0.5px solid var(--border)}
 
 /* Session header */
-.inv-session-hdr{margin:10px 14px 8px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:16px;padding:14px 16px}
-.inv-sh-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.inv-sh-title{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)}
-.inv-sh-badge{display:inline-flex;align-items:center;gap:5px;background:var(--green);border-radius:20px;padding:3px 10px;font-size:10px;color:#fff;font-family:var(--font-b)}
-.inv-sh-bdot{width:5px;height:5px;border-radius:50%;background:#fff;animation:invPulse 1.8s ease-in-out infinite}
-@keyframes invPulse{0%,100%{opacity:1}50%{opacity:.35}}
-.inv-prog{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:6px}
-.inv-prog-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),var(--green-l));transition:width .6s ease}
-.inv-sh-nums{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);font-family:var(--font-b)}
+.inv-session-hdr{margin:10px 20px 16px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:14px;padding:14px 16px}
+.inv-sh-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.inv-sh-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.inv-sh-lbl{font-size:11px;color:var(--green);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.inv-sh-time{margin-left:auto;font-size:11px;color:var(--text2)}
+.inv-sh-count{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.inv-sh-done{font-size:32px;font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--text0)}
+.inv-sh-total{font-size:14px;color:var(--text2)}
+.inv-sh-pct{margin-left:auto;font-size:14px;font-weight:600;color:var(--green)}
+.inv-prog{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.inv-prog-fill{height:100%;border-radius:2px;background:var(--green);transition:width .6s ease}
 
 /* Locked */
 .inv-locked-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center}
-.inv-lock-icon{width:80px;height:80px;border-radius:24px;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;margin-bottom:24px;position:relative}
+.inv-lock-icon{width:80px;height:80px;border-radius:24px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;margin-bottom:24px;position:relative}
 .inv-lock-badge{position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;background:var(--amber);border:2px solid var(--bg1);display:flex;align-items:center;justify-content:center}
 .inv-locked-title{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);margin-bottom:8px;letter-spacing:-.02em}
 .inv-locked-sub{font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--font-b);font-weight:300;max-width:260px}
-.inv-next-card{margin-top:22px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:18px 20px;text-align:left;width:100%}
+.inv-next-card{margin-top:22px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;padding:18px 20px;text-align:left;width:100%}
 .inv-next-lbl{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:8px}
 .inv-next-date{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
 .inv-next-day{font-size:13px;color:var(--text2);margin-top:3px;font-family:var(--font-b)}
 
 /* Product list */
-.inv-prod-list{padding:0 14px;display:flex;flex-direction:column;gap:5px}
-.inv-prod{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
-.inv-prod.entered{border-color:var(--green-border);background:var(--green-bg)}
-.inv-prod-row{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer}
-.inv-pbar{width:3px;height:36px;border-radius:2px;flex-shrink:0}
-.inv-pcat{width:34px;height:34px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--font-b);color:var(--text2);flex-shrink:0}
-.inv-pname{font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.inv-pmeta{font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
-.inv-pqty{font-family:var(--font-h);font-size:15px;font-weight:700;text-align:right}
-.inv-punit{font-size:10px;color:var(--text2);font-family:var(--font-b);text-align:right}
-.inv-penter{width:32px;height:32px;border-radius:9px;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.inv-penter.done{background:var(--green-bg);border-color:var(--green-border)}
+.inv-prod-list{padding:0 20px 80px;display:flex;flex-direction:column;gap:8px}
+.inv-prod{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
+.inv-prod.entered{border-color:var(--green-border)}
+.inv-prod.is-open{background:var(--green-bg);border-color:var(--green-border)}
+.inv-prod-row{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.inv-pbar{width:3px;height:32px;border-radius:2px;flex-shrink:0}
+.inv-pname{font-size:13px;color:var(--text0);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-pmeta{font-size:10px;color:var(--text2);margin-top:2px}
+.inv-pqty{font-size:16px;font-weight:600;color:var(--green);letter-spacing:-.01em;text-align:right}
+.inv-punit{font-size:10px;color:var(--text3);text-align:right}
+.inv-pcheck{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border2);flex-shrink:0}
 
 /* Input panel */
-.inv-ipanel{background:var(--bg3);border-top:0.5px solid var(--border2);padding:14px 13px;display:flex;flex-direction:column;gap:11px}
-.inv-inp-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase}
-.inv-field{height:50px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:9px;padding:0 14px;font-size:20px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;width:100%;text-align:center;transition:border-color .2s}
-.inv-field:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,.1)}
+.inv-ipanel{border-top:0.5px solid var(--border);padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.inv-inp-lbl{font-size:10px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
+.inv-field{height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;padding:0 14px;font-size:20px;font-weight:700;color:var(--text0);outline:none;width:100%;text-align:center;transition:border-color .2s}
+.inv-field:focus{border-color:var(--green)}
 .inv-stepper{display:flex;gap:8px;align-items:center}
-.inv-stbtn{width:52px;height:52px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:9px;font-size:24px;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
-.inv-stbtn:active{background:var(--bg3)}
-.inv-stdisp{flex:1;height:52px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:24px;font-weight:700;color:var(--text0)}
+.inv-stbtn{width:44px;height:44px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;font-size:20px;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
+.inv-stbtn:active{background:rgba(255,255,255,.08)}
+.inv-stdisp{flex:1;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
+.inv-mode-pills{display:flex;gap:6px}
+.inv-mode-pill{flex:1;padding:7px 0;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer}
+.inv-mode-pill.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.inv-save-next{width:100%;height:42px;border-radius:11px;background:var(--green);color:#000;border:none;font-size:13px;font-weight:600;cursor:pointer}
 .inv-conv{background:var(--bg2);border:0.5px solid var(--green-border);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
-.inv-conv-formula{font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.4}
-.inv-conv-result{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--green)}
-.inv-conv-unit{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-align:right}
+.inv-conv-formula{font-size:11px;color:var(--text2);line-height:1.4}
+.inv-conv-result{font-size:20px;font-weight:700;color:var(--green)}
+.inv-conv-unit{font-size:11px;color:var(--text2);margin-top:2px;text-align:right}
 
 /* Actions */
-.inv-actions{padding:8px 14px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
-.inv-btn-green{width:100%;height:52px;background:var(--green);border:none;border-radius:13px;font-size:15px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 18px rgba(29,158,117,.22)}
-.inv-btn-green:active{background:var(--green-d)}
+.inv-actions{padding:8px 20px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.inv-btn-green{width:100%;height:52px;background:var(--green);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px}
+.inv-btn-green:active{opacity:.85}
 .inv-btn-green:disabled{opacity:.45;cursor:default}
 
 /* Manager sections */
-.inv-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 18px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.inv-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 20px 8px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
 .inv-sec-link{font-size:11px;color:var(--green);letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b);padding:0}
 
 /* Session cards */
-.inv-sess-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.inv-sess-item{background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:13px 15px;display:flex;align-items:center;gap:10px}
+.inv-sess-list{padding:0 20px;display:flex;flex-direction:column;gap:6px}
+.inv-sess-item{background:var(--bg1);border:0.5px solid var(--border);border-radius:13px;padding:13px 15px;display:flex;align-items:center;gap:10px}
 .inv-sess-date{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);flex:1}
 .inv-sess-who{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .inv-badge{display:inline-flex;align-items:center;border-radius:20px;padding:3px 9px;font-size:10px;font-family:var(--font-b)}
-.inv-badge-sched{background:var(--bg3);color:var(--text2);border:0.5px solid var(--border2)}
-.inv-badge-open{background:var(--green-bg);color:var(--green);border:0.5px solid var(--green-border)}
-.inv-badge-done{background:var(--bg3);color:var(--text3);border:0.5px solid var(--border2)}
-.inv-sess-btn{height:30px;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg3);font-size:11px;color:var(--text1);cursor:pointer;font-family:var(--font-b);padding:0 11px;flex-shrink:0;transition:all .15s}
+.inv-badge-sched{background:var(--bg3);color:var(--text2);border:0.5px solid var(--border)}
+.inv-badge-open{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.inv-badge-done{background:var(--bg3);color:var(--text3);border:0.5px solid var(--border)}
+.inv-sess-btn{height:30px;border-radius:8px;border:0.5px solid var(--border);background:var(--bg3);font-size:11px;color:var(--text1);cursor:pointer;font-family:var(--font-b);padding:0 11px;flex-shrink:0;transition:all .15s}
 .inv-sess-btn:hover{background:var(--bg4);color:var(--text0)}
 .inv-sess-btn.danger{color:var(--red);border-color:var(--red-border)}
 
 /* Schedule form */
-.inv-sched-form{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.inv-sched-form{margin:0 20px 8px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .inv-sf-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase}
-.inv-sf-inp{height:44px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:9px;padding:0 12px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;width:100%;transition:border-color .2s}
+.inv-sf-inp{height:44px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;width:100%;transition:border-color .2s}
 .inv-sf-inp:focus{border-color:var(--green)}
 .inv-sf-row{display:flex;gap:8px}
-.inv-sf-save{flex:1;height:40px;background:var(--green);border:none;border-radius:9px;font-size:13px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h)}
-.inv-sf-cancel{height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:9px;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 16px}
+.inv-sf-save{flex:1;height:40px;background:var(--green);border:none;border-radius:9px;font-size:13px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h)}
+.inv-sf-cancel{height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 16px}
 
 /* Product config list */
-.inv-cfg-list{padding:0 14px;display:flex;flex-direction:column;gap:5px}
-.inv-cfg-row{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px}
+.inv-cfg-list{padding:0 20px;display:flex;flex-direction:column;gap:5px}
+.inv-cfg-row{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px}
 .inv-cfg-name{flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .inv-cfg-sub{font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
 .inv-mode-group{display:flex;gap:2px;flex-shrink:0}
-.inv-mode-btn{height:26px;border-radius:6px;border:0.5px solid var(--border2);background:var(--bg3);font-size:10px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 8px;white-space:nowrap}
+.inv-mode-btn{height:26px;border-radius:6px;border:0.5px solid var(--border);background:var(--bg3);font-size:10px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 8px;white-space:nowrap}
 .inv-mode-btn.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
-.inv-gear-btn{width:30px;height:30px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.inv-gear-btn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 
 /* Config sheet */
 .inv-cfg-overlay{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:80;opacity:0;pointer-events:none;transition:opacity .25s}
 .inv-cfg-overlay.open{opacity:1;pointer-events:all}
-.inv-cfg-sheet{position:absolute;bottom:0;left:0;right:0;background:var(--bg1);border-radius:20px 20px 0 0;border-top:0.5px solid var(--border);padding:20px 18px 32px;z-index:81;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1)}
+.inv-cfg-sheet{position:absolute;bottom:0;left:0;right:0;background:var(--bg1);border-radius:20px 20px 0 0;border-top:0.5px solid var(--border);padding:20px 20px 32px;z-index:81;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1)}
 .inv-cfg-sheet.open{transform:translateY(0)}
 .inv-cfg-sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px}
 .inv-cfg-sheet-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-bottom:16px;text-align:center}
 .inv-cfg-field-grp{margin-bottom:12px}
 .inv-cfg-field-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
-.inv-cfg-field{height:46px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:9px;padding:0 13px;font-size:16px;font-family:var(--font-h);font-weight:600;color:var(--text0);outline:none;width:100%;transition:border-color .2s}
+.inv-cfg-field{height:46px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 13px;font-size:16px;font-weight:600;color:var(--text0);outline:none;width:100%;transition:border-color .2s}
 .inv-cfg-field:focus{border-color:var(--green)}
-.inv-cfg-formula{background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5;margin-bottom:12px}
+.inv-cfg-formula{background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:12px}
 .inv-cfg-formula strong{color:var(--green)}
-.inv-cfg-save-btn{width:100%;height:48px;background:var(--green);border:none;border-radius:11px;font-size:14px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h)}
+.inv-cfg-save-btn{width:100%;height:48px;background:var(--green);border:none;border-radius:11px;font-size:14px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h)}
 .inv-cfg-save-btn:disabled{opacity:.45}
 .inv-cfg-err{font-size:12px;color:var(--red);font-family:var(--font-b);text-align:center;margin-bottom:8px}
 
 /* Alert */
-.inv-alert{margin:0 14px 8px;border-radius:12px;padding:10px 13px;font-size:12px;font-family:var(--font-b);line-height:1.5;background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
+.inv-alert{margin:0 20px 8px;border-radius:12px;padding:10px 13px;font-size:12px;line-height:1.5;background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
 
 /* Spinner */
 .spin{width:28px;height:28px;border:2.5px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin:auto}
@@ -481,12 +486,17 @@ function buildBar() {
 
   return `
     <div class="inv-session-hdr">
-      <div class="inv-sh-row">
-        <div class="inv-sh-title">Інвентаризація · ${fmtDateShort(os.scheduledAt)}</div>
-        <div class="inv-sh-badge"><span class="inv-sh-bdot"></span>Активна</div>
+      <div class="inv-sh-eyebrow">
+        <span class="inv-sh-dot"></span>
+        <span class="inv-sh-lbl">Активна сесія</span>
+        <span class="inv-sh-time">${fmtDateShort(os.scheduledAt)}</span>
+      </div>
+      <div class="inv-sh-count">
+        <span class="inv-sh-done">${counted}</span>
+        <span class="inv-sh-total">/ ${total} позицій</span>
+        <span class="inv-sh-pct">${pct}%</span>
       </div>
       <div class="inv-prog"><div class="inv-prog-fill" style="width:${pct}%"></div></div>
-      <div class="inv-sh-nums"><span>${counted} з ${total} підраховано</span><span>${pct}%</span></div>
     </div>
 
     ${_error ? `<div class="inv-alert">${_error}</div>` : ''}
@@ -522,28 +532,32 @@ function productRowHTML(p) {
     : null;
 
   return `
-    <div class="inv-prod${counted ? ' entered' : ''}">
+    <div class="inv-prod${counted ? ' entered' : ''}${isOpen ? ' is-open' : ''}">
       <div class="inv-prod-row" data-a="toggle-prod" data-pid="${p.id}">
         <div class="inv-pbar" style="background:${barColor}"></div>
-        <div class="inv-pcat">${(p.category || '').slice(0, 2) || '📦'}</div>
         <div style="flex:1;min-width:0">
           <div class="inv-pname">${p.name}</div>
-          <div class="inv-pmeta">${p.unit || ''} · ${p.category || ''}</div>
+          <div class="inv-pmeta">Норма ≥ ${p.amount != null ? p.amount.toFixed(1) : '—'} ${p.unit || ''}</div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          ${counted
-            ? `<div class="inv-pqty" style="color:var(--green)">${resultLabel}</div><div class="inv-punit">рахунок</div>`
-            : `<div class="inv-pqty" style="color:var(--text2)">${p.amount != null ? p.amount.toFixed(2) : '—'}</div><div class="inv-punit">залишок</div>`
-          }
-        </div>
-        <div class="inv-penter${counted ? ' done' : ''}">
-          ${counted
-            ? `<svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7" stroke="var(--green)" stroke-width="2" stroke-linecap="round"/></svg>`
-            : `<svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="var(--text1)" stroke-width="2" stroke-linecap="round"/></svg>`
-          }
-        </div>
+        ${counted
+          ? `<div style="text-align:right;flex-shrink:0">
+               <div class="inv-pqty">${resultLabel}</div>
+               <div class="inv-punit">${p.unit || ''}</div>
+             </div>`
+          : `<div class="inv-pcheck"></div>`
+        }
       </div>
       ${isOpen ? inputPanelHTML(p, c, m) : ''}
+    </div>
+  `;
+}
+
+function modePillsHTML(pid, m) {
+  return `
+    <div class="inv-mode-pills">
+      <button class="inv-mode-pill${m==='sht'?' act':''}" data-a="mode-sht" data-pid="${pid}">пляшки</button>
+      <button class="inv-mode-pill${m==='kg'?' act':''}"  data-a="mode-kg"  data-pid="${pid}">грами</button>
+      <button class="inv-mode-pill${m==='kg_to_l'?' act':''}" data-a="mode-kg_to_l" data-pid="${pid}">літри</button>
     </div>
   `;
 }
@@ -555,22 +569,22 @@ function inputPanelHTML(p, c, m) {
     const hasCfg = cfg.bottleVolL > 0;
     return `
       <div class="inv-ipanel">
-        <div class="inv-inp-lbl">Ціл. пляшки</div>
+        <div class="inv-inp-lbl">Цілі пляшки</div>
         <div class="inv-stepper">
           <button class="inv-stbtn" data-a="full-dec" data-pid="${p.id}">−</button>
           <div class="inv-stdisp" id="inv-full-${p.id}">${c.full || 0}</div>
           <button class="inv-stbtn" data-a="full-inc" data-pid="${p.id}">+</button>
         </div>
-        <div class="inv-inp-lbl">Залишок на вазі (кг)</div>
+        <div class="inv-inp-lbl">Залишок (кг)</div>
         <input class="inv-field" type="number" inputmode="decimal" step="0.001"
-          placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг (порожня)` : '0.000 кг'}"
+          placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг` : '0.000'}"
           value="${c.partial || ''}"
           data-live-inp="partial" data-pid="${p.id}">
         <div class="inv-conv">
           <div class="inv-conv-formula">
             ${hasCfg
               ? `(${c.full||0} × ${cfg.bottleVolL} л) + формула`
-              : `<span style="color:var(--amber)">⚠ Налаштуйте тару в Менеджері</span>`
+              : `<span style="color:var(--amber)">⚠ Налаштуйте тару</span>`
             }
           </div>
           <div style="text-align:right">
@@ -578,6 +592,8 @@ function inputPanelHTML(p, c, m) {
             <div class="inv-conv-unit">літрів</div>
           </div>
         </div>
+        ${modePillsHTML(p.id, m)}
+        <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
     `;
   }
@@ -587,13 +603,14 @@ function inputPanelHTML(p, c, m) {
       <div class="inv-ipanel">
         <div class="inv-inp-lbl">Вага (кг)</div>
         <input class="inv-field" type="number" inputmode="decimal" step="0.001"
-          placeholder="0.000 кг" value="${c.kg || ''}"
+          placeholder="0.000" value="${c.kg || ''}"
           data-live-inp="kg" data-pid="${p.id}">
+        ${modePillsHTML(p.id, m)}
+        <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
     `;
   }
 
-  // sht
   return `
     <div class="inv-ipanel">
       <div class="inv-inp-lbl">Кількість (шт)</div>
@@ -602,6 +619,8 @@ function inputPanelHTML(p, c, m) {
         <div class="inv-stdisp" id="inv-sht-${p.id}">${c.sht || 0}</div>
         <button class="inv-stbtn" data-a="sht-inc" data-pid="${p.id}">+</button>
       </div>
+      ${modePillsHTML(p.id, m)}
+      <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
     </div>
   `;
 }
@@ -854,6 +873,11 @@ function on(e) {
   /* ── MGR: session actions ── */
   if (a === 'sess-open')   { if (confirm('Відкрити сесію для рахунку?')) changeStatus(sid, 'open'); return; }
   if (a === 'sess-delete') { if (confirm('Видалити заплановану сесію?')) deleteSession(sid); return; }
+
+  /* ── BAR: mode pills ── */
+  if (a === 'mode-sht')    { quickMode(pid, 'sht');    return; }
+  if (a === 'mode-kg')     { quickMode(pid, 'kg');     return; }
+  if (a === 'mode-kg_to_l'){ quickMode(pid, 'kg_to_l'); return; }
 
   /* ── MGR: mode toggle ── */
   if (a === 'mode-set') { quickMode(pid, t.dataset.mode); return; }

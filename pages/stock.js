@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/stock.js
    ============================================================ */
 
@@ -36,63 +36,63 @@ const CSS = `<style id="stk-css">
 .stk-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .stk-scroll{overflow-y:auto;flex:1}.stk-scroll::-webkit-scrollbar{width:0}
 
-.stk-topbar{display:flex;align-items:center;gap:12px;padding:8px 16px 10px;flex-shrink:0}
-.stk-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.stk-back:active{background:var(--bg3)}
-.stk-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);flex:1}
-.stk-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
+.stk-topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 0;flex-shrink:0}
+.stk-title{font-family:var(--font-h);font-size:26px;font-weight:600;color:var(--text0);letter-spacing:-.025em;line-height:1}
+.stk-add-btn{display:flex;align-items:center;gap:5px;padding:7px 12px;background:var(--green);color:#000;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
 
-.stk-search{margin:0 14px 8px;display:flex;align-items:center;gap:8px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:0 12px;height:40px}
+.stk-search{margin:14px 20px 0;display:flex;align-items:center;gap:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;height:44px}
 .stk-search-inp{flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--text0);font-family:var(--font-b)}
-.stk-search-inp::placeholder{color:var(--text3)}
+.stk-search-inp::placeholder{color:var(--text2)}
 
-.stk-chips{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}.stk-chips::-webkit-scrollbar{height:0}
-.stk-chip{height:28px;padding:0 12px;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:var(--font-b);display:flex;align-items:center;flex-shrink:0;transition:all .15s}
-.stk-chip.act{background:var(--green);border-color:var(--green);color:#fff}
+.stk-chips{display:flex;gap:7px;padding:12px 20px 0;overflow-x:auto}.stk-chips::-webkit-scrollbar{height:0}
+.stk-chip{height:32px;padding:0 12px;border-radius:20px;border:0.5px solid var(--border);background:transparent;font-size:12px;font-weight:500;color:var(--text1);cursor:pointer;white-space:nowrap;font-family:var(--font-b);display:flex;align-items:center;gap:5px;flex-shrink:0;transition:all .15s}
+.stk-chip.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 
-.stk-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px 10px}
-.stk-stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:10px;text-align:center}
-.stk-stat-val{font-family:var(--font-h);font-size:20px;font-weight:700}
-.stk-stat-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+.stk-col-hdr{display:flex;justify-content:space-between;padding:10px 20px 8px;border-top:0.5px solid var(--border);margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.10em}
 
-.stk-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.stk-row{display:flex;align-items:center;gap:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:11px 13px;transition:background .12s;user-select:none}
-.stk-row:active{background:var(--bg3)}
-.stk-name{font-size:13px;color:var(--text1);font-family:var(--font-b)}
-.stk-cat{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
-.stk-qty{font-family:var(--font-h);font-size:14px;font-weight:700;text-align:right;flex-shrink:0;min-width:44px}
-.stk-unit{font-size:10px;color:var(--text2);font-family:var(--font-b);text-align:right;margin-top:1px}
-.stk-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.stk-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin:12px 20px 0}
+.stk-stat{background:var(--bg1);padding:14px 12px}
+.stk-stat-val{font-family:var(--font-h);font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1}
+.stk-stat-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:6px;text-transform:uppercase;letter-spacing:.06em}
 
-.stk-note{margin:0 14px 10px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:12px;padding:10px 13px;display:flex;gap:8px;font-size:11px;color:var(--blue);font-family:var(--font-b);line-height:1.5}
+.stk-list{padding:0 20px;flex:1}
+.stk-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:0.5px solid var(--border);cursor:pointer;user-select:none}
+.stk-row:last-child{border-bottom:none}
+.stk-name{font-size:14px;color:var(--text0);font-weight:500;margin-bottom:6px}
+.stk-bar{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.stk-bar-fill{height:100%;border-radius:2px;transition:width .3s}
+.stk-qty{font-family:var(--font-h);font-size:16px;font-weight:500;text-align:right;letter-spacing:-.01em;line-height:1}
+.stk-unit{font-size:10px;color:var(--text3);font-family:var(--font-b);text-align:right;margin-top:1px;font-family:var(--font-mono)}
+
+.stk-note{margin:10px 20px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:12px;padding:10px 13px;display:flex;gap:8px;font-size:11px;color:var(--blue);font-family:var(--font-b);line-height:1.5}
 
 /* Swipe row */
-.stk-row-wrap{position:relative;overflow:hidden;border-radius:13px;margin-bottom:0}
+.stk-row-wrap{position:relative;overflow:hidden}
 .stk-row-actions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;opacity:0;pointer-events:none;transition:opacity .15s}
 .stk-row-act-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:72px;gap:4px;font-size:10px;font-family:var(--font-b);cursor:pointer;border:none}
-.stk-row-act-btn.edit{background:var(--green);color:#fff}
-.stk-row-act-btn.cat{background:var(--blue, #5B8DEF);color:#fff}
+.stk-row-act-btn.edit{background:var(--green);color:#000}
+.stk-row-act-btn.cat{background:var(--bg3);color:var(--text1)}
 .stk-row-wrap.swiped .stk-row-actions{opacity:1;pointer-events:auto}
 .stk-row-wrap.swiped .stk-row{transform:translateX(-144px);transition:transform .2s}
 .stk-row{transition:transform .2s}
 
 /* Filter button */
-.stk-filter-btn{height:32px;padding:0 10px;border-radius:16px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:all .15s}
-.stk-filter-btn.active{background:var(--green-bg,#1a3320);border-color:var(--green);color:var(--green)}
-.stk-store-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border2);cursor:pointer;margin-bottom:6px;transition:background .12s}
-.stk-store-row:active{background:var(--bg3)}
-.stk-store-row.sel{background:var(--green-bg,#1a3320);border-color:var(--green)}
+.stk-filter-btn{height:32px;padding:0 10px;border-radius:20px;border:0.5px solid var(--border);background:transparent;font-size:12px;font-weight:500;color:var(--text1);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.stk-filter-btn.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.stk-store-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);cursor:pointer;margin-bottom:6px;transition:background .12s}
+.stk-store-row:active{background:rgba(255,255,255,.08)}
+.stk-store-row.sel{background:var(--green-bg);border-color:var(--green-border)}
 
 /* Модалка редагування категорії */
 .stk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
-.stk-modal{background:var(--bg1);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:480px}
-.stk-modal-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-bottom:4px}
+.stk-modal{background:var(--bg1);border:0.5px solid var(--border);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:480px}
+.stk-modal-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);margin-bottom:4px}
 .stk-modal-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px}
 .stk-modal-inp{width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:12px}
 .stk-modal-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
-.stk-modal-cat{height:28px;padding:0 12px;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center}
-.stk-modal-cat:active{background:var(--bg3)}
-.stk-modal-btn{width:100%;height:44px;border-radius:12px;background:var(--green);border:none;font-size:15px;font-family:var(--font-h);font-weight:700;color:#fff;cursor:pointer}
+.stk-modal-cat{height:28px;padding:0 12px;border-radius:14px;border:0.5px solid var(--border);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center}
+.stk-modal-cat:active{background:rgba(255,255,255,.08)}
+.stk-modal-btn{width:100%;height:44px;border-radius:12px;background:var(--green);border:none;font-size:15px;font-family:var(--font-h);font-weight:600;color:#000;cursor:pointer}
 .stk-modal-cancel{width:100%;height:40px;border-radius:12px;background:transparent;border:none;font-size:14px;font-family:var(--font-b);color:var(--text2);cursor:pointer;margin-top:6px}
 </style>`;
 
@@ -112,12 +112,12 @@ function showEditModal(item) {
 
       <div style="display:flex;gap:6px;margin-bottom:16px">
         <button id="stk-tab-cat" onclick="window.__stk.switchTab('cat')"
-          style="flex:1;height:34px;border-radius:10px;border:0.5px solid var(--border2);
-                 background:var(--green);color:#fff;font-size:13px;font-family:var(--font-b);cursor:pointer">
+          style="flex:1;height:34px;border-radius:10px;border:0.5px solid var(--border);
+                 background:var(--green);color:#000;font-size:13px;font-family:var(--font-b);cursor:pointer">
           Категорія
         </button>
         <button id="stk-tab-norm" onclick="window.__stk.switchTab('norm')"
-          style="flex:1;height:34px;border-radius:10px;border:0.5px solid var(--border2);
+          style="flex:1;height:34px;border-radius:10px;border:0.5px solid var(--border);
                  background:var(--bg3);color:var(--text2);font-size:13px;font-family:var(--font-b);cursor:pointer">
           Норми
         </button>
@@ -258,76 +258,64 @@ function buildHTML() {
 ${CSS}
 <div class="stk-wrap">
   <div class="stk-topbar">
-    <div class="stk-back" onclick="window.__barops.navigate('dashboard')">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1 class="stk-title">Залишки</h1>
+    <button class="stk-add-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Перерахунок
+    </button>
+  </div>
+
+  <div class="stk-search">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input class="stk-search-inp" placeholder="Пошук по бару" value="${_search}" oninput="window.__stk.search(this.value)"/>
+    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px">⌘K</span>
+  </div>
+
+  <div class="stk-chips">
+    <button class="stk-chip ${!_search && _groupFilter.size===0 && _warehouseFilter.size===0 && _catFilter.size===0 ? 'act' : ''}" onclick="window.__stk.clearAllFilters()">
+      Всі <span style="font-family:var(--font-mono);font-size:10px;opacity:.7">${total}</span>
+    </button>
+    ${low > 0 ? `<button class="stk-chip" style="color:var(--red)" onclick="window.__stk.clearAllFilters()">Критично <span style="font-family:var(--font-mono);font-size:10px;opacity:.7">${low}</span></button>` : ''}
+    ${_isSyrve && allGroups.length > 0 ? `<button class="stk-filter-btn ${_groupFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openGroupFilter()">${groupLabel}</button>` : ''}
+    ${_isSyrve && allWarehouses.length > 1 ? `<button class="stk-filter-btn ${_warehouseFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openWarehouseFilter()">${warehouseLabel}</button>` : ''}
+    ${_isSyrve && allCats.length > 0 ? `<button class="stk-filter-btn ${_catFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openCatFilter()">${catLabel}</button>` : ''}
+    ${anyFilter ? `<button class="stk-filter-btn" onclick="window.__stk.clearAllFilters()" style="color:var(--red);border-color:var(--red)">✕ Скинути</button>` : ''}
+  </div>
+
+  <div class="stk-summary">
+    <div class="stk-stat">
+      <div class="stk-stat-val" style="color:var(--text0)">${total}</div>
+      <div class="stk-stat-lbl">Позицій</div>
     </div>
-    <div style="flex:1">
-      <div class="stk-title">Залишки</div>
-      <div class="stk-sub">${state.venue} · ${_isSyrve ? 'Syrve · реальні дані' : 'демо-дані'}</div>
+    <div class="stk-stat">
+      <div class="stk-stat-val" style="color:var(--green)">${ok}</div>
+      <div class="stk-stat-lbl">В нормі</div>
     </div>
-    <div style="background:${low>0?'var(--red-bg)':'var(--green-bg)'};border:0.5px solid ${low>0?'var(--red-border)':'var(--green-border)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${low>0?'var(--red)':'var(--green)'};font-family:var(--font-b)">${low > 0 ? `⚠ ${low} критично` : '✓ Все ок'}</div>
+    <div class="stk-stat">
+      <div class="stk-stat-val" style="color:var(--red)">${low}</div>
+      <div class="stk-stat-lbl">Критично</div>
+    </div>
+  </div>
+
+  ${!_isSyrve && _balanceError ? `
+  <div class="stk-note" style="background:var(--red-bg);border-color:var(--red-border)">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--red)" stroke-width="1.2"/><path d="M7 4v3M7 9v.5" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
+    <span style="color:var(--red)">Помилка залишків: ${_balanceError}</span>
+  </div>` : !_isSyrve ? `
+  <div class="stk-note">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
+    ${_venueId ? 'Завантаження залишків з Syrve…' : 'Демо-дані. Після підключення Syrve тут будуть реальні залишки.'}
+  </div>` : ''}
+
+  <div class="stk-col-hdr">
+    <span>Назва</span><span>Залишок / Норма</span>
   </div>
 
   <div class="stk-scroll">
-    <div class="stk-search">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/><path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/></svg>
-      <input class="stk-search-inp" placeholder="Знайти товар…" value="${_search}" oninput="window.__stk.search(this.value)"/>
-    </div>
-
-    ${_isSyrve ? `
-    <div style="display:flex;gap:6px;padding:0 14px 8px;overflow-x:auto">
-      ${allGroups.length > 0 ? `
-      <div class="stk-filter-btn ${_groupFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openGroupFilter()">
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 3L6.5 1l5 2V7c0 2.5-2.5 4-5 5C4 11 1.5 9.5 1.5 7z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        ${groupLabel}
-      </div>` : ''}
-      ${allWarehouses.length > 1 ? `
-      <div class="stk-filter-btn ${_warehouseFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openWarehouseFilter()">
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 10V5.5L6.5 2l5 3.5V10H9V7.5H4V10z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        ${warehouseLabel}
-      </div>` : ''}
-      ${allCats.length > 0 ? `
-      <div class="stk-filter-btn ${_catFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openCatFilter()">
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 3.5h10M1.5 6.5h7M1.5 9.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-        ${catLabel}
-      </div>` : ''}
-      ${anyFilter ? `
-      <div class="stk-filter-btn" onclick="window.__stk.clearAllFilters()" style="color:var(--red);border-color:var(--red)">
-        ✕ Скинути
-      </div>` : ''}
-    </div>` : ''}
-
-    <div class="stk-summary">
-      <div class="stk-stat">
-        <div class="stk-stat-val" style="color:var(--text0)">${total}</div>
-        <div class="stk-stat-lbl">Позицій</div>
-      </div>
-      <div class="stk-stat">
-        <div class="stk-stat-val" style="color:var(--green)">${ok}</div>
-        <div class="stk-stat-lbl">В нормі</div>
-      </div>
-      <div class="stk-stat">
-        <div class="stk-stat-val" style="color:var(--red)">${low}</div>
-        <div class="stk-stat-lbl">Критично</div>
-      </div>
-    </div>
-
-    ${!_isSyrve && _balanceError ? `
-    <div class="stk-note" style="background:var(--red-bg,#2d1b1b);border-color:var(--red-border,#5c2b2b)">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--red)" stroke-width="1.2"/><path d="M7 4v3M7 9v.5" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
-      <span style="color:var(--red)">Помилка залишків: ${_balanceError}</span>
-    </div>` : !_isSyrve ? `
-    <div class="stk-note">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
-      ${_venueId ? 'Завантаження залишків з Syrve…' : 'Демо-дані. Після підключення iiko тут будуть реальні залишки з вашої POS-системи.'}
-    </div>` : ''}
-
-    ${_isSyrve ? `<div style="padding:0 14px 8px;font-size:10px;color:var(--text3);font-family:var(--font-b)">← Свайп вліво для редагування</div>` : ''}
-
     <div class="stk-list">
       ${list.map(s => {
-        const pct   = s.norm > 0 ? Math.min((s.qty / (s.norm * 2)) * 100, 100) : 50;
-        const color = s.status === 'low' ? 'var(--red)' : pct > 60 ? 'var(--green)' : 'var(--amber)';
+        const pct   = s.norm > 0 ? Math.min((s.qty / s.norm) * 100, 100) : 50;
+        const color = s.status === 'low' ? 'var(--red)' : pct >= 100 ? 'var(--text0)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
         const posId = s.posId ? `data-posid="${s.posId}"` : '';
         return `
         <div class="stk-row-wrap" id="wrap-${s.posId || s.id}"
@@ -336,30 +324,28 @@ ${CSS}
           ontouchend="window.__stk.swipeEnd(event,'${s.posId || ''}')"
           oncontextmenu="return false">
           <div class="stk-row" ${posId}>
-            <div class="stk-status-dot" style="background:${color}"></div>
             <div style="flex:1;min-width:0">
               <div class="stk-name">${s.name}</div>
-              <div class="stk-cat">${s.cat} · Норма: ${s.norm} ${s.unit}</div>
+              <div class="stk-bar"><div class="stk-bar-fill" style="width:${pct}%;background:${color}"></div></div>
             </div>
-            <div style="text-align:right;flex-shrink:0">
-              <div class="stk-qty" style="color:${color}">${Number.isInteger(s.qty) ? s.qty : s.qty.toFixed(2)}</div>
+            <div style="text-align:right;min-width:70px;flex-shrink:0">
+              <div class="stk-qty" style="color:${color}">${Number.isInteger(s.qty) ? s.qty : s.qty.toFixed(2)}<span style="font-size:11px;color:var(--text3)">/${s.norm}</span></div>
               <div class="stk-unit">${s.unit}</div>
             </div>
           </div>
           <div class="stk-row-actions">
             <button class="stk-row-act-btn cat" onclick="window.__stk.openTab('${s.posId || ''}','cat')">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M3 9h8M3 13h5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M3 9h8M3 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               Категорія
             </button>
             <button class="stk-row-act-btn edit" onclick="window.__stk.openTab('${s.posId || ''}','norm')">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               Норми
             </button>
           </div>
         </div>`;
       }).join('')}
     </div>
-
     <div style="height:20px"></div>
   </div>
 </div>`;

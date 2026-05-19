@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/shift-log.js
    Журнал зміни:
    • Бармен  — header зміни, чеклист, нотатки, хронологія, обладнання, передача
@@ -12,10 +12,10 @@ const API = 'https://barops-backend-production.up.railway.app';
 /* ════════════════════════
    DATA
 ════════════════════════ */
-const INDIGO = '#5B7FD4';
-const INDIGO_BG = 'rgba(91,127,212,.08)';
-const INDIGO_BORDER = 'rgba(91,127,212,.25)';
-const INDIGO_LIGHT = '#8fa8e8';
+const INDIGO = '#A88BFF';
+const INDIGO_BG = 'rgba(168,139,255,.08)';
+const INDIGO_BORDER = 'rgba(168,139,255,.25)';
+const INDIGO_LIGHT = '#C2ACFF';
 
 const CHECKLIST_ITEMS = [
   { id:'c1', label:'Перевірити залишки перед відкриттям',          done:true,  overdue:false, meta:'Виконано о 18:10' },
@@ -82,21 +82,21 @@ const CSS = `<style id="sl-css">
 
 /* topbar */
 .sl-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.sl-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.sl-back:active{background:var(--bg3)}
-.sl-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
+.sl-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sl-back:active{background:rgba(255,255,255,.08)}
+.sl-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
 .sl-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
 .sl-pill{border-radius:20px;padding:3px 10px;font-size:11px;font-family:var(--font-b)}
 .sl-pill-indigo{background:${INDIGO_BG};border:0.5px solid ${INDIGO_BORDER};color:${INDIGO_LIGHT}}
-.sl-pill-amber{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
+.sl-pill-amber{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
 
 /* sec label */
 .sl-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:12px 18px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
 .sl-sec-link{font-size:11px;color:${INDIGO_LIGHT};letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b)}
 
 /* ── SHIFT HEADER ── */
-.sl-header{margin:0 14px 10px;background:linear-gradient(135deg,${INDIGO_BG} 0%,rgba(91,127,212,.04) 50%,var(--green-bg) 100%);border:0.5px solid ${INDIGO_BORDER};border-radius:22px;padding:16px 18px;position:relative;overflow:hidden}
-.sl-header::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(91,127,212,.1) 0%,transparent 70%);pointer-events:none}
+.sl-header{margin:0 14px 10px;background:var(--bg2);border:0.5px solid ${INDIGO_BORDER};border-radius:22px;padding:16px 18px;position:relative;overflow:hidden}
+.sl-header::before{display:none}
 .sl-h-eyebrow{font-size:10px;color:${INDIGO_LIGHT};letter-spacing:.14em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:8px;display:flex;align-items:center;gap:8px}
 .sl-h-eyebrow::before{content:'';width:16px;height:1px;background:${INDIGO_LIGHT};opacity:.5}
 .sl-h-date{font-family:var(--font-h);font-size:20px;font-weight:800;color:var(--text0);letter-spacing:-.02em;margin-bottom:2px}
@@ -109,27 +109,21 @@ const CSS = `<style id="sl-css">
 .sl-prog-lbl{font-size:11px;color:var(--text1);font-family:var(--font-b)}
 .sl-prog-pct{font-family:var(--font-h);font-size:12px;font-weight:700;color:var(--text0)}
 .sl-prog-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
-.sl-prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,${INDIGO},${INDIGO_LIGHT});transition:width .6s ease}
+.sl-prog-fill{height:100%;border-radius:3px;background:${INDIGO};transition:width .6s ease}
 .sl-prog-times{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:4px}
-.sl-badge{display:inline-flex;align-items:center;gap:5px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--green);font-family:var(--font-b)}
+.sl-badge{display:inline-flex;align-items:center;gap:5px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--green);font-family:var(--font-b)}
 .sl-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:slPulse 1.8s ease-in-out infinite}
 @keyframes slPulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* ── CHECKLIST ── */
-.sl-checklist{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.sl-ck{display:flex;align-items:center;gap:12px;padding:11px 13px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s}
-.sl-ck:active{background:var(--bg3)}
-.sl-ck.done{background:var(--green-bg);border-color:var(--green-border)}
-.sl-ck.overdue{border-color:var(--amber-border);background:var(--amber-bg)}
-.sl-ck-box{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--border3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s}
-.sl-ck.done .sl-ck-box{background:var(--green);border-color:var(--green)}
-.sl-ck.overdue .sl-ck-box{border-color:var(--amber)}
-.sl-ck-label{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
-.sl-ck.done .sl-ck-label{color:var(--text2);text-decoration:line-through}
-.sl-ck.overdue .sl-ck-label{color:var(--amber)}
-.sl-ck-meta{font-size:10px;color:var(--text2);font-family:var(--font-b)}
-.sl-ck.done .sl-ck-meta{color:var(--green);opacity:.7}
-.sl-ck.overdue .sl-ck-meta{color:var(--amber)}
+.sl-checklist{padding:0 20px;display:flex;flex-direction:column}
+.sl-ck{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:0.5px solid var(--border);cursor:pointer}
+.sl-ck:last-child{border-bottom:none}
+.sl-ck-box{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .18s}
+.sl-ck-label{font-size:13px;font-family:var(--font-b);flex:1;font-weight:500;color:var(--text0)}
+.sl-ck.done .sl-ck-label{color:var(--text2);text-decoration:line-through;font-weight:400}
+.sl-ck-meta{font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:2px}
+.sl-ck.overdue .sl-ck-meta{color:var(--red)}
 
 /* ── QUICK NOTE ── */
 .sl-quick-note{display:flex;align-items:center;gap:10px;padding:10px 13px;background:${INDIGO_BG};border:0.5px dashed ${INDIGO_BORDER};border-radius:12px;cursor:pointer;transition:all .15s}
@@ -139,7 +133,7 @@ const CSS = `<style id="sl-css">
 
 /* ── NOTES ── */
 .sl-note-block{margin:0 14px 8px}
-.sl-note-area{width:100%;min-height:96px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;transition:border-color .2s;line-height:1.55;display:block}
+.sl-note-area{width:100%;min-height:96px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;transition:border-color .2s;line-height:1.55;display:block}
 .sl-note-area:focus{border-color:rgba(91,127,212,.4);box-shadow:0 0 0 2px rgba(91,127,212,.1)}
 .sl-note-area::placeholder{color:var(--text2)}
 .sl-note-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
@@ -148,26 +142,25 @@ const CSS = `<style id="sl-css">
 .sl-note-save:active{background:rgba(91,127,212,.25)}
 
 /* ── TIMELINE ── */
-.sl-timeline{padding:0 18px;display:flex;flex-direction:column}
-.sl-tl-item{display:flex;gap:12px;position:relative}
-.sl-tl-item:not(:last-child)::before{content:'';position:absolute;left:5px;top:24px;bottom:-2px;width:1px;background:var(--border2)}
-.sl-tl-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:2px solid var(--bg1);position:relative;z-index:1;margin-top:2px}
-.sl-tl-body{flex:1;padding-bottom:16px}
-.sl-tl-time{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-bottom:3px;letter-spacing:.03em}
-.sl-tl-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px}
-.sl-tl-title{font-size:13px;color:var(--text1);font-family:var(--font-b);font-weight:500}
+.sl-timeline{padding:0 20px;position:relative}
+.sl-timeline::before{content:'';position:absolute;left:28px;top:4px;bottom:4px;width:1.5px;background:var(--border)}
+.sl-tl-item{position:relative;padding:10px 0 10px 22px}
+.sl-tl-dot{position:absolute;left:0;top:14px;width:9px;height:9px;border-radius:50%;border:2px solid var(--bg)}
+.sl-tl-body{flex:1}
+.sl-tl-time{font-size:11px;color:var(--text3);font-family:var(--font-b);min-width:36px;margin-bottom:3px}
+.sl-tl-title{font-size:13px;color:var(--text0);font-weight:500}
 .sl-tl-sub{font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b);line-height:1.45}
 .sl-tl-tag{display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:10px;padding:2px 8px;border-radius:10px;font-family:var(--font-b)}
-.tag-ocr{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
+.tag-ocr{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
 .tag-inv{background:var(--blue-bg);border:0.5px solid var(--blue-border);color:var(--blue)}
-.tag-wo{background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red)}
-.tag-alert{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
+.tag-wo{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+.tag-alert{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
 .tag-note{background:${INDIGO_BG};border:0.5px solid ${INDIGO_BORDER};color:${INDIGO_LIGHT}}
 
 /* ── EQUIPMENT ── */
 .sl-equip-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.sl-equip{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s}
-.sl-equip:active{background:var(--bg3)}
+.sl-equip{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:12px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s}
+.sl-equip:active{background:rgba(255,255,255,.08)}
 .sl-equip.due{border-color:var(--red-border);background:var(--red-bg)}
 .sl-equip.soon{border-color:var(--amber-border);background:var(--amber-bg)}
 .sl-equip.ok{border-color:var(--green-border)}
@@ -175,22 +168,22 @@ const CSS = `<style id="sl-css">
 .sl-eq-name{font-size:13px;color:var(--text1);font-family:var(--font-b)}
 .sl-eq-due{font-size:11px;font-family:var(--font-b);margin-top:2px}
 .sl-eq-status{font-size:11px;padding:3px 10px;border-radius:20px;font-family:var(--font-b);flex-shrink:0}
-.es-due{background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red)}
-.es-soon{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
-.es-ok{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
+.es-due{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+.es-soon{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.es-ok{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
 .sl-eq-ck{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--border3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s}
 .sl-eq-ck.checked{background:var(--green);border-color:var(--green)}
 
 /* ── HANDOVER ── */
-.sl-handover{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.sl-handover{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
 .sl-hc-hdr{padding:12px 15px;background:${INDIGO_BG};border-bottom:0.5px solid ${INDIGO_BORDER};display:flex;align-items:center;gap:8px}
 .sl-hc-title{font-family:var(--font-h);font-size:13px;font-weight:700;color:${INDIGO_LIGHT}}
-.sl-hc-persons{display:flex;align-items:center;gap:8px;padding:12px 15px;border-bottom:0.5px solid var(--border)}
+.sl-hc-persons{display:flex;align-items:center;gap:8px;padding:12px 15px;border-bottom:1px solid var(--border)}
 .sl-hc-person{text-align:center;flex:1}
 .sl-hc-name{font-size:13px;color:var(--text0);font-family:var(--font-b);font-weight:500}
 .sl-hc-role{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .sl-hc-arrow{color:var(--text3);font-size:20px;flex-shrink:0}
-.sl-hc-row{display:flex;align-items:center;gap:10px;padding:9px 15px;border-bottom:0.5px solid var(--border)}
+.sl-hc-row{display:flex;align-items:center;gap:10px;padding:9px 15px;border-bottom:1px solid var(--border)}
 .sl-hc-row:last-child{border-bottom:none}
 .sl-hc-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .sl-hc-text{flex:1;font-size:12px;color:var(--text1);font-family:var(--font-b);line-height:1.4}
@@ -198,30 +191,30 @@ const CSS = `<style id="sl-css">
 
 /* ── ACTIONS BAR ── */
 .sl-actions{padding:8px 14px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
-.sl-btn{width:100%;height:52px;border:none;border-radius:13px;font-size:15px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;letter-spacing:.02em}
-.sl-btn-indigo{background:${INDIGO};color:#fff;box-shadow:0 4px 20px rgba(91,127,212,.25)}
-.sl-btn-indigo:active{background:#4a6bbf}
-.sl-btn-ghost{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1)}
-.sl-btn-ghost:active{background:var(--bg3)}
+.sl-btn{width:100%;height:52px;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;letter-spacing:-.01em}
+.sl-btn-indigo{background:${INDIGO};color:#000}
+.sl-btn-indigo:active{opacity:.85}
+.sl-btn-ghost{background:var(--bg2);border:0.5px solid var(--border);color:var(--text1)}
+.sl-btn-ghost:active{background:rgba(255,255,255,.08)}
 
 /* ── MANAGER VIEW ── */
-.sl-period-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:3px}
+.sl-period-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:9px;padding:3px}
 .sl-pt{flex:1;height:28px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .sl-pt.act{background:var(--bg3);color:var(--text0)}
 
 .sl-mgr-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 4px}
-.sl-ms-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:14px}
+.sl-ms-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px}
 .sl-ms-title{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-b);margin-bottom:8px}
 .sl-ms-val{font-family:var(--font-h);font-size:24px;font-weight:700;color:var(--text0);line-height:1}
 .sl-ms-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:4px;line-height:1.4}
 .sl-ms-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden}
 .sl-ms-fill{height:100%;border-radius:2px}
 
-.sl-active-badge{margin:10px 14px 8px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px}
+.sl-active-badge{margin:10px 14px 8px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px}
 .sl-active-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;animation:slPulse 1.8s ease-in-out infinite}
 
-.sl-alerts-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.sl-alert-row{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border)}
+.sl-alerts-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.sl-alert-row{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
 .sl-alert-row:last-child{border-bottom:none}
 .sl-ar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px}
 .sl-ar-text{font-size:13px;color:var(--text1);font-family:var(--font-b);line-height:1.4}
@@ -229,8 +222,8 @@ const CSS = `<style id="sl-css">
 .sl-ar-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-family:var(--font-b);flex-shrink:0;margin-top:2px}
 
 .sl-shift-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.sl-shift-row{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .12s}
-.sl-shift-row:active{background:var(--bg3)}
+.sl-shift-row{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .12s}
+.sl-shift-row:active{background:rgba(255,255,255,.08)}
 .sl-shift-row.active-shift{border-color:${INDIGO_BORDER};background:${INDIGO_BG}}
 .sl-sr-icon{width:34px;height:34px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sl-sr-date{font-size:13px;color:var(--text1);font-family:var(--font-b)}
@@ -246,17 +239,17 @@ const CSS = `<style id="sl-css">
 .sl-ex-btn:active{transform:scale(.96)}
 .sl-ex-pdf{background:var(--red);color:#fff}
 .sl-ex-tg{background:var(--blue-bg);border:0.5px solid var(--blue-border);color:var(--blue)}
-.sl-ex-mail{background:var(--bg3);border:0.5px solid var(--border2);color:var(--text1)}
+.sl-ex-mail{background:rgba(255,255,255,.06);border:0.5px solid var(--border);color:var(--text1)}
 
 /* close success overlay */
-.sl-success{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+.sl-success{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.85);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
 .sl-success.open{display:flex;animation:slFade .3s ease}
 @keyframes slFade{from{opacity:0}to{opacity:1}}
 .sl-succ-icon{width:72px;height:72px;border-radius:50%;background:${INDIGO_BG};border:0.5px solid ${INDIGO_BORDER};display:flex;align-items:center;justify-content:center;margin-bottom:18px}
 .sl-succ-title{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);margin-bottom:8px}
 .sl-succ-sub{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.65;max-width:280px;margin-bottom:24px}
-.sl-succ-btn{width:100%;max-width:280px;height:50px;background:${INDIGO};border:none;border-radius:12px;font-size:14px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);margin-bottom:10px;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px}
-.sl-succ-btn:active{background:#4a6bbf}
+.sl-succ-btn{width:100%;max-width:280px;height:50px;background:${INDIGO};border:none;border-radius:14px;font-size:14px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h);margin-bottom:10px;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px}
+.sl-succ-btn:active{opacity:.85}
 .sl-succ-ghost{width:100%;max-width:280px;height:44px;background:transparent;border:none;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b)}
 </style>`;
 
@@ -264,26 +257,38 @@ const CSS = `<style id="sl-css">
    BARTENDER RENDER
 ════════════════════════ */
 function checklistHTML() {
-  const done = doneCount();
+  const done  = doneCount();
   const total = _checklist.length;
+  const pct   = Math.round(done / total * 100);
   return `
-  <div class="sl-sec">
-    Чеклист задач
-    <button class="sl-sec-link" onclick="window.__sl.addTask()">+ Додати</button>
+  <!-- Progress card -->
+  <div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 20px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+      <span style="font-size:11px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;font-family:var(--font-b)">Чеклист зміни</span>
+      <span style="font-size:13px;font-weight:600;color:var(--text0)">${done}/${total}</span>
+    </div>
+    <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:var(--green);border-radius:2px"></div>
+    </div>
   </div>
+
   <div class="sl-checklist">
-    ${_checklist.map(item => `
-    <div class="sl-ck ${item.done?'done':''} ${item.overdue&&!item.done?'overdue':''}"
+    ${_checklist.map(item => {
+      const isOverdue = item.overdue && !item.done;
+      const boxBorder = item.done ? 'var(--green)' : isOverdue ? 'var(--red)' : 'var(--border2)';
+      const boxBg     = item.done ? 'var(--green)' : 'transparent';
+      return `
+    <div class="sl-ck ${item.done?'done':''} ${isOverdue?'overdue':''}"
          onclick="window.__sl.toggleCk('${item.id}')">
-      <div class="sl-ck-box">
-        ${item.done ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` :
-          item.overdue ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2v3.5M5 7v.5" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round"/></svg>` : ''}
+      <div class="sl-ck-box" style="background:${boxBg};border:1.5px solid ${boxBorder}">
+        ${item.done ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg>` : ''}
       </div>
       <div style="flex:1;min-width:0">
         <div class="sl-ck-label">${item.label}</div>
-        <div class="sl-ck-meta">${item.meta}</div>
+        <div class="sl-ck-meta" style="${isOverdue?'color:var(--red)':''}">${item.meta}</div>
       </div>
-    </div>`).join('')}
+    </div>`;
+    }).join('')}
   </div>`;
 }
 
@@ -293,16 +298,12 @@ function timelineHTML() {
   <div class="sl-timeline">
     ${TIMELINE.map((e, i) => `
     <div class="sl-tl-item">
-      <div style="flex-shrink:0;margin-top:2px">
-        <div class="sl-tl-dot" style="background:${e.color}"></div>
-      </div>
+      <div class="sl-tl-dot" style="background:${e.color}"></div>
       <div class="sl-tl-body">
         <div class="sl-tl-time">${e.time}</div>
-        <div class="sl-tl-card">
-          <div class="sl-tl-title">${e.title}</div>
-          <div class="sl-tl-sub">${e.sub}</div>
-          ${e.tag ? `<div class="sl-tl-tag ${e.tag.cls}">${e.tag.text}</div>` : ''}
-        </div>
+        <div class="sl-tl-title">${e.title}</div>
+        <div class="sl-tl-sub">${e.sub}</div>
+        ${e.tag ? `<div class="sl-tl-tag ${e.tag.cls}">${e.tag.text}</div>` : ''}
       </div>
     </div>`).join('')}
   </div>`;
@@ -378,35 +379,6 @@ function renderBartender() {
   </div>
 
   <div class="sl-scroll">
-    <!-- Shift header -->
-    <div class="sl-header">
-      <div class="sl-h-eyebrow">Вечірня зміна</div>
-      <div class="sl-h-date">${new Date().toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</div>
-      <div class="sl-h-who">${state.user || localStorage.getItem('barops_user') || ''} · ${state.venue}</div>
-      <div class="sl-h-stats">
-        <div class="sl-stat">
-          <div class="sl-stat-val" style="color:${INDIGO_LIGHT}">${done}/${total}</div>
-          <div class="sl-stat-lbl">Задачі<br/>чеклисту</div>
-        </div>
-        <div class="sl-stat">
-          <div class="sl-stat-val" style="color:var(--amber)">3</div>
-          <div class="sl-stat-lbl">Алертів<br/>за зміну</div>
-        </div>
-        <div class="sl-stat">
-          <div class="sl-stat-val" style="color:var(--green)">3год 34хв</div>
-          <div class="sl-stat-lbl">Тривалість<br/>зміни</div>
-        </div>
-      </div>
-      <div class="sl-prog-row">
-        <div class="sl-prog-lbl">Прогрес зміни</div>
-        <div class="sl-prog-pct">74%</div>
-      </div>
-      <div class="sl-prog-bar"><div class="sl-prog-fill" style="width:74%"></div></div>
-      <div class="sl-prog-times"><span>18:00</span><span>Зараз</span><span>23:00</span></div>
-      <div style="margin-top:10px">
-        <div class="sl-badge"><div class="sl-badge-dot"></div>Зміна активна</div>
-      </div>
-    </div>
 
     ${checklistHTML()}
 

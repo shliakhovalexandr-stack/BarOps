@@ -1,83 +1,98 @@
 /* ============================================================
-   BarOps Design Tokens v2.1
-   Notion dark · помаранчевий акцент · Inter + Syne
+   BarOps Design Tokens — Stark
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@300;400;500;600;700&display=swap');
-
 :root {
-  /* ── Backgrounds ── */
-  --bg:       #111111;
-  --bg1:      #191919;
-  --bg2:      #222222;
-  --bg3:      #2A2A2A;
-  --bg4:      #333333;
-  --bg5:      #3D3D3D;
+  /* ── Base surfaces ── */
+  --bg:  #000000;
+  --bg1: #0A0A0A;
+  --bg2: #141416;
+  --bg3: #1F1F22;
+  --bg4: #2A2A2E;
+  --bg5: #2A2A2E;
 
   /* ── Borders ── */
-  --border:   rgba(255,255,255,.06);
-  --border2:  rgba(255,255,255,.10);
-  --border3:  rgba(255,255,255,.16);
+  --border:  rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --border3: rgba(255,255,255,0.22);
 
-  /* ── Brand amber (головний акцент) ── */
-  --green:        #EF9F27;
-  --green-d:      #C97F10;
-  --green-l:      #F5B84A;
-  --green-bg:     rgba(239,159,39,.10);
-  --green-border: rgba(239,159,39,.20);
-  --green-glow:   rgba(239,159,39,.15);
+  /* ── Glass primitives — neutered; any legacy ref renders as solid card ── */
+  --glass-bg:     #0A0A0A;
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-blur:   none;
+  --glass-shadow: none;
 
-  /* ── Semantic colours ── */
-  --amber:        #EF9F27;
-  --amber-bg:     rgba(239,159,39,.10);
-  --amber-border: rgba(239,159,39,.20);
+  /* ── Brand — violet. --green name kept so existing selectors don't break ── */
+  --green:        #A88BFF;
+  --green-d:      #8B6FE6;
+  --green-l:      #C2ACFF;
+  --green-bg:     rgba(168,139,255,0.10);
+  --green-border: rgba(168,139,255,0.30);
+  --green-glow:   transparent;
 
-  --red:          #F87171;
-  --red-d:        #E05555;
-  --red-bg:       rgba(248,113,113,.10);
-  --red-border:   rgba(248,113,113,.20);
+  /* ── Gradients — flat single color for backward compat ── */
+  --grad-primary: #A88BFF;
+  --grad-aurora:  #A88BFF;
+  --grad-violet:  #8B6FE6;
 
-  --purple:        #A78BFA;
-  --purple-bg:     rgba(167,139,250,.10);
-  --purple-border: rgba(167,139,250,.20);
+  /* ── Semantic colors ── */
+  --amber:        #FBBF24;
+  --amber-bg:     rgba(251,191,36,0.10);
+  --amber-border: rgba(251,191,36,0.28);
 
-  --blue:         #60A5FA;
-  --blue-bg:      rgba(96,165,250,.10);
-  --blue-border:  rgba(96,165,250,.20);
+  --red:          #FB7185;
+  --red-d:        #E15A6E;
+  --red-bg:       rgba(251,113,133,0.10);
+  --red-border:   rgba(251,113,133,0.25);
 
-  --teal:         #2DD4BF;
-  --teal-bg:      rgba(45,212,191,.10);
-  --teal-border:  rgba(45,212,191,.18);
+  --success:        #86EFAC;
+  --success-bg:     rgba(134,239,172,0.10);
+  --success-border: rgba(134,239,172,0.25);
+  --success-glow:   transparent;
 
-  --gold:         #EF9F27;
-  --gold-bg:      rgba(239,159,39,.10);
-  --gold-border:  rgba(239,159,39,.18);
+  --teal:         #86EFAC;
+  --teal-bg:      rgba(134,239,172,0.10);
+  --teal-border:  rgba(134,239,172,0.25);
 
-  --indigo:       #818CF8;
-  --indigo-bg:    rgba(129,140,248,.10);
-  --indigo-border:rgba(129,140,248,.20);
+  --purple:       #C4B5FD;
+  --purple-bg:    rgba(196,181,253,0.10);
+  --purple-border:rgba(196,181,253,0.25);
+
+  --blue:         #93C5FD;
+  --blue-bg:      rgba(147,197,253,0.10);
+  --blue-border:  rgba(147,197,253,0.25);
+
+  --gold:         #FBBF24;
+  --gold-bg:      rgba(251,191,36,0.10);
+  --gold-border:  rgba(251,191,36,0.25);
+
+  --indigo:       #A88BFF;
+  --indigo-bg:    rgba(168,139,255,0.10);
+  --indigo-border:rgba(168,139,255,0.25);
 
   /* ── Text ── */
-  --text0: #E8E8E8;
-  --text1: #A0A0A0;
-  --text2: #666666;
-  --text3: #444444;
+  --text0: #FFFFFF;
+  --text1: #A1A1AA;
+  --text2: #71717A;
+  --text3: #52525B;
 
-  /* ── Typography ── */
-  --font-h: 'Inter',  sans-serif;
-  --font-b: 'Inter',  sans-serif;
-  --font-logo: 'Syne', sans-serif;
+  /* ── Typography — one family ── */
+  --font-h:    'Geist', system-ui, sans-serif;
+  --font-b:    'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist', system-ui, sans-serif;
+  --font-logo: 'Geist', system-ui, sans-serif;
 
   /* ── Radii ── */
-  --r-xs:  4px;
-  --r-sm:  8px;
-  --r:     10px;
-  --r-lg:  12px;
-  --r-xl:  16px;
-  --r-2xl: 24px;
-  --r-phone: 24px;
+  --r-xs:    6px;
+  --r-sm:    8px;
+  --r:       12px;
+  --r-lg:    14px;
+  --r-xl:    18px;
+  --r-2xl:   22px;
+  --r-phone: 28px;
+  --r-pill:  999px;
 
-  /* ── Tab-bar height ── */
+  /* ── Tab bar ── */
   --tab-bar-h: 76px;
 
   /* ── Phone frame ── */
@@ -90,4 +105,10 @@
   --dur-fast:    120ms;
   --dur-normal:  220ms;
   --dur-slow:    380ms;
+}
+
+/* Global tabular-nums — numeric alignment everywhere inside the shell */
+html, body, #phone, .phone-frame {
+  font-feature-settings: 'ss01', 'cv11', 'tnum';
+  font-variant-numeric: tabular-nums;
 }

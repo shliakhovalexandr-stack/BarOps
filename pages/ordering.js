@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/ordering.js
    Smart Ordering: реальні постачальники + товари з Syrve
    ============================================================ */
@@ -39,26 +39,26 @@ const CSS = `<style id="ord-css">
 
 /* topbar */
 .ord-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.ord-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.ord-back:active{background:var(--bg3)}
-.ord-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
-.ord-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
+.ord-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.ord-back:active{background:rgba(255,255,255,.08)}
+.ord-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
+.ord-sub{font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
 
 /* sec label */
 .ord-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:12px 18px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
 .ord-sec-link{font-size:11px;color:var(--teal);letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b)}
 
 /* ── SUBMITTED BANNER ── */
-.ord-submitted{margin:0 14px 10px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px}
-.ord-sb-icon{width:40px;height:40px;border-radius:12px;background:rgba(29,158,117,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ord-submitted{margin:0 14px 10px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px}
+.ord-sb-icon{width:40px;height:40px;border-radius:12px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ord-sb-title{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)}
 .ord-sb-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:3px;line-height:1.4}
 
 /* ── SUPPLIER BLOCK ── */
 .ord-supp-block{margin:0 14px 8px}
-.ord-supp-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px 16px 0 0;cursor:pointer;transition:background .15s}
+.ord-supp-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px 16px 0 0;cursor:pointer;transition:background .15s}
 .ord-supp-hdr.collapsed{border-radius:16px}
-.ord-supp-hdr:active{background:var(--bg3)}
+.ord-supp-hdr:active{background:rgba(255,255,255,.08)}
 .ord-sh-icon{width:36px;height:36px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
 .ord-sh-name{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0)}
 .ord-sh-meta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
@@ -67,8 +67,8 @@ const CSS = `<style id="ord-css">
 .ord-sh-chev.open{transform:rotate(180deg)}
 
 /* product rows inside supplier */
-.ord-supp-items{background:var(--bg2);border:0.5px solid var(--border2);border-top:none;border-radius:0 0 16px 16px;overflow:hidden}
-.ord-prod-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:0.5px solid var(--border);transition:background .12s}
+.ord-supp-items{background:var(--bg2);border:0.5px solid var(--border);border-top:none;border-radius:0 0 16px 16px;overflow:hidden}
+.ord-prod-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);transition:background .12s}
 .ord-prod-row:last-child{border-bottom:none}
 .ord-pbar{width:3px;height:38px;border-radius:2px;flex-shrink:0}
 .ord-pemoji{width:32px;height:32px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
@@ -76,72 +76,73 @@ const CSS = `<style id="ord-css">
 .ord-pstock{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 /* qty stepper */
 .ord-qty{display:flex;align-items:center;gap:2px;flex-shrink:0}
-.ord-qbtn{width:28px;height:28px;border-radius:7px;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text0);transition:background .12s;flex-shrink:0}
+.ord-qbtn{width:28px;height:28px;border-radius:7px;background:var(--bg3);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text0);transition:background .12s;flex-shrink:0}
 .ord-qbtn:active{background:var(--bg4)}
+.ord-qbtn.plus{background:var(--green);color:#000;border-color:var(--green)}
 .ord-qdisp{min-width:36px;height:28px;display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);padding:0 4px}
 .ord-qunit{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-left:2px}
 
 /* actions bar */
 .ord-actions{padding:8px 14px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
-.ord-btn{width:100%;height:52px;border:none;border-radius:13px;font-size:15px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;letter-spacing:.02em}
-.ord-btn-teal{background:var(--teal);color:#fff;box-shadow:0 4px 20px rgba(0,200,180,.2)}
-.ord-btn-teal:active{background:#00a898}
-.ord-btn-ghost{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1)}
-.ord-btn-ghost:active{background:var(--bg3)}
+.ord-btn{width:100%;height:52px;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;letter-spacing:-.01em}
+.ord-btn-teal{background:var(--green);color:#000}
+.ord-btn-teal:active{opacity:.85}
+.ord-btn-ghost{background:var(--bg2);border:0.5px solid var(--border);color:var(--text1)}
+.ord-btn-ghost:active{background:rgba(255,255,255,.08)}
 
 /* ── MANAGER TABS ── */
-.ord-mgr-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:3px}
+.ord-mgr-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:9px;padding:3px}
 .ord-mt{flex:1;height:28px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .ord-mt.act{background:var(--bg3);color:var(--text0)}
 
 /* ── SUPPLIERS TAB ── */
-.ord-supp-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.ord-ssc-row{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s}
+.ord-supp-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.ord-ssc-row{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
 .ord-ssc-row:last-child{border-bottom:none}
-.ord-ssc-row:active{background:var(--bg3)}
+.ord-ssc-row:active{background:rgba(255,255,255,.08)}
 .ord-ssc-icon{width:34px;height:34px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .ord-ssc-name{font-size:13px;color:var(--text1);font-family:var(--font-b)}
 .ord-ssc-items{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .ord-ssc-day{font-family:var(--font-h);font-size:12px;font-weight:600;color:var(--teal);text-align:right}
 
 /* ── SCHEDULE TAB ── */
-.ord-sched-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.ord-sched-row{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:0.5px solid var(--border)}
+.ord-sched-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.ord-sched-row{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--border)}
 .ord-sched-row:last-child{border-bottom:none}
 .ord-sched-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--teal-bg);border:0.5px solid var(--teal-border)}
 .ord-sched-lbl{font-size:12px;color:var(--text1);font-family:var(--font-b)}
 .ord-sched-dt{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 
 /* ── BOTTOM SHEET ── */
-.ord-sheet-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;flex-direction:column;justify-content:flex-end}
+.ord-sheet-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.78);display:none;flex-direction:column;justify-content:flex-end}
 .ord-sheet-overlay.open{display:flex;animation:ordOvIn .2s ease}
 @keyframes ordOvIn{from{opacity:0}to{opacity:1}}
-.ord-sheet{background:var(--bg2);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border2);padding:0 0 32px;animation:ordSlideUp .3s cubic-bezier(.22,1,.36,1);max-height:88%;display:flex;flex-direction:column}
+.ord-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 32px;animation:ordSlideUp .3s cubic-bezier(.22,1,.36,1);max-height:88%;display:flex;flex-direction:column}
 @keyframes ordSlideUp{from{transform:translateY(100%)}to{transform:none}}
 .ord-sheet-handle{width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:14px auto 16px;flex-shrink:0}
 .ord-sheet-hdr{padding:0 18px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .ord-sheet-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
-.ord-sheet-close{width:30px;height:30px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ord-sheet-close{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.06);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .ord-sheet-body{overflow-y:auto;flex:1;padding:0 18px}.ord-sheet-body::-webkit-scrollbar{width:0}
 .ord-sheet-foot{padding:14px 18px 0;flex-shrink:0}
 
 /* ── SUPPLIER SHEET INPUTS ── */
 .ord-inp-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
-.ord-inp{width:100%;height:48px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:15px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:14px}
+.ord-inp{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:15px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:14px}
 .ord-inp:focus{border-color:var(--teal)}
 .ord-inp.err{border-color:var(--red)}
 
 /* ── PRODUCT PICKER ── */
-.ord-pp-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:0.5px solid var(--border);cursor:pointer;transition:opacity .12s}
+.ord-pp-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .12s}
 .ord-pp-row:last-child{border-bottom:none}
 .ord-pp-row:active{opacity:.6}
 .ord-pp-check{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
-.ord-pp-check.on{background:var(--teal);border-color:var(--teal)}
+.ord-pp-check.on{background:var(--green);border-color:var(--green)}
 .ord-pp-name{font-size:13px;color:var(--text1);font-family:var(--font-b)}
 .ord-pp-stock{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 
 /* ── EMPTY STATE ── */
-.ord-empty{margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:28px 20px;text-align:center}
+.ord-empty{margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:28px 20px;text-align:center}
 .ord-empty-icon{font-size:32px;margin-bottom:10px}
 .ord-empty-title{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0);margin-bottom:6px}
 .ord-empty-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
@@ -152,7 +153,7 @@ const CSS = `<style id="ord-css">
 .ord-alert-icon{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 /* search in sheet */
-.ord-sheet-search{display:flex;align-items:center;gap:8px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:0 12px;height:40px;margin-bottom:12px}
+.ord-sheet-search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 12px;height:40px;margin-bottom:12px}
 .ord-sheet-search-inp{flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--text0);font-family:var(--font-b)}
 .ord-sheet-search-inp::placeholder{color:var(--text3)}
 </style>`;
@@ -256,7 +257,7 @@ function barSuppliersHTML() {
             <div class="ord-qty">
               <div class="ord-qbtn" onclick="window.__ord.changeQty('${p.productId}',-1)">−</div>
               <div class="ord-qdisp" id="bq-${p.productId}">${p.qty}<span class="ord-qunit">од.</span></div>
-              <div class="ord-qbtn" onclick="window.__ord.changeQty('${p.productId}',1)">+</div>
+              <div class="ord-qbtn plus" onclick="window.__ord.changeQty('${p.productId}',1)">+</div>
             </div>
           </div>`).join('') + `</div>`;
       }
@@ -313,7 +314,7 @@ function renderBartender() {
     ${_submitted
       ? `<button class="ord-btn ord-btn-ghost" onclick="window.__ord.resetOrder()">Редагувати заявку</button>`
       : `<button class="ord-btn ord-btn-teal" onclick="window.__ord.submitOrder()">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h10M8 4l4 4-4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h10M8 4l4 4-4 4" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Відправити заявку менеджеру
         </button>`}
   </div>`;
@@ -405,7 +406,7 @@ function suppSheetHTML() {
         </div>
       </div>
       <div class="ord-sheet-body">
-        ${_suppError ? `<div style="padding:10px 12px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:10px;color:var(--red);font-size:12px;font-family:var(--font-b);margin-bottom:14px">${_suppError}</div>` : ''}
+        ${_suppError ? `<div style="padding:10px 12px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;color:var(--red);font-size:12px;font-family:var(--font-b);margin-bottom:14px">${_suppError}</div>` : ''}
 
         <div class="ord-inp-lbl">Назва *</div>
         <input class="ord-inp ${_suppError && !_suppDraft.name ? 'err' : ''}"
@@ -433,9 +434,9 @@ function suppSheetHTML() {
           </div>
         </div>
         ${prods.length > 0
-          ? `<div style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:16px">
+          ? `<div style="background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
               ${prods.map((sp, i) => `
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:0.5px solid var(--border)' : ''}">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
                 <div style="flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b)">${sp.productName}</div>
                 <div onclick="window.__ord.removeProduct('${sp.id}')"
                   style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:7px;background:var(--bg4);flex-shrink:0">
@@ -446,7 +447,7 @@ function suppSheetHTML() {
           : `<div style="padding:14px;text-align:center;font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:14px">Товари не додані — натисніть "Додати товар"</div>`}
 
         <div onclick="window.__ord.deleteSuppConfirm('${supp.id}')"
-          style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;cursor:pointer;border-radius:10px;border:0.5px solid var(--red-border);color:var(--red);font-size:13px;font-family:var(--font-b);margin-bottom:8px">
+          style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;cursor:pointer;border-radius:10px;border:1px solid var(--red-border);color:var(--red);font-size:13px;font-family:var(--font-b);margin-bottom:8px">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 3.5h9M5.5 3.5V2h3v1.5M4.5 3.5v7a1 1 0 001 1h3a1 1 0 001-1v-7" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Видалити постачальника
         </div>` : ''}

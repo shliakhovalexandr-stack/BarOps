@@ -5,18 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>BarOps</title>
 <meta name="description" content="Розумний помічник для барменів: інвентаризація, накладні, списання"/>
-<meta name="theme-color" content="#1D9E75"/>
+<meta name="theme-color" content="#000000"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="BarOps"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"/>
 
-<!-- ── Fonts ── -->
+<!-- ── Fonts — Geist only ── -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;1,14..32,300&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <!-- Lucide icons -->
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
@@ -37,21 +39,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(29,158,117,.06) 0%, transparent 65%),
-    var(--bg);
+  background: var(--bg);
 }
 
-/* ── Grain ── */
-.bg-grain {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
-  opacity: .85;
-}
-.bg-glow {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background: radial-gradient(ellipse 60% 45% at 50% 100%, rgba(29,158,117,.1) 0%, transparent 70%);
-}
+/* ── Aurora removed ── */
+.aurora-blob { display: none; }
 
 /* ────────────────────────────
    PHONE FRAME
@@ -59,28 +51,24 @@ body {
 #phone {
   position: relative; z-index: 1;
   width: var(--phone-w);
-  background: var(--bg1);
+  background: #000;
   border-radius: var(--r-phone);
-  border: 6px solid #1E2438;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.04),
-    0 48px 96px rgba(0,0,0,.72),
-    0 0 70px rgba(29,158,117,.04);
+  border: 0.5px solid rgba(255,255,255,0.08);
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,0.5);
   display: flex;
   flex-direction: column;
   height: 844px;
   overflow: hidden;
-  animation: frameIn .6s var(--ease-spring) both;
+  animation: frameIn .5s var(--ease-spring) both;
 }
 @keyframes frameIn {
-  from { opacity: 0; transform: translateY(24px) scale(.97); }
+  from { opacity: 0; transform: translateY(18px) scale(.98); }
   to   { opacity: 1; transform: none; }
 }
 
-/* На мобільному — повний екран без рамки */
+/* На мобільному — повний екран */
 @media (max-width: 500px) {
   body { align-items: stretch; justify-content: flex-start; overflow: hidden; }
-  #bg-glow { display: none; }
   #phone {
     width: 100vw;
     height: 100dvh;
@@ -102,9 +90,9 @@ body {
   padding: 14px 22px 6px;
   font-size: 11px;
   color: var(--text2);
-  font-family: var(--font-h);
+  font-family: 'Geist', system-ui, sans-serif;
   font-weight: 500;
-  letter-spacing: .04em;
+  letter-spacing: .02em;
   flex-shrink: 0;
 }
 #app-status-bar .status-bar__right {
@@ -122,7 +110,6 @@ body {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  /* transition applied by JS */
   transition: opacity 250ms ease, transform 250ms ease;
 }
 #app-view::-webkit-scrollbar { width: 0; }
@@ -139,28 +126,31 @@ body {
   gap: 20px;
 }
 .loading-logo-mark {
-  width: 56px; height: 56px; border-radius: 16px;
-  background: var(--green);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 32px rgba(29,158,117,.35);
-  position: relative; overflow: hidden;
-  animation: logoPulse 1.2s ease-in-out infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
-.loading-logo-mark::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,.2) 0%, transparent 60%);
+.loading-logo-wordmark {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 28px;
+  letter-spacing: -0.045em;
+  color: #fff;
+  line-height: 1;
 }
-@keyframes logoPulse { 0%,100%{ box-shadow: 0 0 32px rgba(29,158,117,.35); } 50%{ box-shadow: 0 0 48px rgba(29,158,117,.55); } }
+.loading-logo-wordmark span { color: #A88BFF; }
 .loading-ring {
-  width: 24px; height: 24px; border-radius: 50%;
-  border: 2.5px solid var(--bg3); border-top-color: var(--green);
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.08);
+  border-top-color: #A88BFF;
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text {
-  font-family: var(--font-h); font-size: 11px; font-weight: 500;
-  color: var(--text2); letter-spacing: .08em;
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: 11px; font-weight: 500;
+  color: var(--text2); letter-spacing: .06em;
 }
 
 /* ────────────────────────────
@@ -177,8 +167,10 @@ body {
 </head>
 <body>
 
-<div class="bg-grain"></div>
-<div class="bg-glow"></div>
+<!-- Aurora background layer -->
+<div class="aurora-blob aurora-blob--violet"></div>
+<div class="aurora-blob aurora-blob--cyan"></div>
+<div class="aurora-blob aurora-blob--pink"></div>
 
 <!-- ══════════ PHONE FRAME ══════════ -->
 <div id="phone">
@@ -194,13 +186,22 @@ body {
     <!-- Loading state shown until first page renders -->
     <div id="app-loading">
       <div class="loading-logo-mark">
-        <svg width="30" height="30" viewBox="0 0 28 28" fill="none">
-          <path d="M7 4h14l-4 10H11L7 4z" stroke="white" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
-          <path d="M11 14v8M17 14v8M9 22h10" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+        <svg width="38" height="66" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="18" y1="4"  x2="34" y2="4"  stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="18" y1="9"  x2="34" y2="9"  stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="18" y1="14" x2="34" y2="14" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M19 14 L19 28" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M33 14 L33 28" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M19 28 L11 40" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M33 28 L41 40" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M11 40 L10 74 Q10 88 26 88 Q42 88 42 74 L41 40 Z" stroke="white" stroke-width="2.2" fill="none"/>
+          <rect x="12" y="56" width="28" height="22" rx="4.5" fill="#A88BFF"/>
+          <text x="26" y="72.5" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,system-ui,sans-serif" font-size="14" font-weight="800" fill="#0A0A14">B</text>
         </svg>
+        <div class="loading-logo-wordmark">bar<span>ops.</span></div>
       </div>
       <div class="loading-ring"></div>
-      <div class="loading-text">BAROPS</div>
+      <div class="loading-text">завантаження</div>
     </div>
   </div>
 

@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/debts.js
    Борги між закладами:
    • Продажа — форма «з якого в який» → Telegram бухгалтеру
@@ -37,24 +37,23 @@ const CSS = `<style id="dbt-css">
 
 /* topbar */
 .dbt-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.dbt-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.dbt-back:active{background:var(--bg3)}
-.dbt-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
+.dbt-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.dbt-back:active{background:rgba(255,255,255,.08)}
+.dbt-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
 .dbt-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
 
 /* mode selector */
-.dbt-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 14px}
-.dbt-mode-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:18px;padding:20px 16px;cursor:pointer;transition:all .18s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
-.dbt-mode-card:active{transform:scale(.97)}
-.dbt-mode-card.sale{border-color:var(--teal-border);background:var(--teal-bg)}
-.dbt-mode-card.debt{border-color:var(--amber-border);background:var(--amber-bg)}
-.dbt-mode-icon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px}
-.dbt-mode-name{font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0)}
-.dbt-mode-desc{font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.4}
+.dbt-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px 16px}
+.dbt-mode-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;padding:16px 14px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;width:100%}
+.dbt-mode-card:active{opacity:.8}
+.dbt-mode-card.sale{background:var(--green-bg);border-color:var(--green-border)}
+.dbt-mode-name{font-size:14px;font-weight:600;color:var(--text0)}
+.dbt-mode-name.sale{color:var(--green)}
+.dbt-mode-desc{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px;line-height:1.4}
 
 /* summary */
 .dbt-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 10px}
-.dbt-stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px;text-align:center}
+.dbt-stat{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:14px;text-align:center}
 .dbt-stat-val{font-family:var(--font-h);font-size:24px;font-weight:700;line-height:1}
 .dbt-stat-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
 
@@ -63,30 +62,23 @@ const CSS = `<style id="dbt-css">
 .dbt-sec-link{font-size:11px;color:var(--teal);letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b)}
 
 /* filter tabs */
-.dbt-filter{display:flex;gap:2px;margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:3px}
+.dbt-filter{display:flex;gap:2px;margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:9px;padding:3px}
 .dbt-ftab{flex:1;height:28px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .dbt-ftab.act{background:var(--bg3);color:var(--text0)}
 
 /* debt cards */
-.dbt-list{padding:0 14px;display:flex;flex-direction:column;gap:8px}
-.dbt-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;transition:all .15s}
-.dbt-card.returned{opacity:.6;border-color:var(--border)}
-.dbt-card-main{padding:13px 14px}
-.dbt-route{display:flex;align-items:center;gap:6px;margin-bottom:8px}
-.dbt-venue{font-size:12px;font-family:var(--font-b);background:var(--bg3);border:0.5px solid var(--border2);border-radius:20px;padding:3px 10px;color:var(--text1)}
-.dbt-arrow{color:var(--text3);font-size:14px}
-.dbt-item-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
-.dbt-item-name{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)}
-.dbt-item-qty{font-family:var(--font-h);font-size:16px;font-weight:800;color:var(--amber)}
-.dbt-item-unit{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-align:right}
-.dbt-meta{font-size:11px;color:var(--text2);font-family:var(--font-b)}
-.dbt-note{font-size:11px;color:var(--text2);font-family:var(--font-b);font-style:italic;margin-top:4px}
-.dbt-card-footer{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:0.5px solid var(--border);background:var(--bg3)}
-.dbt-return-btn{display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-family:var(--font-b);font-weight:500;transition:all .15s}
-.dbt-return-btn.pending{background:var(--amber);color:#fff}
-.dbt-return-btn.done{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
-.dbt-return-btn:active{transform:scale(.97)}
-.dbt-date{font-size:10px;color:var(--text2);font-family:var(--font-b)}
+.dbt-list{padding:0 20px;display:flex;flex-direction:column;gap:8px}
+.dbt-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;transition:all .15s}
+.dbt-card.returned{opacity:.6}
+.dbt-card-main{padding:14px 16px}
+.dbt-route{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.dbt-venue{font-size:11px;font-family:var(--font-b);background:var(--bg3);border:0.5px solid var(--border);border-radius:18px;padding:3px 9px;color:var(--text1)}
+.dbt-venue.dest{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.dbt-item-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0}
+.dbt-item-name{font-size:14px;font-weight:600;color:var(--text0)}
+.dbt-item-qty{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--green);letter-spacing:-.01em}
+.dbt-note{font-size:11px;color:var(--text2);font-family:var(--font-b);background:var(--bg2);border-radius:8px;padding:7px 10px;margin-top:8px}
+.dbt-card-footer{display:flex;gap:6px;padding:0 16px 12px}
 
 /* form overlay */
 .dbt-form-overlay{position:absolute;inset:0;z-index:50;background:var(--bg1);display:none;flex-direction:column;animation:dbtSlide .3s cubic-bezier(.22,1,.36,1)}
@@ -97,37 +89,37 @@ const CSS = `<style id="dbt-css">
 /* form fields */
 .dbt-grp{margin-bottom:12px}
 .dbt-lbl{font-size:10px;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:5px}
-.dbt-inp{width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s}
+.dbt-inp{width:100%;height:48px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s}
 .dbt-inp:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(20,184,166,.1)}
-.dbt-sel{width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A6762' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.dbt-sel{width:100%;height:48px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A6762' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
 .dbt-sel:focus{border-color:var(--teal)}
 .dbt-route-row{display:flex;align-items:center;gap:8px}
 .dbt-route-arrow{font-size:20px;color:var(--text3);flex-shrink:0}
 .dbt-qty-row{display:flex;gap:8px}
-.dbt-qty-inp{flex:1;height:48px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:22px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;text-align:center}
+.dbt-qty-inp{flex:1;height:48px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:22px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;text-align:center}
 .dbt-qty-inp:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(20,184,166,.1)}
-.dbt-unit-sel{width:100px;height:48px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:0 10px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;-webkit-appearance:none;flex-shrink:0}
-.dbt-textarea{width:100%;height:80px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;line-height:1.5;transition:border-color .2s}
+.dbt-unit-sel{width:100px;height:48px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:0 10px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;-webkit-appearance:none;flex-shrink:0}
+.dbt-textarea{width:100%;height:80px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;line-height:1.5;transition:border-color .2s}
 .dbt-textarea:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(20,184,166,.1)}
 .dbt-textarea::placeholder{color:var(--text2)}
 
 /* tg preview */
-.dbt-tg-preview{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:4px}
+.dbt-tg-preview{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:4px}
 .dbt-tg-lbl{font-size:10px;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:6px}
 .dbt-tg-msg{font-size:12px;color:var(--text1);font-family:var(--font-b);line-height:1.7;background:var(--bg3);border-radius:8px;padding:10px 12px}
 
 /* form actions */
 .dbt-form-actions{padding:8px 14px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
-.dbt-btn{width:100%;height:52px;border:none;border-radius:13px;font-size:15px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
-.dbt-btn-teal{background:var(--teal);color:#fff;box-shadow:0 4px 20px rgba(20,184,166,.2)}
-.dbt-btn-teal:active{background:#00a898}
-.dbt-btn-amber{background:var(--amber);color:#fff;box-shadow:0 4px 20px rgba(239,159,39,.2)}
+.dbt-btn{width:100%;height:52px;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
+.dbt-btn-teal{background:var(--green);color:#000}
+.dbt-btn-teal:active{opacity:.85}
+.dbt-btn-amber{background:var(--amber);color:#fff;box-shadow:0 4px 20px rgba(251,191,36,.20)}
 .dbt-btn-amber:active{background:#d48c20}
-.dbt-btn-ghost{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1)}
-.dbt-btn-ghost:active{background:var(--bg3)}
+.dbt-btn-ghost{background:var(--bg2);border:0.5px solid var(--border);color:var(--text1)}
+.dbt-btn-ghost:active{background:rgba(255,255,255,.08)}
 
 /* success overlay */
-.dbt-success{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+.dbt-success{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.85);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
 .dbt-success.open{display:flex;animation:dbtFade .3s ease}
 @keyframes dbtFade{from{opacity:0}to{opacity:1}}
 </style>`;
@@ -158,7 +150,7 @@ function mgrHomeHTML() {
       <div class="dbt-title">Борги — Менеджер</div>
       <div class="dbt-sub">Всі заклади · ${active.length} активних</div>
     </div>
-    <div style="background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--amber);font-family:var(--font-b)">${active.length} активних</div>
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--amber);font-family:var(--font-b)">${active.length} активних</div>
   </div>
 
   <div class="dbt-scroll">
@@ -169,21 +161,21 @@ function mgrHomeHTML() {
     </div>
 
     ${_mgrVenueEdit ? `
-    <div style="margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px">
+    <div style="margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:14px">
       <div style="font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);margin-bottom:10px">Налаштування закладів</div>
       ${_venues.map((v,i) => `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-        <input style="flex:1;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none" value="${v}" onchange="window.__dbt.renameVenue(${i},this.value)"/>
-        <div onclick="window.__dbt.removeVenue(${i})" style="width:32px;height:32px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+        <input style="flex:1;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none" value="${v}" onchange="window.__dbt.renameVenue(${i},this.value)"/>
+        <div onclick="window.__dbt.removeVenue(${i})" style="width:32px;height:32px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/></svg>
         </div>
       </div>`).join('')}
       <button onclick="window.__dbt.addVenue()" style="width:100%;height:38px;background:var(--green-bg);border:0.5px dashed var(--green-border);border-radius:9px;font-size:13px;color:var(--green);cursor:pointer;font-family:var(--font-b);margin-top:4px">+ Додати заклад</button>
-      <button onclick="window.__dbt.toggleVenueEdit()" style="width:100%;height:38px;background:var(--green);border:none;border-radius:9px;font-size:13px;color:#fff;cursor:pointer;font-family:var(--font-b);margin-top:8px">Зберегти</button>
+      <button onclick="window.__dbt.toggleVenueEdit()" style="width:100%;height:38px;background:var(--green);border:none;border-radius:9px;font-size:13px;color:#000;cursor:pointer;font-family:var(--font-b);margin-top:8px">Зберегти</button>
     </div>` : `
-    <div style="margin:0 14px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden">
+    <div style="margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;overflow:hidden">
       ${summary.length ? summary.map(s => `
-      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">
         <div style="flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b);font-weight:500">${s.v}</div>
         ${s.owes > 0 ? `<div style="font-size:11px;color:var(--red);font-family:var(--font-b)">Винен: ${s.owes}</div>` : ''}
         ${s.owed > 0 ? `<div style="font-size:11px;color:var(--green);font-family:var(--font-b)">Йому: ${s.owed}</div>` : ''}
@@ -194,16 +186,20 @@ function mgrHomeHTML() {
     <!-- Нова операція -->
     <div class="dbt-sec">Нова операція</div>
     <div class="dbt-mode-grid">
-      <div class="dbt-mode-card sale" onclick="window.__dbt.openMode('sale')">
-        <div class="dbt-mode-icon" style="background:rgba(20,184,166,.12)">💸</div>
-        <div class="dbt-mode-name">Продажа</div>
-        <div class="dbt-mode-desc">Між закладами → Telegram бухгалтеру</div>
-      </div>
-      <div class="dbt-mode-card debt" onclick="window.__dbt.openMode('debt')">
-        <div class="dbt-mode-icon" style="background:rgba(239,159,39,.12)">📋</div>
-        <div class="dbt-mode-name">Борг</div>
-        <div class="dbt-mode-desc">Фіксація позики між закладами</div>
-      </div>
+      <button class="dbt-mode-card sale" onclick="window.__dbt.openMode('sale')">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <div>
+          <div class="dbt-mode-name sale">Передати товар</div>
+          <div class="dbt-mode-desc">З одного закладу в інший</div>
+        </div>
+      </button>
+      <button class="dbt-mode-card" onclick="window.__dbt.openMode('debt')">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16v.5"/></svg>
+        <div>
+          <div class="dbt-mode-name">Записати борг</div>
+          <div class="dbt-mode-desc">Хто кому винен</div>
+        </div>
+      </button>
     </div>
 
     <!-- Всі борги -->
@@ -234,7 +230,7 @@ function homeHTML() {
       <div class="dbt-title">Борги між закладами</div>
       <div class="dbt-sub">${state.venue}</div>
     </div>
-    <div style="background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--amber);font-family:var(--font-b)">${active} активних</div>
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--amber);font-family:var(--font-b)">${active} активних</div>
   </div>
 
   <div class="dbt-scroll">
@@ -253,16 +249,20 @@ function homeHTML() {
     <!-- Mode selector -->
     <div class="dbt-sec">Нова операція</div>
     <div class="dbt-mode-grid">
-      <div class="dbt-mode-card sale" onclick="window.__dbt.openMode('sale')">
-        <div class="dbt-mode-icon" style="background:rgba(20,184,166,.12)">💸</div>
-        <div class="dbt-mode-name">Продажа</div>
-        <div class="dbt-mode-desc">Передача товару між закладами → Telegram бухгалтеру</div>
-      </div>
-      <div class="dbt-mode-card debt" onclick="window.__dbt.openMode('debt')">
-        <div class="dbt-mode-icon" style="background:rgba(239,159,39,.12)">📋</div>
-        <div class="dbt-mode-name">Борг</div>
-        <div class="dbt-mode-desc">Зафіксувати позику між закладами з нагадуванням</div>
-      </div>
+      <button class="dbt-mode-card sale" onclick="window.__dbt.openMode('sale')">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <div>
+          <div class="dbt-mode-name sale">Передати товар</div>
+          <div class="dbt-mode-desc">З одного закладу в інший</div>
+        </div>
+      </button>
+      <button class="dbt-mode-card" onclick="window.__dbt.openMode('debt')">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16v.5"/></svg>
+        <div>
+          <div class="dbt-mode-name">Записати борг</div>
+          <div class="dbt-mode-desc">Хто кому винен</div>
+        </div>
+      </button>
     </div>
 
     <!-- Debt list -->
@@ -286,34 +286,30 @@ function debtListHTML() {
     return `<div style="text-align:center;padding:20px;font-size:13px;color:var(--text2);font-family:var(--font-b)">Немає записів</div>`;
 
   return list.map(d => `
-  <div class="dbt-card ${d.returned?'returned':''}">
+  <div class="dbt-card${d.returned ? ' returned' : ''}">
     <div class="dbt-card-main">
       <div class="dbt-route">
-        <div class="dbt-venue">${d.from}</div>
-        <div class="dbt-arrow">→</div>
-        <div class="dbt-venue">${d.to}</div>
+        <span class="dbt-venue">${d.from}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <span class="dbt-venue dest">${d.to}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:var(--font-b)">${d.date}</span>
       </div>
       <div class="dbt-item-row">
-        <div>
-          <div class="dbt-item-name">${d.item}</div>
-          <div class="dbt-meta">${d.date}</div>
-          ${d.note ? `<div class="dbt-note">"${d.note}"</div>` : ''}
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div class="dbt-item-qty">${d.qty}</div>
-          <div class="dbt-item-unit">${d.unit}</div>
-        </div>
+        <div class="dbt-item-name">${d.item}</div>
+        <div class="dbt-item-qty">${d.qty} ${d.unit}</div>
       </div>
+      ${d.note ? `<div class="dbt-note">${d.note}</div>` : ''}
     </div>
+    ${!d.returned ? `
     <div class="dbt-card-footer">
-      <div class="dbt-date">${d.returned && d.returnDate ? `Повернуто: ${d.returnDate}` : `Борг з ${d.date}`}</div>
-      <button class="dbt-return-btn ${d.returned?'done':'pending'}"
-              onclick="window.__dbt.toggleReturn(${d.id})">
-        ${d.returned
-          ? `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l2 2 6-6" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Повернуто`
-          : `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="#fff" stroke-width="1.2" fill="none"/></svg> Позначити повернутим`}
-      </button>
-    </div>
+      <button onclick="window.__dbt.toggleReturn(${d.id})"
+        style="flex:1;height:34px;border-radius:9px;background:var(--green);border:none;font-size:12px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-b)">Повернути</button>
+      <button style="height:34px;padding:0 14px;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--font-b)">Деталі</button>
+    </div>` : `
+    <div style="display:flex;align-items:center;gap:8px;padding:0 16px 12px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>
+      <span style="font-size:12px;color:var(--text2);font-family:var(--font-b)">${d.returnDate ? `Повернуто ${d.returnDate}` : 'Повернуто'}</span>
+    </div>`}
   </div>`).join('');
 }
 
@@ -402,7 +398,7 @@ function debtFormHTML() {
     </div>
   </div>
   <div class="dbt-form-scroll">
-    <div style="margin-bottom:12px;background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:12px;padding:10px 13px;font-size:12px;color:var(--amber);font-family:var(--font-b);line-height:1.5">
+    <div style="margin-bottom:12px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:12px;padding:10px 13px;font-size:12px;color:var(--amber);font-family:var(--font-b);line-height:1.5">
       ⚠ Борг висітиме в журналі обох закладів допоки не поставлять галочку «Повернуто»
     </div>
     <div class="dbt-grp">
@@ -478,7 +474,7 @@ ${CSS}
         ? 'Повідомлення про продажу надіслано в Telegram'
         : 'Борг додано в журнал. Зʼявиться галочка «Повернуто» коли погасять.'}
     </div>
-    <button onclick="window.__dbt.closeSuccess()" style="width:100%;max-width:280px;height:50px;background:var(--green);border:none;border-radius:12px;font-size:14px;font-weight:500;color:#fff;cursor:pointer;font-family:var(--font-h);margin-bottom:10px">
+    <button onclick="window.__dbt.closeSuccess()" style="width:100%;max-width:280px;height:50px;background:var(--green);border:none;border-radius:12px;font-size:14px;font-weight:500;color:#000;cursor:pointer;font-family:var(--font-h);margin-bottom:10px">
       Готово
     </button>
     <button onclick="window.__dbt.addAnother()" style="width:100%;max-width:280px;height:44px;background:transparent;border:none;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b)">

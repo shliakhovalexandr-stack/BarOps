@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/manager.js
    Панель менеджера: Дашборд / Аналітика / Замовлення / Постачальники
                    / Норми запасів / Налаштування / Заклади
@@ -38,12 +38,11 @@ const CSS = `<style id="mgr-css">
 .mgr-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .mgr-scroll{overflow-y:auto;flex:1}.mgr-scroll::-webkit-scrollbar{width:0}
 
-/* topbar */
-.mgr-topbar{display:flex;align-items:center;gap:10px;padding:8px 16px 10px;flex-shrink:0;background:var(--bg1);border-bottom:0.5px solid var(--border)}
-.mgr-back{width:34px;height:34px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.mgr-back:active{background:var(--bg3)}
-.mgr-page-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);flex:1;letter-spacing:-.01em}
-.mgr-notif{position:relative;width:32px;height:32px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+/* hero header */
+.mgr-hero{padding:4px 20px 14px;flex-shrink:0}
+.mgr-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.mgr-back:active{background:rgba(255,255,255,.08)}
+.mgr-notif{position:relative;width:32px;height:32px;background:var(--bg2);border:0.5px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .mgr-ndot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--amber);border:1.5px solid var(--bg1)}
 
 /* bottom nav for manager sections */
@@ -60,30 +59,27 @@ const CSS = `<style id="mgr-css">
 @keyframes mgrFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* sec label */
-.mgr-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 16px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
+.mgr-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 20px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
 .mgr-sec-link{font-size:11px;color:var(--green);letter-spacing:0;text-transform:none;cursor:pointer;background:none;border:none;font-family:var(--font-b)}
 
 /* KPI grid */
-.mgr-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 4px}
-.mgr-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px;position:relative;overflow:hidden}
-.mgr-kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 14px 14px}
-.mgr-kpi.g::after{background:var(--green)}.mgr-kpi.a::after{background:var(--amber)}
-.mgr-kpi.r::after{background:var(--red)}.mgr-kpi.p::after{background:var(--purple)}
-.mgr-kpi.t::after{background:var(--teal)}.mgr-kpi.gold::after{background:var(--gold)}
-.mgr-kpi-eye{font-size:9px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:6px}
-.mgr-kpi-val{font-family:var(--font-h);font-size:24px;font-weight:800;color:var(--text0);line-height:1;letter-spacing:-.03em}
+.mgr-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px 4px}
+.mgr-kpi{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px}
+.mgr-kpi-eye{font-size:10px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-b)}
+.mgr-kpi-val{font-family:var(--font-h);font-size:26px;font-weight:600;color:var(--text0);line-height:1;letter-spacing:-.03em;margin-top:6px}
+.mgr-kpi-unit{font-size:12px;color:var(--text2);font-weight:400}
 .mgr-kpi-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px}
-.mgr-kpi-delta{font-size:10px;font-family:var(--font-b);margin-top:3px}
+.mgr-kpi-delta{font-size:11px;font-family:var(--font-b);margin-top:4px}
 
 /* alerts */
 .mgr-alert{border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;font-size:12px;font-family:var(--font-b);line-height:1.5;margin:0 14px 8px;cursor:pointer;transition:filter .15s}
 .mgr-alert:active{filter:brightness(.9)}
-.mgr-alert.amber{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
-.mgr-alert.red{background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red)}
+.mgr-alert.amber{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.mgr-alert.red{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
 .mgr-alert-icon{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 /* chart */
-.mgr-chart-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px}
+.mgr-chart-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:14px}
 .mgr-cc-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .mgr-cc-title{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0)}
 .mgr-period-tabs{display:flex;gap:2px;background:var(--bg3);border-radius:7px;padding:2px}
@@ -98,8 +94,8 @@ const CSS = `<style id="mgr-css">
 .mgr-cl-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
 
 /* mini card grids */
-.mgr-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 4px}
-.mgr-mini-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px}
+.mgr-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px 4px}
+.mgr-mini-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:12px}
 .mgr-mini-title{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-b);margin-bottom:8px}
 .mgr-mini-val{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);line-height:1}
 .mgr-mini-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:4px}
@@ -107,10 +103,10 @@ const CSS = `<style id="mgr-css">
 .mgr-mini-fill{height:100%;border-radius:2px}
 
 /* table-style rows */
-.mgr-table-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
-.mgr-tr{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s}
+.mgr-table-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.mgr-tr{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
 .mgr-tr:last-child{border-bottom:none}
-.mgr-tr:active{background:var(--bg3)}
+.mgr-tr:active{background:rgba(255,255,255,.08)}
 .mgr-tr-ico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .mgr-tr-name{font-size:13px;color:var(--text1);font-family:var(--font-b)}
 .mgr-tr-meta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
@@ -119,59 +115,59 @@ const CSS = `<style id="mgr-css">
 .mgr-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-family:var(--font-b)}
 
 /* norms form */
-.mgr-norm-row{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--border)}
+.mgr-norm-row{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
 .mgr-norm-row:last-child{border-bottom:none}
 .mgr-norm-emoji{font-size:16px;flex-shrink:0}
 .mgr-norm-name{font-size:12px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mgr-norm-inp{width:52px;height:32px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:7px;padding:0 6px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none;text-align:center}
-.mgr-norm-inp:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,.1)}
+.mgr-norm-inp{width:52px;height:32px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:7px;padding:0 6px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none;text-align:center}
+.mgr-norm-inp:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .mgr-norm-curr{font-family:var(--font-h);font-size:12px;font-weight:700;min-width:36px;text-align:right}
 
 /* settings */
-.mgr-setting-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid var(--border)}
+.mgr-setting-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
 .mgr-setting-row:last-child{border-bottom:none}
 .mgr-setting-lbl{font-size:13px;color:var(--text0);font-family:var(--font-b)}
 .mgr-setting-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.mgr-toggle{width:36px;height:20px;border-radius:10px;background:var(--bg4);border:0.5px solid var(--border2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.mgr-toggle{width:36px;height:20px;border-radius:10px;background:var(--bg4);border:0.5px solid var(--border);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
 .mgr-toggle.on{background:var(--green);border-color:var(--green)}
 .mgr-toggle-knob{width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s}
 .mgr-toggle.on .mgr-toggle-knob{left:18px}
 
 /* venues */
-.mgr-venue-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px}
+.mgr-venue-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:14px}
 .mgr-venue-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.mgr-venue-icon{width:40px;height:40px;border-radius:12px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:20px}
+.mgr-venue-icon{width:40px;height:40px;border-radius:12px;background:var(--green-bg);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:20px}
 .mgr-venue-info{flex:1}
 .mgr-venue-name{font-size:15px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
 .mgr-venue-pos{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.mgr-venue-edit{width:32px;height:32px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.mgr-venue-edit{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .mgr-venue-edit:active{background:var(--bg4)}
 .mgr-venue-topic{font-size:12px;color:var(--text2);font-family:var(--font-b);padding:8px 12px;background:var(--bg3);border-radius:8px;margin-top:8px}
 .mgr-venue-topic strong{color:var(--green)}
 .mgr-venue-actions{display:flex;gap:8px;margin-top:10px}
-.mgr-venue-btn{flex:1;height:40px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg3);font-size:12px;font-family:var(--font-b);color:var(--text1);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.mgr-venue-btn{flex:1;height:40px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg3);font-size:12px;font-family:var(--font-b);color:var(--text1);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .mgr-venue-btn:active{background:var(--bg4)}
-.mgr-venue-btn.green{background:var(--green);border-color:var(--green);color:#fff}
+.mgr-venue-btn.green{background:var(--green);border-color:var(--green);color:#000}
 
 /* modal */
-.mgr-modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;padding:0 14px 24px}
+.mgr-modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;justify-content:center;padding:0 14px 24px}
 .mgr-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:calc(100% - 28px);max-width:380px;background:var(--bg1);border:0.5px solid var(--border);border-radius:20px;padding:20px;z-index:301}
 .mgr-modal-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:16px}
 .mgr-modal-label{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
-.mgr-modal-input{width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;margin-bottom:14px;box-sizing:border-box}
-.mgr-modal-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+.mgr-modal-input{width:100%;height:48px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;margin-bottom:14px;box-sizing:border-box}
+.mgr-modal-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .mgr-modal-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px;line-height:1.5}
 .mgr-modal-actions{display:flex;gap:10px}
 .mgr-modal-btn{flex:1;height:48px;border-radius:12px;border:none;font-size:14px;font-family:var(--font-h);font-weight:500;cursor:pointer}
 .mgr-modal-btn.cancel{background:var(--bg3);color:var(--text1)}
-.mgr-modal-btn.save{background:var(--green);color:#fff}
+.mgr-modal-btn.save{background:var(--green);color:#000}
 
 /* action buttons */
 .mgr-btn{width:100%;height:50px;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
-.mgr-btn-green{background:var(--green);color:#fff;box-shadow:0 4px 16px rgba(29,158,117,.2)}
-.mgr-btn-green:active{background:var(--green-d)}
-.mgr-btn-ghost{background:var(--bg2);border:0.5px solid var(--border2);color:var(--text1)}
-.mgr-btn-ghost:active{background:var(--bg3)}
+.mgr-btn-green{background:var(--green);color:#000}
+.mgr-btn-green:active{opacity:.85}
+.mgr-btn-ghost{background:var(--bg2);border:0.5px solid var(--border);color:var(--text1)}
+.mgr-btn-ghost:active{background:rgba(255,255,255,.08)}
 
 /* live dot */
 .mgr-live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;animation:mgrPulse 1.8s ease-in-out infinite}
@@ -205,111 +201,77 @@ function navHTML() {
 ════════════════════════ */
 function sectionDashboard() {
   const maxRev = Math.max(...REV_DATA);
-  const bars = REV_DATA.map((v,i) => `
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
-    <div class="mgr-bar" style="height:${v/maxRev*100}%;background:${i===6?'var(--green)':'var(--green)'};opacity:${i===6?1:.55}" title="${v.toLocaleString('uk-UA')} ₴"></div>
-    <div class="mgr-bar-lbl">${REV_DAYS[i]}</div>
-  </div>`).join('');
+
+  const ALERTS = [
+    { lbl: 'Норми запасів · 5 позицій нижче норми', tag: 'критично',    col: 'var(--red)',   route: 'inventory'   },
+    { lbl: 'Алерт ціни · JW Black +18%',            tag: 'ціна',        col: 'var(--amber)', route: 'price-alert' },
+    { lbl: 'Інвентаризація запланована на Чт 22:00', tag: 'нагадування', col: 'var(--green)', route: 'inventory'   },
+  ];
+
+  const KPIS = [
+    { lbl: 'Виручка тиждень', val: '142', unit: 'тис ₴', delta: '+18%',  dCol: 'var(--green)' },
+    { lbl: 'Середній чек',    val: '485', unit: '₴',     delta: '+4%',   dCol: 'var(--green)' },
+    { lbl: 'Фудкост середній',val: '18.4',unit: '%',     delta: '+0.6%', dCol: 'var(--amber)' },
+    { lbl: 'Запас (днів)',    val: '12',  unit: 'днів',  delta: 'норма', dCol: 'var(--text2)' },
+  ];
+
+  const SECTIONS = [
+    { lbl: 'Аналітика',      sub: 'FC · виручка', icon: '◴', section: 'analytics' },
+    { lbl: 'Замовлення',     sub: '3 в роботі',   icon: '☷', route: 'ordering'    },
+    { lbl: 'Норми запасів',  sub: '47 позицій',   icon: '◫', section: 'norms'     },
+    { lbl: 'Заклади',        sub: '4 локації',    icon: '◉', section: 'venues'    },
+  ];
 
   return `
-  <!-- Alerts -->
-  <div style="height:4px"></div>
-  <div class="mgr-alert amber" onclick="window.__barops.navigate('price-alert')">
-    <div class="mgr-alert-icon" style="background:var(--amber-bg)">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1L12 11H1L6.5 1z" stroke="var(--amber)" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5v3M6.5 9.5v.4" stroke="var(--amber)" stroke-width="1.2" stroke-linecap="round"/></svg>
-    </div>
-    <div style="flex:1">
-      <div style="font-weight:500;margin-bottom:2px">Johnnie Walker Black — ціна ↑ 18% · Заявка на розгляді</div>
-      <div style="opacity:.75;font-size:11px">Фудкост Old Fashioned: 18.2% → 23.1% · Потребує рішення</div>
-    </div>
-    <div style="font-size:16px;opacity:.6">›</div>
-  </div>
-  <div class="mgr-alert red" onclick="window.__barops.navigate('inventory')">
-    <div class="mgr-alert-icon" style="background:var(--red-bg)">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="var(--red)" stroke-width="1.2"/><path d="M6.5 4v3M6.5 9v.4" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
-    </div>
-    <div style="flex:1">
-      <div style="font-weight:500;margin-bottom:2px">Hendrick's Gin — критично низький залишок (0.4л / норма 2.1л)</div>
-      <div style="opacity:.75;font-size:11px">3-й бій за місяць</div>
-    </div>
-    <div style="font-size:16px;opacity:.6">›</div>
+  <!-- Flat alerts -->
+  <div style="display:flex;flex-direction:column;gap:6px;padding:0 20px 16px">
+    ${ALERTS.map(a => `
+    <div onclick="window.__barops.navigate('${a.route}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;cursor:pointer">
+      <span style="width:7px;height:7px;border-radius:50%;background:${a.col};flex-shrink:0"></span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--text0)">${a.lbl}</div>
+        <div style="font-size:10px;color:${a.col};margin-top:2px;text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-b)">${a.tag}</div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+    </div>`).join('')}
   </div>
 
-  <!-- KPI -->
-  <div class="mgr-kpi-grid">
-    <div class="mgr-kpi g">
-      <div class="mgr-kpi-eye">Виручка · сьогодні</div>
-      <div class="mgr-kpi-val">38 420 ₴</div>
-      <div class="mgr-kpi-delta" style="color:var(--green)">↑ +12.4% vs вчора</div>
-    </div>
-    <div class="mgr-kpi a">
-      <div class="mgr-kpi-eye">Середній FC</div>
-      <div class="mgr-kpi-val">21.4%</div>
-      <div class="mgr-kpi-delta" style="color:var(--amber)">↑ +2.1% vs місяць</div>
-    </div>
-    <div class="mgr-kpi r">
-      <div class="mgr-kpi-eye">Списань сьогодні</div>
-      <div class="mgr-kpi-val">3</div>
-      <div class="mgr-kpi-delta" style="color:var(--text2)">612 ₴ збитків</div>
-    </div>
-    <div class="mgr-kpi p">
-      <div class="mgr-kpi-eye">Активна зміна</div>
-      <div class="mgr-kpi-val" style="display:flex;align-items:center;gap:6px;font-size:16px">
-        <div class="mgr-live-dot"></div>Олексій К.
+  <!-- KPI 2×2 -->
+  <div class="mgr-kpi-grid" style="margin-bottom:16px">
+    ${KPIS.map(k => `
+    <div class="mgr-kpi">
+      <div class="mgr-kpi-eye">${k.lbl}</div>
+      <div style="display:flex;align-items:baseline;gap:5px;margin-top:6px">
+        <span class="mgr-kpi-val">${k.val}</span>
+        <span class="mgr-kpi-unit">${k.unit}</span>
       </div>
-      <div class="mgr-kpi-delta" style="color:var(--text2)">74% задач · до 23:00</div>
-    </div>
+      <div class="mgr-kpi-delta" style="color:${k.dCol}">${k.delta}</div>
+    </div>`).join('')}
   </div>
 
   <!-- Revenue chart -->
-  <div class="mgr-sec" style="padding-top:14px">Виручка по днях</div>
-  <div class="mgr-chart-card">
-    <div class="mgr-cc-hdr">
-      <div class="mgr-cc-title">Цього тижня</div>
-      <div class="mgr-period-tabs">
-        ${['7д','30д','90д'].map(p => `<button class="mgr-pt ${_revPeriod===p.replace('д','')?'act':''}" onclick="window.__mgr.setRevPeriod('${p.replace('д','')}')">${p}</button>`).join('')}
-      </div>
-    </div>
-    <div class="mgr-bars">${bars}</div>
-    <div class="mgr-legend">
-      <div class="mgr-cl"><div class="mgr-cl-dot" style="background:var(--green)"></div>Виручка</div>
-    </div>
-  </div>
-
-  <!-- Shift + top -->
-  <div class="mgr-mini-grid">
-    <div class="mgr-mini-card">
-      <div class="mgr-mini-title">Зміна зараз</div>
-      <div style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-family:var(--font-b)">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Бармен</span><span style="color:var(--green)">Олексій К.</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Задачі</span><span style="color:var(--amber)">7/9</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Накладних</span><span style="color:var(--text0)">1</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Списань</span><span style="color:var(--red)">3</span></div>
-      </div>
-      <div class="mgr-mini-bar" style="margin-top:8px"><div class="mgr-mini-fill" style="width:74%;background:var(--green)"></div></div>
-    </div>
-    <div class="mgr-mini-card">
-      <div class="mgr-mini-title">Топ позиції</div>
-      ${[['🍊','Aperol Spritz','48'],['🍸','Negroni','34'],['🥃','Old Fashioned','28'],['🌸','Tanqueray','21']].map(([e,n,v]) => `
-      <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
-        <span style="font-size:12px">${e}</span>
-        <span style="flex:1;font-size:11px;color:var(--text2);font-family:var(--font-b);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</span>
-        <span style="font-family:var(--font-h);font-size:11px;color:var(--text0)">${v}</span>
+  <div class="mgr-sec" style="padding-top:0">Виручка · 7 днів</div>
+  <div style="padding:14px 16px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;margin:0 20px 16px">
+    <div class="mgr-bars">
+      ${REV_DATA.map((v,i) => `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
+        <div class="mgr-bar" style="height:${Math.round(v/maxRev*100)}%;background:${i===6?'var(--green)':'var(--bg3)'}"></div>
+        <div class="mgr-bar-lbl" style="color:${i===6?'var(--green)':'var(--text3)'}">${REV_DAYS[i]}</div>
       </div>`).join('')}
     </div>
   </div>
 
-  <!-- Navigate buttons -->
-  <div style="display:flex;gap:8px;padding:8px 14px 4px">
-    <button onclick="window.__barops.navigate('ordering')" style="flex:1;height:44px;background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:12px;font-size:12px;color:var(--amber);cursor:pointer;font-family:var(--font-b)">
-      1 заявка на розгляді →
-    </button>
-  </div>
-  <div style="display:flex;gap:8px;padding:4px 14px 4px">
-    <button onclick="window.__barops.navigate('recipes')" style="flex:1;height:44px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b)">Фудкост меню →</button>
-    <button onclick="window.__barops.navigate('shift-log')" style="flex:1;height:44px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b)">Журнали змін →</button>
-  </div>
-  <div style="height:14px"></div>`;
+  <!-- Sections 2×2 -->
+  <div class="mgr-sec" style="padding-top:0">Розділи</div>
+  <div class="mgr-mini-grid" style="padding-bottom:20px">
+    ${SECTIONS.map(s => `
+    <div onclick="${s.route ? `window.__barops.navigate('${s.route}')` : `window.__mgr.setSection('${s.section}')`}"
+         style="padding:16px 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;cursor:pointer">
+      <div style="font-size:26px;color:var(--green);margin-bottom:8px">${s.icon}</div>
+      <div style="font-size:13px;font-weight:500;color:var(--text0)">${s.lbl}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${s.sub}</div>
+    </div>`).join('')}
+  </div>`;
 }
 
 /* ════════════════════════
@@ -550,7 +512,7 @@ function sectionSettings() {
         </div>
       </div>
       <button onclick="window.__barops.navigate('venue-edit')"
-        style="height:30px;padding:0 12px;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg3);font-size:11px;color:var(--text1);cursor:pointer;font-family:var(--font-b);white-space:nowrap">
+        style="height:30px;padding:0 12px;border-radius:8px;border:0.5px solid var(--border);background:var(--bg3);font-size:11px;color:var(--text1);cursor:pointer;font-family:var(--font-b);white-space:nowrap">
         ${posInfo.connected ? 'Налаштування' : 'Підключити'}
       </button>
     </div>
@@ -572,7 +534,7 @@ function sectionSettings() {
     ${[['Норма FC (зелена зона)','18'],['Ліміт FC (жовта зона)','22'],['Критичний поріг (червона)','28']].map(([lbl,val]) => `
     <div class="mgr-setting-row">
       <div class="mgr-setting-lbl">${lbl}</div>
-      <input style="width:60px;height:32px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:7px;padding:0 8px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;text-align:center" type="number" value="${val}" step="0.5"/>
+      <input style="width:60px;height:32px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:7px;padding:0 8px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;text-align:center" type="number" value="${val}" step="0.5"/>
     </div>`).join('')}
   </div>
   <div style="padding:0 14px 14px">
@@ -605,24 +567,30 @@ const SECTION_TITLES = {
 };
 
 function buildHTML() {
+  const isDashboard = _section === 'dashboard';
   return `
 ${CSS}
 <div class="mgr-wrap">
-  <!-- Topbar -->
-  <div class="mgr-topbar">
-    <div class="mgr-back" onclick="window.__barops.navigate('dashboard')">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <!-- Hero header -->
+  <div class="mgr-hero">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="mgr-back" onclick="window.__barops.navigate('dashboard')" title="Назад">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="padding:7px 12px;border-radius:10px;background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green);font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;font-family:var(--font-b)">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></span>
+          Bar Noir
+        </div>
+        <div class="mgr-notif">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5a4.5 4.5 0 00-4.5 4.5c0 5-2 6.5-2 6.5H13s-2-1.5-2-6.5A4.5 4.5 0 007 1.5z" stroke="var(--text1)" stroke-width="1.2" stroke-linecap="round"/><path d="M8.5 12a1.7 1.7 0 01-3 0" stroke="var(--text1)" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <div class="mgr-ndot"></div>
+        </div>
+      </div>
     </div>
-    <div class="mgr-page-title">${SECTION_TITLES[_section] || 'Панель менеджера'}</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="display:flex;align-items:center;gap:5px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:20px;padding:3px 10px">
-        <div class="mgr-live-dot"></div>
-        <span style="font-size:10px;color:var(--green);font-family:var(--font-b)">Олексій К.</span>
-      </div>
-      <div class="mgr-notif">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5a4.5 4.5 0 00-4.5 4.5c0 5-2 6.5-2 6.5H13s-2-1.5-2-6.5A4.5 4.5 0 007 1.5z" stroke="var(--text1)" stroke-width="1.2" stroke-linecap="round"/><path d="M8.5 12a1.7 1.7 0 01-3 0" stroke="var(--text1)" stroke-width="1.2" stroke-linecap="round"/></svg>
-        <div class="mgr-ndot"></div>
-      </div>
+    <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Менеджер${isDashboard ? '' : ' · ' + SECTION_TITLES[_section]}</div>
+    <div style="font-family:var(--font-h);font-size:22px;font-weight:600;letter-spacing:-0.025em;line-height:1.2">
+      ${isDashboard ? `Усе під <span style="color:var(--green)">контролем</span>.` : SECTION_TITLES[_section]}
     </div>
   </div>
 

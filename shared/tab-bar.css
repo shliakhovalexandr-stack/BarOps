@@ -1,106 +1,89 @@
 /* ============================================================
-   BarOps Tab Bar Styles
+   BarOps Tab Bar — Stark Flat Strip
    ============================================================ */
 
-/* ── Wrapper (fixed at bottom of phone frame) ── */
 #app-tab-bar {
   display: flex;
-  align-items: flex-end;
   justify-content: space-around;
-  padding: 8px 4px 22px;          /* 22px = safe area bottom */
-  border-top: 0.5px solid var(--bg3);
-  background: var(--bg1);
+  align-items: center;
+  padding: 10px 0 22px;
+  border-top: 0.5px solid var(--border);
+  background: var(--bg);
   flex-shrink: 0;
-  position: relative;
   z-index: 20;
+  position: relative;
 }
 
-/* ── Regular tab item ── */
 .tab-bar__item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  cursor: pointer;
-  padding: 4px 10px;
-  border-radius: 12px;
-  border: none;
+  gap: 4px;
   background: transparent;
-  transition: background var(--dur-fast);
-  min-width: 48px;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: var(--text2);
+  transition: color var(--dur-fast);
   -webkit-tap-highlight-color: transparent;
-}
-.tab-bar__item:active { background: var(--bg2); }
-
-/* ── Icon container (relative for badge) ── */
-.tab-bar__icon {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
 }
+.tab-bar__item:active { opacity: .7; }
 
-/* ── Label ── */
+.tab-bar__icon {
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+.tab-bar__icon svg { stroke: currentColor; }
+
 .tab-bar__label {
-  font-size: 9px;
   font-family: var(--font-b);
-  letter-spacing: .03em;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   white-space: nowrap;
-  /* colour set via --tab-color or inline style */
 }
 
-/* ── Notification badge on icon ── */
+/* Active state — violet */
+.tab-bar__item--active { color: var(--green); }
+
+/* Notification badge */
 .tab-bar__badge {
   position: absolute;
-  top: -5px;
-  right: -7px;
-  min-width: 15px;
-  height: 15px;
-  border-radius: 10px;
-  background: var(--amber);
-  border: 1.5px solid var(--bg1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8px;
-  font-family: var(--font-h);
-  font-weight: 700;
-  color: #fff;
-  padding: 0 3px;
+  top: 0; right: 2px;
+  min-width: 14px; height: 14px; padding: 0 4px;
+  border-radius: 7px;
+  background: var(--green); border: 2px solid var(--bg);
+  color: #000;
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
 }
 
-/* ── FAB item (center button) ── */
+/* FAB wrap (for the center OCR button) */
 .tab-bar__fab-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.tab-bar__fab-wrap .tab-bar__label {
-  color: var(--text2);
-}
-.tab-bar__fab-wrap:active .tab-bar__fab {
-  transform: scale(.92);
-}
+.tab-bar__fab-wrap:active .tab-bar__fab { transform: scale(.92); }
 
+/* Center FAB — violet square, lifted */
 .tab-bar__fab {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--green), var(--green-d));
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--green);
+  color: #000;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -14px;              /* lifts above bar */
-  box-shadow: 0 4px 20px rgba(29,158,117,.35);
-  transition: all var(--dur-fast) var(--ease-spring);
+  margin-top: -10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  border: none;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring),
+              background var(--dur-fast);
 }
-
-/* ── Active tab indicator (optional accent dot) ── */
-.tab-bar__item--active .tab-bar__label::after {
-  /* kept empty — colour is enough feedback */
-}
+.tab-bar__fab:active { transform: scale(.92); background: var(--green-d); }

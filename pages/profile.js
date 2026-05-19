@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/profile.js
    Профіль: реальні дані з /api/auth/me + /api/stats
    ============================================================ */
@@ -31,52 +31,49 @@ function token() { return localStorage.getItem('barops_token') || ''; }
 const CSS = `<style id="prof-css">
 .prof-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .prof-scroll{overflow-y:auto;flex:1}.prof-scroll::-webkit-scrollbar{width:0}
-.prof-hero{padding:20px 20px 18px;background:linear-gradient(160deg,var(--green-bg) 0%,transparent 60%);border-bottom:0.5px solid var(--border2)}
-.prof-avatar-row{display:flex;align-items:center;gap:16px;margin-bottom:16px}
-.prof-avatar{width:68px;height:68px;border-radius:50%;background:var(--bg2);border:2px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:28px;position:relative;flex-shrink:0}
-.prof-live-ring{position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--green);opacity:.7;animation:profPulse 2s ease-in-out infinite}
-@keyframes profPulse{0%,100%{opacity:.7}50%{opacity:.2}}
-.prof-name{font-family:var(--font-h);font-size:20px;font-weight:800;color:var(--text0);letter-spacing:-.02em;line-height:1}
-.prof-role{font-size:12px;color:var(--green);font-family:var(--font-b);margin-top:4px}
+.prof-hero{padding:8px 20px 16px}
+.prof-hero-card{display:flex;align-items:center;gap:16px;padding:20px 18px;background:var(--bg1);border:0.5px solid var(--border);border-radius:18px}
+.prof-avatar{width:64px;height:64px;border-radius:50%;background:var(--green);color:#000;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;font-family:var(--font-h);position:relative;flex-shrink:0}
+.prof-live-dot{position:absolute;bottom:1px;right:1px;width:14px;height:14px;border-radius:50%;background:var(--green);border:2.5px solid var(--bg1);background:#34D399}
+.prof-name{font-family:var(--font-h);font-size:18px;font-weight:600;color:var(--text0);letter-spacing:-.01em;line-height:1}
+.prof-role{font-size:12px;color:var(--green);font-family:var(--font-b);margin-top:3px}
 .prof-venue{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.prof-stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-.prof-stat{background:rgba(0,0,0,.3);border-radius:9px;padding:10px 8px;text-align:center;border:0.5px solid var(--border)}
-.prof-stat-val{font-family:var(--font-h);font-size:18px;font-weight:700;line-height:1}
-.prof-stat-lbl{font-size:9px;color:var(--text2);margin-top:3px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
-.prof-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 18px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
-.prof-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px}
-.prof-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:14px;position:relative;overflow:hidden}
-.prof-kpi-val{font-family:var(--font-h);font-size:24px;font-weight:800;line-height:1;letter-spacing:-.02em}
-.prof-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:4px;text-transform:uppercase;letter-spacing:.04em;line-height:1.3}
-.prof-kpi-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
-.prof-kpi-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden}
-.prof-kpi-fill{height:100%;border-radius:2px}
-.prof-info-card{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.prof-info-row{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-bottom:0.5px solid var(--border)}
+.prof-stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 20px 16px}
+.prof-stat{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:12px 10px}
+.prof-stat-val{font-family:var(--font-h);font-size:20px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.prof-stat-lbl{font-size:10px;color:var(--text2);margin-top:5px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;line-height:1.3}
+.prof-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 20px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
+.prof-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px}
+.prof-kpi{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px}
+.prof-kpi-val{font-family:var(--font-h);font-size:22px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.prof-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;line-height:1.3}
+.prof-kpi-sub{font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:2px}
+.prof-info-card{margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.prof-info-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border)}
 .prof-info-row:last-child{border-bottom:none}
 .prof-info-lbl{font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .prof-info-val{font-size:13px;color:var(--text0);font-family:var(--font-b)}
-.prof-shifts{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.prof-shift-row{display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:0.5px solid var(--border)}
+.prof-shifts{margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.prof-shift-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:0.5px solid var(--border)}
 .prof-shift-row:last-child{border-bottom:none}
-.prof-settings{margin:0 14px 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.prof-setting-row{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s}
+.prof-settings{margin:0 20px 8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.prof-setting-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s}
 .prof-setting-row:last-child{border-bottom:none}
-.prof-setting-row:active{background:var(--bg3)}
-.prof-setting-lbl{font-size:13px;color:var(--text0);font-family:var(--font-b)}
-.prof-toggle{width:36px;height:20px;border-radius:10px;background:var(--bg4);border:0.5px solid var(--border2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
-.prof-toggle.on{background:var(--green);border-color:var(--green)}
+.prof-setting-row:active{background:rgba(255,255,255,.05)}
+.prof-setting-lbl{font-size:13px;color:var(--text0)}
+.prof-toggle{width:32px;height:18px;border-radius:9px;background:var(--bg3);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.prof-toggle.on{background:var(--green)}
 .prof-toggle-knob{width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s}
-.prof-toggle.on .prof-toggle-knob{left:18px}
-.prof-logout{margin:0 14px 14px;width:calc(100% - 28px);height:50px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:12px;font-size:14px;color:var(--red);cursor:pointer;font-family:var(--font-b);font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
-.prof-logout:active{background:rgba(226,75,74,.15)}
+.prof-toggle.on .prof-toggle-knob{left:16px}
+.prof-logout{margin:0 20px 14px;width:calc(100% - 40px);padding:14px;background:var(--red-bg);border:0.5px solid rgba(251,113,133,.25);border-radius:14px;font-size:13px;font-weight:500;color:var(--red);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.prof-logout:active{opacity:.8}
 /* plan badge */
 .prof-plan{margin:0 14px 8px;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px}
-.prof-plan--trial{background:var(--amber-bg);border:0.5px solid var(--amber-border)}
-.prof-plan--active{background:var(--green-bg);border:0.5px solid var(--green-border)}
-.prof-plan--expired{background:var(--red-bg);border:0.5px solid var(--red-border)}
+.prof-plan--trial{background:var(--amber-bg);border:1px solid var(--amber-border)}
+.prof-plan--active{background:var(--green-bg);border:1px solid var(--green-border)}
+.prof-plan--expired{background:var(--red-bg);border:1px solid var(--red-border)}
 /* skel */
-.prof-skel{background:var(--bg2);border-radius:12px;animation:pSkel 1.2s ease-in-out infinite}
+.prof-skel{background:var(--glass-bg);border-radius:12px;animation:pSkel 1.2s ease-in-out infinite}
 @keyframes pSkel{0%,100%{opacity:.5}50%{opacity:1}}
 </style>`;
 
@@ -195,6 +192,7 @@ function buildHTML() {
   }
 
   const s = _stats;
+  const initials = name !== '—' ? name.split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?' : '?';
 
   // KPI картки з реальних даних
   const mgrKpi = [
@@ -222,33 +220,32 @@ ${CSS}
 
     <!-- Hero -->
     <div class="prof-hero">
-      <div class="prof-avatar-row">
+      <div class="prof-hero-card">
         <div class="prof-avatar">
-          ${isMgr ? '' : '<div class="prof-live-ring"></div>'}
-          ${isMgr ? '👨‍💼' : '🧑'}
+          ${initials}
+          <div class="prof-live-dot"></div>
         </div>
         <div>
           <div class="prof-name">${name}</div>
-          <div class="prof-role" style="color:${isMgr?'var(--amber)':'var(--green)'}">
-            ${isMgr ? '👨‍💼 Менеджер' : '🍸 Бармен'}
-          </div>
-          <div class="prof-venue">${venue}</div>
-          ${email !== '—' ? `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${email}</div>` : ''}
+          <div class="prof-role">${isMgr ? 'Менеджер' : 'Бармен'} · ${venue}</div>
+          <div class="prof-venue">${s?.shift ? 'На зміні' : 'Поза зміною'}</div>
         </div>
       </div>
-      <div class="prof-stats-row">
-        <div class="prof-stat">
-          <div class="prof-stat-val" style="color:var(--green)">${s?.invoices?.count ?? '—'}</div>
-          <div class="prof-stat-lbl">Накладних<br/>сьогодні</div>
-        </div>
-        <div class="prof-stat">
-          <div class="prof-stat-val" style="color:${(s?.writeoffs?.count > 0)?'var(--amber)':'var(--green)'}">${s?.writeoffs?.count ?? '—'}</div>
-          <div class="prof-stat-lbl">Списань<br/>сьогодні</div>
-        </div>
-        <div class="prof-stat">
-          <div class="prof-stat-val" style="color:${(s?.critical?.length > 0)?'var(--red)':'var(--green)'}">${s?.critical?.length ?? '—'}</div>
-          <div class="prof-stat-lbl">Алертів<br/>залишки</div>
-        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="prof-stats-row">
+      <div class="prof-stat">
+        <div class="prof-stat-val" style="color:var(--green)">${s?.invoices?.count ?? '—'}</div>
+        <div class="prof-stat-lbl">Накладних</div>
+      </div>
+      <div class="prof-stat">
+        <div class="prof-stat-val" style="color:${(s?.writeoffs?.count > 0)?'var(--amber)':'var(--green)'}">${s?.writeoffs?.count ?? '—'}</div>
+        <div class="prof-stat-lbl">Списань</div>
+      </div>
+      <div class="prof-stat">
+        <div class="prof-stat-val" style="color:${(s?.critical?.length > 0)?'var(--red)':'var(--green)'}">${s?.critical?.length ?? '—'}</div>
+        <div class="prof-stat-lbl">Алертів</div>
       </div>
     </div>
 
@@ -263,9 +260,6 @@ ${CSS}
         <div class="prof-kpi-val" style="color:${k.color}">${k.val}</div>
         <div class="prof-kpi-lbl">${k.label}</div>
         <div class="prof-kpi-sub">${k.sub}</div>
-        <div class="prof-kpi-bar">
-          <div class="prof-kpi-fill" style="width:${k.pct}%;background:${k.color}"></div>
-        </div>
       </div>`).join('')}
     </div>
 
@@ -345,7 +339,7 @@ function posIntegrationBlock() {
 
   return `
   <div class="prof-sec">POS-інтеграція</div>
-  <div class="prof-info-card" style="margin:0 14px 8px">
+  <div class="prof-info-card">
     <div class="prof-info-row">
       <div class="prof-info-lbl">Система</div>
       <div class="prof-info-val" style="display:flex;align-items:center;gap:6px">
@@ -357,9 +351,9 @@ function posIntegrationBlock() {
     ${pos?.posUrl ? `<div class="prof-info-row"><div class="prof-info-lbl">URL</div><div class="prof-info-val" style="font-size:11px">${pos.posUrl}</div></div>` : ''}
     ${pos?.posLogin ? `<div class="prof-info-row"><div class="prof-info-lbl">Логін</div><div class="prof-info-val">${pos.posLogin}</div></div>` : ''}
   </div>
-  <div style="margin:0 14px 14px">
-    <button onclick="window.__barops.navigate('venue-edit')" 
-      style="width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;font-size:14px;color:var(--text0);cursor:pointer;font-family:var(--font-b)">
+  <div style="margin:0 20px 14px">
+    <button onclick="window.__barops.navigate('venue-edit')"
+      style="width:100%;height:48px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;font-size:14px;color:var(--text0);cursor:pointer;font-family:var(--font-b)">
       ${isConnected ? '⚙️ Налаштування POS' : '🔗 Підключити POS-систему'}
     </button>
   </div>`;

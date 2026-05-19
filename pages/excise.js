@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    BarOps — pages/excise.js
    Акцизні марки: фото → Telegram топік закладу
    ============================================================ */
@@ -14,47 +14,44 @@ let _errorMsg   = '';
 
 const CSS = `<style id="exc-css">
 .exc-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
-.exc-scroll{overflow-y:auto;flex:1;padding-bottom:24px}.exc-scroll::-webkit-scrollbar{width:0}
-.exc-topbar{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
-.exc-back{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.exc-back:active{background:var(--bg3)}
-.exc-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
-.exc-sub{font-size:11px;color:var(--text2);margin-top:1px;font-family:var(--font-b)}
-.exc-hero{margin:0 14px 16px;background:var(--bg2);border:0.5px solid var(--amber-border);border-radius:20px;padding:22px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
-.exc-hero-icon{width:60px;height:60px;border-radius:18px;background:var(--amber-bg);border:0.5px solid var(--amber-border);display:flex;align-items:center;justify-content:center;font-size:28px}
-.exc-hero-title{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
-.exc-hero-desc{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.6;max-width:260px}
-.exc-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 20px}
-.exc-btn{height:52px;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-size:13px;font-family:var(--font-b);font-weight:500;color:var(--text0);transition:all .15s}
+.exc-scroll{overflow-y:auto;flex:1;padding:0 20px 24px}.exc-scroll::-webkit-scrollbar{width:0}
+.exc-topbar{display:flex;align-items:center;gap:12px;padding:8px 20px 12px;flex-shrink:0}
+.exc-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.exc-back:active{background:rgba(255,255,255,.08)}
+.exc-title{font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
+.exc-sub{font-size:11px;color:var(--text2);margin-top:1px}
+.exc-hero{margin:0 0 18px;background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.exc-hero-icon{width:64px;height:64px;border-radius:18px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center}
+.exc-hero-title{font-size:17px;font-weight:600;letter-spacing:-.01em;margin-bottom:4px}
+.exc-hero-desc{font-size:12px;color:var(--text2);line-height:1.5}
+.exc-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 18px}
+.exc-btn{padding:14px;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text0);transition:all .15s}
 .exc-btn:active{transform:scale(.97);background:var(--bg3)}
-.exc-btn.primary{background:var(--amber);border-color:transparent;color:#fff;grid-column:1/-1;height:54px;font-size:14px;font-weight:600}
-.exc-btn.primary:active{background:#d08c1e}
-.exc-preview{margin:0 14px 14px;border-radius:16px;overflow:hidden;border:0.5px solid var(--border2);position:relative;background:var(--bg2)}
+.exc-preview{margin:0 0 14px;border-radius:16px;overflow:hidden;border:0.5px solid var(--border);position:relative;background:var(--bg2)}
 .exc-preview img{width:100%;display:block;max-height:280px;object-fit:cover}
-.exc-preview-change{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.65);border:0.5px solid rgba(255,255,255,.15);border-radius:20px;padding:5px 12px;font-size:11px;color:#fff;font-family:var(--font-b);cursor:pointer;backdrop-filter:blur(6px)}
-.exc-preview-change:active{background:rgba(0,0,0,.85)}
-.exc-info{margin:0 14px 16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-.exc-info-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:0.5px solid var(--border)}
+.exc-preview-change{position:absolute;top:10px;right:10px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;padding:5px 12px;font-size:11px;color:var(--text1);cursor:pointer}
+.exc-info{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px}
+.exc-info-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:0.5px solid var(--border)}
 .exc-info-row:last-child{border-bottom:none}
-.exc-info-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
-.exc-info-label{font-size:11px;color:var(--text2);font-family:var(--font-b);flex:1}
-.exc-info-val{font-size:13px;color:var(--text0);font-family:var(--font-b);font-weight:500;text-align:right}
-.exc-send{margin:0 14px 12px;height:54px;border-radius:16px;border:none;background:var(--green);color:#fff;font-family:var(--font-h);font-size:15px;font-weight:700;letter-spacing:.01em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;width:calc(100% - 28px)}
-.exc-send:active{background:var(--green-d);transform:scale(.98)}
-.exc-send:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.exc-info-icon{font-size:14px;width:20px;text-align:center;color:var(--text2);flex-shrink:0}
+.exc-info-label{font-size:12px;color:var(--text2);flex:1}
+.exc-info-val{font-size:13px;font-weight:500;color:var(--text0);text-align:right}
+.exc-send{height:54px;border-radius:14px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:12px}
+.exc-send:active{opacity:.85}
+.exc-send:disabled{opacity:.5;cursor:not-allowed}
 .exc-sending{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;padding:40px 24px;text-align:center}
 .exc-spinner{width:40px;height:40px;border-radius:50%;border:3px solid var(--bg3);border-top-color:var(--amber);animation:excSpin .7s linear infinite}
 @keyframes excSpin{to{transform:rotate(360deg)}}
 .exc-sending-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)}
 .exc-sending-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
 .exc-done{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:40px 24px;text-align:center}
-.exc-done-icon{width:72px;height:72px;border-radius:22px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:34px;animation:excPop .4s cubic-bezier(.34,1.56,.64,1) both}
+.exc-done-icon{width:72px;height:72px;border-radius:22px;background:var(--green-bg);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:34px;animation:excPop .4s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes excPop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
 .exc-done-title{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0)}
 .exc-done-sub{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6;max-width:260px}
-.exc-done-again{margin-top:8px;height:48px;width:100%;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);font-size:14px;font-family:var(--font-b);font-weight:500;color:var(--text0);cursor:pointer}
-.exc-done-again:active{background:var(--bg3)}
-.exc-error{margin:0 14px 12px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:14px;padding:12px 14px;font-size:12px;color:var(--red);font-family:var(--font-b);line-height:1.5;text-align:center}
+.exc-done-again{margin-top:8px;height:48px;width:100%;border-radius:14px;border:0.5px solid var(--border);background:var(--bg2);font-size:14px;font-family:var(--font-b);font-weight:500;color:var(--text0);cursor:pointer}
+.exc-done-again:active{background:rgba(255,255,255,.08)}
+.exc-error{margin:0 0 12px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:14px;padding:12px 14px;font-size:12px;color:var(--red);line-height:1.5;text-align:center}
 .exc-file-input{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
 </style>`;
 
@@ -149,17 +146,33 @@ function render() {
 
         ${!hasPhoto ? `
         <div class="exc-hero">
-          <div class="exc-hero-icon">🏷️</div>
-          <div class="exc-hero-title">Фото акцизної марки</div>
-          <div class="exc-hero-desc">Сфотографуй акцизну марку — вона автоматично потрапить у Telegram-журнал закладу</div>
+          <div class="exc-hero-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6">
+              <rect x="3" y="6" width="18" height="12" rx="2"/>
+              <path d="M3 12h18M8 6V4h8v2"/>
+            </svg>
+          </div>
+          <div>
+            <div class="exc-hero-title">Сфоткайте акцизну марку</div>
+            <div class="exc-hero-desc">Фото автоматично відправляється<br>у Telegram-топік закладу</div>
+          </div>
         </div>
 
         <div class="exc-btns">
           <button class="exc-btn" onclick="window.__excise.openCamera()">
-            📷 Камера
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Камера
           </button>
           <button class="exc-btn" onclick="window.__excise.openGallery()">
-            🖼️ Галерея
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="9" cy="9" r="2"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+            Галерея
           </button>
         </div>
         ` : ''}
@@ -172,17 +185,17 @@ function render() {
 
         <div class="exc-info">
           <div class="exc-info-row">
-            <span class="exc-info-icon">👤</span>
+            <span class="exc-info-icon">◉</span>
             <span class="exc-info-label">Бармен</span>
             <span class="exc-info-val">${name}</span>
           </div>
           <div class="exc-info-row">
-            <span class="exc-info-icon">🏠</span>
+            <span class="exc-info-icon">◉</span>
             <span class="exc-info-label">Заклад</span>
             <span class="exc-info-val">${venueName}</span>
           </div>
           <div class="exc-info-row">
-            <span class="exc-info-icon">🕐</span>
+            <span class="exc-info-icon">◔</span>
             <span class="exc-info-label">Час</span>
             <span class="exc-info-val">${fmtTime()}</span>
           </div>
