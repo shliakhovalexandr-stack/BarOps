@@ -1,23 +1,147 @@
 /* ============================================================
    BarOps — pages/analytics.js
-   Аналітика: реальні дані з /api/stats/all-venues
+   Аналітика: операційні дані + FC Cockpit
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+const API     = 'https://barops-backend-production.up.railway.app';
+const FC_MAX  = 30;   // небезпечний FC %
+const FC_WARN = 25;   // попереджувальний FC %
+const FC_TARGET = 28; // цільовий FC для оптимізації ціни
 
-let _venues  = [];
-let _loading = true;
-let _period  = 'week';
+let _venues    = [];
+let _dishes    = [];
+let _loading   = true;
+let _fcLoading = true;
+let _venueId   = null;
 
-function token() { return localStorage.getItem('barops_token') || ''; }
-
+function tok() { return localStorage.getItem('barops_token') || ''; }
 const VENUE_COLORS = ['var(--green)', 'var(--amber)', 'var(--purple)', 'var(--red)', '#4FA8E8'];
 
-/* ════════════════════════
-   CSS
-════════════════════════ */
+// ── FC computation ────────────────────────────────────────────
+function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
+
+function enrichWithFC(dishes) {
+  return dishes.map(d => {
+    const cost  = d.costPrice   || 0;
+    const price = d.sellingPrice|| 0;
+    const fc    = (cost > 0 && price > 0) ? (cost / price) * 100 : null;
+    const margin = (price > 0 && cost > 0) ? price - cost : null;
+    return { ...d, fc, margin };
+  });
+}
+
+function computeFC(dishes) {
+  const all     = enrichWithFC(dishes);
+  const withFC  = all.filter(d => d.fc !== null);
+  const noPrice = dishes.filter(d => !d.sellingPrice || d.sellingPrice === 0);
+  const noCost  = dishes.filter(d => !d.costPrice  || d.costPrice  === 0);
+
+  const danger  = withFC.filter(d => d.fc > FC_MAX);
+  const warning = withFC.filter(d => d.fc > FC_WARN && d.fc <= FC_MAX);
+  const good    = withFC.filter(d => d.fc <= FC_WARN && d.fc > 0);
+  const avgFC   = avg(withFC.map(d => d.fc));
+
+  // Category breakdown
+  const byCat = {};
+  for (const d of withFC) {
+    const cat = d.category || 'Без категорії';
+    if (!byCat[cat]) byCat[cat] = [];
+    byCat[cat].push(d);
+  }
+
+  return { all, withFC, noPrice, noCost, danger, warning, good, avgFC, byCat };
+}
+
+function buildInsights(fc) {
+  const { withFC, byCat, danger, noPrice, noCost, avgFC } = fc;
+  const insights = [];
+
+  // 1. Найнебезпечніші категорії
+  const catStats = Object.entries(byCat)
+    .map(([name, dishes]) => ({
+      name,
+      count:  dishes.length,
+      avgFC:  avg(dishes.map(d => d.fc)),
+      avgMrg: avg(dishes.map(d => d.margin)),
+    }))
+    .filter(c => c.count >= 2);
+
+  const worstCat = [...catStats].sort((a, b) => b.avgFC - a.avgFC)[0];
+  if (worstCat && worstCat.avgFC > FC_MAX) {
+    insights.push({
+      sev: 'danger',
+      icon: '🔴',
+      title: `"${worstCat.name}" — сер. FC ${worstCat.avgFC.toFixed(1)}%`,
+      body: `${worstCat.count} страв перевищують норму ${FC_MAX}%.`,
+      action: 'Переглянути ціни або рецептуру категорії',
+    });
+  }
+
+  // 2. Найгіршій FC — конкретна страва
+  const worstDish = [...danger].sort((a, b) => b.fc - a.fc)[0];
+  if (worstDish) {
+    const recPrice = (worstDish.costPrice / (FC_TARGET / 100)).toFixed(0);
+    insights.push({
+      sev: 'danger',
+      icon: '⚠️',
+      title: `"${worstDish.name}" — FC ${worstDish.fc.toFixed(1)}%`,
+      body: `Ціна ${worstDish.sellingPrice} ₴, собівартість ${worstDish.costPrice?.toFixed(2)} ₴.`,
+      action: `Рекомендована ціна для FC ${FC_TARGET}%: ${recPrice} ₴`,
+    });
+  }
+
+  // 3. Найбільша маржа — можливість
+  const bestMrg = [...withFC].sort((a, b) => b.margin - a.margin)[0];
+  if (bestMrg && bestMrg.margin > 0) {
+    insights.push({
+      sev: 'good',
+      icon: '💚',
+      title: `"${bestMrg.name}" — маржа ${bestMrg.margin.toFixed(0)} ₴`,
+      body: `FC ${bestMrg.fc.toFixed(1)}% · Ціна ${bestMrg.sellingPrice} ₴.`,
+      action: 'Активно просувати, виділити в меню',
+    });
+  }
+
+  // 4. Найкраща категорія за маржею
+  const bestCat = [...catStats].sort((a, b) => b.avgMrg - a.avgMrg)[0];
+  if (bestCat && bestCat.avgMrg > 0 && bestCat !== worstCat) {
+    insights.push({
+      sev: 'good',
+      icon: '📈',
+      title: `"${bestCat.name}" — найвища маржа`,
+      body: `Сер. маржа ${bestCat.avgMrg.toFixed(0)} ₴, сер. FC ${bestCat.avgFC.toFixed(1)}%.`,
+      action: 'Збільшити частку у продажах та в пропозиціях',
+    });
+  }
+
+  // 5. Без ціни
+  if (noPrice.length > 0) {
+    insights.push({
+      sev: 'warning',
+      icon: '🟡',
+      title: `${noPrice.length} страв без ціни`,
+      body: 'Фудкост неможливо розрахувати — ціна не встановлена в Syrve.',
+      action: 'Заповнити ціни у номенклатурі Syrve',
+    });
+  }
+
+  // 6. Без собівартості
+  if (noCost.length > withFC.length * 0.3) {
+    insights.push({
+      sev: 'warning',
+      icon: '🟡',
+      title: `${noCost.length} страв без собівартості`,
+      body: 'ТТК відсутні або не завантажені — FC неможливо порахувати.',
+      action: 'Заповнити технологічні карти у Syrve',
+    });
+  }
+
+  return insights.slice(0, 5);
+}
+
+// ── CSS ───────────────────────────────────────────────────────
 const CSS = `<style id="an-css">
 .an-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .an-scroll{overflow-y:auto;flex:1}.an-scroll::-webkit-scrollbar{width:0}
@@ -51,48 +175,267 @@ const CSS = `<style id="an-css">
 .an-cmp-cell.val{color:var(--text0);font-family:var(--font-h);font-weight:600;text-align:right}
 .an-cmp-cell.hdr{color:var(--text2);font-size:9px;text-transform:uppercase;letter-spacing:.06em;text-align:right}
 .an-cmp-cell.hdr:first-child{text-align:left}
-/* empty */
 .an-empty{padding:60px 30px;text-align:center}
 .an-empty-icon{font-size:48px;margin-bottom:16px}
 .an-empty-title{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);margin-bottom:8px}
 .an-empty-sub{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6}
-/* skel */
 .an-skel{background:var(--bg2);border-radius:14px;animation:aSkel 1.2s ease-in-out infinite;margin:0 14px 8px}
 @keyframes aSkel{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* FC Cockpit */
+.an-fc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 4px}
+.an-fc-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:12px 14px}
+.an-fc-kpi-val{font-family:var(--font-h);font-size:22px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.an-fc-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+.an-fc-kpi-sub{font-size:10px;font-family:var(--font-b);margin-top:2px}
+
+/* Insights */
+.an-insights{padding:0 14px;display:flex;flex-direction:column;gap:6px}
+.an-insight{border-radius:13px;padding:11px 13px;display:flex;gap:10px;align-items:flex-start}
+.an-insight.danger{background:rgba(220,60,50,.1);border:0.5px solid rgba(220,60,50,.25)}
+.an-insight.warning{background:rgba(200,150,30,.1);border:0.5px solid rgba(200,150,30,.25)}
+.an-insight.good{background:rgba(40,180,100,.08);border:0.5px solid rgba(40,180,100,.2)}
+.an-insight-icon{font-size:16px;line-height:1;flex-shrink:0;margin-top:1px}
+.an-insight-title{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0);line-height:1.3}
+.an-insight-body{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px;line-height:1.4}
+.an-insight-action{font-size:10px;font-family:var(--font-b);margin-top:4px;font-style:italic}
+.an-insight.danger .an-insight-action{color:var(--red)}
+.an-insight.warning .an-insight-action{color:var(--amber)}
+.an-insight.good .an-insight-action{color:var(--green)}
+
+/* Category table */
+.an-cat-table{margin:0 14px;border-radius:13px;overflow:hidden;border:0.5px solid var(--border)}
+.an-cat-row{display:grid;grid-template-columns:1fr 54px 54px 58px;padding:9px 12px;border-bottom:0.5px solid var(--border);align-items:center;gap:4px}
+.an-cat-row:last-child{border-bottom:none}
+.an-cat-row.head{background:var(--bg3)}
+.an-cat-name{font-size:12px;font-family:var(--font-b);color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.an-cat-row.head .an-cat-name{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.an-cat-num{font-family:var(--font-h);font-size:13px;font-weight:700;text-align:right}
+.an-cat-row.head .an-cat-num{font-size:9px;font-family:var(--font-b);font-weight:400;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.an-fc-pill{border-radius:10px;padding:2px 7px;font-size:11px;font-family:var(--font-h);font-weight:700;display:inline-block}
+
+/* Top lists */
+.an-toplist{margin:0 14px;border-radius:13px;overflow:hidden;border:0.5px solid var(--border)}
+.an-tl-row{display:grid;padding:9px 12px;border-bottom:0.5px solid var(--border);gap:4px;align-items:center}
+.an-tl-row.head{background:var(--bg3)}
+.an-tl-row:last-child{border-bottom:none}
+.an-tl-name{font-size:12px;font-family:var(--font-b);color:var(--text1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.an-tl-cat{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
+.an-tl-val{font-family:var(--font-h);font-size:13px;font-weight:700;text-align:right;flex-shrink:0}
+.an-tl-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);text-align:right;margin-top:1px}
+
+/* Optimize */
+.an-opt-row{display:grid;grid-template-columns:1fr auto;padding:9px 12px;border-bottom:0.5px solid var(--border);gap:8px;align-items:center}
+.an-opt-row:last-child{border-bottom:none}
+.an-opt-arrow{font-size:11px;color:var(--text2);font-family:var(--font-b);margin:2px 0}
+.an-opt-badge{background:var(--green-bg,#1a3320);border:0.5px solid var(--green-border);border-radius:8px;padding:3px 8px;font-size:12px;font-family:var(--font-h);font-weight:700;color:var(--green);white-space:nowrap}
 </style>`;
 
-/* ════════════════════════
-   DATA LOADING
-════════════════════════ */
+// ── Data loading ──────────────────────────────────────────────
 async function loadData() {
   _loading = true;
+  _fcLoading = true;
+  _venueId = state.venueId || localStorage.getItem('barops_venueId');
   render();
-  try {
-    const res  = await fetch(`${API}/api/stats/all-venues`, {
-      headers: { Authorization: `Bearer ${token()}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      _venues = data.venues || [];
-    }
-  } catch (e) {
-    console.error('[Analytics]', e);
-    _venues = [];
+
+  const [opsRes, dishRes] = await Promise.allSettled([
+    fetch(`${API}/api/stats/all-venues`,              { headers: { Authorization: `Bearer ${tok()}` } }).then(r => r.json()).catch(() => ({})),
+    _venueId
+      ? fetch(`${API}/api/pos/dishes/${_venueId}`,    { headers: { Authorization: `Bearer ${tok()}` } }).then(r => r.json()).catch(() => ({}))
+      : Promise.resolve({}),
+  ]);
+
+  if (opsRes.status === 'fulfilled' && opsRes.value.venues) {
+    _venues = opsRes.value.venues;
   }
   _loading = false;
   render();
+
+  if (dishRes.status === 'fulfilled' && dishRes.value.dishes?.length) {
+    _dishes = dishRes.value.dishes;
+  }
+  _fcLoading = false;
+  render();
 }
 
-/* ════════════════════════
-   BUILD HTML
-════════════════════════ */
+// ── Build helpers ─────────────────────────────────────────────
+function fcBg(fc)    { return fc > FC_MAX ? 'rgba(220,60,50,.15)' : fc > FC_WARN ? 'rgba(200,150,30,.15)' : 'rgba(40,180,100,.12)'; }
+function fcColor(fc) { return fc > FC_MAX ? 'var(--red)' : fc > FC_WARN ? 'var(--amber)' : 'var(--green)'; }
+function fmtFC(fc)   { return fc !== null ? fc.toFixed(1).replace('.', ',') + '%' : '—'; }
+function fmtMrg(m)   { return m !== null ? m.toFixed(0) + ' ₴' : '—'; }
+
+function buildFCCockpit() {
+  if (_fcLoading) {
+    return `
+    <div class="an-sec">FC Аналітика</div>
+    <div style="padding:0 14px 10px">${[1,2].map(()=>`<div class="an-skel" style="height:60px;margin-bottom:8px"></div>`).join('')}</div>`;
+  }
+  if (_dishes.length === 0) {
+    return `
+    <div class="an-sec">FC Аналітика</div>
+    <div style="padding:0 14px 16px;text-align:center">
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b)">Страви не завантажені — перейдіть до Фудкост для завантаження</div>
+    </div>`;
+  }
+
+  const fc = computeFC(_dishes);
+  const { withFC, noPrice, noCost, danger, warning, good, avgFC, byCat } = fc;
+  const insights = buildInsights(fc);
+
+  // Category table — sort by avg FC desc
+  const catRows = Object.entries(byCat)
+    .map(([name, dishes]) => ({
+      name,
+      count:  dishes.length,
+      avgFC:  avg(dishes.map(d => d.fc)),
+      avgMrg: avg(dishes.map(d => d.margin).filter(m => m > 0)),
+    }))
+    .sort((a, b) => b.avgFC - a.avgFC)
+    .slice(0, 8);
+
+  // Top 5 by margin ₴
+  const topMargin = [...withFC]
+    .filter(d => d.margin > 0)
+    .sort((a, b) => b.margin - a.margin)
+    .slice(0, 5);
+
+  // Top 5 worst FC
+  const topDanger = [...danger]
+    .sort((a, b) => b.fc - a.fc)
+    .slice(0, 5);
+
+  // Price optimizer — dishes where current price is too low for target FC
+  const optimizer = [...withFC]
+    .filter(d => d.fc > FC_TARGET)
+    .sort((a, b) => b.fc - a.fc)
+    .slice(0, 5)
+    .map(d => ({
+      ...d,
+      recPrice: Math.ceil(d.costPrice / (FC_TARGET / 100)),
+      diff:     Math.ceil(d.costPrice / (FC_TARGET / 100)) - d.sellingPrice,
+    }));
+
+  return `
+  <!-- FC KPIs -->
+  <div class="an-sec">FC Аналітика · ${state.venue || 'Заклад'}</div>
+  <div class="an-fc-kpis">
+    <div class="an-fc-kpi">
+      <div class="an-fc-kpi-val" style="color:${fcColor(avgFC)}">${fmtFC(avgFC)}</div>
+      <div class="an-fc-kpi-lbl">Середній FC</div>
+      <div class="an-fc-kpi-sub" style="color:${fcColor(avgFC)}">${avgFC > FC_MAX ? 'Перевищення норми' : avgFC > FC_WARN ? 'Увага — близько до межі' : 'В нормі'}</div>
+    </div>
+    <div class="an-fc-kpi">
+      <div class="an-fc-kpi-val" style="color:${danger.length > 0 ? 'var(--red)' : 'var(--green)'}">${danger.length}</div>
+      <div class="an-fc-kpi-lbl">Небезпечних (>${FC_MAX}%)</div>
+      <div class="an-fc-kpi-sub" style="color:var(--text2)">${warning.length} на межі · ${good.length} ок</div>
+    </div>
+    <div class="an-fc-kpi">
+      <div class="an-fc-kpi-val">${withFC.length}</div>
+      <div class="an-fc-kpi-lbl">Страв з FC</div>
+      <div class="an-fc-kpi-sub" style="color:var(--text2)">з ${_dishes.length} у меню</div>
+    </div>
+    <div class="an-fc-kpi">
+      <div class="an-fc-kpi-val" style="color:${noPrice.length > 0 ? 'var(--amber)' : 'var(--green)'}">${noPrice.length}</div>
+      <div class="an-fc-kpi-lbl">Без ціни</div>
+      <div class="an-fc-kpi-sub" style="color:var(--text2)">${noCost.length} без собівартості</div>
+    </div>
+  </div>
+
+  <!-- Smart Insights -->
+  ${insights.length > 0 ? `
+  <div class="an-sec">Інсайти менеджера</div>
+  <div class="an-insights">
+    ${insights.map(ins => `
+    <div class="an-insight ${ins.sev}">
+      <div class="an-insight-icon">${ins.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div class="an-insight-title">${ins.title}</div>
+        <div class="an-insight-body">${ins.body}</div>
+        <div class="an-insight-action">→ ${ins.action}</div>
+      </div>
+    </div>`).join('')}
+  </div>` : ''}
+
+  <!-- Category Performance -->
+  ${catRows.length > 0 ? `
+  <div class="an-sec">Категорії за FC</div>
+  <div class="an-cat-table">
+    <div class="an-cat-row head">
+      <div class="an-cat-name">Категорія</div>
+      <div class="an-cat-num" style="font-size:9px;font-family:var(--font-b);font-weight:400;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Страв</div>
+      <div class="an-cat-num" style="font-size:9px;font-family:var(--font-b);font-weight:400;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Сер. FC</div>
+      <div class="an-cat-num" style="font-size:9px;font-family:var(--font-b);font-weight:400;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Маржа ₴</div>
+    </div>
+    ${catRows.map(c => `
+    <div class="an-cat-row" style="background:var(--bg2)">
+      <div class="an-cat-name">${c.name}</div>
+      <div class="an-cat-num" style="color:var(--text2)">${c.count}</div>
+      <div class="an-cat-num" style="color:${fcColor(c.avgFC)}">${fmtFC(c.avgFC)}</div>
+      <div class="an-cat-num" style="color:var(--text1)">${c.avgMrg > 0 ? c.avgMrg.toFixed(0) + ' ₴' : '—'}</div>
+    </div>`).join('')}
+  </div>` : ''}
+
+  <!-- Best Margin -->
+  ${topMargin.length > 0 ? `
+  <div class="an-sec">Топ — найвища маржа ₴</div>
+  <div class="an-toplist">
+    ${topMargin.map((d, i) => `
+    <div class="an-tl-row" style="grid-template-columns:auto 1fr auto;background:var(--bg2)">
+      <div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text2);width:20px">
+        ${['🥇','🥈','🥉','4.','5.'][i]}
+      </div>
+      <div style="min-width:0">
+        <div class="an-tl-name">${d.name}</div>
+        <div class="an-tl-cat">${d.category || '—'} · FC ${fmtFC(d.fc)}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="an-tl-val" style="color:var(--green)">${fmtMrg(d.margin)}</div>
+        <div class="an-tl-sub">${d.sellingPrice} ₴ ціна</div>
+      </div>
+    </div>`).join('')}
+  </div>` : ''}
+
+  <!-- Danger Zone -->
+  ${topDanger.length > 0 ? `
+  <div class="an-sec">Небезпечний FC — потрібна дія</div>
+  <div class="an-toplist">
+    ${topDanger.map(d => {
+      const rec = Math.ceil(d.costPrice / (FC_TARGET / 100));
+      return `
+    <div class="an-tl-row" style="grid-template-columns:1fr auto;background:var(--bg2)">
+      <div style="min-width:0">
+        <div class="an-tl-name">${d.name}</div>
+        <div class="an-tl-cat">${d.category || '—'} · Собівартість ${d.costPrice?.toFixed(2)} ₴</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="an-tl-val" style="color:var(--red)">${fmtFC(d.fc)}</div>
+        <div class="an-tl-sub">${d.sellingPrice} ₴ зараз</div>
+      </div>
+    </div>`;
+    }).join('')}
+  </div>` : ''}
+
+  <!-- Price Optimizer -->
+  ${optimizer.length > 0 ? `
+  <div class="an-sec">Оптимізатор цін — ціль FC ${FC_TARGET}%</div>
+  <div class="an-toplist">
+    ${optimizer.map(d => `
+    <div class="an-opt-row" style="background:var(--bg2)">
+      <div style="min-width:0">
+        <div class="an-tl-name">${d.name}</div>
+        <div class="an-opt-arrow">${d.sellingPrice} ₴ → потрібно +${d.diff} ₴</div>
+      </div>
+      <div class="an-opt-badge">${d.recPrice} ₴</div>
+    </div>`).join('')}
+  </div>` : ''}`;
+}
+
+// ── Main HTML ─────────────────────────────────────────────────
 function buildHTML() {
   if (_loading) {
     return `${CSS}
     <div class="an-wrap">
-      <div class="an-topbar">
-        <div><div class="an-title">Аналітика</div></div>
-      </div>
+      <div class="an-topbar"><div><div class="an-title">Аналітика</div></div></div>
       <div class="an-scroll" style="padding-top:8px">
         ${[1,2,3].map(()=>`<div class="an-skel" style="height:120px"></div>`).join('')}
       </div>
@@ -103,7 +446,8 @@ function buildHTML() {
     return `${CSS}
     <div class="an-wrap">
       <div class="an-topbar">
-        <div onclick="window.__barops.openDrawer()" style="width:36px;height:36px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0">
+        <div onclick="window.__barops.openDrawer()"
+          style="width:36px;height:36px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0">
           <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
           <div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div>
           <div style="width:10px;height:1.5px;background:var(--text1);border-radius:1px;align-self:flex-start;margin-left:8px"></div>
@@ -118,15 +462,13 @@ function buildHTML() {
     </div>`;
   }
 
-  // Зведені KPI
-  const totalWriteoffs  = _venues.reduce((a, v) => a + (v.writeoffs || 0), 0);
-  const totalInvoices   = _venues.reduce((a, v) => a + (v.invoiceCount || 0), 0);
-  const totalInvAmount  = _venues.reduce((a, v) => a + (v.invoiceTotal || 0), 0);
-  const totalTeam       = _venues.reduce((a, v) => a + (v.teamCount || 0), 0);
-  const totalCritical   = _venues.reduce((a, v) => a + (v.criticalCount || 0), 0);
+  const totalWriteoffs = _venues.reduce((a, v) => a + (v.writeoffs || 0), 0);
+  const totalInvoices  = _venues.reduce((a, v) => a + (v.invoiceCount || 0), 0);
+  const totalInvAmount = _venues.reduce((a, v) => a + (v.invoiceTotal || 0), 0);
+  const totalTeam      = _venues.reduce((a, v) => a + (v.teamCount || 0), 0);
+  const totalCritical  = _venues.reduce((a, v) => a + (v.criticalCount || 0), 0);
 
-  return `
-${CSS}
+  return `${CSS}
 <div class="an-wrap">
   <div class="an-topbar">
     <div onclick="window.__barops.openDrawer()"
@@ -146,8 +488,8 @@ ${CSS}
 
   <div class="an-scroll">
 
-    <!-- Total KPI -->
-    <div class="an-sec">Зведено сьогодні</div>
+    <!-- Operational KPIs -->
+    <div class="an-sec">Операційно · сьогодні</div>
     <div class="an-total">
       <div class="an-kpi">
         <div class="an-kpi-val" style="color:var(--green)">${totalInvoices}</div>
@@ -175,7 +517,10 @@ ${CSS}
       </div>
     </div>
 
-    <!-- Comparison table -->
+    <!-- FC Cockpit -->
+    ${buildFCCockpit()}
+
+    <!-- Venue comparison -->
     <div class="an-sec">Порівняння закладів</div>
     <div class="an-cmp">
       <div class="an-cmp-row hdr">
@@ -233,7 +578,7 @@ ${CSS}
       </div>`).join('')}
     </div>
 
-    <div style="height:20px"></div>
+    <div style="height:24px"></div>
   </div>
 </div>`;
 }
@@ -244,6 +589,6 @@ function render() {
 }
 
 export default {
-  render() { _loading = true; _venues = []; return buildHTML(); },
+  render() { _loading = true; _fcLoading = true; _venues = []; _dishes = []; return buildHTML(); },
   init()   { loadData(); },
 };
