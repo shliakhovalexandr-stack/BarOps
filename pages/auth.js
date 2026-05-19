@@ -399,7 +399,7 @@ function viewPhone() {
     <div class="auth-inner" style="align-items:stretch">
 
       <!-- Logo block -->
-      <div style="display:flex;flex-direction:column;align-items:center;margin-top:52px;margin-bottom:0">
+      <div style="display:flex;flex-direction:column;align-items:center;margin-top:80px;margin-bottom:0">
         ${BOTTLE_SVG}
       </div>
 
@@ -409,7 +409,7 @@ function viewPhone() {
         <div style="margin-top:10px;font-size:14px;color:var(--text2);font-family:var(--font-b);line-height:1.55">Операції бару — спокійно<br/>і під контролем.</div>
       </div>
 
-      <div class="auth-spacer"></div>
+      <div style="flex:1;min-height:32px;max-height:80px"></div>
 
       <!-- Phone input section -->
       <div>
