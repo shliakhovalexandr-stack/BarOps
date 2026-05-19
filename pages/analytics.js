@@ -70,8 +70,8 @@ function buildInsights(fc) {
     }))
     .filter(c => c.count >= 2 && !_ignoredCats.has(c.name));
 
-  const actionableDanger = danger.filter(d => !_ignoredDishes.has(d.id));
-  const actionableWithFC = withFC.filter(d => !_ignoredDishes.has(d.id));
+  const actionableDanger = danger.filter(d => !_ignoredDishes.has(String(d.id)));
+  const actionableWithFC = withFC.filter(d => !_ignoredDishes.has(String(d.id)));
 
   // 1. Найнебезпечніша категорія
   const worstCat = [...catStats].sort((a, b) => b.avgFC - a.avgFC)[0];
@@ -244,9 +244,10 @@ const CSS = `<style id="an-css">
 .an-chip-clr{background:none;border:0.5px solid var(--border2);border-radius:20px;padding:5px 10px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0}
 
 /* Swipe-to-dismiss */
-.an-swipe-wrap{position:relative;overflow:hidden}
-.an-swipe-inner{transition:transform .18s;will-change:transform}
-.an-swipe-del{position:absolute;right:0;top:0;bottom:0;width:90px;background:var(--red,#dc3c32);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:2px}
+.an-swipe-wrap{overflow:hidden}
+.an-swipe-track{display:flex;transition:transform .18s ease;will-change:transform}
+.an-swipe-con{flex:1;min-width:100%}
+.an-swipe-del{width:90px;flex-shrink:0;background:var(--red,#dc3c32);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:2px}
 .an-swipe-del span{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600;text-align:center;line-height:1.3;padding:0 6px}
 </style>`;
 
@@ -347,19 +348,19 @@ function buildFCCockpit() {
 
   // Top 5 by margin ₴
   const topMargin = [...withFC]
-    .filter(d => d.margin > 0 && !_ignoredDishes.has(d.id))
+    .filter(d => d.margin > 0 && !_ignoredDishes.has(String(d.id)))
     .sort((a, b) => b.margin - a.margin)
     .slice(0, 5);
 
   // Top 5 worst FC
   const topDanger = [...danger]
-    .filter(d => !_ignoredDishes.has(d.id))
+    .filter(d => !_ignoredDishes.has(String(d.id)))
     .sort((a, b) => b.fc - a.fc)
     .slice(0, 5);
 
   // Price optimizer — dishes where current price is too low for target FC
   const optimizer = [...withFC]
-    .filter(d => d.fc > FC_TARGET && !_ignoredDishes.has(d.id))
+    .filter(d => d.fc > FC_TARGET && !_ignoredDishes.has(String(d.id)))
     .sort((a, b) => b.fc - a.fc)
     .slice(0, 5)
     .map(d => ({
@@ -413,8 +414,10 @@ function buildFCCockpit() {
       const sid = (ins.ignoreId + '').replace(/'/g, "\\'");
       return `
       <div class="an-swipe-wrap" style="border-radius:13px">
-        <div class="an-swipe-del" onclick="window.__an.ignore('${ins.ignoreType}','${sid}')"><span>Ігно-<br>рувати</span></div>
-        <div class="an-swipe-inner an-insight ${ins.sev}" style="border-radius:0;margin:0">${body}</div>
+        <div class="an-swipe-track">
+          <div class="an-swipe-con an-insight ${ins.sev}" style="border-radius:0;margin:0">${body}</div>
+          <div class="an-swipe-del" onclick="window.__an.ignore('${ins.ignoreType}','${sid}')"><span>Ігно-<br>рувати</span></div>
+        </div>
       </div>`;
     }).join('')}
   </div>` : ''}
@@ -444,19 +447,19 @@ function buildFCCockpit() {
   <div class="an-toplist">
     ${topMargin.map((d, i) => `
     <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
-      <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
-      <div class="an-swipe-inner an-tl-row" style="grid-template-columns:auto 1fr auto;background:var(--bg2);border-bottom:none">
-        <div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text2);width:20px">
-          ${['🥇','🥈','🥉','4.','5.'][i]}
+      <div class="an-swipe-track">
+        <div class="an-swipe-con an-tl-row" style="grid-template-columns:auto 1fr auto;background:var(--bg2);border-bottom:none">
+          <div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text2);width:20px">${['🥇','🥈','🥉','4.','5.'][i]}</div>
+          <div style="min-width:0">
+            <div class="an-tl-name">${d.name}</div>
+            <div class="an-tl-cat">${d.category || '—'} · FC ${fmtFC(d.fc)}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="an-tl-val" style="color:var(--green)">${fmtMrg(d.margin)}</div>
+            <div class="an-tl-sub">${d.sellingPrice} ₴ ціна</div>
+          </div>
         </div>
-        <div style="min-width:0">
-          <div class="an-tl-name">${d.name}</div>
-          <div class="an-tl-cat">${d.category || '—'} · FC ${fmtFC(d.fc)}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div class="an-tl-val" style="color:var(--green)">${fmtMrg(d.margin)}</div>
-          <div class="an-tl-sub">${d.sellingPrice} ₴ ціна</div>
-        </div>
+        <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
       </div>
     </div>`).join('')}
   </div>` : ''}
@@ -467,16 +470,18 @@ function buildFCCockpit() {
   <div class="an-toplist">
     ${topDanger.map(d => `
     <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
-      <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
-      <div class="an-swipe-inner an-tl-row" style="grid-template-columns:1fr auto;background:var(--bg2);border-bottom:none">
-        <div style="min-width:0">
-          <div class="an-tl-name">${d.name}</div>
-          <div class="an-tl-cat">${d.category || '—'} · Собівартість ${d.costPrice?.toFixed(2)} ₴</div>
+      <div class="an-swipe-track">
+        <div class="an-swipe-con an-tl-row" style="grid-template-columns:1fr auto;background:var(--bg2);border-bottom:none">
+          <div style="min-width:0">
+            <div class="an-tl-name">${d.name}</div>
+            <div class="an-tl-cat">${d.category || '—'} · Собівартість ${d.costPrice?.toFixed(2)} ₴</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="an-tl-val" style="color:var(--red)">${fmtFC(d.fc)}</div>
+            <div class="an-tl-sub">${d.sellingPrice} ₴ зараз</div>
+          </div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div class="an-tl-val" style="color:var(--red)">${fmtFC(d.fc)}</div>
-          <div class="an-tl-sub">${d.sellingPrice} ₴ зараз</div>
-        </div>
+        <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
       </div>
     </div>`).join('')}
   </div>` : ''}
@@ -487,13 +492,15 @@ function buildFCCockpit() {
   <div class="an-toplist">
     ${optimizer.map(d => `
     <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
-      <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
-      <div class="an-swipe-inner an-opt-row" style="background:var(--bg2);border-bottom:none">
-        <div style="min-width:0">
-          <div class="an-tl-name">${d.name}</div>
-          <div class="an-opt-arrow">${d.sellingPrice} ₴ → потрібно +${d.diff} ₴</div>
+      <div class="an-swipe-track">
+        <div class="an-swipe-con an-opt-row" style="background:var(--bg2);border-bottom:none">
+          <div style="min-width:0">
+            <div class="an-tl-name">${d.name}</div>
+            <div class="an-opt-arrow">${d.sellingPrice} ₴ → потрібно +${d.diff} ₴</div>
+          </div>
+          <div class="an-opt-badge">${d.recPrice} ₴</div>
         </div>
-        <div class="an-opt-badge">${d.recPrice} ₴</div>
+        <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
       </div>
     </div>`).join('')}
   </div>` : ''}`;
@@ -658,26 +665,33 @@ let _openSwipeWrap = null;
 
 function setupSwipe() {
   document.querySelectorAll('.an-swipe-wrap').forEach(wrap => {
-    const inner = wrap.querySelector('.an-swipe-inner');
-    if (!inner) return;
+    const track = wrap.querySelector('.an-swipe-track');
+    if (!track) return;
     let startX = 0, startY = 0, dx = 0, swiping = false, opened = false;
 
-    const close = () => { inner.style.transform = ''; opened = false; if (_openSwipeWrap === wrap) _openSwipeWrap = null; };
-    const open  = () => {
+    const close = () => {
+      track.style.transform = '';
+      opened = false;
+      if (_openSwipeWrap === wrap) _openSwipeWrap = null;
+    };
+    const open = () => {
       if (_openSwipeWrap && _openSwipeWrap !== wrap) {
-        const prev = _openSwipeWrap.querySelector('.an-swipe-inner');
+        const prev = _openSwipeWrap.querySelector('.an-swipe-track');
         if (prev) prev.style.transform = '';
       }
-      inner.style.transform = 'translateX(-90px)'; opened = true; _openSwipeWrap = wrap;
+      track.style.transform = 'translateX(-90px)';
+      opened = true;
+      _openSwipeWrap = wrap;
     };
 
-    inner.addEventListener('touchstart', e => {
+    track.addEventListener('touchstart', e => {
       if (opened) { close(); return; }
-      startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
       dx = 0; swiping = false;
     }, { passive: true });
 
-    inner.addEventListener('touchmove', e => {
+    track.addEventListener('touchmove', e => {
       if (!swiping) {
         const ax = Math.abs(e.touches[0].clientX - startX);
         const ay = Math.abs(e.touches[0].clientY - startY);
@@ -686,10 +700,10 @@ function setupSwipe() {
         swiping = true;
       }
       dx = e.touches[0].clientX - startX;
-      inner.style.transform = `translateX(${Math.max(-90, Math.min(0, dx))}px)`;
+      if (dx < 0) track.style.transform = `translateX(${Math.max(-90, dx)}px)`;
     }, { passive: true });
 
-    inner.addEventListener('touchend', () => {
+    track.addEventListener('touchend', () => {
       if (!swiping) return;
       if (dx < -44) open(); else close();
     });
@@ -728,11 +742,12 @@ function render() {
       render();
     },
     ignore(type, id) {
+      const sid = String(id);
       if (type === 'dish') {
-        _ignoredDishes.add(id);
+        _ignoredDishes.add(sid);
         localStorage.setItem('barops_an_idish', JSON.stringify([..._ignoredDishes]));
       } else if (type === 'cat') {
-        _ignoredCats.add(id);
+        _ignoredCats.add(sid);
         localStorage.setItem('barops_an_icat', JSON.stringify([..._ignoredCats]));
       }
       render();
