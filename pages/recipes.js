@@ -534,19 +534,19 @@ const CSS = `<style id="rec-css">
 .rec-kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:10px;text-align:center}
 .rec-kpi-val{font-family:var(--font-h);font-size:18px;font-weight:700;line-height:1}
 .rec-kpi-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
-.rec-card-wrap{position:relative;margin:0 14px 8px;overflow:hidden;border-radius:16px}
-.rec-hide-action{position:absolute;right:0;top:0;bottom:0;width:88px;background:var(--red,#c0392b);border:none;color:#fff;font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:0 16px 16px 0;z-index:0}
-.rec-card{margin:0;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;transition:background .12s;position:relative;z-index:1;will-change:transform}
+.rec-card-wrap{position:relative;margin:0 14px 6px;overflow:hidden;border-radius:13px}
+.rec-hide-action{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--red,#c0392b);border:none;color:#fff;font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:0 13px 13px 0;z-index:0}
+.rec-card{margin:0;background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:10px 12px;cursor:pointer;transition:background .12s;position:relative;z-index:1;will-change:transform}
 .rec-card:active{background:var(--bg3)}
 .rec-card.hidden-card{opacity:.45}
-.rec-card-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
-.rec-name{font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);line-height:1.2}
-.rec-cat-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
-.rec-fc-badge{height:24px;padding:0 10px;border-radius:12px;font-size:11px;font-family:var(--font-h);font-weight:700;display:flex;align-items:center;flex-shrink:0}
-.rec-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-.rec-metric{background:var(--bg3);border-radius:9px;padding:8px;text-align:center}
-.rec-metric-val{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)}
-.rec-metric-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
+.rec-card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px}
+.rec-name{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0);line-height:1.2}
+.rec-cat-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.rec-fc-badge{height:22px;padding:0 8px;border-radius:11px;font-size:11px;font-family:var(--font-h);font-weight:700;display:flex;align-items:center;flex-shrink:0}
+.rec-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.rec-metric{background:var(--bg3);border-radius:8px;padding:6px;text-align:center}
+.rec-metric-val{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0)}
+.rec-metric-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:1px;text-transform:uppercase;letter-spacing:.04em}
 .rec-skel{background:var(--bg2);border-radius:14px;animation:rSkel 1.2s ease-in-out infinite;margin:0 14px 8px}
 @keyframes rSkel{0%,100%{opacity:.5}50%{opacity:1}}
 .rec-sheet-ov{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;flex-direction:column;justify-content:flex-end}
