@@ -15,7 +15,9 @@ let _dishes      = [];
 let _loading     = true;
 let _fcLoading   = true;
 let _venueId     = null;
-let _groupFilter = new Set();
+let _groupFilter   = new Set();
+let _ignoredDishes = new Set(JSON.parse(localStorage.getItem('barops_an_idish') || '[]'));
+let _ignoredCats   = new Set(JSON.parse(localStorage.getItem('barops_an_icat')  || '[]'));
 
 function tok() { return localStorage.getItem('barops_token') || ''; }
 const VENUE_COLORS = ['var(--green)', 'var(--amber)', 'var(--purple)', 'var(--red)', '#4FA8E8'];
@@ -59,7 +61,6 @@ function buildInsights(fc) {
   const { withFC, byCat, danger, noPrice, noCost, avgFC } = fc;
   const insights = [];
 
-  // 1. Найнебезпечніші категорії
   const catStats = Object.entries(byCat)
     .map(([name, dishes]) => ({
       name,
@@ -67,41 +68,45 @@ function buildInsights(fc) {
       avgFC:  avg(dishes.map(d => d.fc)),
       avgMrg: avg(dishes.map(d => d.margin)),
     }))
-    .filter(c => c.count >= 2);
+    .filter(c => c.count >= 2 && !_ignoredCats.has(c.name));
 
+  const actionableDanger = danger.filter(d => !_ignoredDishes.has(d.id));
+  const actionableWithFC = withFC.filter(d => !_ignoredDishes.has(d.id));
+
+  // 1. Найнебезпечніша категорія
   const worstCat = [...catStats].sort((a, b) => b.avgFC - a.avgFC)[0];
   if (worstCat && worstCat.avgFC > FC_MAX) {
     insights.push({
-      sev: 'danger',
-      icon: '🔴',
+      sev: 'danger', icon: '🔴',
       title: `"${worstCat.name}" — сер. FC ${worstCat.avgFC.toFixed(1)}%`,
       body: `${worstCat.count} страв перевищують норму ${FC_MAX}%.`,
       action: 'Переглянути ціни або рецептуру категорії',
+      ignoreType: 'cat', ignoreId: worstCat.name,
     });
   }
 
-  // 2. Найгіршій FC — конкретна страва
-  const worstDish = [...danger].sort((a, b) => b.fc - a.fc)[0];
+  // 2. Найгірший FC — конкретна страва
+  const worstDish = [...actionableDanger].sort((a, b) => b.fc - a.fc)[0];
   if (worstDish) {
     const recPrice = (worstDish.costPrice / (FC_TARGET / 100)).toFixed(0);
     insights.push({
-      sev: 'danger',
-      icon: '⚠️',
+      sev: 'danger', icon: '⚠️',
       title: `"${worstDish.name}" — FC ${worstDish.fc.toFixed(1)}%`,
       body: `Ціна ${worstDish.sellingPrice} ₴, собівартість ${worstDish.costPrice?.toFixed(2)} ₴.`,
       action: `Рекомендована ціна для FC ${FC_TARGET}%: ${recPrice} ₴`,
+      ignoreType: 'dish', ignoreId: worstDish.id,
     });
   }
 
   // 3. Найбільша маржа — можливість
-  const bestMrg = [...withFC].sort((a, b) => b.margin - a.margin)[0];
+  const bestMrg = [...actionableWithFC].sort((a, b) => b.margin - a.margin)[0];
   if (bestMrg && bestMrg.margin > 0) {
     insights.push({
-      sev: 'good',
-      icon: '💚',
+      sev: 'good', icon: '💚',
       title: `"${bestMrg.name}" — маржа ${bestMrg.margin.toFixed(0)} ₴`,
       body: `FC ${bestMrg.fc.toFixed(1)}% · Ціна ${bestMrg.sellingPrice} ₴.`,
       action: 'Активно просувати, виділити в меню',
+      ignoreType: 'dish', ignoreId: bestMrg.id,
     });
   }
 
@@ -109,19 +114,18 @@ function buildInsights(fc) {
   const bestCat = [...catStats].sort((a, b) => b.avgMrg - a.avgMrg)[0];
   if (bestCat && bestCat.avgMrg > 0 && bestCat !== worstCat) {
     insights.push({
-      sev: 'good',
-      icon: '📈',
+      sev: 'good', icon: '📈',
       title: `"${bestCat.name}" — найвища маржа`,
       body: `Сер. маржа ${bestCat.avgMrg.toFixed(0)} ₴, сер. FC ${bestCat.avgFC.toFixed(1)}%.`,
       action: 'Збільшити частку у продажах та в пропозиціях',
+      ignoreType: 'cat', ignoreId: bestCat.name,
     });
   }
 
   // 5. Без ціни
   if (noPrice.length > 0) {
     insights.push({
-      sev: 'warning',
-      icon: '🟡',
+      sev: 'warning', icon: '🟡',
       title: `${noPrice.length} страв без ціни`,
       body: 'Фудкост неможливо розрахувати — ціна не встановлена в Syrve.',
       action: 'Заповнити ціни у номенклатурі Syrve',
@@ -131,8 +135,7 @@ function buildInsights(fc) {
   // 6. Без собівартості
   if (noCost.length > withFC.length * 0.3) {
     insights.push({
-      sev: 'warning',
-      icon: '🟡',
+      sev: 'warning', icon: '🟡',
       title: `${noCost.length} страв без собівартості`,
       body: 'ТТК відсутні або не завантажені — FC неможливо порахувати.',
       action: 'Заповнити технологічні карти у Syrve',
@@ -239,6 +242,12 @@ const CSS = `<style id="an-css">
 .an-chip{background:var(--bg2);border:0.5px solid var(--border2);border-radius:20px;padding:5px 13px;font-size:12px;font-family:var(--font-b);color:var(--text1);cursor:pointer;white-space:nowrap;flex-shrink:0}
 .an-chip.active{background:var(--green);border-color:var(--green);color:#fff}
 .an-chip-clr{background:none;border:0.5px solid var(--border2);border-radius:20px;padding:5px 10px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0}
+
+/* Swipe-to-dismiss */
+.an-swipe-wrap{position:relative;overflow:hidden}
+.an-swipe-inner{transition:transform .18s;will-change:transform}
+.an-swipe-del{position:absolute;right:0;top:0;bottom:0;width:90px;background:var(--red,#dc3c32);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:2px}
+.an-swipe-del span{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600;text-align:center;line-height:1.3;padding:0 6px}
 </style>`;
 
 // ── Filter bar ────────────────────────────────────────────────
@@ -338,18 +347,19 @@ function buildFCCockpit() {
 
   // Top 5 by margin ₴
   const topMargin = [...withFC]
-    .filter(d => d.margin > 0)
+    .filter(d => d.margin > 0 && !_ignoredDishes.has(d.id))
     .sort((a, b) => b.margin - a.margin)
     .slice(0, 5);
 
   // Top 5 worst FC
   const topDanger = [...danger]
+    .filter(d => !_ignoredDishes.has(d.id))
     .sort((a, b) => b.fc - a.fc)
     .slice(0, 5);
 
   // Price optimizer — dishes where current price is too low for target FC
   const optimizer = [...withFC]
-    .filter(d => d.fc > FC_TARGET)
+    .filter(d => d.fc > FC_TARGET && !_ignoredDishes.has(d.id))
     .sort((a, b) => b.fc - a.fc)
     .slice(0, 5)
     .map(d => ({
@@ -386,17 +396,27 @@ function buildFCCockpit() {
 
   <!-- Smart Insights -->
   ${insights.length > 0 ? `
-  <div class="an-sec">Інсайти менеджера</div>
+  <div class="an-sec" style="display:flex;align-items:center">
+    <span style="flex:1">Інсайти менеджера</span>
+    ${(_ignoredDishes.size + _ignoredCats.size) > 0 ? `<span onclick="window.__an.resetIgnored()" style="font-size:10px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding-right:18px;text-decoration:underline">Скинути ігнор (${_ignoredDishes.size + _ignoredCats.size})</span>` : ''}
+  </div>
   <div class="an-insights">
-    ${insights.map(ins => `
-    <div class="an-insight ${ins.sev}">
-      <div class="an-insight-icon">${ins.icon}</div>
-      <div style="flex:1;min-width:0">
-        <div class="an-insight-title">${ins.title}</div>
-        <div class="an-insight-body">${ins.body}</div>
-        <div class="an-insight-action">→ ${ins.action}</div>
-      </div>
-    </div>`).join('')}
+    ${insights.map(ins => {
+      const body = `
+        <div class="an-insight-icon">${ins.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div class="an-insight-title">${ins.title}</div>
+          <div class="an-insight-body">${ins.body}</div>
+          <div class="an-insight-action">→ ${ins.action}</div>
+        </div>`;
+      if (!ins.ignoreType) return `<div class="an-insight ${ins.sev}">${body}</div>`;
+      const sid = (ins.ignoreId + '').replace(/'/g, "\\'");
+      return `
+      <div class="an-swipe-wrap" style="border-radius:13px">
+        <div class="an-swipe-del" onclick="window.__an.ignore('${ins.ignoreType}','${sid}')"><span>Ігно-<br>рувати</span></div>
+        <div class="an-swipe-inner an-insight ${ins.sev}" style="border-radius:0;margin:0">${body}</div>
+      </div>`;
+    }).join('')}
   </div>` : ''}
 
   <!-- Category Performance -->
@@ -423,17 +443,20 @@ function buildFCCockpit() {
   <div class="an-sec">Топ — найвища маржа ₴</div>
   <div class="an-toplist">
     ${topMargin.map((d, i) => `
-    <div class="an-tl-row" style="grid-template-columns:auto 1fr auto;background:var(--bg2)">
-      <div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text2);width:20px">
-        ${['🥇','🥈','🥉','4.','5.'][i]}
-      </div>
-      <div style="min-width:0">
-        <div class="an-tl-name">${d.name}</div>
-        <div class="an-tl-cat">${d.category || '—'} · FC ${fmtFC(d.fc)}</div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div class="an-tl-val" style="color:var(--green)">${fmtMrg(d.margin)}</div>
-        <div class="an-tl-sub">${d.sellingPrice} ₴ ціна</div>
+    <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
+      <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
+      <div class="an-swipe-inner an-tl-row" style="grid-template-columns:auto 1fr auto;background:var(--bg2);border-bottom:none">
+        <div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text2);width:20px">
+          ${['🥇','🥈','🥉','4.','5.'][i]}
+        </div>
+        <div style="min-width:0">
+          <div class="an-tl-name">${d.name}</div>
+          <div class="an-tl-cat">${d.category || '—'} · FC ${fmtFC(d.fc)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="an-tl-val" style="color:var(--green)">${fmtMrg(d.margin)}</div>
+          <div class="an-tl-sub">${d.sellingPrice} ₴ ціна</div>
+        </div>
       </div>
     </div>`).join('')}
   </div>` : ''}
@@ -442,20 +465,20 @@ function buildFCCockpit() {
   ${topDanger.length > 0 ? `
   <div class="an-sec">Небезпечний FC — потрібна дія</div>
   <div class="an-toplist">
-    ${topDanger.map(d => {
-      const rec = Math.ceil(d.costPrice / (FC_TARGET / 100));
-      return `
-    <div class="an-tl-row" style="grid-template-columns:1fr auto;background:var(--bg2)">
-      <div style="min-width:0">
-        <div class="an-tl-name">${d.name}</div>
-        <div class="an-tl-cat">${d.category || '—'} · Собівартість ${d.costPrice?.toFixed(2)} ₴</div>
+    ${topDanger.map(d => `
+    <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
+      <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
+      <div class="an-swipe-inner an-tl-row" style="grid-template-columns:1fr auto;background:var(--bg2);border-bottom:none">
+        <div style="min-width:0">
+          <div class="an-tl-name">${d.name}</div>
+          <div class="an-tl-cat">${d.category || '—'} · Собівартість ${d.costPrice?.toFixed(2)} ₴</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="an-tl-val" style="color:var(--red)">${fmtFC(d.fc)}</div>
+          <div class="an-tl-sub">${d.sellingPrice} ₴ зараз</div>
+        </div>
       </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div class="an-tl-val" style="color:var(--red)">${fmtFC(d.fc)}</div>
-        <div class="an-tl-sub">${d.sellingPrice} ₴ зараз</div>
-      </div>
-    </div>`;
-    }).join('')}
+    </div>`).join('')}
   </div>` : ''}
 
   <!-- Price Optimizer -->
@@ -463,12 +486,15 @@ function buildFCCockpit() {
   <div class="an-sec">Оптимізатор цін — ціль FC ${FC_TARGET}%</div>
   <div class="an-toplist">
     ${optimizer.map(d => `
-    <div class="an-opt-row" style="background:var(--bg2)">
-      <div style="min-width:0">
-        <div class="an-tl-name">${d.name}</div>
-        <div class="an-opt-arrow">${d.sellingPrice} ₴ → потрібно +${d.diff} ₴</div>
+    <div class="an-swipe-wrap" style="border-bottom:0.5px solid var(--border)">
+      <div class="an-swipe-del" onclick="window.__an.ignore('dish','${d.id}')"><span>Ігно-<br>рувати</span></div>
+      <div class="an-swipe-inner an-opt-row" style="background:var(--bg2);border-bottom:none">
+        <div style="min-width:0">
+          <div class="an-tl-name">${d.name}</div>
+          <div class="an-opt-arrow">${d.sellingPrice} ₴ → потрібно +${d.diff} ₴</div>
+        </div>
+        <div class="an-opt-badge">${d.recPrice} ₴</div>
       </div>
-      <div class="an-opt-badge">${d.recPrice} ₴</div>
     </div>`).join('')}
   </div>` : ''}`;
 }
@@ -628,9 +654,53 @@ function buildHTML() {
 </div>`;
 }
 
+let _openSwipeWrap = null;
+
+function setupSwipe() {
+  document.querySelectorAll('.an-swipe-wrap').forEach(wrap => {
+    const inner = wrap.querySelector('.an-swipe-inner');
+    if (!inner) return;
+    let startX = 0, startY = 0, dx = 0, swiping = false, opened = false;
+
+    const close = () => { inner.style.transform = ''; opened = false; if (_openSwipeWrap === wrap) _openSwipeWrap = null; };
+    const open  = () => {
+      if (_openSwipeWrap && _openSwipeWrap !== wrap) {
+        const prev = _openSwipeWrap.querySelector('.an-swipe-inner');
+        if (prev) prev.style.transform = '';
+      }
+      inner.style.transform = 'translateX(-90px)'; opened = true; _openSwipeWrap = wrap;
+    };
+
+    inner.addEventListener('touchstart', e => {
+      if (opened) { close(); return; }
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+      dx = 0; swiping = false;
+    }, { passive: true });
+
+    inner.addEventListener('touchmove', e => {
+      if (!swiping) {
+        const ax = Math.abs(e.touches[0].clientX - startX);
+        const ay = Math.abs(e.touches[0].clientY - startY);
+        if (ax < 6 && ay < 6) return;
+        if (ay > ax) return;
+        swiping = true;
+      }
+      dx = e.touches[0].clientX - startX;
+      inner.style.transform = `translateX(${Math.max(-90, Math.min(0, dx))}px)`;
+    }, { passive: true });
+
+    inner.addEventListener('touchend', () => {
+      if (!swiping) return;
+      if (dx < -44) open(); else close();
+    });
+  });
+}
+
 function render() {
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
+  _openSwipeWrap = null;
+  requestAnimationFrame(setupSwipe);
   window.__an = {
     setVenue(id) {
       if (!id || id === _venueId) return;
@@ -655,6 +725,23 @@ function render() {
     },
     clearGroups() {
       _groupFilter.clear();
+      render();
+    },
+    ignore(type, id) {
+      if (type === 'dish') {
+        _ignoredDishes.add(id);
+        localStorage.setItem('barops_an_idish', JSON.stringify([..._ignoredDishes]));
+      } else if (type === 'cat') {
+        _ignoredCats.add(id);
+        localStorage.setItem('barops_an_icat', JSON.stringify([..._ignoredCats]));
+      }
+      render();
+    },
+    resetIgnored() {
+      _ignoredDishes.clear();
+      _ignoredCats.clear();
+      localStorage.removeItem('barops_an_idish');
+      localStorage.removeItem('barops_an_icat');
       render();
     },
   };
