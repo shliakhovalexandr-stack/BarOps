@@ -17,6 +17,10 @@ let _stats           = null; // дані з /api/stats
 let _loading         = true;
 let _venueSheetOpen  = false;
 let _notifOpen       = false;
+let _balanceStores   = [];   // [{storeId,storeName,items}] з Syrve balance
+let _balanceGroups   = [];   // ['Бар','Кухня',...] унікальні групи товарів
+let _groupFilter     = null; // null = всі, або назва групи
+let _warehouseFilter = null; // null = всі, або storeId
 
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
@@ -187,6 +191,22 @@ const CSS = `<style id="dash-css">
 /* skeleton */
 .d-skel{background:var(--bg2);border-radius:12px;animation:dSkel 1.2s ease-in-out infinite}
 @keyframes dSkel{0%,100%{opacity:.5}50%{opacity:1}}
+/* filter chips */
+.d-chips{display:flex;gap:6px;padding:0 20px 10px;overflow-x:auto}.d-chips::-webkit-scrollbar{height:0}
+.d-chip{height:30px;padding:0 12px;border-radius:15px;border:0.5px solid var(--border2);background:var(--bg2);font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:var(--font-b);display:flex;align-items:center;gap:5px;flex-shrink:0;transition:all .15s}
+.d-chip:active{background:var(--bg3)}
+.d-chip.sel{background:var(--green);border-color:var(--green);color:#fff}
+.d-chip.venue-sel{background:var(--green-bg,#1a3320);border-color:var(--green);color:var(--green)}
+.d-filter-sep{height:1px;background:var(--border);margin:0 20px 2px}
+/* balance summary cards */
+.d-bal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 4px}
+.d-bal-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:11px 13px;cursor:pointer;transition:background .12s}
+.d-bal-card:active{background:var(--bg3)}
+.d-bal-card.active-group{border-color:var(--green);background:var(--green-bg,#1a3320)}
+.d-bal-name{font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--text0)}
+.d-bal-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.d-bal-num{font-family:var(--font-h);font-size:20px;font-weight:800;line-height:1;margin-top:6px}
+.d-bal-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
 </style>`;
 
 /* ════════════════════════
@@ -272,6 +292,28 @@ async function loadStats() {
     _stats = null;
   }
   _loading = false;
+  fullRender();
+}
+
+async function loadBalance() {
+  if (!_activeVenueId) return;
+  try {
+    const res  = await fetch(`${API}/api/pos/balance/${_activeVenueId}`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    });
+    const data = await res.json();
+    if (data.success && data.stores?.length) {
+      _balanceStores = data.stores;
+      const groups = [...new Set(
+        data.stores.flatMap(s => s.items.map(i => i.group).filter(Boolean))
+      )].sort();
+      _balanceGroups = groups;
+    } else {
+      _balanceStores = []; _balanceGroups = [];
+    }
+  } catch {
+    _balanceStores = []; _balanceGroups = [];
+  }
   fullRender();
 }
 
@@ -377,6 +419,70 @@ ${CSS}
         </button>`) : ''}
       </div>
     </div>
+
+    <!-- Venue chips (if multiple venues) -->
+    ${_venues.length > 1 ? `
+    <div class="d-chips">
+      ${_venues.map((v, i) => `
+      <div class="d-chip ${_activeVenueId === v.id ? 'venue-sel' : ''}"
+           onclick="window.__dash.selectVenue('${v.id}','${v.name}')">
+        <div style="width:6px;height:6px;border-radius:50%;background:${VENUE_COLORS[i%VENUE_COLORS.length]};flex-shrink:0"></div>
+        ${v.name}
+      </div>`).join('')}
+    </div>` : ''}
+
+    <!-- Group + Warehouse filter chips (from Syrve balance) -->
+    ${_balanceGroups.length > 0 || _balanceStores.length > 0 ? `
+    <div class="d-chips">
+      <div class="d-chip ${!_groupFilter && !_warehouseFilter ? 'sel' : ''}" onclick="window.__dash.clearFilters()">Все</div>
+      ${_balanceGroups.map(g => `
+      <div class="d-chip ${_groupFilter === g ? 'sel' : ''}" onclick="window.__dash.setGroup('${g}')">
+        ${g}
+      </div>`).join('')}
+      ${!_groupFilter ? _balanceStores.map(s => `
+      <div class="d-chip ${_warehouseFilter === s.storeId ? 'sel' : ''}" onclick="window.__dash.setWarehouse('${s.storeId}')">
+        ${s.storeName}
+      </div>`).join('') : ''}
+    </div>` : ''}
+
+    <!-- Balance summary cards when group/warehouse filter selected -->
+    ${(_groupFilter || _warehouseFilter) && _balanceStores.length > 0 ? (() => {
+      const filteredItems = _balanceStores
+        .filter(st => !_warehouseFilter || st.storeId === _warehouseFilter)
+        .flatMap(st => st.items)
+        .filter(it => !_groupFilter || it.group === _groupFilter);
+      const empty = filteredItems.filter(it => (it.amount || 0) === 0);
+      const total = filteredItems.length;
+      const groupLabel = _groupFilter || (_balanceStores.find(s => s.storeId === _warehouseFilter)?.storeName || 'Склад');
+      return `
+    <div style="padding:0 14px 4px">
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:13px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div>
+          <div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0)">${total}</div>
+          <div style="font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">Позицій</div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:${empty.length > 0 ? 'var(--red)' : 'var(--green)'}">${empty.length}</div>
+          <div style="font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">Порожніх</div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--amber)">${total - empty.length}</div>
+          <div style="font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">В наявності</div>
+        </div>
+      </div>
+      ${empty.length > 0 ? `
+      <div style="margin-top:8px;font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Порожні позиції · ${groupLabel}</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${empty.slice(0, 6).map(it => `
+        <div style="background:var(--bg2);border:0.5px solid var(--red-border,#4a2222);border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px;color:var(--text1);font-family:var(--font-b)">${it.name}</div>
+          <div style="font-size:11px;color:var(--red);font-family:var(--font-h);font-weight:700">0 ${it.unit}</div>
+        </div>`).join('')}
+        ${empty.length > 6 ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);text-align:center;padding:4px">+ ще ${empty.length - 6} порожніх → <span style="color:var(--green);cursor:pointer" onclick="window.__barops.navigate('stock')">Залишки</span></div>` : ''}
+      </div>` : `
+      <div style="margin-top:6px;padding:8px 0;text-align:center;font-size:11px;color:var(--green);font-family:var(--font-b)">✓ Всі позиції в наявності</div>`}
+    </div>`;
+    })() : ''}
 
     <!-- Alerts: критичні залишки -->
     ${s?.critical?.length ? s.critical.slice(0, 2).map(p => `
@@ -549,14 +655,20 @@ function closeVenueSheet(e) {
 }
 
 function selectVenue(id, name) {
+  if (_activeVenueId === id) return;
   _activeVenueId   = id;
   _activeVenueName = name;
   _venueSheetOpen  = false;
+  _groupFilter     = null;
+  _warehouseFilter = null;
+  _balanceStores   = [];
+  _balanceGroups   = [];
   state.venue      = name;
   state.venueId    = id;
   localStorage.setItem('barops_venue',   name);
   localStorage.setItem('barops_venueId', id);
   loadStats();
+  loadBalance();
 }
 
 async function openShift() {
@@ -603,6 +715,20 @@ export default {
       toggleVenueSheet,
       closeVenueSheet,
       selectVenue,
+      setGroup(g) {
+        _groupFilter = _groupFilter === g ? null : g;
+        _warehouseFilter = null;
+        fullRender();
+      },
+      setWarehouse(id) {
+        _warehouseFilter = _warehouseFilter === id ? null : id;
+        _groupFilter = null;
+        fullRender();
+      },
+      clearFilters() {
+        _groupFilter = null; _warehouseFilter = null;
+        fullRender();
+      },
     };
 
     // Синхронізуємо активний заклад з глобального state (перемикання в drawer)
@@ -612,8 +738,9 @@ export default {
       _activeVenueName = state.venue || localStorage.getItem('barops_venue') || _activeVenueName;
     }
 
-    // Завантажуємо заклади і статистику
+    // Завантажуємо заклади, статистику і balance (паралельно)
     await loadVenues();
     await loadStats();
+    loadBalance(); // non-blocking — відрендериться коли завантажиться
   },
 };
