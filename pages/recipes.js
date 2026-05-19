@@ -105,11 +105,14 @@ function calcFC(dish) {
 }
 
 function re() {
-  _swipedId = null; // DOM rebuild closes any open swipe
+  _swipedId = null;
+  const savedScroll = document.querySelector('.rec-scroll')?.scrollTop || 0;
   const el = document.getElementById('rec-root');
   if (el) {
     el.innerHTML = buildPage();
     if (!_loading && !_error) applyFilter();
+    const sc = document.querySelector('.rec-scroll');
+    if (sc && savedScroll) sc.scrollTop = savedScroll;
   }
 }
 
