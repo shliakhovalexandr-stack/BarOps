@@ -662,7 +662,8 @@ async function initIikoSection(venueId) {
     // Пароль не підставляємо з міркувань безпеки
 
     // Статус badge
-    if (settings.posConnected) {
+    const isConn = settings.posConnected || (settings.posLastSyncAt && !settings.posLastError);
+    if (isConn) {
       badge.textContent      = '✅ Підключено';
       badge.style.background = 'rgba(34,197,94,.15)';
       badge.style.color      = '#22c55e';
@@ -902,7 +903,8 @@ async function initPosterSection(venueId) {
     const data = await res.json();
     const settings = data.settings;
 
-    if (settings.posConnected) {
+    const isConn2 = settings.posConnected || (settings.posLastSyncAt && !settings.posLastError);
+    if (isConn2) {
       badge.textContent = '✅ Підключено';
       badge.style.background = 'rgba(34, 197, 94, 0.15)';
       badge.style.color = '#22c55e';
