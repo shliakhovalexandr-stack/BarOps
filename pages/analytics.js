@@ -711,8 +711,11 @@ function setupSwipe() {
 }
 
 function render() {
+  const savedScroll = document.querySelector('.an-scroll')?.scrollTop || 0;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
+  const sc = document.querySelector('.an-scroll');
+  if (sc && savedScroll) sc.scrollTop = savedScroll;
   _openSwipeWrap = null;
   requestAnimationFrame(setupSwipe);
   window.__an = {
