@@ -156,6 +156,7 @@ const DRAWER_NAV = [
   { route:'inventory',  label:'Інвентаризація', svg:`<rect x="2" y="3" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 12l2 2 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>` },
   { route:'recipes',    label:'Фудкост',        svg:`<path d="M5 2v5a3 3 0 006 0V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
   { route:'analytics',  label:'Аналітика',      svg:`<path d="M2 13h3V8H2zM7 13h3V4H7zM12 13h3V9h-3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>` },
+  { route:'stop-list',  label:'Stop List',      svg:`<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M6 9h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>` },
   { route:'profile',    label:'Профіль',        svg:`<circle cx="9" cy="5" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
 ];
 
