@@ -219,8 +219,8 @@ function teamListHTML() {
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg>
       </div>
       <div>
-        <div class="tm-add-text">Додати бармена</div>
-        <div class="tm-add-sub">Ім'я, телефон та PIN для входу</div>
+        <div class="tm-add-text">Додати співробітника</div>
+        <div class="tm-add-sub">Ім'я, посада та PIN для входу</div>
       </div>
     </div>
   </div>
@@ -321,7 +321,7 @@ function addSheetHTML() {
        onclick="window.__tm.closeSheetOverlay(event)">
     <div class="tm-sheet" onclick="event.stopPropagation()">
       <div class="tm-sh-handle"></div>
-      <div class="tm-sh-title">Додати бармена</div>
+      <div class="tm-sh-title">Додати співробітника</div>
       <div class="tm-sh-sub">Заклад: <strong style="color:var(--green)">${_activeVenueName || 'поточний'}</strong></div>
 
       <div class="tm-sh-lbl">Ім'я та прізвище</div>
@@ -450,7 +450,7 @@ ${CSS}
 натиснувши кнопку вище</div>
              <div class="tm-add-btn" onclick="window.__tm.openAdd()" style="margin:0;width:100%">
                <div class="tm-add-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-               <div><div class="tm-add-text">Додати першого бармена</div><div class="tm-add-sub">Ім'я, телефон та PIN для входу</div></div>
+               <div><div class="tm-add-text">Додати першого бармена</div><div class="tm-add-sub">Ім'я, посада та PIN для входу</div></div>
              </div>
            </div>`
         : teamListHTML()}
