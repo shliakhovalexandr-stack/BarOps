@@ -70,6 +70,7 @@ const CSS = `<style id="tm-css">
 .tm-name{font-family:var(--font-h);font-size:14px;font-weight:500;color:var(--text0)}
 .tm-role-badge{display:inline-flex;align-items:center;gap:4px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:20px;padding:2px 8px;font-size:10px;color:var(--green);font-family:var(--font-b);margin-top:4px}
 .tm-role-badge.mgr{background:rgba(127,119,221,.1);border-color:rgba(127,119,221,.3);color:#7F77DD}
+.tm-role-badge.admin{background:rgba(168,139,255,.12);border-color:rgba(168,139,255,.35);color:#A88BFF}
 .tm-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
 /* add button */
@@ -144,10 +145,14 @@ const CSS = `<style id="tm-css">
    HELPERS
 ════════════════════════ */
 function roleLabel(role) {
-  return role === 'manager' || role === 'MANAGER' ? 'Менеджер' : 'Бармен';
+  const map = { admin:'Адмін', manager:'Менеджер', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант' };
+  return map[(role||'').toLowerCase()] || role || 'Бармен';
 }
 function roleClass(role) {
-  return role === 'manager' || role === 'MANAGER' ? 'mgr' : '';
+  const r = (role||'').toLowerCase();
+  if (r === 'admin')   return 'admin';
+  if (r === 'manager') return 'mgr';
+  return '';
 }
 function initials(name) {
   return (name || '').split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
@@ -342,11 +347,15 @@ function addSheetHTML() {
         <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${_activeVenueName || state.venue || 'Поточний заклад'}</div>
       </div>
 
-      <div class="tm-sh-lbl">Роль</div>
-      <div class="tm-sh-roles">
-        <div class="tm-sh-role sel" id="role-bartender" onclick="window.__tm.selectRole('bartender')">🍸 Бармен</div>
-        <div class="tm-sh-role" id="role-manager" onclick="window.__tm.selectRole('manager')">👨‍💼 Менеджер</div>
-      </div>
+      <div class="tm-sh-lbl">Посада / Роль</div>
+      <select class="tm-sh-inp" id="role-select" onchange="window.__tm.selectRole(this.value)" style="cursor:pointer;margin-bottom:12px">
+        <option value="BARTENDER">🍸 Бармен</option>
+        <option value="MANAGER">👨‍💼 Менеджер</option>
+        <option value="ACCOUNTANT">📊 Бухгалтер</option>
+        <option value="CHEF">👨‍🍳 Шеф-кухар</option>
+        <option value="COOK">🍳 Кухар</option>
+        <option value="WAITER">🍽 Офіціант</option>
+      </select>
 
       ${pinKeypadHTML('add', currentPin, pinLabel)}
 
@@ -522,8 +531,6 @@ function switchTeamVenue(id, name) {
 
 function selectRole(r) {
   _selectedRole = r.toUpperCase();
-  document.querySelectorAll('.tm-sh-role').forEach(el => el.classList.remove('sel'));
-  document.getElementById('role-' + r)?.classList.add('sel');
 }
 
 /* PIN */

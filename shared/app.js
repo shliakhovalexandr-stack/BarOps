@@ -560,7 +560,7 @@ export async function navigate(route, opts = {}) {
   const drawerWrap = document.getElementById('app-drawer-wrap');
   if (drawerWrap) {
     _drawerOpen = false;
-    if (state.role === 'manager' && !noTabBar.includes(route)) renderDrawer();
+    if ((state.role === 'admin' || state.role === 'manager') && !noTabBar.includes(route)) renderDrawer();
     else drawerWrap.innerHTML = '';
   }
 }
@@ -576,8 +576,9 @@ export function goBack() {
 function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
-  const tabs = state.role === 'manager' ? TAB_BAR_MANAGER
-             : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
+  const tabs = state.role === 'admin'       ? TAB_BAR_MANAGER
+             : state.role === 'manager'     ? TAB_BAR_MANAGER
+             : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
              : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {
     const isActive = state.route === tab.route;
