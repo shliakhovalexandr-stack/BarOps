@@ -91,7 +91,7 @@ async function loadData() {
       fetch(`${API}/api/stats?venueId=${venueId}`,
                                           { headers: { Authorization: `Bearer ${token()}` } }),
       fetch(`${API}/api/register/plan`,   { headers: { Authorization: `Bearer ${token()}` } }),
-      state.role === 'manager' ? fetch(`${API}/api/pos/settings/${venueId}`, { headers: { Authorization: `Bearer ${token()}` } }) : Promise.resolve({ ok: false }),
+      (state.role === 'admin' || state.role === 'manager') ? fetch(`${API}/api/pos/settings/${venueId}`, { headers: { Authorization: `Bearer ${token()}` } }) : Promise.resolve({ ok: false }),
     ]);
 
     if (meRes.ok)    { const d = await meRes.json();    _profile = d.user; }
@@ -99,8 +99,8 @@ async function loadData() {
     if (planRes.ok)  { const d = await planRes.json();  _plan    = d; }
     if (posRes.ok)   { const d = await posRes.json();   _posSettings = d.settings; }
 
-    // Якщо менеджер — завантажуємо команду
-    if (state.role === 'manager') {
+    // Якщо адмін/менеджер — завантажуємо команду
+    if (state.role === 'admin' || state.role === 'manager') {
       const venueId = localStorage.getItem('barops_venueId') || '';
       const teamRes = await fetch(`${API}/api/auth/team?venueId=${venueId}`,
         { headers: { Authorization: `Bearer ${token()}` } });

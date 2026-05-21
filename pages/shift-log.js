@@ -573,7 +573,7 @@ function renderManager() {
    BUILD
 ════════════════════════ */
 function buildHTML() {
-  const body = state.role === 'manager' ? renderManager() : renderBartender();
+  const body = (state.role === 'admin' || state.role === 'manager') ? renderManager() : renderBartender();
   return `${CSS}<div class="sl-wrap">${body}</div>`;
 }
 function fullRender() {

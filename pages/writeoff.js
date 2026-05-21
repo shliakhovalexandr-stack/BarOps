@@ -970,7 +970,7 @@ function removeReason(cat, idx) {
 ════════════════════════ */
 export default {
   render() {
-    _view       = state.role === 'manager' ? 'manager' : 'bartender';
+    _view       = (state.role === 'admin' || state.role === 'manager') ? 'manager' : 'bartender';
     _catFilter  = 'all';
     _formOpen   = false;
     _formStep   = 1;

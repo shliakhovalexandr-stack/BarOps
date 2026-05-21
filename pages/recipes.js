@@ -780,7 +780,7 @@ function buildMain() {
 }
 
 function buildDetail(d) {
-  const isMgr = _role === 'manager';
+  const isMgr = _role === 'admin' || _role === 'manager';
   const cost  = calcCost(d);
   const fc    = calcFC(d);
   const price = _prices[d.id]?.salePrice || d.sellingPrice || 0;

@@ -565,7 +565,7 @@ function renderManager() {
    BUILD + RENDER
 ════════════════════════ */
 function buildHTML() {
-  const body = state.role === 'manager' ? renderManager() : renderBartender();
+  const body = (state.role === 'admin' || state.role === 'manager') ? renderManager() : renderBartender();
   return `${CSS}<div class="ord-wrap">${body}</div>`;
 }
 function fullRender() {
