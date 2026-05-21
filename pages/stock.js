@@ -361,7 +361,13 @@ function fullRender() {
 }
 
 function setFilter(f) { _filter = f; fullRender(); }
-function search(q)    { _search = q; fullRender(); }
+function search(q) {
+  _search = q;
+  const pos = document.querySelector('.stk-search-inp')?.selectionStart ?? null;
+  fullRender();
+  const inp = document.querySelector('.stk-search-inp');
+  if (inp) { inp.focus(); if (pos !== null) inp.setSelectionRange(pos, pos); }
+}
 
 function _openFilterSheet(id, title, options, activeSet, toggleFn, clearFn) {
   const existing = document.getElementById(id);
