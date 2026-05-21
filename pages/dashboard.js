@@ -65,6 +65,9 @@ const QUICK_MANAGER = [
     svg:`<rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/>
          <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <path d="M13 10l2 2-1 1-2-2v-.5l1-1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>` },
+  { route:'writeoff',  badge:null, label:'Списання',        hint:'Списати товари зі складу',     color:'var(--red-bg)',    iconColor:'var(--red)',
+    svg:`<path d="M3 14l2-2 7-7 2 2-7 7-2 2H3v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+         <path d="M10 5l2 2" stroke="currentColor" stroke-width="1.3"/>` },
 ];
 
 /* ════════════════════════
