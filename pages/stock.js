@@ -280,6 +280,7 @@ ${CSS}
     ${_isSyrve && allWarehouses.length > 1 ? `<button class="stk-filter-btn ${_warehouseFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openWarehouseFilter()">${warehouseLabel}</button>` : ''}
     ${_isSyrve && allCats.length > 0 ? `<button class="stk-filter-btn ${_catFilter.size > 0 ? 'active' : ''}" onclick="window.__stk.openCatFilter()">${catLabel}</button>` : ''}
     ${anyFilter ? `<button class="stk-filter-btn" onclick="window.__stk.clearAllFilters()" style="color:var(--red);border-color:var(--red)">✕ Скинути</button>` : ''}
+    <div style="min-width:12px;flex-shrink:0"></div>
   </div>
 
   <div class="stk-summary">
