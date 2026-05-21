@@ -15,6 +15,7 @@ let _error     = '';
 let _syncedAt  = null;
 let _activeStops = [];
 let _atRisk      = [];
+let _pollTimer   = null;
 
 /* ════════════════════════
    CSS
@@ -428,6 +429,8 @@ export function render() {
    INIT
 ════════════════════════ */
 export function init() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+
   window.__stopList = {
     refresh() { loadStopList(); },
     notifyTeam() {
@@ -440,6 +443,15 @@ export function init() {
   };
 
   loadStopList();
+
+  _pollTimer = setInterval(() => {
+    if (!document.querySelector('.sl-wrap')) {
+      clearInterval(_pollTimer);
+      _pollTimer = null;
+      return;
+    }
+    loadStopList();
+  }, 30000);
 }
 
 export default { render, init };
