@@ -108,6 +108,31 @@ const TAB_BAR_BARTENDER = [
   },
 ];
 
+const TAB_BAR_ACCOUNTANT = [
+  {
+    route: 'debts', label: 'Борги',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M4 6h14M4 10h10M4 14h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="16" cy="15" r="4" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M16 13.5v1.5l1 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'inventory', label: 'Інвентар.',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="3" y="3" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M7 8h8M7 12h6M7 16h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'profile', label: 'Профіль',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M4 19c0-3.9 3.1-7 7-7h.5c3.9 0 6.5 3.1 6.5 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+];
+
 const TAB_BAR_MANAGER = [
   {
     route: 'dashboard', label: 'Дашборд',
@@ -551,7 +576,9 @@ export function goBack() {
 function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
-  const tabs = state.role === 'manager' ? TAB_BAR_MANAGER : TAB_BAR_BARTENDER;
+  const tabs = state.role === 'manager' ? TAB_BAR_MANAGER
+             : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
+             : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {
     const isActive = state.route === tab.route;
     const color = isActive ? 'var(--green)' : 'var(--text2)';

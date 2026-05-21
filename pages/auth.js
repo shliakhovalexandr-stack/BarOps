@@ -553,7 +553,7 @@ async function doManagerLogin() {
     if (!res.ok) throw new Error(data.error || 'Помилка входу');
 
     saveSession(data);
-    navigate('dashboard');
+    navigate(data.user.role === 'accountant' ? 'debts' : 'dashboard');
   } catch (err) {
     _mgrLoading = false;
     _mgrError   = err.message;
@@ -618,7 +618,7 @@ async function doRegister() {
 }
 
 function enterApp() {
-  navigate('dashboard');
+  navigate(state.role === 'accountant' ? 'debts' : 'dashboard');
 }
 
 /* ════════════════════════
@@ -695,7 +695,7 @@ async function doLogin() {
     if (!res.ok) throw new Error(data.error || 'Помилка входу');
 
     saveSession(data);
-    navigate('dashboard');
+    navigate(data.user.role === 'accountant' ? 'debts' : 'dashboard');
   } catch (err) {
     showError(err.message || 'Невірний PIN або номер');
   }
