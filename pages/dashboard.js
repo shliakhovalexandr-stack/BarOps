@@ -512,15 +512,15 @@ ${CSS}
       <div class="d-vsheet-handle"></div>
       <div class="d-vsheet-title">Оберіть заклад</div>
 
-      ${_venues.map((v, i) => `
+      ${_venues.map((v, i) => { const vn = v.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'"); return `
       <div class="d-venue-option ${_activeVenueId === v.id ? 'sel' : ''}"
-           onclick="window.__dash.selectVenue('${v.id}','${v.name}')">
+           onclick="window.__dash.selectVenue('${v.id}','${vn}')">
         <div class="d-vo-dot" style="background:${VENUE_COLORS[i % VENUE_COLORS.length]}"></div>
         <div style="flex:1">
           <div class="d-vo-name">${v.name}</div>
           <div class="d-vo-pos">${v.posType === 'syrve' ? '✓ Syrve підключено' : v.posType === 'manual' ? 'Ручний режим' : v.posType}</div>
           ${v.posType !== 'syrve' ? `
-          <div class="d-vo-connect" onclick="event.stopPropagation();window.__dash.openSyrveSheet('${v.id}','${v.name}')">
+          <div class="d-vo-connect" onclick="event.stopPropagation();window.__dash.openSyrveSheet('${v.id}','${vn}')">
             + Підключити Syrve
           </div>` : ''}
         </div>
@@ -530,7 +530,7 @@ ${CSS}
             <path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>` : ''}
-      </div>`).join('')}
+      </div>`}).join('')}
     </div>
   </div>
   ` : ''}

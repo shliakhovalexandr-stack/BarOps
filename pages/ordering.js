@@ -496,7 +496,7 @@ function prodPickerHTML() {
           : filtered.map(b => {
               const isOn = assigned.has(b.id);
               const spId = assigned.get(b.id) || '';
-              const name = b.name.replace(/'/g, '&#39;');
+              const name = b.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
               return `
               <div class="ord-pp-row" onclick="window.__ord.toggleProduct('${supp.id}','${b.id}','${name}','${spId}')">
                 <div class="ord-pp-check ${isOn ? 'on' : ''}">

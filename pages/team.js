@@ -427,15 +427,15 @@ ${CSS}
   <!-- Venue selector -->
   ${_venues.length > 1 ? `
   <div style="padding:0 14px 10px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none">
-    ${_venues.map(v => `
-      <div onclick="window.__tm.switchTeamVenue('${v.id}','${v.name}')"
+    ${_venues.map(v => { const vn = v.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'"); return `
+      <div onclick="window.__tm.switchTeamVenue('${v.id}','${vn}')"
         style="flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-family:var(--font-b);cursor:pointer;transition:all .15s;
           background:${_activeVenueId===v.id?'var(--green)':'var(--bg2)'};
           color:${_activeVenueId===v.id?'#fff':'var(--text1)'};
           border:0.5px solid ${_activeVenueId===v.id?'var(--green)':'var(--border2)'}">
         ${v.name}
       </div>
-    `).join('')}
+    `}).join('')}
   </div>` : ''}
 
   <!-- List -->
