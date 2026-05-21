@@ -421,7 +421,7 @@ function buildPage() {
   return `
     ${CSS}
     <div class="inv-wrap">
-      ${_role === 'manager' ? roleTabs() : ''}
+      ${(_role === 'admin' || _role === 'accountant') ? roleTabs() : ''}
       <div class="inv-scroll" id="inv-scroll">
         ${_view === 'mgr' ? buildMgr() : buildBar()}
       </div>
@@ -913,7 +913,7 @@ export default {
     _venueId       = state.venueId || localStorage.getItem('barops_venueId');
     _token         = state.token   || localStorage.getItem('barops_token');
     _role          = state.role    || localStorage.getItem('barops_role');
-    _view          = _role === 'manager' ? 'mgr' : 'bar';
+    _view          = (_role === 'admin' || _role === 'accountant') ? 'mgr' : 'bar';
     _submitted     = false;
     _openPid       = null;
     _showSchedForm = false;
