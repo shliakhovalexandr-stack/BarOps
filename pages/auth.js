@@ -603,6 +603,7 @@ export default {
                 const rd = await rr.json();
                 if (rr.ok && rd.token) {
                   localStorage.setItem('barops_token', rd.token);
+                  if (rd.role) { state.role = rd.role; localStorage.setItem('barops_role', rd.role); }
                   navigate(state.role === 'accountant' ? 'debts' : 'dashboard');
                   return;
                 }
