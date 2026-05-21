@@ -702,15 +702,19 @@ function closeProdPicker(e) {
 function prodSearchChange(q) {
   _prodSearch = q;
   const el = document.getElementById('prod-picker-ov');
-  if (el) {
-    const body = el.querySelector('.ord-sheet-body');
-    if (body) {
-      const tmpPicker = _prodPickerSupp;
-      // re-render just the items
-      body.innerHTML = prodPickerHTML().match(/<div class="ord-sheet-body">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>$/)?.[1] || '';
-    }
+  if (!el) return;
+  const body = el.querySelector('.ord-sheet-body');
+  if (!body) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = prodPickerHTML();
+  const newBody = tmp.querySelector('.ord-sheet-body');
+  if (newBody) {
+    const inp = body.querySelector('.ord-sheet-search-inp');
+    const pos = inp ? inp.selectionStart : null;
+    body.innerHTML = newBody.innerHTML;
+    const newInp = body.querySelector('.ord-sheet-search-inp');
+    if (newInp) { newInp.focus(); if (pos !== null) newInp.setSelectionRange(pos, pos); }
   }
-  fullRender();
 }
 
 async function toggleProduct(suppId, productId, productName, spId) {
