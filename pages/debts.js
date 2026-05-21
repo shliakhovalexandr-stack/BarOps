@@ -149,8 +149,18 @@ async function loadProducts() {
   const venueId = localStorage.getItem('barops_venueId') || '';
   if (!venueId) return;
   try {
-    const d = await apiFetch(`/api/pos/balance?venueId=${venueId}`);
-    _products = (d.items || []).sort((a, b) => a.name.localeCompare(b.name, 'uk'));
+    const d = await apiFetch(`/api/pos/balance/${venueId}`);
+    const seen = new Set();
+    const flat = [];
+    for (const store of (d.stores || [])) {
+      for (const item of (store.items || [])) {
+        if (!seen.has(item.name)) {
+          seen.add(item.name);
+          flat.push({ id: item.id, name: item.name, qty: Math.round((Number(item.amount)||0)*100)/100, unit: item.unit || '' });
+        }
+      }
+    }
+    _products = flat.sort((a, b) => a.name.localeCompare(b.name, 'uk'));
     _productsLoaded = true;
   } catch { _products = []; }
 }
