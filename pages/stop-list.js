@@ -220,7 +220,7 @@ function buildPage() {
   return CSS + `
   <div class="sl-wrap">
     <div class="sl-header">
-      <button class="sl-back" onclick="navigate('dashboard')">
+      <button class="sl-back" onclick="window.__barops.navigate('dashboard')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -341,7 +341,7 @@ function quickActionsSection() {
         </div>
         <div class="sl-qa-label">Повідомити барменів</div>
       </div>
-      <div class="sl-qa" onclick="navigate('ordering')">
+      <div class="sl-qa" onclick="window.__barops.navigate('ordering')">
         <div class="sl-qa-icon">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <rect x="2" y="2" width="12" height="12" rx="2" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
@@ -350,7 +350,7 @@ function quickActionsSection() {
         </div>
         <div class="sl-qa-label">Відкрити замовлення</div>
       </div>
-      <div class="sl-qa" onclick="navigate('inventory')">
+      <div class="sl-qa" onclick="window.__barops.navigate('inventory')">
         <div class="sl-qa-icon">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 3h10l-1 8H4L3 3z" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
