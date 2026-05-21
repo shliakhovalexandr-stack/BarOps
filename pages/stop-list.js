@@ -162,7 +162,7 @@ function stopCard(item) {
       <div class="sl-card-row1">
         <div>
           <div class="sl-card-name">${item.name}</div>
-          <div class="sl-card-cat">${item.category || '—'} · ${item.reasonLabel}</div>
+          <div class="sl-card-cat">${item.topStore ? `<span style="font-weight:700;color:var(--text1)">${item.topStore}</span> · ` : ''}${item.category || '—'} · ${item.reasonLabel}</div>
         </div>
         <div class="sl-urgency ${item.urgency}">${urgencyLabel(item.urgency)}</div>
       </div>
@@ -287,14 +287,26 @@ function buildDataPage(critCount) {
       </div>
     </div>
 
-    ${totalStops > 0 ? `
-    <div class="sl-section">
-      <div class="sl-section-hdr">
-        <div class="sl-section-title">Активні зупинки</div>
-        <div class="sl-section-badge red">${totalStops} позицій</div>
-      </div>
-      ${_activeStops.map(stopCard).join('')}
-    </div>` : ''}
+    ${totalStops > 0 ? (() => {
+      const byStore = {};
+      for (const s of _activeStops) {
+        const key = s.topStore || 'Інше';
+        if (!byStore[key]) byStore[key] = [];
+        byStore[key].push(s);
+      }
+      const order = ['Бар', 'Кухня', ...Object.keys(byStore).filter(k => k !== 'Бар' && k !== 'Кухня')];
+      return `<div class="sl-section">
+        <div class="sl-section-hdr">
+          <div class="sl-section-title">Активні зупинки</div>
+          <div class="sl-section-badge red">${totalStops} позицій</div>
+        </div>
+        ${order.filter(k => byStore[k]).map(k => `
+          <div style="margin-bottom:4px">
+            <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;padding:8px 4px 4px">${k} · ${byStore[k].length}</div>
+            ${byStore[k].map(stopCard).join('')}
+          </div>`).join('')}
+      </div>`;
+    })() : ''}
 
     ${riskCount > 0 ? `
     <div class="sl-divider"></div>
