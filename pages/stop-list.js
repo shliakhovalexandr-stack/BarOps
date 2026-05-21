@@ -62,25 +62,22 @@ const CSS = `<style id="sl-styles">
 .sl-card.high{border-color:rgba(251,191,36,.25)}
 .sl-card.med{border-color:rgba(147,197,253,.20)}
 
-.sl-card-top{padding:14px 16px 12px;border-bottom:0.5px solid var(--border)}
-.sl-card-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
-.sl-card-name{font-family:var(--font-h);font-size:15px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
-.sl-card-cat{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.sl-card-top{padding:9px 14px 9px}
+.sl-card-row1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.sl-card-name{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
+.sl-card-cat{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 .sl-urgency{padding:4px 9px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;flex-shrink:0}
 .sl-urgency.critical{background:var(--red);color:#000}
 .sl-urgency.high{background:var(--amber);color:#000}
 .sl-urgency.medium{background:var(--blue-bg);color:var(--blue);border:0.5px solid var(--blue-border)}
 
-.sl-card-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.sl-card-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .sl-metric{display:flex;flex-direction:column;gap:1px}
 .sl-metric-lbl{font-size:9px;color:var(--text3);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase}
-.sl-metric-val{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
+.sl-metric-val{font-family:var(--font-h);font-size:12px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
 .sl-metric-val.red{color:var(--red)}
 .sl-metric-val.amber{color:var(--amber)}
 .sl-metric-val.dim{color:var(--text2)}
-
-.sl-card-mid{padding:10px 16px;border-bottom:0.5px solid var(--border);background:rgba(255,255,255,.02)}
-.sl-card-mid-lbl{font-size:10px;color:var(--text3);font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
 
 /* At risk section */
 .sl-risk-item{padding:12px 0;border-bottom:0.5px solid var(--border)}
@@ -180,10 +177,6 @@ function stopCard(item) {
           <div class="sl-metric-val ${isSoldOut ? 'red' : 'amber'}">${isSoldOut ? 'Стоп' : 'Критично'}</div>
         </div>
       </div>
-    </div>
-    <div class="sl-card-mid">
-      <div class="sl-card-mid-lbl">Причина</div>
-      <div style="font-size:12px;color:var(--text1);font-family:var(--font-b)">${item.reasonLabel}</div>
     </div>
   </div>`;
 }
