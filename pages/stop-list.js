@@ -133,9 +133,9 @@ function fmtStock(item) {
 }
 
 function urgencyLabel(u) {
-  if (u === 'critical') return 'КРИТИЧНО';
-  if (u === 'high')     return 'ВИСОКИЙ';
-  return 'СЕРЕДНІЙ';
+  if (u === 'critical') return 'СТОП';
+  if (u === 'high')     return 'СТОП';
+  return 'СТОП';
 }
 
 function fmtSyncedAt(iso) {
