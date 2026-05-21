@@ -748,7 +748,7 @@ function renderManager() {
       Налаштування причин списання
       <button class="wo-sec-link" style="color:var(--green)" onclick="window.__wo.addCustomReason()">+ Додати</button>
     </div>
-    <div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden">
+    <div id="wo-reasons-wrap" style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden">
       ${Object.entries(REASONS).map(([cat, reasons]) => `
       <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
         <div style="font-size:11px;color:${CAT[cat].color};font-family:var(--font-b);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
@@ -959,10 +959,30 @@ function addCustomReason() {
   const cat = prompt('Категорія (biy/psuv/deg/insh):');
   if (!REASONS[cat]) { alert('Невірна категорія'); return; }
   const text = prompt('Текст причини:');
-  if (text?.trim()) { REASONS[cat].push(text.trim()); fullRender(); }
+  if (text?.trim()) { REASONS[cat].push(text.trim()); refreshReasons(); }
+}
+function refreshReasons() {
+  const el = document.getElementById('wo-reasons-wrap');
+  if (!el) { fullRender(); return; }
+  el.innerHTML = Object.entries(REASONS).map(([cat, reasons]) => `
+  <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+    <div style="font-size:11px;color:${CAT[cat].color};font-family:var(--font-b);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+      ${CAT[cat].label}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      ${reasons.map((r,i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:8px">
+        <span style="flex:1;font-size:12px;color:var(--text1);font-family:var(--font-b)">${r}</span>
+        <div onclick="window.__wo.removeReason('${cat}',${i})"
+          style="width:20px;height:20px;border-radius:6px;background:var(--red-bg);border:1px solid var(--red-border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`).join('');
 }
 function removeReason(cat, idx) {
-  if (REASONS[cat]) { REASONS[cat].splice(idx, 1); fullRender(); }
+  if (REASONS[cat]) { REASONS[cat].splice(idx, 1); refreshReasons(); }
 }
 
 /* ════════════════════════
