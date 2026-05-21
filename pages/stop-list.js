@@ -1,89 +1,20 @@
 /* ============================================================
    BarOps — pages/stop-list.js
-   Stop List — operational control center для бар-менеджера
+   Stop List — операційний центр з реальними даними Syrve
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
 
+const API = 'https://barops-backend-production.up.railway.app';
+
 /* ════════════════════════
-   MOCK DATA
-   У продакшні — дані з POS API
+   MODULE STATE
 ════════════════════════ */
-const ACTIVE_STOPS = [
-  {
-    id: 1, name: "Hendrick's Gin", category: 'Джин',
-    reason: 'sold_out', reasonLabel: 'Закінчився',
-    stoppedAt: '21:02', minutesAgo: 104,
-    stockLeft: 0, stockUnit: 'пл.',
-    lostRevenue: 3840, lostPerHour: 2210,
-    urgency: 'critical',
-    substitutes: ['Tanqueray', 'Beefeater'],
-    action: 'Терміновий виклик постачальника',
-    affectedDrinks: ['Hendricks G&T', 'Cucumber Collins', 'Bramble'],
-  },
-  {
-    id: 2, name: 'Fever-Tree Tonic', category: 'Міксери',
-    reason: 'sold_out', reasonLabel: 'Закінчився',
-    stoppedAt: '21:49', minutesAgo: 57,
-    stockLeft: 0, stockUnit: 'пл.',
-    lostRevenue: 1920, lostPerHour: 2025,
-    urgency: 'critical',
-    substitutes: ['Schweppes Tonic', 'Thomas Henry'],
-    action: 'Замінити на Schweppes — повідомити барменів',
-    affectedDrinks: ['Gin & Tonic', 'Vodka Tonic'],
-  },
-  {
-    id: 3, name: 'Aperol', category: 'Аперитиви',
-    reason: 'low_stock', reasonLabel: 'Залишок критичний',
-    stoppedAt: null, minutesAgo: null,
-    stockLeft: 0.3, stockUnit: 'л',
-    lostRevenue: 0, lostPerHour: 1540,
-    urgency: 'high',
-    substitutes: ['Campari (менш солодкий)', 'Select Aperitivo'],
-    action: 'Зупинити продаж Aperol Spritz до поповнення',
-    affectedDrinks: ['Aperol Spritz', 'Veneziano'],
-  },
-  {
-    id: 4, name: 'Lillet Blanc', category: 'Вермути',
-    reason: 'low_stock', reasonLabel: 'Залишок малий',
-    stoppedAt: null, minutesAgo: null,
-    stockLeft: 0.15, stockUnit: 'л',
-    lostRevenue: 0, lostPerHour: 420,
-    urgency: 'medium',
-    substitutes: ['Dolin Blanc', 'Martini Bianco'],
-    action: 'Попередити барменів — підготувати заміну',
-    affectedDrinks: ['Vesper Martini', 'Corpse Reviver #2'],
-  },
-];
-
-const INGREDIENT_RISKS = [
-  { name: 'Лимонний сік', pct: 12, eta: '23:10', consumption: '180мл/год', urgency: 'critical' },
-  { name: 'Campari', pct: 18, eta: '23:45', consumption: '220мл/год', urgency: 'high' },
-  { name: 'Simple Syrup', pct: 24, eta: '00:20', consumption: '150мл/год', urgency: 'high' },
-  { name: 'Grenadine', pct: 31, eta: '01:15', consumption: '90мл/год', urgency: 'medium' },
-  { name: 'Blue Curaçao', pct: 38, eta: '01:50', consumption: '70мл/год', urgency: 'medium' },
-];
-
-const PREDICTED_STOPS = [
-  { name: 'Campari', predictedAt: '23:45', confidence: 94, reason: 'Поточний темп споживання' },
-  { name: 'Лимонний сік', predictedAt: '23:10', confidence: 98, reason: 'Пік попиту о 23:00' },
-  { name: 'Simple Syrup', predictedAt: '00:20', confidence: 87, reason: 'Середній темп останніх 2 год' },
-  { name: 'Grenadine', predictedAt: '01:15', confidence: 71, reason: 'Сезонний патерн п\'ятниці' },
-];
-
-const SMART_INSIGHTS = [
-  { icon: '◉', color: 'var(--red)', text: "Hendrick's зупинявся щоп'ятниці 3 тижні поспіль — замовлення на четвер" },
-  { icon: '◈', color: 'var(--amber)', text: 'Пікове навантаження о 23:00–00:30 — підготуйте заміни для топ-5 позицій' },
-  { icon: '◎', color: 'var(--green)', text: 'Fever-Tree можна замінити Schweppes — втрата маржі лише 8%' },
-  { icon: '◇', color: 'var(--blue)', text: 'Лимонний сік закінчується щовечора — збільшити запас вдвічі' },
-];
-
-const OPERATIONAL_ALERTS = [
-  { type: 'critical', msg: 'Постачальник Hendricks не відповів на замовлення від 18:00', time: '2 год тому' },
-  { type: 'warning',  msg: 'Пік навантаження через ~90 хв — підготуйте 8 стоп-позицій', time: '18 хв тому' },
-  { type: 'warning',  msg: 'Бармен ще не підтвердив отримання стоп-ліста', time: '1 год тому' },
-  { type: 'info',     msg: 'Автоматичне замовлення Fever-Tree заплановане на 09:00', time: 'щойно' },
-];
+let _loading   = false;
+let _error     = '';
+let _syncedAt  = null;
+let _activeStops = [];
+let _atRisk      = [];
 
 /* ════════════════════════
    CSS
@@ -149,21 +80,8 @@ const CSS = `<style id="sl-styles">
 
 .sl-card-mid{padding:10px 16px;border-bottom:0.5px solid var(--border);background:rgba(255,255,255,.02)}
 .sl-card-mid-lbl{font-size:10px;color:var(--text3);font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
-.sl-reason-row{display:flex;align-items:center;gap:6px}
-.sl-reason-chip{font-size:11px;font-weight:500;color:var(--text1);font-family:var(--font-b)}
-.sl-drinks-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.sl-drink-tag{font-size:10px;color:var(--text2);background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:2px 7px;font-family:var(--font-b)}
 
-.sl-card-bottom{padding:10px 16px}
-.sl-subs-lbl{font-size:10px;color:var(--text3);font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px}
-.sl-subs-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-.sl-sub{font-size:11px;color:var(--green);background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:6px;padding:3px 8px;font-family:var(--font-b)}
-.sl-action-btn{width:100%;height:38px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:10px;color:var(--text1);font-size:12px;font-weight:500;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:6px;padding:0 12px;text-align:left}
-.sl-action-btn:active{background:var(--bg3)}
-.sl-action-btn.primary{background:var(--green);color:#000;font-weight:600;border:none}
-.sl-action-btn.primary:active{filter:brightness(.9)}
-
-/* Ingredient risk */
+/* At risk section */
 .sl-risk-item{padding:12px 0;border-bottom:0.5px solid var(--border)}
 .sl-risk-item:last-child{border-bottom:none}
 .sl-risk-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -179,52 +97,20 @@ const CSS = `<style id="sl-styles">
 .sl-risk-bar-fill.medium{background:var(--blue)}
 .sl-risk-meta{display:flex;justify-content:space-between}
 .sl-risk-pct{font-size:10px;color:var(--text3);font-family:var(--font-b)}
-.sl-risk-cons{font-size:10px;color:var(--text3);font-family:var(--font-b)}
+.sl-risk-cat{font-size:10px;color:var(--text3);font-family:var(--font-b)}
 
-/* Predicted stops */
-.sl-pred-item{padding:10px 0;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px}
-.sl-pred-item:last-child{border-bottom:none}
-.sl-pred-time-block{background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:8px;padding:6px 10px;text-align:center;min-width:52px;flex-shrink:0}
-.sl-pred-time{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--red);letter-spacing:-.01em;line-height:1}
-.sl-pred-time.amber{color:var(--amber)}
-.sl-pred-time-block.amber{background:var(--amber-bg);border-color:var(--amber-border)}
-.sl-pred-info{flex:1;min-width:0}
-.sl-pred-name{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0)}
-.sl-pred-reason{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.sl-pred-conf{font-size:10px;font-weight:700;font-family:var(--font-b);padding:2px 6px;border-radius:4px}
-.sl-pred-conf.hi{color:var(--red);background:var(--red-bg)}
-.sl-pred-conf.mid{color:var(--amber);background:var(--amber-bg)}
-
-/* Revenue loss */
-.sl-revenue-card{background:var(--bg1);border:0.5px solid rgba(168,139,255,.20);border-radius:14px;padding:16px;margin-bottom:0}
-.sl-revenue-total-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
-.sl-revenue-total{font-family:var(--font-h);font-size:34px;font-weight:700;color:var(--green);letter-spacing:-.04em;line-height:1}
-.sl-revenue-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:4px;margin-bottom:16px}
-.sl-revenue-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)}
-.sl-revenue-row:last-child{border-bottom:none}
-.sl-revenue-item-name{font-size:12px;color:var(--text1);font-family:var(--font-b)}
-.sl-revenue-item-val{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
-.sl-revenue-rate{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
-
-/* Insights */
-.sl-insight-item{padding:12px 0;border-bottom:0.5px solid var(--border);display:flex;align-items:flex-start;gap:10px}
-.sl-insight-item:last-child{border-bottom:none}
-.sl-insight-icon{width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;margin-top:1px}
-.sl-insight-text{font-size:12px;color:var(--text1);font-family:var(--font-b);line-height:1.55}
-
-/* Alerts */
-.sl-alert{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-radius:12px;margin-bottom:8px}
-.sl-alert:last-child{margin-bottom:0}
-.sl-alert.critical{background:rgba(251,113,133,.08);border:0.5px solid var(--red-border)}
-.sl-alert.warning{background:rgba(251,191,36,.07);border:0.5px solid var(--amber-border)}
-.sl-alert.info{background:rgba(168,139,255,.07);border:0.5px solid var(--green-border)}
-.sl-alert-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
-.sl-alert-dot.critical{background:var(--red)}
-.sl-alert-dot.warning{background:var(--amber)}
-.sl-alert-dot.info{background:var(--green)}
-.sl-alert-body{flex:1;min-width:0}
-.sl-alert-msg{font-size:12px;color:var(--text1);font-family:var(--font-b);line-height:1.45}
-.sl-alert-time{font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:3px}
+/* Loading / empty */
+.sl-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:60px 20px}
+.sl-loading-ring{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.08);border-top-color:#A88BFF;animation:slSpin .8s linear infinite}
+@keyframes slSpin{to{transform:rotate(360deg)}}
+.sl-loading-text{font-size:12px;color:var(--text2);font-family:var(--font-b)}
+.sl-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:48px 20px;text-align:center}
+.sl-empty-icon{font-size:32px;opacity:.4}
+.sl-empty-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0)}
+.sl-empty-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.55}
+.sl-error{margin:16px 20px;background:rgba(251,113,133,.08);border:0.5px solid var(--red-border);border-radius:12px;padding:14px;font-size:12px;color:var(--red);font-family:var(--font-b);line-height:1.5}
+.sl-refresh-btn{margin:12px 20px 0;height:36px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:10px;color:var(--text1);font-size:12px;font-family:var(--font-b);cursor:pointer;width:calc(100% - 40px)}
+.sl-refresh-btn:active{background:var(--bg3)}
 
 /* Quick actions */
 .sl-actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -242,9 +128,10 @@ const CSS = `<style id="sl-styles">
 /* ════════════════════════
    HELPERS
 ════════════════════════ */
-function fmtRevenue(n) {
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'к ₴';
-  return n + ' ₴';
+function fmtStock(item) {
+  if (item.stock === 0) return '0 ' + item.unit;
+  const v = typeof item.stock === 'number' ? item.stock : 0;
+  return (v < 1 ? v.toFixed(2) : v.toFixed(1)).replace(/\.0+$/, '') + ' ' + item.unit;
 }
 
 function urgencyLabel(u) {
@@ -253,12 +140,19 @@ function urgencyLabel(u) {
   return 'СЕРЕДНІЙ';
 }
 
-function stopCard(item) {
-  const isLive = item.stoppedAt !== null;
-  const timeStr = isLive
-    ? `Зупинено о ${item.stoppedAt} · ${item.minutesAgo} хв тому`
-    : 'Ще не зупинено — критичний залишок';
+function fmtSyncedAt(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' });
+  } catch { return ''; }
+}
 
+/* ════════════════════════
+   CARD BUILDERS
+════════════════════════ */
+function stopCard(item) {
+  const isSoldOut = item.stock <= 0;
   const cardClass = item.urgency === 'critical' ? 'crit' : item.urgency === 'high' ? 'high' : 'med';
 
   return `
@@ -267,96 +161,70 @@ function stopCard(item) {
       <div class="sl-card-row1">
         <div>
           <div class="sl-card-name">${item.name}</div>
-          <div class="sl-card-cat">${item.category} · ${timeStr}</div>
+          <div class="sl-card-cat">${item.category || '—'} · ${item.reasonLabel}</div>
         </div>
         <div class="sl-urgency ${item.urgency}">${urgencyLabel(item.urgency)}</div>
       </div>
       <div class="sl-card-metrics">
         <div class="sl-metric">
           <div class="sl-metric-lbl">Залишок</div>
-          <div class="sl-metric-val ${item.stockLeft === 0 ? 'red' : 'amber'}">${item.stockLeft === 0 ? '0' : item.stockLeft} ${item.stockUnit}</div>
+          <div class="sl-metric-val ${isSoldOut ? 'red' : 'amber'}">${fmtStock(item)}</div>
         </div>
         <div class="sl-metric">
-          <div class="sl-metric-lbl">Втрати</div>
-          <div class="sl-metric-val ${item.lostRevenue > 0 ? 'red' : 'dim'}">${item.lostRevenue > 0 ? fmtRevenue(item.lostRevenue) : '—'}</div>
+          <div class="sl-metric-lbl">Одиниця</div>
+          <div class="sl-metric-val dim">${item.unit || '—'}</div>
         </div>
         <div class="sl-metric">
-          <div class="sl-metric-lbl">₴/год</div>
-          <div class="sl-metric-val amber">${fmtRevenue(item.lostPerHour)}</div>
+          <div class="sl-metric-lbl">Статус</div>
+          <div class="sl-metric-val ${isSoldOut ? 'red' : 'amber'}">${isSoldOut ? 'Стоп' : 'Критично'}</div>
         </div>
       </div>
     </div>
-
     <div class="sl-card-mid">
-      <div class="sl-card-mid-lbl">Причина · Зачіплені страви</div>
-      <div class="sl-reason-row">
-        <div class="sl-reason-chip">${item.reasonLabel}</div>
-      </div>
-      <div class="sl-drinks-row">
-        ${item.affectedDrinks.map(d => `<span class="sl-drink-tag">${d}</span>`).join('')}
-      </div>
-    </div>
-
-    <div class="sl-card-bottom">
-      <div class="sl-subs-lbl">Заміни</div>
-      <div class="sl-subs-row">
-        ${item.substitutes.map(s => `<span class="sl-sub">${s}</span>`).join('')}
-      </div>
-      <button class="sl-action-btn ${item.urgency === 'critical' ? 'primary' : ''}" onclick="window.__stopList.action(${item.id})">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2v6l4 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
-        </svg>
-        ${item.action}
-      </button>
+      <div class="sl-card-mid-lbl">Причина</div>
+      <div style="font-size:12px;color:var(--text1);font-family:var(--font-b)">${item.reasonLabel}</div>
     </div>
   </div>`;
 }
 
-function riskItem(r) {
+function riskCard(item) {
+  const pct = item.stock > 0 ? Math.min(Math.round(item.stock * 100), 100) : 0;
+  const urgency = item.urgency || 'high';
   return `
   <div class="sl-risk-item">
     <div class="sl-risk-row1">
-      <div class="sl-risk-name">${r.name}</div>
-      <div class="sl-risk-eta ${r.urgency}">Стоп ~${r.eta}</div>
+      <div class="sl-risk-name">${item.name}</div>
+      <div class="sl-risk-eta ${urgency}">Малий залишок</div>
     </div>
     <div class="sl-risk-bar-bg">
-      <div class="sl-risk-bar-fill ${r.urgency}" style="width:${r.pct}%"></div>
+      <div class="sl-risk-bar-fill ${urgency}" style="width:${Math.max(pct, 4)}%"></div>
     </div>
     <div class="sl-risk-meta">
-      <span class="sl-risk-pct">${r.pct}% залишилось</span>
-      <span class="sl-risk-cons">${r.consumption}</span>
+      <span class="sl-risk-pct">${fmtStock(item)} залишилось</span>
+      <span class="sl-risk-cat">${item.category || ''}</span>
     </div>
-  </div>`;
-}
-
-function predItem(p) {
-  const isUrgent = parseInt(p.predictedAt) < 0 || p.confidence >= 90;
-  return `
-  <div class="sl-pred-item">
-    <div class="sl-pred-time-block ${isUrgent ? '' : 'amber'}">
-      <div class="sl-pred-time ${isUrgent ? '' : 'amber'}">${p.predictedAt}</div>
-    </div>
-    <div class="sl-pred-info">
-      <div class="sl-pred-name">${p.name}</div>
-      <div class="sl-pred-reason">${p.reason}</div>
-    </div>
-    <div class="sl-pred-conf ${p.confidence >= 85 ? 'hi' : 'mid'}">${p.confidence}%</div>
   </div>`;
 }
 
 /* ════════════════════════
-   RENDER
+   BUILD PAGE HTML
 ════════════════════════ */
-export function render() {
-  const critCount  = ACTIVE_STOPS.filter(s => s.urgency === 'critical').length;
-  const totalLoss  = ACTIVE_STOPS.reduce((a, s) => a + s.lostRevenue, 0);
-  const riskCount  = INGREDIENT_RISKS.filter(r => r.pct < 25).length;
-  const hourlyLoss = ACTIVE_STOPS.reduce((a, s) => a + s.lostPerHour, 0);
+function buildPage() {
+  const critCount = _activeStops.filter(s => s.urgency === 'critical').length;
+  const syncStr   = _syncedAt ? `Синхронізовано о ${fmtSyncedAt(_syncedAt)}` : 'Оновлення...';
+
+  const bodyContent = _loading
+    ? `<div class="sl-loading">
+        <div class="sl-loading-ring"></div>
+        <div class="sl-loading-text">Отримуємо дані з POS...</div>
+       </div>`
+    : _error
+    ? `<div class="sl-error">${_error}</div>
+       <button class="sl-refresh-btn" onclick="window.__stopList.refresh()">Спробувати знову</button>`
+    : buildDataPage(critCount);
 
   return CSS + `
   <div class="sl-wrap">
-    <!-- Header -->
     <div class="sl-header">
       <button class="sl-back" onclick="navigate('dashboard')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -365,187 +233,195 @@ export function render() {
       </button>
       <div class="sl-title-block">
         <div class="sl-title">Stop List</div>
-        <div class="sl-subtitle">Операційний центр · ${new Date().toLocaleDateString('uk', {day:'numeric',month:'short'})}</div>
+        <div class="sl-subtitle">${syncStr}</div>
       </div>
       <div class="sl-live">
         <span class="sl-live-dot"></span>
         LIVE
       </div>
     </div>
-
-    <div class="sl-scroll">
-
-      <!-- KPI Row -->
-      <div style="padding:4px 20px 16px">
-        <div class="sl-kpi-row">
-          <div class="sl-kpi crit">
-            <div class="sl-kpi-label">Активні стопи</div>
-            <div class="sl-kpi-val" style="color:var(--red)">${ACTIVE_STOPS.filter(s => s.stoppedAt).length}</div>
-            <div class="sl-kpi-sub">${critCount} критичних</div>
-          </div>
-          <div class="sl-kpi warn">
-            <div class="sl-kpi-label">Під ризиком</div>
-            <div class="sl-kpi-val" style="color:var(--amber)">${INGREDIENT_RISKS.length}</div>
-            <div class="sl-kpi-sub">${riskCount} критично мало</div>
-          </div>
-          <div class="sl-kpi loss">
-            <div class="sl-kpi-label">Втрати сьогодні</div>
-            <div class="sl-kpi-val" style="color:var(--green)">${fmtRevenue(totalLoss)}</div>
-            <div class="sl-kpi-sub">${fmtRevenue(hourlyLoss)}/год зараз</div>
-          </div>
-          <div class="sl-kpi risk">
-            <div class="sl-kpi-label">Прогноз стопів</div>
-            <div class="sl-kpi-val" style="color:var(--blue)">${PREDICTED_STOPS.length}</div>
-            <div class="sl-kpi-sub">наступні 4 год</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Active Stops -->
-      <div class="sl-section">
-        <div class="sl-section-hdr">
-          <div class="sl-section-title">Активні зупинки</div>
-          <div class="sl-section-badge red">${ACTIVE_STOPS.length} позицій</div>
-        </div>
-        ${ACTIVE_STOPS.map(stopCard).join('')}
-      </div>
-
-      <div class="sl-divider"></div>
-
-      <!-- Ingredient Risk -->
-      <div class="sl-section">
-        <div class="sl-section-hdr">
-          <div class="sl-section-title">Ризик закінчення інгредієнтів</div>
-          <div class="sl-section-badge amber">До стопу</div>
-        </div>
-        <div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:4px 16px">
-          ${INGREDIENT_RISKS.map(riskItem).join('')}
-        </div>
-      </div>
-
-      <div class="sl-divider"></div>
-
-      <!-- Lost Revenue -->
-      <div class="sl-section">
-        <div class="sl-section-hdr">
-          <div class="sl-section-title">Аналітика втрат</div>
-          <div class="sl-section-badge green">Сьогодні</div>
-        </div>
-        <div class="sl-revenue-card">
-          <div class="sl-revenue-total-lbl">Загальні втрати виручки</div>
-          <div class="sl-revenue-total">${fmtRevenue(totalLoss)}</div>
-          <div class="sl-revenue-sub">Через активні стопи · оновлено щойно</div>
-          ${ACTIVE_STOPS.filter(s => s.lostRevenue > 0).map(s => `
-          <div class="sl-revenue-row">
-            <div>
-              <div class="sl-revenue-item-name">${s.name}</div>
-              <div class="sl-revenue-rate">${fmtRevenue(s.lostPerHour)}/год</div>
-            </div>
-            <div class="sl-revenue-item-val" style="color:var(--red)">−${fmtRevenue(s.lostRevenue)}</div>
-          </div>`).join('')}
-        </div>
-      </div>
-
-      <div class="sl-divider"></div>
-
-      <!-- Predicted Stops -->
-      <div class="sl-section">
-        <div class="sl-section-hdr">
-          <div class="sl-section-title">Прогноз зупинок</div>
-          <div class="sl-section-badge blue">AI · наступні 4 год</div>
-        </div>
-        <div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:4px 16px">
-          ${PREDICTED_STOPS.map(predItem).join('')}
-        </div>
-      </div>
-
-      <div class="sl-divider"></div>
-
-      <!-- Smart Insights -->
-      <div class="sl-section">
-        <div class="sl-section-hdr">
-          <div class="sl-section-title">Розумні рекомендації</div>
-          <div class="sl-section-badge green">AI</div>
-        </div>
-        <div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:4px 16px">
-          ${SMART_INSIGHTS.map(ins => `
-          <div class="sl-insight-item">
-            <div class="sl-insight-icon" style="background:rgba(255,255,255,.04)">
-              <span style="color:${ins.color};font-size:14px">${ins.icon}</span>
-            </div>
-            <div class="sl-insight-text">${ins.text}</div>
-          </div>`).join('')}
-        </div>
-      </div>
-
-      <div class="sl-divider"></div>
-
-      <!-- Operational Alerts -->
-      <div class="sl-section">
-        <div class="sl-section-hdr">
-          <div class="sl-section-title">Операційні алерти</div>
-          <div class="sl-section-badge red">${OPERATIONAL_ALERTS.filter(a => a.type === 'critical').length} критичних</div>
-        </div>
-        <div>
-          ${OPERATIONAL_ALERTS.map(a => `
-          <div class="sl-alert ${a.type}">
-            <div class="sl-alert-dot ${a.type}"></div>
-            <div class="sl-alert-body">
-              <div class="sl-alert-msg">${a.msg}</div>
-              <div class="sl-alert-time">${a.time}</div>
-            </div>
-          </div>`).join('')}
-        </div>
-      </div>
-
-      <div class="sl-divider"></div>
-
-      <!-- Quick Actions -->
-      <div class="sl-section" style="padding-bottom:20px">
-        <div class="sl-section-hdr">
-          <div class="sl-section-title">Швидкі дії</div>
-        </div>
-        <div class="sl-actions-grid">
-          <div class="sl-qa primary" onclick="window.__stopList.emergencyOrder()">
-            <div class="sl-qa-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2v6l3 2" stroke="#000" stroke-width="1.6" stroke-linecap="round"/>
-                <circle cx="8" cy="8" r="6" stroke="#000" stroke-width="1.4"/>
-              </svg>
-            </div>
-            <div class="sl-qa-label">Термінове замовлення</div>
-          </div>
-          <div class="sl-qa" onclick="window.__stopList.notifyTeam()">
-            <div class="sl-qa-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M2 11V5a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H6l-3 2v-2H2z" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
-              </svg>
-            </div>
-            <div class="sl-qa-label">Повідомити барменів</div>
-          </div>
-          <div class="sl-qa" onclick="window.__stopList.contactSupplier()">
-            <div class="sl-qa-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M4 2h8a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
-                <path d="M8 6v4M6 8h4" stroke="var(--text1)" stroke-width="1.4" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <div class="sl-qa-label">Зв'язатись з постачальником</div>
-          </div>
-          <div class="sl-qa" onclick="navigate('ordering')">
-            <div class="sl-qa-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="12" height="12" rx="2" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
-                <path d="M5 5h6M5 8h4M5 11h3" stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <div class="sl-qa-label">Відкрити замовлення</div>
-          </div>
-        </div>
-      </div>
-
+    <div class="sl-scroll" id="sl-body">
+      ${bodyContent}
     </div>
   </div>`;
+}
+
+function buildDataPage(critCount) {
+  const totalStops = _activeStops.length;
+  const riskCount  = _atRisk.length;
+
+  if (totalStops === 0 && riskCount === 0) {
+    return `
+    <div class="sl-empty">
+      <div class="sl-empty-icon">✓</div>
+      <div class="sl-empty-title">Стоп-листа немає</div>
+      <div class="sl-empty-sub">Всі інгредієнти в наявності.<br>Дані синхронізовані з Syrve.</div>
+    </div>
+    ${quickActionsSection()}`;
+  }
+
+  return `
+    <div style="padding:4px 20px 16px">
+      <div class="sl-kpi-row">
+        <div class="sl-kpi crit">
+          <div class="sl-kpi-label">Активні стопи</div>
+          <div class="sl-kpi-val" style="color:var(--red)">${totalStops}</div>
+          <div class="sl-kpi-sub">${critCount} критичних</div>
+        </div>
+        <div class="sl-kpi warn">
+          <div class="sl-kpi-label">Під ризиком</div>
+          <div class="sl-kpi-val" style="color:var(--amber)">${riskCount}</div>
+          <div class="sl-kpi-sub">малий залишок</div>
+        </div>
+        <div class="sl-kpi loss">
+          <div class="sl-kpi-label">Sold Out</div>
+          <div class="sl-kpi-val" style="color:var(--green)">${_activeStops.filter(s => s.stock <= 0).length}</div>
+          <div class="sl-kpi-sub">позицій немає</div>
+        </div>
+        <div class="sl-kpi risk">
+          <div class="sl-kpi-label">Критично мало</div>
+          <div class="sl-kpi-val" style="color:var(--blue)">${_activeStops.filter(s => s.stock > 0).length}</div>
+          <div class="sl-kpi-sub">залишок ≤0.5</div>
+        </div>
+      </div>
+    </div>
+
+    ${totalStops > 0 ? `
+    <div class="sl-section">
+      <div class="sl-section-hdr">
+        <div class="sl-section-title">Активні зупинки</div>
+        <div class="sl-section-badge red">${totalStops} позицій</div>
+      </div>
+      ${_activeStops.map(stopCard).join('')}
+    </div>` : ''}
+
+    ${riskCount > 0 ? `
+    <div class="sl-divider"></div>
+    <div class="sl-section">
+      <div class="sl-section-hdr">
+        <div class="sl-section-title">Під ризиком закінчення</div>
+        <div class="sl-section-badge amber">${riskCount} позицій</div>
+      </div>
+      <div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:4px 16px">
+        ${_atRisk.map(riskCard).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="sl-divider"></div>
+    ${quickActionsSection()}`;
+}
+
+function quickActionsSection() {
+  return `
+  <div class="sl-section" style="padding-bottom:20px">
+    <div class="sl-section-hdr">
+      <div class="sl-section-title">Швидкі дії</div>
+    </div>
+    <div class="sl-actions-grid">
+      <div class="sl-qa primary" onclick="window.__stopList.refresh()">
+        <div class="sl-qa-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M13 8A5 5 0 112.5 5.5" stroke="#000" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M2 2v4h4" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="sl-qa-label">Оновити стоп-лист</div>
+      </div>
+      <div class="sl-qa" onclick="window.__stopList.notifyTeam()">
+        <div class="sl-qa-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 11V5a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H6l-3 2v-2H2z" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
+          </svg>
+        </div>
+        <div class="sl-qa-label">Повідомити барменів</div>
+      </div>
+      <div class="sl-qa" onclick="navigate('ordering')">
+        <div class="sl-qa-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="2" width="12" height="12" rx="2" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
+            <path d="M5 5h6M5 8h4M5 11h3" stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="sl-qa-label">Відкрити замовлення</div>
+      </div>
+      <div class="sl-qa" onclick="navigate('inventory')">
+        <div class="sl-qa-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 3h10l-1 8H4L3 3z" stroke="var(--text1)" stroke-width="1.4" fill="none"/>
+            <path d="M1 3h14" stroke="var(--text1)" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M6 7v3M10 7v3" stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="sl-qa-label">Інвентаризація</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function re() {
+  const el = document.getElementById('sl-body');
+  if (el) {
+    const critCount = _activeStops.filter(s => s.urgency === 'critical').length;
+    const bodyContent = _loading
+      ? `<div class="sl-loading"><div class="sl-loading-ring"></div><div class="sl-loading-text">Отримуємо дані з POS...</div></div>`
+      : _error
+      ? `<div class="sl-error">${_error}</div><button class="sl-refresh-btn" onclick="window.__stopList.refresh()">Спробувати знову</button>`
+      : buildDataPage(critCount);
+    el.innerHTML = bodyContent;
+  }
+}
+
+/* ════════════════════════
+   API
+════════════════════════ */
+async function loadStopList() {
+  const token   = localStorage.getItem('barops_token');
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+
+  if (!venueId) {
+    _error   = 'Заклад не обрано. Зайдіть у налаштування та оберіть заклад.';
+    _loading = false;
+    re();
+    return;
+  }
+
+  _loading = true;
+  _error   = '';
+  re();
+
+  try {
+    const res = await fetch(`${API}/api/pos/stop-list/${venueId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Помилка сервера (${res.status})`);
+    }
+
+    const data = await res.json();
+    _activeStops = data.activeStops || [];
+    _atRisk      = data.atRisk      || [];
+    _syncedAt    = data.syncedAt    || new Date().toISOString();
+
+  } catch (err) {
+    _error = err.message || 'Не вдалось отримати дані з POS';
+  } finally {
+    _loading = false;
+    re();
+  }
+}
+
+/* ════════════════════════
+   RENDER
+════════════════════════ */
+export function render() {
+  _loading     = true;
+  _error       = '';
+  _activeStops = [];
+  _atRisk      = [];
+  _syncedAt    = null;
+  return buildPage();
 }
 
 /* ════════════════════════
@@ -553,33 +429,17 @@ export function render() {
 ════════════════════════ */
 export function init() {
   window.__stopList = {
-    action(id) {
-      const item = ACTIVE_STOPS.find(s => s.id === id);
-      if (!item) return;
-      const toast = document.createElement('div');
-      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#0A0A0A;border:0.5px solid rgba(168,139,255,.3);color:#fff;font-size:12px;font-family:Geist,sans-serif;padding:10px 16px;border-radius:10px;z-index:9999;white-space:nowrap;pointer-events:none';
-      toast.textContent = '✓ ' + item.action;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2800);
-    },
-    emergencyOrder() {
-      navigate('ordering');
-    },
+    refresh() { loadStopList(); },
     notifyTeam() {
       const toast = document.createElement('div');
       toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#0A0A0A;border:0.5px solid rgba(168,139,255,.3);color:#fff;font-size:12px;font-family:Geist,sans-serif;padding:10px 16px;border-radius:10px;z-index:9999;white-space:nowrap;pointer-events:none';
-      toast.textContent = '✓ Команду повідомлено';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2800);
-    },
-    contactSupplier() {
-      const toast = document.createElement('div');
-      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#0A0A0A;border:0.5px solid rgba(168,139,255,.3);color:#fff;font-size:12px;font-family:Geist,sans-serif;padding:10px 16px;border-radius:10px;z-index:9999;white-space:nowrap;pointer-events:none';
-      toast.textContent = '↗ Відкриваємо Telegram постачальника...';
+      toast.textContent = '✓ Стоп-лист відправлено команді';
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 2800);
     },
   };
+
+  loadStopList();
 }
 
 export default { render, init };

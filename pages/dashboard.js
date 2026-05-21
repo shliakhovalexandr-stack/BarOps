@@ -55,6 +55,8 @@ const QUICK_MANAGER = [
     svg:`<rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
          <path d="M4 8h8M4 11h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="13" cy="11" r="1.5" fill="currentColor" opacity=".7"/>` },
+  { route:'stop-list', badge:null, label:'Стоп-ліст',        hint:'Активні зупинки в закладі',   color:'var(--red-bg)',    iconColor:'var(--red)',
+    svg:`<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6 9h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` },
   { route:'ordering', badge:null, label:'Замовлення',       hint:'Замовлення постачальникам',    color:'var(--green-bg)',  iconColor:'var(--green)',
     svg:`<path d="M3 12h3v3H3zM7 8h3v7H7zM11 5h3v10h-3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
   { route:'inventory', badge:null, label:'Інвентаризація',  hint:'Перерахунок інвентарю',        color:'var(--purple-bg)', iconColor:'var(--purple)',
