@@ -100,6 +100,13 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
+    route: 'writeoff', label: 'Списання',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M5 17l2-2 7-7 2 2-7 7-2 2H5v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M12 6l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
     route: 'profile', label: 'Профіль',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.4"/>
@@ -122,6 +129,13 @@ const TAB_BAR_ACCOUNTANT = [
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <rect x="3" y="3" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/>
       <path d="M7 8h8M7 12h6M7 16h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'writeoff', label: 'Списання',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M5 17l2-2 7-7 2 2-7 7-2 2H5v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M12 6l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </svg>`,
   },
   {
@@ -182,6 +196,7 @@ const DRAWER_NAV = [
   { route:'recipes',    label:'Фудкост',        svg:`<path d="M5 2v5a3 3 0 006 0V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
   { route:'analytics',  label:'Аналітика',      svg:`<path d="M2 13h3V8H2zM7 13h3V4H7zM12 13h3V9h-3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>` },
   { route:'stop-list',  label:'Stop List',      svg:`<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M6 9h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>` },
+  { route:'writeoff',   label:'Списання',       svg:`<path d="M4 15l2-2 6-6 2 2-6 6-2 2H4v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 5l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
   { route:'profile',    label:'Профіль',        svg:`<circle cx="9" cy="5" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
 ];
 

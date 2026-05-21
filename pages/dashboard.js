@@ -43,6 +43,8 @@ const QUICK_BARTENDER = [
   { route:'writeoff',  badge:null, label:'Списання',  hint:'Списати товари зі складу',   color:'var(--red-bg)',    iconColor:'var(--red)',
     svg:`<path d="M3 14l2-2 7-7 2 2-7 7-2 2H3v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
          <path d="M10 5l2 2" stroke="currentColor" stroke-width="1.3"/>` },
+  { route:'ordering',  badge:null, label:'Закупка',   hint:'Замовлення постачальникам',   color:'var(--green-bg)',  iconColor:'var(--green)',
+    svg:`<rect x="3" y="2" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 6h5M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
 ];
 
 const QUICK_MANAGER = [
