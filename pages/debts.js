@@ -10,8 +10,8 @@ const API = 'https://barops-backend-production.up.railway.app';
 /* ════════════════════════════════════════
    STATE
 ════════════════════════════════════════ */
-let _tab      = 'debt';      // 'debt' | 'sale'
-let _filter   = 'active';    // 'active' | 'all'
+let _tab      = 'debt';
+let _filter   = 'active';
 let _debts    = [];
 let _venues   = [];
 let _loading  = false;
@@ -20,7 +20,6 @@ let _formOpen = false;
 let _form     = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
 
 const isAccountant = () => (state.role || '').toLowerCase() === 'accountant';
-const isManager    = () => (state.role || '').toLowerCase() === 'manager';
 
 /* ════════════════════════════════════════
    CSS
@@ -28,41 +27,25 @@ const isManager    = () => (state.role || '').toLowerCase() === 'manager';
 const CSS = `<style id="dbt-css">
 .dbt-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
 .dbt-scroll{overflow-y:auto;flex:1;padding-bottom:32px}.dbt-scroll::-webkit-scrollbar{width:0}
-
-/* header */
 .dbt-header{padding:10px 20px 0;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .dbt-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .dbt-back:active{background:var(--bg3)}
 .dbt-title{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em;line-height:1}
 .dbt-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-
-/* tabs */
 .dbt-tabs{display:flex;gap:8px;padding:14px 20px 0;flex-shrink:0}
 .dbt-tab{flex:1;height:36px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:var(--font-b)}
 .dbt-tab.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green);font-weight:600}
-
-/* filter chips */
 .dbt-chips{display:flex;gap:7px;padding:10px 20px 0;flex-shrink:0}
 .dbt-chip{height:28px;padding:0 12px;border-radius:20px;border:0.5px solid var(--border);background:transparent;font-size:11px;font-weight:500;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:var(--font-b)}
 .dbt-chip.act{background:var(--bg2);border-color:var(--border2);color:var(--text0)}
-
-/* summary row */
 .dbt-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 20px 0}
 .dbt-stat{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px}
 .dbt-stat-val{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);line-height:1}
-.dbt-stat-val.red{color:var(--red)}
-.dbt-stat-val.green{color:var(--green)}
+.dbt-stat-val.red{color:var(--red)}.dbt-stat-val.green{color:var(--green)}
 .dbt-stat-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:3px;letter-spacing:.04em;text-transform:uppercase}
-
-/* add button */
 .dbt-add-btn{margin:14px 20px 0;height:44px;border-radius:14px;border:none;background:var(--green);color:#000;font-size:14px;font-weight:600;font-family:var(--font-h);cursor:pointer;width:calc(100% - 40px);display:flex;align-items:center;justify-content:center;gap:8px}
 .dbt-add-btn:active{filter:brightness(.9)}
-
-/* list */
 .dbt-list{padding:14px 20px 0}
-.dbt-section-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
-
-/* card */
 .dbt-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px}
 .dbt-card.returned{opacity:.55}
 .dbt-card-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -78,19 +61,13 @@ const CSS = `<style id="dbt-css">
 .dbt-card-date{font-size:11px;color:var(--text3);font-family:var(--font-b)}
 .dbt-card-note{margin-top:5px;font-size:11px;color:var(--text2);font-family:var(--font-b);font-style:italic}
 .dbt-card-returned{margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border);font-size:11px;color:var(--green);font-family:var(--font-b)}
-
-/* return button */
 .dbt-return-btn{margin-top:8px;width:100%;height:34px;border-radius:10px;border:0.5px solid var(--green-border);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
 .dbt-return-btn:active{filter:brightness(.9)}
-
-/* form bottom sheet */
 .dbt-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;backdrop-filter:blur(2px)}
 .dbt-sheet{position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-radius:20px 20px 0 0;z-index:201;padding:0 20px 40px;max-height:90vh;overflow-y:auto}
 .dbt-sheet::-webkit-scrollbar{width:0}
 .dbt-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:12px auto 16px}
 .dbt-sheet-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:16px;letter-spacing:-.02em}
-
-/* form inputs */
 .dbt-field{margin-bottom:12px}
 .dbt-label{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
 .dbt-input,.dbt-select,.dbt-textarea{width:100%;height:42px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:14px;font-family:var(--font-b);padding:0 12px;box-sizing:border-box;outline:none}
@@ -99,17 +76,12 @@ const CSS = `<style id="dbt-css">
 .dbt-textarea{height:64px;padding:10px 12px;resize:none;line-height:1.4}
 .dbt-row2{display:grid;grid-template-columns:2fr 1fr;gap:8px}
 .dbt-save-btn{width:100%;height:46px;border-radius:14px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:700;font-family:var(--font-h);cursor:pointer;margin-top:4px}
-.dbt-save-btn:active{filter:brightness(.9)}
-.dbt-save-btn:disabled{opacity:.5;cursor:default}
+.dbt-save-btn:active{filter:brightness(.9)}.dbt-save-btn:disabled{opacity:.5;cursor:default}
 .dbt-cancel-btn{width:100%;height:38px;border-radius:12px;border:0.5px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-family:var(--font-b);cursor:pointer;margin-top:6px}
-
-/* empty */
 .dbt-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:48px 20px;text-align:center}
 .dbt-empty-icon{font-size:32px;opacity:.3}
 .dbt-empty-title{font-size:15px;font-weight:600;color:var(--text0);font-family:var(--font-h)}
 .dbt-empty-sub{font-size:12px;color:var(--text2);font-family:var(--font-b)}
-
-/* loading */
 .dbt-loading{display:flex;align-items:center;justify-content:center;padding:48px 20px;gap:10px;font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .dbt-spin{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.08);border-top-color:var(--green);animation:dbtSpin .7s linear infinite}
 @keyframes dbtSpin{to{transform:rotate(360deg)}}
@@ -121,18 +93,16 @@ const CSS = `<style id="dbt-css">
 function fmtDT(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  const pad = n => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function token() {
-  return localStorage.getItem('barops_token') || '';
-}
+function apiToken() { return localStorage.getItem('barops_token') || ''; }
 
 async function apiFetch(path, opts = {}) {
   const r = await fetch(`${API}${path}`, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, ...(opts.headers || {}) },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiToken()}`, ...(opts.headers||{}) },
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || 'Помилка сервера');
@@ -140,7 +110,7 @@ async function apiFetch(path, opts = {}) {
 }
 
 /* ════════════════════════════════════════
-   API CALLS
+   DATA LOADING
 ════════════════════════════════════════ */
 async function loadVenues() {
   try {
@@ -150,19 +120,19 @@ async function loadVenues() {
 }
 
 async function loadDebts() {
-  _loading = true; render();
+  _loading = true; redraw();
   try {
-    const params = new URLSearchParams({ type: _tab, filter: _filter });
-    const d = await apiFetch(`/api/debts?${params}`);
+    const p = new URLSearchParams({ type: _tab, filter: _filter });
+    const d = await apiFetch(`/api/debts?${p}`);
     _debts = d.data || [];
   } catch { _debts = []; }
-  _loading = false; render();
+  _loading = false; redraw();
 }
 
 async function markReturned(id) {
   try {
     await apiFetch(`/api/debts/${id}/return`, { method: 'POST' });
-    await loadDebts();
+    loadDebts();
   } catch (e) { alert(e.message); }
 }
 
@@ -172,209 +142,168 @@ async function saveForm() {
   if (!fromVenueId || !toVenueId) return alert('Оберіть заклади');
   if (!item.trim()) return alert('Вкажіть товар');
   if (fromVenueId === toVenueId) return alert('Заклади повинні бути різними');
-
-  _saving = true; renderForm();
+  _saving = true; redrawSheet();
   try {
     await apiFetch('/api/debts', {
       method: 'POST',
-      body: JSON.stringify({ type: _tab, fromVenueId, toVenueId, item: item.trim(), qty: parseFloat(qty)||1, unit, price: parseFloat(price)||0, note }),
+      body: JSON.stringify({ type:_tab, fromVenueId, toVenueId, item:item.trim(), qty:parseFloat(qty)||1, unit, price:parseFloat(price)||0, note }),
     });
     _formOpen = false;
     _form = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
-    await loadDebts();
+    loadDebts();
   } catch (e) { alert(e.message); }
-  _saving = false; render();
+  _saving = false; redrawSheet();
 }
 
 /* ════════════════════════════════════════
-   RENDER
+   CARD HTML
 ════════════════════════════════════════ */
 function debtCard(d) {
-  const isReturned = d.returned;
-  const badgeClass = isReturned ? 'done' : d.type;
-  const badgeText  = isReturned ? 'Повернуто' : d.type === 'sale' ? 'Продаж' : 'Борг';
-
+  const done = d.returned;
+  const badge = done ? 'done' : d.type;
+  const badgeTxt = done ? 'Повернуто' : d.type === 'sale' ? 'Продаж' : 'Борг';
   return `
-  <div class="dbt-card${isReturned ? ' returned' : ''}">
+  <div class="dbt-card${done?' returned':''}">
     <div class="dbt-card-row1">
       <div class="dbt-card-item">${d.item}</div>
-      <div class="dbt-card-badge ${badgeClass}">${badgeText}</div>
+      <div class="dbt-card-badge ${badge}">${badgeTxt}</div>
     </div>
-    <div class="dbt-card-venues">
-      <b>${d.fromVenueName||d.fromVenueId}</b>
-      <span style="color:var(--text3)"> → </span>
-      <b>${d.toVenueName||d.toVenueId}</b>
-    </div>
+    <div class="dbt-card-venues"><b>${d.fromVenueName||d.fromVenueId}</b><span style="color:var(--text3)"> → </span><b>${d.toVenueName||d.toVenueId}</b></div>
     <div class="dbt-card-meta">
-      <div class="dbt-card-qty">${d.qty} ${d.unit}${d.price > 0 ? ` · ${d.price} грн` : ''}</div>
+      <div class="dbt-card-qty">${d.qty} ${d.unit}${d.price>0?` · ${d.price} грн`:''}</div>
       <div class="dbt-card-date">${fmtDT(d.createdAt)}</div>
     </div>
-    ${d.userName ? `<div class="dbt-card-date" style="margin-top:2px">Вніс: ${d.userName}</div>` : ''}
-    ${d.note ? `<div class="dbt-card-note">${d.note}</div>` : ''}
-    ${isReturned ? `<div class="dbt-card-returned">✓ Повернуто ${fmtDT(d.returnedAt)}${d.returnedByName ? ` · ${d.returnedByName}` : ''}</div>` : ''}
-    ${!isReturned ? `<button class="dbt-return-btn" onclick="window.__dbt.markReturned('${d.id}')">✓ Позначити як повернуто</button>` : ''}
+    ${d.userName?`<div class="dbt-card-date" style="margin-top:2px">Вніс: ${d.userName}</div>`:''}
+    ${d.note?`<div class="dbt-card-note">${d.note}</div>`:''}
+    ${done?`<div class="dbt-card-returned">✓ Повернуто ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+d.returnedByName:''}</div>`:''}
+    ${!done?`<button class="dbt-return-btn" onclick="window.__dbt.markReturned('${d.id}')">✓ Позначити як повернуто</button>`:''}
   </div>`;
 }
 
-function renderForm() {
-  const el = document.getElementById('dbt-sheet');
+/* ════════════════════════════════════════
+   REDRAW (часткове оновлення після init)
+════════════════════════════════════════ */
+function redraw() {
+  const el = document.getElementById('dbt-body');
   if (!el) return;
-  const isSale = _tab === 'sale';
-  const vOpts = _venues.map(v => `<option value="${v.id}"${_form.fromVenueId===v.id?' selected':''}>${v.name}</option>`).join('');
-  const vOpts2 = _venues.map(v => `<option value="${v.id}"${_form.toVenueId===v.id?' selected':''}>${v.name}</option>`).join('');
-  const units = ['пляш.','шт','л','кг','порц.'].map(u => `<option value="${u}"${_form.unit===u?' selected':''}>${u}</option>`).join('');
-
-  el.innerHTML = `
-    <div class="dbt-sheet-handle"></div>
-    <div class="dbt-sheet-title">${isSale ? 'Новий продаж' : 'Новий борг'}</div>
-
-    <div class="dbt-field">
-      <div class="dbt-label">З закладу</div>
-      <select class="dbt-select" onchange="window.__dbt.setField('fromVenueId',this.value)">
-        <option value="">— Оберіть заклад —</option>${vOpts}
-      </select>
-    </div>
-    <div class="dbt-field">
-      <div class="dbt-label">В заклад</div>
-      <select class="dbt-select" onchange="window.__dbt.setField('toVenueId',this.value)">
-        <option value="">— Оберіть заклад —</option>${vOpts2}
-      </select>
-    </div>
-    <div class="dbt-field">
-      <div class="dbt-label">Товар</div>
-      <input class="dbt-input" placeholder="Назва товару, напр. Aperol 1л" value="${_form.item}"
-        oninput="window.__dbt.setField('item',this.value)">
-    </div>
-    <div class="dbt-row2">
-      <div class="dbt-field">
-        <div class="dbt-label">Кількість</div>
-        <input class="dbt-input" type="number" min="0.01" step="0.01" placeholder="1" value="${_form.qty}"
-          oninput="window.__dbt.setField('qty',this.value)">
-      </div>
-      <div class="dbt-field">
-        <div class="dbt-label">Одиниця</div>
-        <select class="dbt-select" onchange="window.__dbt.setField('unit',this.value)">${units}</select>
-      </div>
-    </div>
-    ${isSale ? `
-    <div class="dbt-field">
-      <div class="dbt-label">Ціна (грн)</div>
-      <input class="dbt-input" type="number" min="0" step="0.01" placeholder="0.00" value="${_form.price}"
-        oninput="window.__dbt.setField('price',this.value)">
-    </div>` : ''}
-    <div class="dbt-field">
-      <div class="dbt-label">Примітка (необов'язково)</div>
-      <textarea class="dbt-textarea" placeholder="Наприклад: термінова потреба на event"
-        oninput="window.__dbt.setField('note',this.value)">${_form.note}</textarea>
-    </div>
-
-    <button class="dbt-save-btn" ${_saving?'disabled':''} onclick="window.__dbt.saveForm()">
-      ${_saving ? 'Збереження...' : 'Зберегти'}
-    </button>
-    <button class="dbt-cancel-btn" onclick="window.__dbt.closeForm()">Скасувати</button>
-  `;
-}
-
-function render() {
-  const el = document.getElementById('dbt-root');
-  if (!el) return;
-
-  const isAcc = isAccountant();
-  const isMgr = isManager();
-  const typeDebts = _debts.filter(d => d.type === 'debt');
-  const typeSales = _debts.filter(d => d.type === 'sale');
-  const shown = _tab === 'debt' ? typeDebts : typeSales;
+  const shown = _debts;
   const active = shown.filter(d => !d.returned).length;
   const done   = shown.filter(d => d.returned).length;
 
   el.innerHTML = `
-  ${CSS}
-  <div class="dbt-wrap">
-    <div class="dbt-header">
-      <button class="dbt-back" onclick="window.__barops.navigate('dashboard')">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-      <div>
-        <div class="dbt-title">Борги</div>
-        <div class="dbt-sub">${isAcc ? 'Повна історія' : 'Між закладами'}</div>
-      </div>
-    </div>
-
-    <div class="dbt-tabs">
-      <button class="dbt-tab${_tab==='debt'?' act':''}" onclick="window.__dbt.setTab('debt')">Борги</button>
-      <button class="dbt-tab${_tab==='sale'?' act':''}" onclick="window.__dbt.setTab('sale')">Продажі</button>
-    </div>
-
-    <div class="dbt-chips">
-      <button class="dbt-chip${_filter==='active'?' act':''}" onclick="window.__dbt.setFilter('active')">Активні</button>
-      <button class="dbt-chip${_filter==='all'?' act':''}" onclick="window.__dbt.setFilter('all')">Всі</button>
-    </div>
-
     <div class="dbt-summary">
-      <div class="dbt-stat">
-        <div class="dbt-stat-val red">${active}</div>
-        <div class="dbt-stat-lbl">${_tab==='debt'?'Активних боргів':'Активних продажів'}</div>
-      </div>
-      <div class="dbt-stat">
-        <div class="dbt-stat-val green">${done}</div>
-        <div class="dbt-stat-lbl">Повернуто / закрито</div>
-      </div>
+      <div class="dbt-stat"><div class="dbt-stat-val red">${active}</div><div class="dbt-stat-lbl">${_tab==='debt'?'Активних боргів':'Активних продажів'}</div></div>
+      <div class="dbt-stat"><div class="dbt-stat-val green">${done}</div><div class="dbt-stat-lbl">Повернуто / закрито</div></div>
     </div>
-
     <button class="dbt-add-btn" onclick="window.__dbt.openForm()">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M8 3v10M3 8h10" stroke="#000" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      ${_tab==='debt' ? 'Додати борг' : 'Зафіксувати продаж'}
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>
+      ${_tab==='debt'?'Додати борг':'Зафіксувати продаж'}
     </button>
-
-    <div class="dbt-scroll">
-      <div class="dbt-list">
-        ${_loading ? `<div class="dbt-loading"><div class="dbt-spin"></div> Завантаження...</div>` :
-          shown.length === 0 ? `
-          <div class="dbt-empty">
-            <div class="dbt-empty-icon">${_tab==='debt'?'📋':'💰'}</div>
-            <div class="dbt-empty-title">${_filter==='active'?'Активних немає':'Записів немає'}</div>
-            <div class="dbt-empty-sub">Натисніть "${_tab==='debt'?'Додати борг':'Зафіксувати продаж'}"<br>щоб внести перший запис</div>
-          </div>` :
-          shown.map(debtCard).join('')}
-      </div>
+    <div class="dbt-list">
+      ${_loading?`<div class="dbt-loading"><div class="dbt-spin"></div> Завантаження...</div>`:
+        shown.length===0?`<div class="dbt-empty"><div class="dbt-empty-icon">${_tab==='debt'?'📋':'💰'}</div><div class="dbt-empty-title">${_filter==='active'?'Активних немає':'Записів немає'}</div><div class="dbt-empty-sub">Натисніть кнопку вище, щоб внести перший запис</div></div>`:
+        shown.map(debtCard).join('')}
     </div>
-  </div>
-
-  ${_formOpen ? `
-    <div class="dbt-sheet-overlay" onclick="window.__dbt.closeForm()"></div>
-    <div class="dbt-sheet" id="dbt-sheet"></div>
-  ` : ''}
   `;
 
-  if (_formOpen) renderForm();
+  // Tabs active state
+  document.querySelectorAll('.dbt-tab').forEach(b => {
+    b.classList.toggle('act', b.dataset.tab === _tab);
+  });
+  document.querySelectorAll('.dbt-chip').forEach(b => {
+    b.classList.toggle('act', b.dataset.filter === _filter);
+  });
+}
+
+function redrawSheet() {
+  const el = document.getElementById('dbt-sheet');
+  if (!el) return;
+  const isSale = _tab === 'sale';
+  const vOpts  = _venues.map(v => `<option value="${v.id}"${_form.fromVenueId===v.id?' selected':''}>${v.name}</option>`).join('');
+  const vOpts2 = _venues.map(v => `<option value="${v.id}"${_form.toVenueId===v.id?' selected':''}>${v.name}</option>`).join('');
+  const units  = ['пляш.','шт','л','кг','порц.'].map(u => `<option value="${u}"${_form.unit===u?' selected':''}>${u}</option>`).join('');
+  el.innerHTML = `
+    <div class="dbt-sheet-handle"></div>
+    <div class="dbt-sheet-title">${isSale?'Новий продаж':'Новий борг'}</div>
+    <div class="dbt-field"><div class="dbt-label">З закладу</div>
+      <select class="dbt-select" onchange="window.__dbt.f('fromVenueId',this.value)"><option value="">— Оберіть заклад —</option>${vOpts}</select></div>
+    <div class="dbt-field"><div class="dbt-label">В заклад</div>
+      <select class="dbt-select" onchange="window.__dbt.f('toVenueId',this.value)"><option value="">— Оберіть заклад —</option>${vOpts2}</select></div>
+    <div class="dbt-field"><div class="dbt-label">Товар</div>
+      <input class="dbt-input" placeholder="Назва товару, напр. Aperol 1л" value="${_form.item}" oninput="window.__dbt.f('item',this.value)"></div>
+    <div class="dbt-row2">
+      <div class="dbt-field"><div class="dbt-label">Кількість</div>
+        <input class="dbt-input" type="number" min="0.01" step="0.01" value="${_form.qty}" oninput="window.__dbt.f('qty',this.value)"></div>
+      <div class="dbt-field"><div class="dbt-label">Одиниця</div>
+        <select class="dbt-select" onchange="window.__dbt.f('unit',this.value)">${units}</select></div>
+    </div>
+    ${isSale?`<div class="dbt-field"><div class="dbt-label">Ціна (грн)</div>
+      <input class="dbt-input" type="number" min="0" step="0.01" placeholder="0.00" value="${_form.price}" oninput="window.__dbt.f('price',this.value)"></div>`:''}
+    <div class="dbt-field"><div class="dbt-label">Примітка (необов'язково)</div>
+      <textarea class="dbt-textarea" placeholder="Наприклад: термінова потреба на event" oninput="window.__dbt.f('note',this.value)">${_form.note}</textarea></div>
+    <button class="dbt-save-btn" ${_saving?'disabled':''} onclick="window.__dbt.save()">${_saving?'Збереження...':'Зберегти'}</button>
+    <button class="dbt-cancel-btn" onclick="window.__dbt.close()">Скасувати</button>
+  `;
 }
 
 /* ════════════════════════════════════════
-   PUBLIC API
+   PAGE MODULE
 ════════════════════════════════════════ */
-window.__dbt = {
-  setTab(t)      { _tab = t; _filter = 'active'; loadDebts(); },
-  setFilter(f)   { _filter = f; loadDebts(); },
-  openForm()     { _formOpen = true; render(); },
-  closeForm()    { _formOpen = false; render(); },
-  setField(k, v) { _form[k] = v; },
-  saveForm,
-  markReturned,
+export default {
+  render() {
+    return `
+    ${CSS}
+    <div class="dbt-wrap">
+      <div class="dbt-header">
+        <button class="dbt-back" onclick="window.__barops.navigate('dashboard')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div>
+          <div class="dbt-title">Борги</div>
+          <div class="dbt-sub">${isAccountant()?'Повна історія':'Між закладами'}</div>
+        </div>
+      </div>
+      <div class="dbt-tabs">
+        <button class="dbt-tab act" data-tab="debt" onclick="window.__dbt.setTab('debt')">Борги</button>
+        <button class="dbt-tab" data-tab="sale" onclick="window.__dbt.setTab('sale')">Продажі</button>
+      </div>
+      <div class="dbt-chips">
+        <button class="dbt-chip act" data-filter="active" onclick="window.__dbt.setFilter('active')">Активні</button>
+        <button class="dbt-chip" data-filter="all" onclick="window.__dbt.setFilter('all')">Всі</button>
+      </div>
+      <div class="dbt-scroll"><div id="dbt-body"></div></div>
+    </div>
+    <div id="dbt-overlay"></div>`;
+  },
+
+  init() {
+    _tab = 'debt'; _filter = 'active'; _debts = []; _formOpen = false;
+    _form = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
+
+    window.__dbt = {
+      setTab(t)   { _tab = t; _filter = 'active'; redraw(); loadDebts(); },
+      setFilter(f){ _filter = f; loadDebts(); },
+      f(k, v)     { _form[k] = v; },
+      openForm()  {
+        _formOpen = true;
+        const ov = document.getElementById('dbt-overlay');
+        if (ov) ov.innerHTML = `
+          <div class="dbt-sheet-overlay" onclick="window.__dbt.close()"></div>
+          <div class="dbt-sheet" id="dbt-sheet"></div>`;
+        redrawSheet();
+      },
+      close() {
+        _formOpen = false;
+        const ov = document.getElementById('dbt-overlay');
+        if (ov) ov.innerHTML = '';
+      },
+      save:         saveForm,
+      markReturned: markReturned,
+    };
+
+    loadVenues().then(() => redrawSheet());
+    loadDebts();
+  },
 };
-
-/* ════════════════════════════════════════
-   MOUNT / UNMOUNT
-════════════════════════════════════════ */
-export function mount(container) {
-  container.innerHTML = `<div id="dbt-root" style="display:flex;flex-direction:column;flex:1;overflow:hidden"></div>`;
-  loadVenues();
-  loadDebts();
-}
-
-export function unmount() {
-  delete window.__dbt;
-}
