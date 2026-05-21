@@ -18,6 +18,10 @@ let _loading  = false;
 let _saving   = false;
 let _formOpen = false;
 let _form     = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
+let _products        = [];
+let _productsLoaded  = false;
+let _pickerOpen      = false;
+let _pickerSearch    = '';
 
 const isAccountant = () => (state.role || '').toLowerCase() === 'accountant';
 
@@ -85,6 +89,27 @@ const CSS = `<style id="dbt-css">
 .dbt-loading{display:flex;align-items:center;justify-content:center;padding:48px 20px;gap:10px;font-size:12px;color:var(--text2);font-family:var(--font-b)}
 .dbt-spin{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.08);border-top-color:var(--green);animation:dbtSpin .7s linear infinite}
 @keyframes dbtSpin{to{transform:rotate(360deg)}}
+.dbt-item-btn{width:100%;min-height:42px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:14px;font-family:var(--font-b);padding:0 12px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:left}
+.dbt-item-btn:active{border-color:var(--green)}
+.dbt-item-btn.has-val{border-color:var(--border2)}
+.dbt-item-btn span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dbt-item-btn .ph{color:var(--text3)}
+.dbt-picker-ov{position:fixed;inset:0;z-index:210;background:var(--bg1);display:flex;flex-direction:column}
+.dbt-picker-head{display:flex;align-items:center;gap:10px;padding:16px 20px 8px;flex-shrink:0;border-bottom:0.5px solid var(--border)}
+.dbt-picker-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.dbt-picker-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0)}
+.dbt-picker-srch{margin:10px 16px;display:flex;align-items:center;gap:8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:0 12px;height:40px;flex-shrink:0}
+.dbt-picker-srch-inp{flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--text0);font-family:var(--font-b)}
+.dbt-picker-srch-inp::placeholder{color:var(--text3)}
+.dbt-picker-list{flex:1;overflow-y:auto;padding-bottom:32px}
+.dbt-picker-list::-webkit-scrollbar{width:0}
+.dbt-picker-row{padding:13px 20px;border-bottom:0.5px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px}
+.dbt-picker-row:active{background:var(--bg2)}
+.dbt-picker-name{font-size:14px;color:var(--text0);font-family:var(--font-b);flex:1}
+.dbt-picker-stock{font-size:11px;color:var(--text2);font-family:var(--font-b);white-space:nowrap}
+.dbt-picker-manual{padding:12px 20px;border-bottom:0.5px solid var(--border)}
+.dbt-picker-manual-inp{width:100%;height:42px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:14px;font-family:var(--font-b);padding:0 12px;box-sizing:border-box;outline:none}
+.dbt-picker-manual-inp:focus{border-color:var(--green)}
 </style>`;
 
 /* ════════════════════════════════════════
@@ -117,6 +142,63 @@ async function loadVenues() {
     const d = await apiFetch('/api/debts/venues');
     _venues = d.venues || [];
   } catch { _venues = []; }
+}
+
+async function loadProducts() {
+  if (_productsLoaded) return;
+  const venueId = localStorage.getItem('barops_venueId') || '';
+  if (!venueId) return;
+  try {
+    const d = await apiFetch(`/api/pos/balance?venueId=${venueId}`);
+    _products = (d.items || []).sort((a, b) => a.name.localeCompare(b.name, 'uk'));
+    _productsLoaded = true;
+  } catch { _products = []; }
+}
+
+function pickerHTML() {
+  const q       = _pickerSearch.toLowerCase();
+  const list    = _products.filter(p => !q || p.name.toLowerCase().includes(q));
+  const manVal  = _form.item;
+  return `
+  <div class="dbt-picker-ov">
+    <div class="dbt-picker-head">
+      <div class="dbt-picker-back" onclick="window.__dbt.closePicker()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="dbt-picker-title">Вибір товару</div>
+    </div>
+    <div class="dbt-picker-srch">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/><path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <input id="dbt-picker-inp" class="dbt-picker-srch-inp" placeholder="Знайти товар..."
+        value="${_pickerSearch}" oninput="window.__dbt.pickerSearch(this.value)" autocomplete="off"/>
+    </div>
+    <div class="dbt-picker-list" id="dbt-picker-list">
+      <div class="dbt-picker-manual">
+        <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px">Або введіть вручну</div>
+        <input class="dbt-picker-manual-inp" placeholder="Назва товару, напр. Aperol 1л"
+          value="${manVal}" oninput="window.__dbt.f('item',this.value)"
+          onkeydown="if(event.key==='Enter')window.__dbt.closePicker()"/>
+      </div>
+      ${_products.length === 0
+        ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Залишки Syrve не завантажені.<br>Введіть назву вручну вище.</div>`
+        : list.length === 0
+          ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`
+          : list.map(p => {
+              const safeName = p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+              return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}')">
+                <div class="dbt-picker-name">${p.name}</div>
+                ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
+              </div>`;
+            }).join('')
+      }
+    </div>
+  </div>`;
+}
+
+function renderPickerOverlay() {
+  const ov = document.getElementById('dbt-item-picker');
+  if (ov) ov.innerHTML = _pickerOpen ? pickerHTML() : '';
+  if (_pickerOpen) setTimeout(() => document.getElementById('dbt-picker-inp')?.focus(), 80);
 }
 
 async function loadDebts() {
@@ -230,7 +312,11 @@ function redrawSheet() {
     <div class="dbt-field"><div class="dbt-label">В заклад</div>
       <select class="dbt-select" onchange="window.__dbt.f('toVenueId',this.value)"><option value="">— Оберіть заклад —</option>${vOpts2}</select></div>
     <div class="dbt-field"><div class="dbt-label">Товар</div>
-      <input class="dbt-input" placeholder="Назва товару, напр. Aperol 1л" value="${_form.item}" oninput="window.__dbt.f('item',this.value)"></div>
+      <div class="dbt-item-btn ${_form.item?'has-val':''}" onclick="window.__dbt.openPicker()">
+        <span class="${_form.item?'':'ph'}">${_form.item||'Обрати зі списку...'}</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="var(--text2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
     <div class="dbt-row2">
       <div class="dbt-field"><div class="dbt-label">Кількість</div>
         <input class="dbt-input" type="number" min="0.01" step="0.01" value="${_form.qty}" oninput="window.__dbt.f('qty',this.value)"></div>
@@ -275,7 +361,8 @@ export default {
       </div>
       <div class="dbt-scroll"><div id="dbt-body"></div></div>
     </div>
-    <div id="dbt-overlay"></div>`;
+    <div id="dbt-overlay"></div>
+    <div id="dbt-item-picker"></div>`;
   },
 
   init() {
@@ -293,11 +380,44 @@ export default {
           <div class="dbt-sheet-overlay" onclick="window.__dbt.close()"></div>
           <div class="dbt-sheet" id="dbt-sheet"></div>`;
         redrawSheet();
+        loadProducts();
       },
       close() {
-        _formOpen = false;
+        _formOpen = false; _pickerOpen = false; _pickerSearch = '';
         const ov = document.getElementById('dbt-overlay');
         if (ov) ov.innerHTML = '';
+        const pov = document.getElementById('dbt-item-picker');
+        if (pov) pov.innerHTML = '';
+      },
+      openPicker() {
+        _pickerOpen = true; _pickerSearch = '';
+        renderPickerOverlay();
+      },
+      closePicker() {
+        _pickerOpen = false;
+        renderPickerOverlay();
+        redrawSheet();
+      },
+      selectItem(name) {
+        _form.item = name; _pickerOpen = false;
+        renderPickerOverlay();
+        redrawSheet();
+      },
+      pickerSearch(q) {
+        _pickerSearch = q;
+        const list = document.getElementById('dbt-picker-list');
+        if (!list) return;
+        const filtered = _products.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
+        const rows = filtered.map(p => {
+          const safeName = p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}')">
+            <div class="dbt-picker-name">${p.name}</div>
+            ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
+          </div>`;
+        }).join('');
+        const manualEl = list.querySelector('.dbt-picker-manual');
+        const manualHTML = manualEl ? manualEl.outerHTML : '';
+        list.innerHTML = manualHTML + (rows || `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`);
       },
       save:         saveForm,
       markReturned: markReturned,
