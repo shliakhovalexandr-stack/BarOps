@@ -70,6 +70,15 @@ const QUICK_MANAGER = [
          <path d="M10 5l2 2" stroke="currentColor" stroke-width="1.3"/>` },
 ];
 
+const QUICK_ADMIN = [
+  ...QUICK_MANAGER,
+  { route:'schedule', badge:null, label:'Графіки',         hint:'Розклад змін по підрозділах',  color:'var(--teal-bg)',   iconColor:'var(--teal)',
+    svg:`<rect x="2" y="3" width="14" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+         <path d="M2 7h14" stroke="currentColor" stroke-width="1.3"/>
+         <path d="M6 2v2M12 2v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+         <path d="M5 10h2M8 10h2M11 10h2M5 13h2M8 13h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` },
+];
+
 /* ════════════════════════
    SCOPED CSS
 ════════════════════════ */
@@ -290,7 +299,7 @@ async function loadStats() {
 ════════════════════════ */
 function buildHTML() {
   const isMgr = state.role === 'admin' || state.role === 'manager';
-  const quick = isMgr ? QUICK_MANAGER : QUICK_BARTENDER;
+  const quick = state.role === 'admin' ? QUICK_ADMIN : isMgr ? QUICK_MANAGER : QUICK_BARTENDER;
   const s     = _stats;
 
   // KPI з реальних даних
