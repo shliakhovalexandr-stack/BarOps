@@ -296,6 +296,11 @@ ${CSS}
           <div class="ve-hint">Наприклад: https://terassa-chain.syrve.app</div>
         </div>
         <div class="ve-field" style="margin-bottom:12px">
+          <label class="ve-label">SYRVE API KEY (для стоп-листа)</label>
+          <input class="ve-input" id="iiko-api-key" type="text" placeholder="d8fcb572bf66473592dbc4755279d53c">
+          <div class="ve-hint">Syrve → Live API Settings → API key. Залиш порожнім — збережений ключ не зміниться.</div>
+        </div>
+        <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">ЛОГІН</label>
           <input class="ve-input" id="iiko-login" type="text" placeholder="irina">
           <div class="ve-hint">Логін співробітника Syrve</div>
@@ -625,9 +630,10 @@ function setSyrveMode(mode) {
 
 function getSyrveFormData() {
   const url      = document.getElementById('iiko-cloud-url')?.value.trim()  || null;
+  const apiKey   = document.getElementById('iiko-api-key')?.value.trim()    || null;
   const login    = document.getElementById('iiko-login')?.value.trim()       || null;
   const password = document.getElementById('iiko-password')?.value           || null;
-  return { url, apiKey: null, login, password };
+  return { url, apiKey, login, password };
 }
 
 async function initIikoSection(venueId) {
@@ -662,12 +668,14 @@ async function initIikoSection(venueId) {
 
     // Підставити збережені значення
     const urlEl    = document.getElementById('iiko-cloud-url');
+    const apiKeyEl = document.getElementById('iiko-api-key');
     const loginEl  = document.getElementById('iiko-login');
     const deptEl   = document.getElementById('iiko-department-id');
     if (urlEl   && settings.posUrl)            urlEl.value   = settings.posUrl;
     if (loginEl && settings.posLogin)          loginEl.value = settings.posLogin;
     if (deptEl  && settings.syrveDepartmentId) deptEl.value  = settings.syrveDepartmentId;
-    // Пароль не підставляємо з міркувань безпеки
+    if (apiKeyEl && settings.posApiKey)        apiKeyEl.placeholder = '••••••••  (збережено — залиш порожнім щоб не змінювати)';
+    // Пароль і API key не підставляємо з міркувань безпеки
 
     // Статус badge
     const isConn = settings.posConnected || (settings.posLastSyncAt && !settings.posLastError);
