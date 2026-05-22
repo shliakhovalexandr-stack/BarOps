@@ -195,7 +195,8 @@ function pickerHTML() {
           ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`
           : list.map(p => {
               const safeName = p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-              return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}')">
+              const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+              return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
                 <div class="dbt-picker-name">${p.name}</div>
                 ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
               </div>`;
@@ -224,6 +225,7 @@ async function loadDebts() {
 async function markReturned(id) {
   try {
     await apiFetch(`/api/debts/${id}/return`, { method: 'POST' });
+    _filter = 'all';
     loadDebts();
   } catch (e) { alert(e.message); }
 }
@@ -412,8 +414,10 @@ export default {
         renderPickerOverlay();
         redrawSheet();
       },
-      selectItem(name) {
-        _form.item = name; _pickerOpen = false;
+      selectItem(name, unit) {
+        _form.item = name;
+        if (unit) _form.unit = unit;
+        _pickerOpen = false;
         renderPickerOverlay();
         redrawSheet();
       },
@@ -424,7 +428,8 @@ export default {
         const filtered = _products.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
         const rows = filtered.map(p => {
           const safeName = p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}')">
+          const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
             <div class="dbt-picker-name">${p.name}</div>
             ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
           </div>`;
