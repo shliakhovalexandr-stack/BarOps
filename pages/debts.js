@@ -240,8 +240,12 @@ async function saveForm() {
       method: 'POST',
       body: JSON.stringify({ type:_tab, fromVenueId, toVenueId, item:item.trim(), qty:parseFloat(qty)||1, unit, price:parseFloat(price)||0, note }),
     });
-    _formOpen = false;
+    _formOpen = false; _pickerOpen = false; _pickerSearch = '';
     _form = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
+    const ov = document.getElementById('dbt-overlay');
+    if (ov) ov.innerHTML = '';
+    const pov = document.getElementById('dbt-item-picker');
+    if (pov) pov.innerHTML = '';
     loadDebts();
   } catch (e) { alert(e.message); }
   _saving = false; redrawSheet();
