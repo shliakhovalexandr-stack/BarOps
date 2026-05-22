@@ -1,500 +1,785 @@
 /* ============================================================
    BarOps — pages/schedule.js
-   Графіки — тижневий розклад по підрозділах
+   Графіки: Hub → Weekly view → Booking
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
-function tok() { return localStorage.getItem('barops_token') || ''; }
-function venueId() { return state.venueId || localStorage.getItem('barops_venueId') || ''; }
-
-/* ════════════════════════
-   CONSTANTS
-════════════════════════ */
-const DEPTS = [
-  { id: 'barman',   label: 'Бармени',   color: 'var(--purple)', bg: 'var(--purple-bg)', border: 'var(--purple-border)' },
-  { id: 'waiter',   label: 'Офіціанти', color: 'var(--amber)',  bg: 'var(--amber-bg)',  border: 'var(--amber-border)'  },
-  { id: 'cook',     label: 'Кухарі',    color: 'var(--green)',  bg: 'var(--green-bg)',  border: 'var(--green-border)'  },
-  { id: 'manager',  label: 'Менеджери', color: 'var(--blue)',   bg: 'var(--blue-bg)',   border: 'var(--blue-border)'   },
-  { id: 'hostess',  label: 'Хозяюшки', color: 'var(--teal)',   bg: 'var(--teal-bg)',   border: 'var(--teal-border)'   },
+/* ════════════════════════════════════════
+   WEEK
+════════════════════════════════════════ */
+const WEEK = [
+  { d: 'ПН', n: 18 },
+  { d: 'ВТ', n: 19 },
+  { d: 'СР', n: 20 },
+  { d: 'ЧТ', n: 21 },
+  { d: 'ПТ', n: 22 },
+  { d: 'СБ', n: 23, weekend: true },
+  { d: 'НД', n: 24, weekend: true },
 ];
-const DAYS_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
-const STORAGE_KEY = 'barops_schedule_v1';
 
-/* ════════════════════════
+/* ════════════════════════════════════════
+   ROSTERS
+════════════════════════════════════════ */
+const ROSTERS = {
+  cooks: {
+    label: 'Кухарі', sub: 'Кухня · 5 людей', icon: 'fork',
+    color: '#FBBF24', bgIcon: 'rgba(251,191,36,0.10)', bdIcon: 'rgba(251,191,36,0.28)',
+    people: [
+      { i: 'ВК', n: 'Віктор Кравчук',   role: 'Шеф-кухар',        hours: 48 },
+      { i: 'ОМ', n: 'Олена Мороз',      role: 'Кухар',             hours: 40 },
+      { i: 'НП', n: 'Наталія Поліщук',  role: 'Кухар',             hours: 40, ask: true },
+      { i: 'ІД', n: 'Ігор Драч',        role: 'Кухар-заготівник',  hours: 36 },
+      { i: 'МС', n: 'Марина Савченко',  role: 'Кухар',             hours: 40 },
+    ],
+    grid: [
+      [{ t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
+      [{ t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             null,             { t:'08–18',tag:'д'}],
+      [null,             { t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},null,             { t:'08–18',tag:'д'},null,             null            ],
+      [{ t:'08–18',tag:'д'},null,             { t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},null,             { t:'17–02',tag:'в'},null            ],
+      [{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'}],
+    ],
+    requests: [
+      { who: 'Наталія Поліщук', day: 'Сб 23', status: 'pending',  note: 'День народження сина' },
+      { who: 'Ігор Драч',       day: 'Чт 21', status: 'approved', note: '' },
+    ],
+  },
+  bartenders: {
+    label: 'Бармени', sub: 'Бар · 4 людини', icon: 'glass',
+    color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)', bdIcon: 'rgba(168,139,255,0.28)',
+    people: [
+      { i: 'ОП', n: 'Олег Петренко',      role: 'Старший бармен', hours: 48 },
+      { i: 'КС', n: 'Катерина Сидоренко', role: 'Бармен',         hours: 40 },
+      { i: 'АЛ', n: 'Андрій Лисенко',     role: 'Бармен',         hours: 36, ask: true },
+      { i: 'ВЗ', n: 'Валерія Захарченко', role: 'Бармен',         hours: 40 },
+    ],
+    grid: [
+      [{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
+      [null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
+      [{ t:'11–23',tag:'п'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             null,             { t:'11–23',tag:'п'}],
+      [{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             { t:'17–02',tag:'в'},{ t:'11–23',tag:'п'},null            ],
+    ],
+    requests: [
+      { who: 'Андрій Лисенко', day: 'Нд 24', status: 'pending', note: 'Сімейне свято' },
+    ],
+  },
+  waiters: {
+    label: 'Офіціанти', sub: 'Зал · 6 людей', icon: 'tray',
+    color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)', bdIcon: 'rgba(134,239,172,0.28)',
+    people: [
+      { i: 'ТК', n: 'Тетяна Коваленко',  role: 'Старший офіціант', hours: 48 },
+      { i: 'РШ', n: 'Роман Шевченко',    role: 'Офіціант',         hours: 40 },
+      { i: 'ЮБ', n: 'Юлія Бойко',        role: 'Офіціант',         hours: 40, ask: true },
+      { i: 'ДМ', n: 'Дмитро Мельник',    role: 'Офіціант',         hours: 36 },
+      { i: 'СГ', n: 'Світлана Гриценко', role: 'Офіціант',         hours: 40 },
+      { i: 'ПК', n: 'Павло Кузьменко',   role: 'Офіціант',         hours: 40 },
+    ],
+    grid: [
+      [{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'}],
+      [null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
+      [{ t:'11–23',tag:'п'},null,             null,             { t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'}],
+      [{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},null,             null            ],
+      [null,             null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
+      [{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             null,             { t:'11–23',tag:'п'}],
+    ],
+    requests: [
+      { who: 'Юлія Бойко',     day: 'Сб 23', status: 'pending',  note: 'Медичний огляд' },
+      { who: 'Дмитро Мельник', day: 'Пт 22', status: 'approved', note: '' },
+    ],
+  },
+  managers: {
+    label: 'Менеджери', sub: 'Управління · 3 людини', icon: 'star',
+    color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)', bdIcon: 'rgba(168,139,255,0.28)',
+    people: [
+      { i: 'ЛД', n: 'Людмила Данченко', role: 'Адміністратор', hours: 48 },
+      { i: 'СП', n: 'Сергій Панченко',  role: 'Менеджер',      hours: 40, ask: true },
+      { i: 'ОВ', n: 'Оксана Власенко',  role: 'Менеджер',      hours: 40 },
+    ],
+    grid: [
+      [{ t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null            ],
+      [null,             { t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'}],
+      [{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'}],
+    ],
+    requests: [
+      { who: 'Сергій Панченко', day: 'Нд 24', status: 'pending', note: 'Особиста справа' },
+    ],
+  },
+  cleaners: {
+    label: 'Хозяюшки', sub: 'Прибирання · 3 людини', icon: 'broom',
+    color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)', bdIcon: 'rgba(134,239,172,0.28)',
+    people: [
+      { i: 'ГН', n: 'Галина Назаренко',  role: 'Старша прибиральниця', hours: 40 },
+      { i: 'ІВ', n: 'Ірина Волошин',     role: 'Прибиральниця',        hours: 36, ask: true },
+      { i: 'ЛМ', n: 'Людмила Мусієнко', role: 'Прибиральниця',        hours: 36 },
+    ],
+    grid: [
+      [{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},null,             null            ],
+      [null,             { t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},null            ],
+      [{ t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'}],
+    ],
+    requests: [
+      { who: 'Ірина Волошин', day: 'Вт 19', status: 'pending', note: 'Лікарняний' },
+    ],
+  },
+};
+
+/* ════════════════════════════════════════
+   TAG META
+════════════════════════════════════════ */
+const TAG_META = {
+  р: { label: 'Ранок',  time: '06:00–14:00', color: '#FCD5EB', bg: 'rgba(252,213,235,0.12)', bd: 'rgba(252,213,235,0.28)' },
+  д: { label: 'День',   time: '10:00–20:00', color: '#FBBF24', bg: 'rgba(251,191,36,0.12)',  bd: 'rgba(251,191,36,0.28)'  },
+  п: { label: 'Обід',   time: '11:00–23:00', color: '#86EFAC', bg: 'rgba(134,239,172,0.12)', bd: 'rgba(134,239,172,0.28)' },
+  в: { label: 'Вечір',  time: '17:00–02:00', color: '#A88BFF', bg: 'rgba(168,139,255,0.12)', bd: 'rgba(168,139,255,0.28)' },
+  н: { label: 'Ніч',    time: '02:00–06:00', color: '#93C5FD', bg: 'rgba(147,197,253,0.12)', bd: 'rgba(147,197,253,0.28)' },
+};
+function tagMeta(t) { return TAG_META[t] || TAG_META.д; }
+
+/* ════════════════════════════════════════
    STATE
-════════════════════════ */
-let _tab        = 'barman';   // активна вкладка
-let _weekOff    = 0;          // 0 = поточний тиждень
-let _team       = [];         // члени команди
-let _loading    = true;
-let _sheet      = null;       // { empId, dayIso } — нижній лист для редагування
+════════════════════════════════════════ */
+let _view      = 'hub';   // hub | role | booking
+let _role      = 'cooks';
+let _mode      = 'view';  // view | edit
+let _selDays   = new Set();
+let _editSheet = null;    // { roleKey, pi, di }
 
-/* ════════════════════════
-   SCHEDULE STORAGE (localStorage)
-════════════════════════ */
-function loadData() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
-}
-function saveData(d) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-}
-function getShift(empId, dayIso) {
-  const d = loadData();
-  return d[venueId()]?.[empId]?.[dayIso] || null; // { start:'10:00', end:'18:00' } | null
-}
-function setShift(empId, dayIso, start, end) {
-  const d = loadData();
-  if (!d[venueId()]) d[venueId()] = {};
-  if (!d[venueId()][empId]) d[venueId()][empId] = {};
-  d[venueId()][empId][dayIso] = { start, end };
-  saveData(d);
-}
-function clearShift(empId, dayIso) {
-  const d = loadData();
-  if (d[venueId()]?.[empId]?.[dayIso]) {
-    delete d[venueId()][empId][dayIso];
-    saveData(d);
-  }
-}
-
-/* ════════════════════════
-   WEEK HELPERS
-════════════════════════ */
-function getMondayOfWeek(offset) {
-  const now = new Date();
-  const day = now.getDay() || 7; // 1=Mon..7=Sun
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - (day - 1) + offset * 7);
-  mon.setHours(0, 0, 0, 0);
-  return mon;
-}
-function weekDays(offset) {
-  const mon = getMondayOfWeek(offset);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
-    return d;
-  });
-}
-function isoDate(d) { return d.toISOString().slice(0, 10); }
-function isToday(d) { return isoDate(d) === isoDate(new Date()); }
-function weekLabel(offset) {
-  const days = weekDays(offset);
-  const fmt  = (d) => d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
-  return `${fmt(days[0])} — ${fmt(days[6])}`;
-}
-
-/* ════════════════════════
-   CSS
-════════════════════════ */
-const CSS = `<style id="sc-css">
-.sc-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden;background:var(--bg)}
-.sc-scroll{overflow-y:auto;flex:1;padding-bottom:32px}.sc-scroll::-webkit-scrollbar{width:0}
-
-/* Header */
-.sc-header{display:flex;align-items:center;gap:12px;padding:10px 18px 8px;flex-shrink:0}
-.sc-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);
-  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.sc-back:active{background:var(--bg3)}
-.sc-title{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em;flex:1}
-
-/* Week nav */
-.sc-week-row{display:flex;align-items:center;justify-content:space-between;padding:0 18px 12px;flex-shrink:0}
-.sc-week-label{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
-.sc-week-nav{display:flex;align-items:center;gap:4px}
-.sc-wbtn{width:32px;height:32px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);
-  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.sc-wbtn:active{background:var(--bg3)}
-.sc-today-btn{height:28px;padding:0 10px;border-radius:9px;background:var(--glass-bg);border:0.5px solid var(--border);
-  font-size:11px;font-family:var(--font-b);color:var(--text1);cursor:pointer;white-space:nowrap}
-.sc-today-btn:active{background:var(--bg3)}
-.sc-today-btn.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
-
-/* Dept tabs */
-.sc-tabs{display:flex;gap:6px;padding:0 18px 14px;overflow-x:auto;flex-shrink:0}.sc-tabs::-webkit-scrollbar{height:0}
-.sc-tab{height:30px;padding:0 12px;border-radius:20px;font-size:12px;font-family:var(--font-b);
-  cursor:pointer;white-space:nowrap;border:1px solid var(--border);background:var(--bg2);color:var(--text2);
-  display:inline-flex;align-items:center;transition:all .15s}
-.sc-tab:active{opacity:.7}
-.sc-tab.active{border-color:transparent;font-weight:600}
-
-/* Employee cards */
-.sc-emp-list{display:flex;flex-direction:column;gap:10px;padding:0 18px}
-.sc-emp-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
-
-/* Employee card header */
-.sc-emp-head{display:flex;align-items:center;gap:10px;padding:12px 14px 10px}
-.sc-emp-avatar{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-  font-family:var(--font-h);font-size:14px;font-weight:700;flex-shrink:0;color:#fff}
-.sc-emp-name{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
-.sc-emp-role{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
-.sc-emp-total{font-size:11px;font-family:var(--font-b);color:var(--text2);margin-left:auto;text-align:right;flex-shrink:0}
-.sc-emp-total-h{font-family:var(--font-h);font-size:16px;font-weight:700;line-height:1;text-align:right}
-
-/* Days grid */
-.sc-days-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 10px 12px}
-.sc-day{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border-radius:10px;padding:6px 2px;transition:background .12s}
-.sc-day:active{background:var(--bg3)}
-.sc-day-name{font-size:9px;font-family:var(--font-b);color:var(--text3);letter-spacing:.04em;text-transform:uppercase}
-.sc-day-num{font-size:10px;font-family:var(--font-b);color:var(--text2);margin-bottom:2px}
-.sc-day-num.today{color:var(--green)}
-.sc-day-slot{width:100%;min-height:30px;border-radius:8px;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;border:1px dashed var(--border)}
-.sc-day-slot.filled{border-style:solid;border-color:transparent}
-.sc-day-slot-time{font-size:8.5px;font-family:var(--font-b);font-weight:600;line-height:1.3;text-align:center}
-.sc-day-slot-plus{font-size:14px;color:var(--text3);line-height:1}
-
-/* Empty state */
-.sc-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:64px 32px;gap:12px;text-align:center}
-.sc-empty-icon{width:56px;height:56px;border-radius:18px;background:var(--bg2);
-  display:flex;align-items:center;justify-content:center;margin-bottom:4px}
-.sc-empty-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text1)}
-.sc-empty-sub{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
-
-/* Bottom sheet */
-.sc-sheet-ov{position:absolute;inset:0;z-index:80;background:rgba(0,0,0,.72);display:none;
-  flex-direction:column;justify-content:flex-end}
-.sc-sheet-ov.open{display:flex;animation:scOvIn .2s ease}
-@keyframes scOvIn{from{opacity:0}to{opacity:1}}
-.sc-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);
-  padding:0 0 40px;animation:scSlide .3s cubic-bezier(.22,1,.36,1)}
-@keyframes scSlide{from{transform:translateY(100%)}to{transform:none}}
-.sc-sheet-handle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:14px auto 16px}
-.sc-sheet-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);padding:0 20px 4px}
-.sc-sheet-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);padding:0 20px 20px}
-.sc-time-row{display:flex;gap:12px;padding:0 20px 20px;align-items:center}
-.sc-time-label{font-size:12px;color:var(--text2);font-family:var(--font-b);min-width:40px}
-.sc-time-input{flex:1;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;
-  padding:12px 14px;font-size:16px;font-family:var(--font-b);color:var(--text0);
-  appearance:none;-webkit-appearance:none;text-align:center;outline:none}
-.sc-time-input:focus{border-color:var(--green)}
-.sc-sheet-btns{display:flex;gap:8px;padding:0 20px}
-.sc-btn{flex:1;height:48px;border-radius:14px;border:none;font-family:var(--font-h);font-size:15px;
-  font-weight:600;cursor:pointer;transition:opacity .15s}
-.sc-btn:active{opacity:.8}
-.sc-btn--primary{background:var(--green);color:#000}
-.sc-btn--danger{background:var(--red-bg);color:var(--red);border:0.5px solid var(--red-border)}
-.sc-btn--cancel{background:var(--bg2);color:var(--text1);border:0.5px solid var(--border)}
-
-/* Skeleton */
-.sc-skel{background:var(--bg2);border-radius:12px;animation:scSkel 1.2s ease-in-out infinite}
-@keyframes scSkel{0%,100%{opacity:.4}50%{opacity:.9}}
-</style>`;
-
-/* ════════════════════════
-   API
-════════════════════════ */
-async function loadTeam() {
-  const vid = venueId();
-  if (!vid) { _team = []; _loading = false; return; }
-  try {
-    const r = await fetch(`${API}/api/auth/team?venueId=${vid}`, {
-      headers: { Authorization: `Bearer ${tok()}` },
-    });
-    const d = await r.json();
-    _team = Array.isArray(d.team) ? d.team : [];
-  } catch {
-    _team = [];
-  }
-  _loading = false;
-}
-
-/* ════════════════════════
+/* ════════════════════════════════════════
    HELPERS
-════════════════════════ */
-function deptColor(deptId) { return DEPTS.find(d => d.id === deptId) || DEPTS[0]; }
-
-function avatarColor(name) {
-  const colors = ['#7C5CFC','#F59E0B','#10B981','#3B82F6','#EC4899','#EF4444','#06B6D4'];
+════════════════════════════════════════ */
+function ini(name) {
+  const p = (name || '').trim().split(/\s+/);
+  return p.length >= 2 ? p[0][0] + p[1][0] : (p[0] || '?')[0];
+}
+function avatarBg(name) {
+  const c = ['#A88BFF','#FBBF24','#86EFAC','#FB7185','#93C5FD'];
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return colors[Math.abs(h) % colors.length];
-}
-function initials(name) {
-  const parts = (name || '').trim().split(/\s+/);
-  return parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0] || '?')[0];
+  return c[Math.abs(h) % c.length];
 }
 
-function roleLabel(role) {
-  const map = { barman:'Бармен', waiter:'Офіціант', cook:'Кухар', chef:'Шеф-кухар',
-                manager:'Менеджер', accountant:'Бухгалтер', admin:'Адмін', hostess:'Хозяюшка' };
-  return map[role] || role;
+function roleIcon(icon) {
+  const m = {
+    fork: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.7 1.3 3 3 3s3-1.3 3-3V2"/><path d="M6 12v10"/><path d="M20 2a5 5 0 0 0-5 5c0 2.4 1.7 4.4 4 4.9V22h2V2z"/></svg>`,
+    glass:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8M12 11v11M5 2l2 9h10l2-9z"/><path d="M9 7h6"/></svg>`,
+    tray: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="20" height="4" rx="2"/><path d="M6 14V9a6 6 0 0 1 12 0v5"/></svg>`,
+    star: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`,
+    broom:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2L9 14"/><path d="M3 22l7-7"/><path d="M7 22c0-2.8 2.2-5 5-5"/><path d="M21 2l-5 5"/></svg>`,
+  };
+  return m[icon] || m.star;
 }
 
-function calcTotalHours(empId, days) {
-  let total = 0;
-  for (const d of days) {
-    const s = getShift(empId, isoDate(d));
-    if (!s) continue;
-    const [sh, sm] = s.start.split(':').map(Number);
-    const [eh, em] = s.end.split(':').map(Number);
-    total += (eh * 60 + em) - (sh * 60 + sm);
+function avatarStack(people, max = 3) {
+  const show = people.slice(0, max);
+  const rest = people.length - max;
+  const circles = show.map((p, i) =>
+    `<div style="width:22px;height:22px;border-radius:50%;background:${avatarBg(p.n)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;margin-left:${i===0?'0':'-7px'};border:1.5px solid #0A0A0A;z-index:${max-i};position:relative;flex-shrink:0">${p.i}</div>`
+  ).join('');
+  const plus = rest > 0
+    ? `<div style="width:22px;height:22px;border-radius:50%;background:#1F1F22;display:flex;align-items:center;justify-content:center;font-size:7px;color:#71717A;font-weight:600;margin-left:-7px;border:1.5px solid #0A0A0A;z-index:0;position:relative;flex-shrink:0">+${rest}</div>`
+    : '';
+  return `<div style="display:flex;align-items:center">${circles}${plus}</div>`;
+}
+
+function statusChips(r) {
+  const gaps    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
+  const pending = r.requests.filter(x => x.status === 'pending').length;
+  if (!gaps && !pending)
+    return `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(134,239,172,0.10);border:0.5px solid rgba(134,239,172,0.25);font-size:10px;color:#86EFAC;font-weight:500">Без зауважень</span>`;
+  let out = '';
+  if (gaps)    out += `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(251,113,133,0.10);border:0.5px solid rgba(251,113,133,0.25);font-size:10px;color:#FB7185;font-weight:500">${gaps} дірок</span>`;
+  if (pending) out += `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(251,191,36,0.10);border:0.5px solid rgba(251,191,36,0.25);font-size:10px;color:#FBBF24;font-weight:500">${pending} запит${pending>1?'и':''}</span>`;
+  return out;
+}
+
+function summaryStats() {
+  let total = 0, onShift = 0, gaps = 0, pending = 0;
+  for (const r of Object.values(ROSTERS)) {
+    total   += r.people.length;
+    onShift += r.grid.filter(row => row[0] !== null).length;
+    gaps    += r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
+    pending += r.requests.filter(x => x.status === 'pending').length;
   }
-  return total > 0 ? (total / 60).toFixed(1) : null;
+  return { total, onShift, gaps, pending };
 }
 
-/* ════════════════════════
-   RENDER
-════════════════════════ */
-function renderTabs() {
-  return DEPTS.map(d => {
-    const isActive = _tab === d.id;
-    const cnt = _team.filter(e => (e.role || '').toLowerCase() === d.id ||
-                             (d.id === 'hostess' && (e.role || '').toLowerCase() === 'hostess')).length;
-    return `<div class="sc-tab${isActive ? ' active' : ''}"
-         style="${isActive ? `background:${d.bg};color:${d.color};border-color:${d.border}` : ''}"
-         onclick="window.__schedule.setTab('${d.id}')">
-      ${d.label}${cnt ? ` <span style="opacity:.6;margin-left:4px;font-size:10px">${cnt}</span>` : ''}
+/* ════════════════════════════════════════
+   CSS
+════════════════════════════════════════ */
+const CSS = `<style id="sch-css">
+*{box-sizing:border-box}
+.sch-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden;background:#000}
+.sch-scroll{overflow-y:auto;flex:1;padding-bottom:88px}.sch-scroll::-webkit-scrollbar{width:0}
+.sch-hdr{display:flex;align-items:flex-start;gap:12px;padding:12px 18px 10px;flex-shrink:0}
+.sch-back{width:36px;height:36px;border-radius:12px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px}
+.sch-back:active{background:#1F1F22}
+.sch-hdr-body{flex:1;min-width:0}
+.sch-hdr-venue{font-size:11px;color:#71717A;font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px}
+.sch-hdr-title{font-size:20px;font-weight:700;color:#fff;letter-spacing:-.02em;line-height:1.15}
+.sch-hdr-sub{font-size:12px;color:#71717A;margin-top:2px}
+.sch-hdr-icon{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.sch-week{display:flex;align-items:center;justify-content:space-between;padding:0 18px 14px;flex-shrink:0}
+.sch-week-lbl{font-size:13px;font-weight:600;color:#fff;letter-spacing:-.01em}
+.sch-week-nav{display:flex;align-items:center;gap:6px}
+.sch-wbtn{width:30px;height:30px;border-radius:9px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}.sch-wbtn:active{background:#1F1F22}
+.sch-sec{display:flex;align-items:center;justify-content:space-between;padding:0 18px 8px}
+.sch-sec-lbl{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.08em;text-transform:uppercase}
+.sch-sec-val{font-size:11px;color:#71717A}
+.sch-sum{margin:0 18px 14px;background:#0A0A0A;border:0.5px solid rgba(168,139,255,0.20);border-radius:14px;padding:16px}
+.sch-sum-row{display:flex}
+.sch-sum-cell{flex:1;text-align:center}
+.sch-sum-val{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.sch-sum-lbl{font-size:9px;font-weight:500;color:#52525B;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.sch-sum-div{width:0.5px;background:rgba(255,255,255,0.08);margin:0 2px}
+.sch-sum-meta{margin-top:10px;font-size:11px;color:#52525B;display:flex;align-items:center;gap:5px}
+.sch-seg{display:flex;margin:0 18px 14px;background:#141416;border-radius:10px;border:0.5px solid rgba(255,255,255,0.08);padding:3px;gap:3px}
+.sch-seg-btn{flex:1;height:30px;border-radius:7px;border:none;font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:#71717A;transition:all .15s}
+.sch-seg-btn.on{background:#1F1F22;color:#fff}
+.sch-dept-list{display:flex;flex-direction:column;gap:8px;padding:0 18px}
+.sch-dc{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.sch-dc:active{background:#141416}
+.sch-dc-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sch-dc-body{flex:1;min-width:0}
+.sch-dc-name{font-size:14px;font-weight:600;color:#fff;letter-spacing:-.01em}
+.sch-dc-sub{font-size:12px;color:#71717A;margin-top:2px;display:flex;align-items:center;gap:5px}
+.sch-live{width:6px;height:6px;border-radius:50%;background:#86EFAC;display:inline-block;flex-shrink:0}
+.sch-dc-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.sch-dc-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.sch-add{margin:10px 18px 0;height:48px;border-radius:14px;border:0.5px dashed rgba(255,255,255,0.14);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:#52525B;gap:8px}
+.sch-add:active{background:#0A0A0A}
+.sch-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px}
+.sch-qcard{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:10px}
+.sch-qcard:active{background:#141416}
+.sch-qicon{width:36px;height:36px;border-radius:10px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sch-qlbl{font-size:12px;font-weight:500;color:#A1A1AA;line-height:1.4}
+.sch-kpi{display:flex;margin:0 18px 16px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px}
+.sch-kpi-cell{flex:1;padding:14px 0;text-align:center;position:relative}
+.sch-kpi-cell+.sch-kpi-cell::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:0.5px;background:rgba(255,255,255,0.08)}
+.sch-kpi-val{font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;line-height:1}
+.sch-kpi-lbl{font-size:9px;font-weight:500;color:#52525B;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.sch-grid-wrap{margin:0 18px 16px;overflow-x:auto}.sch-grid-wrap::-webkit-scrollbar{height:0}
+.sch-table{border-collapse:collapse;width:100%;min-width:300px}
+.sch-table th{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.04em;text-align:center;padding:0 2px 8px;vertical-align:bottom}
+.sch-table th.wk{color:#A88BFF}
+.sch-table td{padding:3px 2px;vertical-align:middle}
+.sch-gname{font-size:11px;font-weight:500;color:#A1A1AA;white-space:nowrap;padding-right:6px;display:flex;align-items:center;gap:5px}
+.sch-gini{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;flex-shrink:0}
+.sch-tag{display:flex;align-items:center;justify-content:center;width:30px;height:28px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;transition:transform .1s;user-select:none}
+.sch-tag:active{transform:scale(.9)}
+.sch-off{width:30px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.3}
+.sch-off:hover{opacity:.6;background:#141416}
+.sch-legend{display:flex;flex-wrap:wrap;gap:6px;padding:0 18px 16px}
+.sch-leg{display:flex;align-items:center;gap:5px}
+.sch-leg-chip{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+.sch-leg-lbl{font-size:11px;color:#71717A}
+.sch-cov{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 18px 16px}
+.sch-cov-cell{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center}
+.sch-cov-cell.lo{border-color:rgba(251,113,133,0.28)}
+.sch-cov-d{font-size:9px;color:#52525B;letter-spacing:.04em;margin-bottom:4px;text-transform:uppercase}
+.sch-cov-n{font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.sch-cov-n.lo{color:#FB7185}
+.sch-req-list{display:flex;flex-direction:column;gap:6px;padding:0 18px 16px}
+.sch-req{border-radius:12px;padding:12px 14px;border:0.5px solid transparent;display:flex;align-items:center;gap:10px}
+.sch-req.pending{background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.22)}
+.sch-req.approved{background:rgba(134,239,172,0.06);border-color:rgba(134,239,172,0.18)}
+.sch-req-who{font-size:13px;font-weight:600;color:#fff}
+.sch-req-day{font-size:11px;color:#71717A;margin-top:2px}
+.sch-rbtn{width:30px;height:30px;border-radius:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sch-rbtn.ap{background:#A88BFF}.sch-rbtn.rj{background:#1F1F22;border:0.5px solid rgba(255,255,255,0.08)}
+.sch-bar{position:sticky;bottom:0;background:#000;border-top:0.5px solid rgba(255,255,255,0.08);padding:12px 18px 28px;display:flex;gap:10px;flex-shrink:0}
+.sch-bar-icon{width:52px;height:52px;border-radius:13px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sch-bar-icon:active{background:#1F1F22}
+.sch-cta{flex:1;height:52px;border-radius:14px;background:#A88BFF;border:none;font-size:15px;font-weight:600;color:#000;cursor:pointer;letter-spacing:-.01em}
+.sch-cta:active{opacity:.85}.sch-cta:disabled{opacity:.35;cursor:not-allowed}
+.sch-cta-sec{flex:1;height:52px;border-radius:14px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);font-size:14px;font-weight:500;color:#A1A1AA;cursor:pointer}
+.sch-ov{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.76);display:flex;flex-direction:column;justify-content:flex-end;animation:schOvIn .18s ease}
+@keyframes schOvIn{from{opacity:0}to{opacity:1}}
+.sch-sheet{background:#0A0A0A;border-radius:22px 22px 0 0;border-top:0.5px solid rgba(255,255,255,0.08);padding:0 0 40px;animation:schSl .26s cubic-bezier(.22,1,.36,1);max-height:80vh;overflow-y:auto}
+@keyframes schSl{from{transform:translateY(100%)}to{transform:none}}
+.sch-sh-handle{width:36px;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;margin:14px auto 18px}
+.sch-sh-title{font-size:17px;font-weight:700;color:#fff;padding:0 20px 4px}
+.sch-sh-sub{font-size:12px;color:#71717A;padding:0 20px 16px}
+.sch-sh-opts{display:flex;flex-direction:column;gap:5px;padding:0 20px 18px}
+.sch-sh-opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);cursor:pointer}
+.sch-sh-opt:active{background:#1F1F22}
+.sch-sh-opt.sel{border-color:rgba(168,139,255,0.40);background:rgba(168,139,255,0.08)}
+.sch-sh-tag{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.sch-sh-name{font-size:13px;font-weight:600;color:#fff}
+.sch-sh-time{font-size:11px;color:#71717A;margin-top:2px}
+.sch-sh-btns{display:flex;gap:8px;padding:0 20px}
+.sch-sbt{flex:1;height:48px;border-radius:13px;border:none;font-size:14px;font-weight:600;cursor:pointer}
+.sch-sbt-cta{background:#A88BFF;color:#000}.sch-sbt-sec{background:#141416;color:#A1A1AA;border:0.5px solid rgba(255,255,255,0.08)}
+.sch-popup{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;animation:schOvIn .15s ease}
+.sch-popup-box{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.12);border-radius:16px;padding:20px 24px;min-width:240px}
+.sch-cal-nav{display:flex;align-items:center;justify-content:space-between;padding:0 18px 14px}
+.sch-cal-month{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.01em}
+.sch-cal-wrap{margin:0 18px 16px}
+.sch-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.sch-cal-dow div{text-align:center;font-size:11px;font-weight:500;color:#52525B}
+.sch-cal-dow .vio{color:#A88BFF}
+.sch-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.sch-cell{aspect-ratio:1/1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;cursor:pointer;position:relative;background:#0A0A0A;color:#fff;border:0.5px solid rgba(255,255,255,0.08);transition:background .1s}
+.sch-cell:active{background:#1F1F22}
+.sch-cell.empty{background:transparent;border-color:transparent;pointer-events:none}
+.sch-cell.past{opacity:.3;pointer-events:none;color:#52525B}
+.sch-cell.today::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#A88BFF}
+.sch-cell.sel{background:#A88BFF;color:#000;border-color:#A88BFF}
+.sch-cell.sel.today::after{background:#000}
+.sch-cell.preq{background:rgba(168,139,255,0.10);color:#A88BFF;border-color:rgba(168,139,255,0.30);pointer-events:none}
+.sch-cell.wknd:not(.sel):not(.past){color:#A88BFF}
+.sch-bsum{margin:0 18px 16px;background:rgba(168,139,255,0.07);border:0.5px solid rgba(168,139,255,0.22);border-radius:14px;padding:14px}
+.sch-bsum-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sch-bsum-title{font-size:10px;font-weight:500;color:#A88BFF;letter-spacing:.07em;text-transform:uppercase}
+.sch-bsum-count{font-size:20px;font-weight:700;color:#A88BFF;font-variant-numeric:tabular-nums}
+.sch-bchips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.sch-bchip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:6px;background:rgba(168,139,255,0.12);border:0.5px solid rgba(168,139,255,0.28);font-size:11px;font-weight:500;color:#A88BFF;cursor:pointer}
+.sch-bquota{font-size:11px;color:#71717A;line-height:1.5}
+.sch-plist{display:flex;flex-direction:column;gap:6px;padding:0 18px 16px}
+.sch-pcard{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.sch-picon{width:28px;height:28px;border-radius:8px;background:rgba(251,191,36,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sch-pday{font-size:13px;font-weight:600;color:#fff}
+.sch-plbl{font-size:11px;color:#71717A;margin-top:2px}
+.sch-pcancel{height:28px;padding:0 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.10);background:transparent;font-size:11px;color:#71717A;cursor:pointer;flex-shrink:0}
+.sch-cmnt{padding:0 18px 16px}
+.sch-cmnt-lbl{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px}
+.sch-cmnt-inp{width:100%;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.10);border-radius:12px;padding:12px 14px;font-size:13px;color:#fff;resize:none;outline:none;font-family:inherit}
+.sch-cmnt-inp:focus{border-color:rgba(168,139,255,0.40)}.sch-cmnt-inp::placeholder{color:#52525B}
+</style>`;
+
+/* ════════════════════════════════════════
+   SCREEN 1 — HUB
+════════════════════════════════════════ */
+function renderHub() {
+  const stats = summaryStats();
+  const venueName = localStorage.getItem('barops_venue') || 'Bar Noir';
+
+  const cards = Object.entries(ROSTERS).map(([key, r]) => {
+    const onShift = r.grid.filter(row => row[0] !== null).length;
+    return `
+    <div class="sch-dc" onclick="window.__sch.goRole('${key}')">
+      <div class="sch-dc-icon" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color}">
+        ${roleIcon(r.icon)}
+      </div>
+      <div class="sch-dc-body">
+        <div class="sch-dc-name">${r.label}</div>
+        <div class="sch-dc-sub"><span class="sch-live"></span>${r.people.length} люд · ${onShift} на зміні</div>
+        <div class="sch-dc-chips">${statusChips(r)}</div>
+      </div>
+      <div class="sch-dc-right">
+        ${avatarStack(r.people)}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
     </div>`;
   }).join('');
-}
-
-function renderDaysHeader(days) {
-  return days.map((d, i) => `
-    <div style="text-align:center">
-      <div class="sc-day-name">${DAYS_SHORT[i]}</div>
-      <div class="sc-day-num${isToday(d) ? ' today' : ''}">${d.getDate()}</div>
-    </div>`).join('');
-}
-
-function renderEmpCard(emp, days, dept) {
-  const total = calcTotalHours(emp.id, days);
-  const slots = days.map(d => {
-    const iso   = isoDate(d);
-    const shift = getShift(emp.id, iso);
-    if (shift) {
-      return `<div class="sc-day-slot filled" style="background:${dept.bg};border-color:${dept.border}"
-                   onclick="window.__schedule.openSheet('${emp.id}','${iso}')">
-        <div class="sc-day-slot-time" style="color:${dept.color}">${shift.start}<br>${shift.end}</div>
-      </div>`;
-    }
-    return `<div class="sc-day-slot" onclick="window.__schedule.openSheet('${emp.id}','${iso}')">
-      <div class="sc-day-slot-plus">+</div>
-    </div>`;
-  }).join('');
-
-  return `
-  <div class="sc-emp-card">
-    <div class="sc-emp-head">
-      <div class="sc-emp-avatar" style="background:${avatarColor(emp.name || emp.phone)}">${initials(emp.name || emp.phone)}</div>
-      <div style="flex:1;min-width:0">
-        <div class="sc-emp-name">${emp.name || emp.phone}</div>
-        <div class="sc-emp-role">${roleLabel(emp.role)}</div>
-      </div>
-      ${total ? `<div class="sc-emp-total">
-        <div class="sc-emp-total-h" style="color:${dept.color}">${total}</div>
-        <div>год/тиждень</div>
-      </div>` : ''}
-    </div>
-    <div class="sc-days-row">${slots}</div>
-  </div>`;
-}
-
-function renderContent() {
-  const dept = deptColor(_tab);
-  const days = weekDays(_weekOff);
-
-  if (_loading) {
-    return `<div class="sc-emp-list">
-      ${[1,2,3].map(() => `<div class="sc-skel" style="height:108px;border-radius:16px"></div>`).join('')}
-    </div>`;
-  }
-
-  const deptEmployees = _team.filter(e => {
-    const r = (e.role || '').toLowerCase();
-    if (_tab === 'hostess') return r === 'hostess';
-    if (_tab === 'manager') return r === 'manager' || r === 'admin';
-    return r === _tab;
-  });
-
-  if (!deptEmployees.length) {
-    return `<div class="sc-empty">
-      <div class="sc-empty-icon">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      </div>
-      <div class="sc-empty-title">${dept.label} не знайдені</div>
-      <div class="sc-empty-sub">Додайте членів команди у розділі «Команда», щоб складати графіки.</div>
-    </div>`;
-  }
-
-  return `
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 18px 8px;padding-left:calc(18px + 74px + 10px + 36px)">
-    ${renderDaysHeader(days)}
-  </div>
-  <div class="sc-emp-list">${deptEmployees.map(e => renderEmpCard(e, days, dept)).join('')}</div>`;
-}
-
-function renderSheet() {
-  if (!_sheet) return '';
-  const { empId, dayIso } = _sheet;
-  const emp   = _team.find(e => e.id === empId);
-  const shift = getShift(empId, dayIso);
-  const date  = new Date(dayIso + 'T00:00:00');
-  const dayLabel = date.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' });
-  const empName  = emp ? (emp.name || emp.phone) : '';
-
-  return `
-  <div class="sc-sheet-ov open" id="sc-sheet-ov" onclick="window.__schedule.closeSheetIfBg(event)">
-    <div class="sc-sheet">
-      <div class="sc-sheet-handle"></div>
-      <div class="sc-sheet-title">Зміна — ${empName}</div>
-      <div class="sc-sheet-sub">${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}</div>
-      <div class="sc-time-row">
-        <div class="sc-time-label">Початок</div>
-        <input class="sc-time-input" type="time" id="sc-time-start" value="${shift?.start || '10:00'}">
-      </div>
-      <div class="sc-time-row">
-        <div class="sc-time-label">Кінець</div>
-        <input class="sc-time-input" type="time" id="sc-time-end" value="${shift?.end || '22:00'}">
-      </div>
-      <div class="sc-sheet-btns">
-        ${shift ? `<button class="sc-btn sc-btn--danger" onclick="window.__schedule.removeShift()">Видалити</button>` : ''}
-        <button class="sc-btn sc-btn--cancel" onclick="window.__schedule.closeSheet()">Скасувати</button>
-        <button class="sc-btn sc-btn--primary" onclick="window.__schedule.saveShift()">Зберегти</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-/* ════════════════════════
-   PARTIAL DOM UPDATE
-════════════════════════ */
-function re() {
-  const weekLbl = document.querySelector('.sc-week-label');
-  if (weekLbl) weekLbl.textContent = weekLabel(_weekOff);
-  const todayBtn = document.querySelector('.sc-today-btn');
-  if (todayBtn) todayBtn.classList.toggle('active', _weekOff === 0);
-  const content = document.getElementById('sc-content');
-  if (content) content.innerHTML = renderContent();
-  const wrap = document.querySelector('.sc-wrap');
-  if (wrap) {
-    const old = document.getElementById('sc-sheet-ov');
-    if (old) old.remove();
-    if (_sheet) wrap.insertAdjacentHTML('beforeend', renderSheet());
-  }
-}
-
-/* ════════════════════════
-   PAGE EXPORT
-════════════════════════ */
-export function render() {
-  _loading = true;
-  _sheet   = null;
-  _weekOff = 0;
-  _tab     = 'barman';
-  _team    = [];
 
   return CSS + `
-  <div class="sc-wrap">
-    <div class="sc-header">
-      <div class="sc-back" onclick="window.__barops.navigate('dashboard')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  <div class="sch-wrap">
+    <div class="sch-hdr">
+      <div class="sch-back" onclick="window.__barops.navigate('dashboard')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </div>
-      <div class="sc-title">Графіки</div>
-    </div>
-
-    <div class="sc-week-row">
-      <div class="sc-week-label">${weekLabel(_weekOff)}</div>
-      <div class="sc-week-nav">
-        <div class="sc-today-btn active" onclick="window.__schedule.goToday()">Сьогодні</div>
-        <div style="width:6px"></div>
-        <div class="sc-wbtn" onclick="window.__schedule.prevWeek()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-        </div>
-        <div class="sc-wbtn" onclick="window.__schedule.nextWeek()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
+      <div class="sch-hdr-body">
+        <div class="sch-hdr-venue">${venueName}</div>
+        <div class="sch-hdr-title">Графіки</div>
+      </div>
+      <div class="sch-hdr-icon" style="background:#141416;border:0.5px solid rgba(255,255,255,0.08)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       </div>
     </div>
-
-    <div class="sc-tabs">${renderTabs()}</div>
-
-    <div class="sc-scroll" id="sc-content">
-      ${renderContent()}
+    <div class="sch-week">
+      <div class="sch-week-lbl">Тиждень · травень&nbsp;&nbsp;18–24</div>
+      <div class="sch-week-nav">
+        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </div>
+    </div>
+    <div class="sch-scroll">
+      <div class="sch-sum">
+        <div class="sch-sum-row">
+          <div class="sch-sum-cell"><div class="sch-sum-val">${stats.total}</div><div class="sch-sum-lbl">Людей</div></div>
+          <div class="sch-sum-div"></div>
+          <div class="sch-sum-cell"><div class="sch-sum-val" style="color:#86EFAC">${stats.onShift}</div><div class="sch-sum-lbl">На зміні</div></div>
+          <div class="sch-sum-div"></div>
+          <div class="sch-sum-cell"><div class="sch-sum-val"${stats.gaps?` style="color:#FB7185"`:''}>${stats.gaps}</div><div class="sch-sum-lbl">Дірок</div></div>
+          <div class="sch-sum-div"></div>
+          <div class="sch-sum-cell"><div class="sch-sum-val"${stats.pending?` style="color:#FBBF24"`:''}>${stats.pending}</div><div class="sch-sum-lbl">Запитів</div></div>
+        </div>
+        <div class="sch-sum-meta">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          8 хв тому
+        </div>
+      </div>
+      <div class="sch-seg">
+        <button class="sch-seg-btn${_mode==='view'?' on':''}" onclick="window.__sch.setMode('view')">Переглянути</button>
+        <button class="sch-seg-btn${_mode==='edit'?' on':''}" onclick="window.__sch.setMode('edit')">Редагувати</button>
+      </div>
+      <div class="sch-sec"><div class="sch-sec-lbl">Підрозділи</div><div class="sch-sec-val">${Object.keys(ROSTERS).length}</div></div>
+      <div class="sch-dept-list">${cards}</div>
+      <div class="sch-add">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Додати підрозділ
+      </div>
+      <div class="sch-sec" style="margin-top:20px"><div class="sch-sec-lbl">Швидкі дії</div></div>
+      <div class="sch-quick">
+        <div class="sch-qcard" onclick="window.__sch.goRole('cooks')">
+          <div class="sch-qicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></div>
+          <div class="sch-qlbl">Усі<br>зведений</div>
+        </div>
+        <div class="sch-qcard">
+          <div class="sch-qicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
+          <div class="sch-qlbl">Шаблон<br>застосувати</div>
+        </div>
+      </div>
     </div>
   </div>`;
+}
+
+/* ════════════════════════════════════════
+   SCREEN 2 — ROLE VIEW
+════════════════════════════════════════ */
+function renderRoleView(roleKey) {
+  const r = ROSTERS[roleKey];
+  if (!r) return renderHub();
+
+  const totalShifts = r.grid.reduce((a, row) => a + row.filter(c => c !== null).length, 0);
+  const totalOff    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
+  const pendCnt     = r.requests.filter(x => x.status === 'pending').length;
+
+  const thCells = WEEK.map(w =>
+    `<th class="${w.weekend?'wk':''}">${w.d}<br><span style="font-size:11px;font-weight:400">${w.n}</span></th>`
+  ).join('');
+
+  const bodyRows = r.people.map((p, pi) => {
+    const cells = r.grid[pi].map((cell, di) => {
+      if (!cell) {
+        const onclick = _mode === 'edit'
+          ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
+          : '';
+        return `<td><div class="sch-off" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/></svg></div></td>`;
+      }
+      const tm = tagMeta(cell.tag);
+      const onclick = _mode === 'edit'
+        ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
+        : `onclick="window.__sch.showTagInfo('${cell.tag}','${p.n.split(' ')[0]}','${cell.t}')"`;
+      return `<td><div class="sch-tag" style="background:${tm.bg};border:0.5px solid ${tm.bd};color:${tm.color}" ${onclick}>${cell.tag}</div></td>`;
+    }).join('');
+    return `<tr>
+      <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div>${p.n.split(' ')[0]}</div></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  const covCells = WEEK.map((w, di) => {
+    const cnt = r.grid.filter(row => row[di] !== null).length;
+    return `<div class="sch-cov-cell${cnt<2?' lo':''}">
+      <div class="sch-cov-d">${w.d}</div>
+      <div class="sch-cov-n${cnt<2?' lo':''}">${cnt}</div>
+    </div>`;
+  }).join('');
+
+  const legendHtml = Object.entries(TAG_META).map(([k, v]) =>
+    `<div class="sch-leg">
+      <div class="sch-leg-chip" style="background:${v.bg};border:0.5px solid ${v.bd};color:${v.color}">${k}</div>
+      <div class="sch-leg-lbl">${v.label}&nbsp;${v.time}</div>
+    </div>`
+  ).join('');
+
+  const reqHtml = r.requests.map((req, ri) => `
+    <div class="sch-req ${req.status}" id="sch-req-${roleKey}-${ri}">
+      <div style="flex:1">
+        <div class="sch-req-who">${req.who}</div>
+        <div class="sch-req-day">${req.day}${req.note ? ` · ${req.note}` : ''}</div>
+      </div>
+      ${req.status === 'pending'
+        ? `<button class="sch-rbtn ap" onclick="window.__sch.approveReq('${roleKey}',${ri})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+           <button class="sch-rbtn rj" onclick="window.__sch.rejectReq('${roleKey}',${ri})" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
+        : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`
+      }
+    </div>`
+  ).join('');
+
+  const bar = _mode === 'edit'
+    ? `<div class="sch-bar"><button class="sch-cta-sec" onclick="window.__sch.setMode('view')">Скасувати</button><button class="sch-cta" style="flex:2" onclick="window.__sch.setMode('view')">Зберегти зміни</button></div>`
+    : `<div class="sch-bar"><div class="sch-bar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`;
+
+  return CSS + `
+  <div class="sch-wrap">
+    <div class="sch-hdr">
+      <div class="sch-back" onclick="window.__sch.goHub()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+      <div class="sch-hdr-body">
+        <div class="sch-hdr-venue">Графік</div>
+        <div class="sch-hdr-title">${r.label}</div>
+        <div class="sch-hdr-sub">${r.sub}</div>
+      </div>
+      <div class="sch-hdr-icon" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color}">${roleIcon(r.icon)}</div>
+    </div>
+    <div class="sch-week">
+      <div class="sch-week-lbl">Тиждень · травень&nbsp;&nbsp;18–24</div>
+      <div class="sch-week-nav">
+        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </div>
+    </div>
+    <div class="sch-scroll">
+      <div class="sch-kpi">
+        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalShifts}</div><div class="sch-kpi-lbl">Змін</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalOff}</div><div class="sch-kpi-lbl">Вихід</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val"${pendCnt?` style="color:#FBBF24"`:''}>${pendCnt}</div><div class="sch-kpi-lbl">Запит</div></div>
+      </div>
+      <div class="sch-sec">
+        <div class="sch-sec-lbl">Тиждень</div>
+        <div class="sch-sec-val" style="color:${_mode==='edit'?'#A88BFF':'#71717A'};cursor:pointer" onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')">
+          ${_mode === 'edit' ? '● Режим редагування' : 'Редагувати →'}
+        </div>
+      </div>
+      <div class="sch-grid-wrap">
+        <table class="sch-table">
+          <thead><tr><th style="text-align:left;padding-right:6px;color:#52525B">Хто</th>${thCells}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>
+      <div class="sch-sec"><div class="sch-sec-lbl">Покриття днів</div><div class="sch-sec-val">${r.people.length} людей</div></div>
+      <div class="sch-cov">${covCells}</div>
+      <div class="sch-sec"><div class="sch-sec-lbl">Легенда</div></div>
+      <div class="sch-legend">${legendHtml}</div>
+      ${r.requests.length ? `
+      <div class="sch-sec"><div class="sch-sec-lbl">Запити на вихідні</div><div class="sch-sec-val">${r.requests.length}</div></div>
+      <div class="sch-req-list" id="sch-reqs">${reqHtml}</div>` : ''}
+    </div>
+    ${bar}
+  </div>`;
+}
+
+/* ════════════════════════════════════════
+   SCREEN 3 — BOOKING
+════════════════════════════════════════ */
+function renderBooking() {
+  // May 2026: May 1 = Friday (getDay()=5 → Mon-first offset = 4)
+  const offset = 4;
+  const daysInMonth = 31;
+  const todayNum = 19;
+  const pendingDays = new Set([18]);
+  const DOW = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
+  const MONTHS_UK = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+
+  const cells = [];
+  for (let i = 0; i < offset; i++) cells.push(`<div class="sch-cell empty"></div>`);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dowIdx = (offset + d - 1) % 7;
+    const isWeekend = dowIdx >= 5;
+    const isPast    = d < todayNum;
+    const isToday   = d === todayNum;
+    const isSel     = _selDays.has(d);
+    const isPending = pendingDays.has(d);
+    let cls = 'sch-cell';
+    if (isPending) cls += ' preq';
+    else if (isPast) cls += ' past';
+    else if (isSel) cls += ' sel';
+    else if (isWeekend) cls += ' wknd';
+    if (isToday) cls += ' today';
+    const onclick = (!isPast && !isPending) ? `onclick="window.__sch.toggleDay(${d})"` : '';
+    cells.push(`<div class="${cls}" ${onclick}>${d}</div>`);
+  }
+
+  const selArr = [..._selDays].sort((a, b) => a - b);
+  const chips = selArr.map(d =>
+    `<div class="sch-bchip" onclick="window.__sch.toggleDay(${d})">${d}&nbsp;${MONTHS_UK[4]}&nbsp;<span style="opacity:.6">×</span></div>`
+  ).join('');
+  const quota = 8;
+  const remaining = quota - pendingDays.size - selArr.length;
+
+  return CSS + `
+  <div class="sch-wrap">
+    <div class="sch-hdr">
+      <div class="sch-back" onclick="window.__sch.goRole('${_role}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+      <div class="sch-hdr-body">
+        <div class="sch-hdr-venue">Графік · Олег П.</div>
+        <div class="sch-hdr-title">Бронювання вихідних</div>
+      </div>
+    </div>
+    <div class="sch-scroll">
+      <div class="sch-cal-nav">
+        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-cal-month">Травень 2026</div>
+        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </div>
+      <div class="sch-cal-wrap">
+        <div class="sch-cal-dow">
+          ${DOW.map(d => `<div class="${d==='СБ'||d==='НД'?'vio':''}">${d}</div>`).join('')}
+        </div>
+        <div class="sch-cal-grid" id="sch-cal">${cells.join('')}</div>
+      </div>
+      <div class="sch-bsum">
+        <div class="sch-bsum-head">
+          <div class="sch-bsum-title">Обрано вихідних</div>
+          <div class="sch-bsum-count">${selArr.length}</div>
+        </div>
+        ${selArr.length ? `<div class="sch-bchips" id="sch-bchips">${chips}</div>` : ''}
+        <div class="sch-bquota">Норма для бармена · ${quota} вихідних на місяць. ${remaining > 0 ? `Залишилось ${remaining}.` : 'Ліміт вичерпано.'}</div>
+      </div>
+      <div class="sch-sec"><div class="sch-sec-lbl">Очікують на розгляд</div></div>
+      <div class="sch-plist">
+        <div class="sch-pcard">
+          <div class="sch-picon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+          <div style="flex:1"><div class="sch-pday">18 травня</div><div class="sch-plbl">Очікує підтвердження</div></div>
+          <button class="sch-pcancel">Скасувати</button>
+        </div>
+      </div>
+      <div class="sch-cmnt">
+        <div class="sch-cmnt-lbl">Коментар (опційно)</div>
+        <textarea class="sch-cmnt-inp" placeholder="Сімейне свято на вихідні..." rows="3"></textarea>
+      </div>
+    </div>
+    <div class="sch-bar">
+      <button class="sch-cta" ${selArr.length===0?'disabled':''}>
+        Надіслати запит · ${selArr.length} ${selArr.length===1?'день':selArr.length<5?'дні':'днів'}
+      </button>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════
+   OVERLAY: edit sheet
+════════════════════════════════════════ */
+function renderEditSheet() {
+  if (!_editSheet) return '';
+  const { roleKey, pi, di } = _editSheet;
+  const r = ROSTERS[roleKey];
+  const p = r.people[pi];
+  const cell = r.grid[pi][di];
+  const w = WEEK[di];
+
+  const opts = [
+    ...Object.entries(TAG_META),
+    ['off', { label:'Вихідний', time:'—', color:'#52525B', bg:'#1F1F22', bd:'rgba(255,255,255,0.08)' }],
+  ];
+
+  return `
+  <div class="sch-ov" id="sch-edit-ov" onclick="window.__sch.closeEditOv(event)">
+    <div class="sch-sheet">
+      <div class="sch-sh-handle"></div>
+      <div class="sch-sh-title">Зміна — ${p.n.split(' ')[0]}</div>
+      <div class="sch-sh-sub">${w.d} ${w.n} травня</div>
+      <div class="sch-sh-opts">
+        ${opts.map(([k, v]) => {
+          const isSel = k === 'off' ? cell === null : cell?.tag === k;
+          return `<div class="sch-sh-opt${isSel?' sel':''}" onclick="window.__sch.applyTag('${k}')">
+            <div class="sch-sh-tag" style="background:${v.bg};border:0.5px solid ${v.bd};color:${v.color}">${k==='off'?'—':k}</div>
+            <div><div class="sch-sh-name">${v.label}</div><div class="sch-sh-time">${v.time}</div></div>
+            ${isSel?`<svg style="margin-left:auto" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="sch-sh-btns">
+        <button class="sch-sbt sch-sbt-sec" onclick="window.__sch.closeEditSheet()">Скасувати</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════
+   OVERLAY: tag info popup
+════════════════════════════════════════ */
+function renderTagPopup(tag, name, time) {
+  const tm = tagMeta(tag);
+  return `
+  <div class="sch-popup" id="sch-popup" onclick="window.__sch.closePopup()">
+    <div class="sch-popup-box">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="sch-sh-tag" style="width:36px;height:36px;border-radius:10px;background:${tm.bg};border:0.5px solid ${tm.bd};color:${tm.color};font-size:14px">${tag}</div>
+        <div><div style="font-size:14px;font-weight:600;color:#fff">${tm.label}</div><div style="font-size:12px;color:#71717A">${time}</div></div>
+      </div>
+      <div style="font-size:12px;color:#71717A">${name}</div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════
+   RE-RENDER
+════════════════════════════════════════ */
+function re() {
+  const v = document.getElementById('app-view');
+  if (!v) return;
+  if (_view === 'hub')     v.innerHTML = renderHub();
+  else if (_view === 'role')    v.innerHTML = renderRoleView(_role);
+  else if (_view === 'booking') v.innerHTML = renderBooking();
+}
+
+/* ════════════════════════════════════════
+   EXPORTS
+════════════════════════════════════════ */
+export function render() {
+  _view    = 'hub';
+  _role    = 'cooks';
+  _mode    = localStorage.getItem('barops_sch_mode') || 'view';
+  _selDays = new Set();
+  _editSheet = null;
+  return renderHub();
 }
 
 export function init() {
-  window.__schedule = {
-    setTab(id) {
-      _tab = id;
-      document.querySelectorAll('.sc-tab').forEach((el, i) => {
-        const d = DEPTS[i];
-        const active = d.id === id;
-        el.classList.toggle('active', active);
-        el.style.background  = active ? d.bg : '';
-        el.style.color       = active ? d.color : '';
-        el.style.borderColor = active ? d.border : '';
-      });
-      const content = document.getElementById('sc-content');
-      if (content) content.innerHTML = renderContent();
-    },
-    prevWeek() { _weekOff--; re(); },
-    nextWeek() { _weekOff++; re(); },
-    goToday()  { _weekOff = 0; re(); },
+  window.__sch = {
+    goHub()        { _view = 'hub';     re(); },
+    goRole(key)    { _role = key; _view = 'role'; re(); },
+    goBooking()    { _view = 'booking'; re(); },
 
-    openSheet(empId, dayIso) {
-      _sheet = { empId, dayIso };
-      const wrap = document.querySelector('.sc-wrap');
+    setMode(m) {
+      _mode = m;
+      localStorage.setItem('barops_sch_mode', m);
+      re();
+    },
+
+    showTagInfo(tag, name, time) {
+      const wrap = document.querySelector('.sch-wrap');
       if (!wrap) return;
-      const old = document.getElementById('sc-sheet-ov');
-      if (old) old.remove();
-      wrap.insertAdjacentHTML('beforeend', renderSheet());
+      document.getElementById('sch-popup')?.remove();
+      wrap.insertAdjacentHTML('beforeend', renderTagPopup(tag, name, time));
     },
-    closeSheet() {
-      _sheet = null;
-      const el = document.getElementById('sc-sheet-ov');
-      if (el) el.remove();
+    closePopup() { document.getElementById('sch-popup')?.remove(); },
+
+    openEditSheet(roleKey, pi, di) {
+      _editSheet = { roleKey, pi: +pi, di: +di };
+      const wrap = document.querySelector('.sch-wrap');
+      if (!wrap) return;
+      document.getElementById('sch-edit-ov')?.remove();
+      wrap.insertAdjacentHTML('beforeend', renderEditSheet());
     },
-    closeSheetIfBg(e) {
-      if (e.target.id === 'sc-sheet-ov') window.__schedule.closeSheet();
+    closeEditOv(e) { if (e?.target?.id === 'sch-edit-ov') this.closeEditSheet(); },
+    closeEditSheet() { _editSheet = null; document.getElementById('sch-edit-ov')?.remove(); },
+
+    applyTag(tag) {
+      if (!_editSheet) return;
+      const { roleKey, pi, di } = _editSheet;
+      const times = { р:'06–14', д:'10–20', п:'11–23', в:'17–02', н:'02–06' };
+      ROSTERS[roleKey].grid[pi][di] = tag === 'off' ? null : { t: times[tag], tag };
+      _editSheet = null;
+      document.getElementById('sch-edit-ov')?.remove();
+      re();
     },
-    saveShift() {
-      if (!_sheet) return;
-      const start = document.getElementById('sc-time-start')?.value;
-      const end   = document.getElementById('sc-time-end')?.value;
-      if (!start || !end) return;
-      setShift(_sheet.empId, _sheet.dayIso, start, end);
-      _sheet = null;
-      const content = document.getElementById('sc-content');
-      if (content) content.innerHTML = renderContent();
-      const el = document.getElementById('sc-sheet-ov');
-      if (el) el.remove();
+
+    approveReq(roleKey, ri) {
+      ROSTERS[roleKey].requests[ri].status = 'approved';
+      const el = document.getElementById(`sch-req-${roleKey}-${ri}`);
+      if (el) {
+        const req = ROSTERS[roleKey].requests[ri];
+        el.className = 'sch-req approved';
+        el.innerHTML = `<div style="flex:1"><div class="sch-req-who">${req.who}</div><div class="sch-req-day">${req.day}</div></div><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+      }
     },
-    removeShift() {
-      if (!_sheet) return;
-      clearShift(_sheet.empId, _sheet.dayIso);
-      _sheet = null;
-      const content = document.getElementById('sc-content');
-      if (content) content.innerHTML = renderContent();
-      const el = document.getElementById('sc-sheet-ov');
-      if (el) el.remove();
+    rejectReq(roleKey, ri) {
+      ROSTERS[roleKey].requests.splice(+ri, 1);
+      re();
+    },
+
+    toggleDay(d) {
+      if (_selDays.has(d)) _selDays.delete(d); else _selDays.add(d);
+      re();
     },
   };
-
-  loadTeam().then(() => {
-    _loading = false;
-    const content = document.getElementById('sc-content');
-    if (content) content.innerHTML = renderContent();
-    // Update tab counts
-    document.querySelectorAll('.sc-tab').forEach((el, i) => {
-      const d = DEPTS[i];
-      const cnt = _team.filter(e => {
-        const r = (e.role || '').toLowerCase();
-        if (d.id === 'hostess') return r === 'hostess';
-        if (d.id === 'manager') return r === 'manager' || r === 'admin';
-        return r === d.id;
-      }).length;
-      el.innerHTML = `${d.label}${cnt ? ` <span style="opacity:.6;margin-left:4px;font-size:10px">${cnt}</span>` : ''}`;
-    });
-  });
 }
 
 export default { render, init };
