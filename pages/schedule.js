@@ -124,14 +124,26 @@ const ROSTERS = {
 };
 
 /* ════════════════════════════════════════
+   DEFAULTS — стандартні години зміни по підрозділу
+════════════════════════════════════════ */
+const DEFAULTS = {
+  cooks:      { s: '08:00', e: '18:00' },
+  bartenders: { s: '17:00', e: '02:00' },
+  waiters:    { s: '11:00', e: '23:00' },
+  managers:   { s: '10:00', e: '20:00' },
+  cleaners:   { s: '06:00', e: '14:00' },
+};
+
+/* ════════════════════════════════════════
    STATE
 ════════════════════════════════════════ */
-let _view       = 'hub';    // hub | role | booking
-let _role       = 'cooks';
-let _mode       = 'view';   // view | edit
-let _selDays    = new Set();
-let _editSheet  = null;     // { roleKey, pi, di }
-let _sheetMode  = 'shift';  // shift | off (поточний вибір у bottom sheet)
+let _view          = 'hub';    // hub | role | booking
+let _role          = 'cooks';
+let _mode          = 'view';   // view | edit
+let _selDays       = new Set();
+let _editSheet     = null;     // { roleKey, pi, di }
+let _sheetMode     = 'shift';  // shift | off (поточний вибір у bottom sheet)
+let _defaultsSheet = null;     // roleKey | null
 
 /* ════════════════════════════════════════
    HELPERS
@@ -510,6 +522,14 @@ function renderRoleView(roleKey) {
         <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalOff}</div><div class="sch-kpi-lbl">Вихід</div></div>
         <div class="sch-kpi-cell"><div class="sch-kpi-val"${pendCnt?` style="color:#FBBF24"`:''}>${pendCnt}</div><div class="sch-kpi-lbl">Запит</div></div>
       </div>
+      ${_mode === 'edit' ? `
+      <div style="margin:0 18px 12px;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(168,139,255,0.22);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:10px;font-weight:500;color:#71717A;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Стандартна зміна</div>
+          <div style="font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">${DEFAULTS[roleKey].s} – ${DEFAULTS[roleKey].e}</div>
+        </div>
+        <button onclick="window.__sch.openDefaultsSheet('${roleKey}')" style="height:30px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,0.10);border:0.5px solid rgba(168,139,255,0.28);font-size:12px;color:#A88BFF;cursor:pointer;font-family:inherit">Змінити</button>
+      </div>` : ''}
       <div class="sch-sec">
         <div class="sch-sec-lbl">Тиждень</div>
         <div class="sch-sec-val" style="color:${_mode==='edit'?'#A88BFF':'#71717A'};cursor:pointer" onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')">
@@ -635,8 +655,9 @@ function renderEditSheet() {
 
   // Ініціалізуємо sheetMode на основі поточного стану клітинки
   const isShift   = _sheetMode === 'shift';
-  const startDef  = cell ? cell.s : '10:00';
-  const endDef    = cell ? cell.e : '22:00';
+  const def       = DEFAULTS[roleKey];
+  const startDef  = cell ? cell.s : def.s;
+  const endDef    = cell ? cell.e : def.e;
 
   return `
   <div class="sch-ov" id="sch-edit-ov" onclick="window.__sch.closeEditOv(event)">
@@ -677,6 +698,9 @@ function renderEditSheet() {
                      padding:10px 12px;font-size:16px;color:#fff;outline:none;font-family:inherit;text-align:center;
                      -webkit-appearance:none;color-scheme:dark">
           </div>
+          <div style="text-align:right;padding:0 2px">
+            <button onclick="window.__sch.resetToDefault()" style="background:transparent;border:none;font-size:11px;color:#71717A;cursor:pointer;padding:4px 0;font-family:inherit">↺ Стандарт (${def.s}–${def.e})</button>
+          </div>
         </div>
 
         <!-- Варіант: Вихідний -->
@@ -696,6 +720,43 @@ function renderEditSheet() {
       <div class="sch-sh-btns">
         <button class="sch-sbt sch-sbt-sec" onclick="window.__sch.closeEditSheet()">Скасувати</button>
         <button class="sch-sbt sch-sbt-cta" onclick="window.__sch.saveShift()">Зберегти</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════
+   OVERLAY: defaults sheet (edit default times per role)
+════════════════════════════════════════ */
+function renderDefaultsSheet(roleKey) {
+  const r   = ROSTERS[roleKey];
+  const def = DEFAULTS[roleKey];
+  return `
+  <div class="sch-ov" id="sch-def-ov" onclick="window.__sch.closeDefaultsOv(event)">
+    <div class="sch-sheet">
+      <div class="sch-sh-handle"></div>
+      <div class="sch-sh-title">Стандартна зміна</div>
+      <div class="sch-sh-sub">${r.label} · застосовується до нових клітинок</div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:0 20px 20px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:12px;color:#71717A;min-width:72px">Початок</div>
+          <input id="sch-def-start" type="time" value="${def.s}"
+            style="flex:1;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;
+                   padding:10px 12px;font-size:16px;color:#fff;outline:none;font-family:inherit;text-align:center;
+                   -webkit-appearance:none;color-scheme:dark">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:12px;color:#71717A;min-width:72px">Кінець</div>
+          <input id="sch-def-end" type="time" value="${def.e}"
+            style="flex:1;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;
+                   padding:10px 12px;font-size:16px;color:#fff;outline:none;font-family:inherit;text-align:center;
+                   -webkit-appearance:none;color-scheme:dark">
+        </div>
+        <div style="font-size:11px;color:#52525B;margin-top:4px;line-height:1.5">Стандарт автоматично підставляється у нові клітинки. Кожну клітинку можна змінити індивідуально.</div>
+      </div>
+      <div class="sch-sh-btns">
+        <button class="sch-sbt sch-sbt-sec" onclick="window.__sch.closeDefaultsSheet()">Скасувати</button>
+        <button class="sch-sbt sch-sbt-cta" onclick="window.__sch.saveDefaults()">Зберегти</button>
       </div>
     </div>
   </div>`;
@@ -777,6 +838,35 @@ export function init() {
     },
     closeEditOv(e) { if (e?.target?.id === 'sch-edit-ov') this.closeEditSheet(); },
     closeEditSheet() { _editSheet = null; document.getElementById('sch-edit-ov')?.remove(); },
+
+    openDefaultsSheet(roleKey) {
+      _defaultsSheet = roleKey;
+      const wrap = document.querySelector('.sch-wrap');
+      if (!wrap) return;
+      document.getElementById('sch-def-ov')?.remove();
+      wrap.insertAdjacentHTML('beforeend', renderDefaultsSheet(roleKey));
+    },
+    closeDefaultsOv(e) { if (e?.target?.id === 'sch-def-ov') this.closeDefaultsSheet(); },
+    closeDefaultsSheet() { _defaultsSheet = null; document.getElementById('sch-def-ov')?.remove(); },
+    saveDefaults() {
+      if (!_defaultsSheet) return;
+      const s = document.getElementById('sch-def-start')?.value;
+      const e = document.getElementById('sch-def-end')?.value;
+      if (s && e) { DEFAULTS[_defaultsSheet].s = s; DEFAULTS[_defaultsSheet].e = e; }
+      _defaultsSheet = null;
+      document.getElementById('sch-def-ov')?.remove();
+      re();
+    },
+
+    resetToDefault() {
+      if (!_editSheet) return;
+      const def = DEFAULTS[_editSheet.roleKey];
+      const startEl = document.getElementById('sch-t-start');
+      const endEl   = document.getElementById('sch-t-end');
+      if (startEl) startEl.value = def.s;
+      if (endEl)   endEl.value   = def.e;
+      window.__sch.updatePreview();
+    },
 
     selectSheetMode(mode) {
       _sheetMode = mode;
