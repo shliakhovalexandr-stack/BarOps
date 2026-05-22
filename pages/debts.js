@@ -371,8 +371,8 @@ export default {
         <button class="dbt-tab" data-tab="sale" onclick="window.__dbt.setTab('sale')">Продажі</button>
       </div>
       <div class="dbt-chips">
-        <button class="dbt-chip act" data-filter="active" onclick="window.__dbt.setFilter('active')">Активні</button>
-        <button class="dbt-chip" data-filter="all" onclick="window.__dbt.setFilter('all')">Всі</button>
+        <button class="dbt-chip" data-filter="active" onclick="window.__dbt.setFilter('active')">Активні</button>
+        <button class="dbt-chip act" data-filter="all" onclick="window.__dbt.setFilter('all')">Всі</button>
       </div>
       <div class="dbt-scroll"><div id="dbt-body"></div></div>
     </div>
@@ -381,12 +381,12 @@ export default {
   },
 
   init() {
-    _tab = 'debt'; _filter = 'active'; _debts = []; _formOpen = false;
+    _tab = 'debt'; _filter = 'all'; _debts = []; _formOpen = false;
     _products = []; _productsLoaded = false;
     _form = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'шт', price:'', note:'' };
 
     window.__dbt = {
-      setTab(t)   { _tab = t; _filter = 'active'; redraw(); loadDebts(); },
+      setTab(t)   { _tab = t; _filter = 'all'; redraw(); loadDebts(); },
       setFilter(f){ _filter = f; loadDebts(); },
       f(k, v)     { _form[k] = v; },
       openForm()  {
