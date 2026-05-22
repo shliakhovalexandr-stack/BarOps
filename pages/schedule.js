@@ -362,11 +362,35 @@ function renderSheet() {
   </div>`;
 }
 
-function render() {
-  const root = document.getElementById('sc-root');
-  if (!root) return;
+/* ════════════════════════
+   PARTIAL DOM UPDATE
+════════════════════════ */
+function re() {
+  const weekLbl = document.querySelector('.sc-week-label');
+  if (weekLbl) weekLbl.textContent = weekLabel(_weekOff);
+  const todayBtn = document.querySelector('.sc-today-btn');
+  if (todayBtn) todayBtn.classList.toggle('active', _weekOff === 0);
+  const content = document.getElementById('sc-content');
+  if (content) content.innerHTML = renderContent();
+  const wrap = document.querySelector('.sc-wrap');
+  if (wrap) {
+    const old = document.getElementById('sc-sheet-ov');
+    if (old) old.remove();
+    if (_sheet) wrap.insertAdjacentHTML('beforeend', renderSheet());
+  }
+}
 
-  root.innerHTML = CSS + `
+/* ════════════════════════
+   PAGE EXPORT
+════════════════════════ */
+export function render() {
+  _loading = true;
+  _sheet   = null;
+  _weekOff = 0;
+  _tab     = 'barman';
+  _team    = [];
+
+  return CSS + `
   <div class="sc-wrap">
     <div class="sc-header">
       <div class="sc-back" onclick="window.__barops.navigate('dashboard')">
@@ -378,7 +402,7 @@ function render() {
     <div class="sc-week-row">
       <div class="sc-week-label">${weekLabel(_weekOff)}</div>
       <div class="sc-week-nav">
-        <div class="sc-today-btn${_weekOff === 0 ? ' active' : ''}" onclick="window.__schedule.goToday()">Сьогодні</div>
+        <div class="sc-today-btn active" onclick="window.__schedule.goToday()">Сьогодні</div>
         <div style="width:6px"></div>
         <div class="sc-wbtn" onclick="window.__schedule.prevWeek()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -394,91 +418,83 @@ function render() {
     <div class="sc-scroll" id="sc-content">
       ${renderContent()}
     </div>
-
-    ${renderSheet()}
   </div>`;
 }
 
-function renderContentOnly() {
-  const el = document.getElementById('sc-content');
-  if (el) el.innerHTML = renderContent();
-  // Re-render sheet overlay
-  const wrap = document.querySelector('.sc-wrap');
-  if (wrap) {
-    const old = document.getElementById('sc-sheet-ov');
-    if (old) old.remove();
-    if (_sheet) wrap.insertAdjacentHTML('beforeend', renderSheet());
-  }
-}
+export function init() {
+  window.__schedule = {
+    setTab(id) {
+      _tab = id;
+      document.querySelectorAll('.sc-tab').forEach((el, i) => {
+        const d = DEPTS[i];
+        const active = d.id === id;
+        el.classList.toggle('active', active);
+        el.style.background  = active ? d.bg : '';
+        el.style.color       = active ? d.color : '';
+        el.style.borderColor = active ? d.border : '';
+      });
+      const content = document.getElementById('sc-content');
+      if (content) content.innerHTML = renderContent();
+    },
+    prevWeek() { _weekOff--; re(); },
+    nextWeek() { _weekOff++; re(); },
+    goToday()  { _weekOff = 0; re(); },
 
-/* ════════════════════════
-   ACTIONS
-════════════════════════ */
-window.__schedule = {
-  setTab(id) {
-    _tab = id;
-    // Update tab styles without full re-render
+    openSheet(empId, dayIso) {
+      _sheet = { empId, dayIso };
+      const wrap = document.querySelector('.sc-wrap');
+      if (!wrap) return;
+      const old = document.getElementById('sc-sheet-ov');
+      if (old) old.remove();
+      wrap.insertAdjacentHTML('beforeend', renderSheet());
+    },
+    closeSheet() {
+      _sheet = null;
+      const el = document.getElementById('sc-sheet-ov');
+      if (el) el.remove();
+    },
+    closeSheetIfBg(e) {
+      if (e.target.id === 'sc-sheet-ov') window.__schedule.closeSheet();
+    },
+    saveShift() {
+      if (!_sheet) return;
+      const start = document.getElementById('sc-time-start')?.value;
+      const end   = document.getElementById('sc-time-end')?.value;
+      if (!start || !end) return;
+      setShift(_sheet.empId, _sheet.dayIso, start, end);
+      _sheet = null;
+      const content = document.getElementById('sc-content');
+      if (content) content.innerHTML = renderContent();
+      const el = document.getElementById('sc-sheet-ov');
+      if (el) el.remove();
+    },
+    removeShift() {
+      if (!_sheet) return;
+      clearShift(_sheet.empId, _sheet.dayIso);
+      _sheet = null;
+      const content = document.getElementById('sc-content');
+      if (content) content.innerHTML = renderContent();
+      const el = document.getElementById('sc-sheet-ov');
+      if (el) el.remove();
+    },
+  };
+
+  loadTeam().then(() => {
+    _loading = false;
+    const content = document.getElementById('sc-content');
+    if (content) content.innerHTML = renderContent();
+    // Update tab counts
     document.querySelectorAll('.sc-tab').forEach((el, i) => {
       const d = DEPTS[i];
-      const active = d.id === id;
-      el.classList.toggle('active', active);
-      el.style.background = active ? d.bg : '';
-      el.style.color      = active ? d.color : '';
-      el.style.borderColor = active ? d.border : '';
+      const cnt = _team.filter(e => {
+        const r = (e.role || '').toLowerCase();
+        if (d.id === 'hostess') return r === 'hostess';
+        if (d.id === 'manager') return r === 'manager' || r === 'admin';
+        return r === d.id;
+      }).length;
+      el.innerHTML = `${d.label}${cnt ? ` <span style="opacity:.6;margin-left:4px;font-size:10px">${cnt}</span>` : ''}`;
     });
-    renderContentOnly();
-  },
-  prevWeek() { _weekOff--; render(); },
-  nextWeek() { _weekOff++; render(); },
-  goToday()  { _weekOff = 0; render(); },
+  });
+}
 
-  openSheet(empId, dayIso) {
-    _sheet = { empId, dayIso };
-    // Insert sheet
-    const wrap = document.querySelector('.sc-wrap');
-    if (!wrap) return;
-    const old = document.getElementById('sc-sheet-ov');
-    if (old) old.remove();
-    wrap.insertAdjacentHTML('beforeend', renderSheet());
-  },
-  closeSheet() {
-    _sheet = null;
-    const el = document.getElementById('sc-sheet-ov');
-    if (el) el.remove();
-  },
-  closeSheetIfBg(e) {
-    if (e.target.id === 'sc-sheet-ov') window.__schedule.closeSheet();
-  },
-  saveShift() {
-    if (!_sheet) return;
-    const start = document.getElementById('sc-time-start')?.value;
-    const end   = document.getElementById('sc-time-end')?.value;
-    if (!start || !end) return;
-    setShift(_sheet.empId, _sheet.dayIso, start, end);
-    _sheet = null;
-    renderContentOnly();
-  },
-  removeShift() {
-    if (!_sheet) return;
-    clearShift(_sheet.empId, _sheet.dayIso);
-    _sheet = null;
-    renderContentOnly();
-  },
-};
-
-/* ════════════════════════
-   PAGE LIFECYCLE
-════════════════════════ */
-export default {
-  mount(container) {
-    container.innerHTML = `<div id="sc-root" style="display:flex;flex-direction:column;flex:1;overflow:hidden"></div>`;
-    _loading  = true;
-    _sheet    = null;
-    _weekOff  = 0;
-    render();
-    loadTeam().then(() => render());
-  },
-  unmount() {
-    _sheet = null;
-  },
-};
+export default { render, init };
