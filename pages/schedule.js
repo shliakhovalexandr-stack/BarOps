@@ -33,11 +33,11 @@ const ROSTERS = {
       { i: 'МС', n: 'Марина Савченко',  role: 'Кухар',             hours: 40 },
     ],
     grid: [
-      [{ t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
-      [{ t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             null,             { t:'08–18',tag:'д'}],
-      [null,             { t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},null,             { t:'08–18',tag:'д'},null,             null            ],
-      [{ t:'08–18',tag:'д'},null,             { t:'08–18',tag:'д'},{ t:'08–18',tag:'д'},null,             { t:'17–02',tag:'в'},null            ],
-      [{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'}],
+      [{ s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
+      [{ s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             null,             { s:'08:00',e:'18:00'}],
+      [null,             { s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},null,             { s:'08:00',e:'18:00'},null,             null            ],
+      [{ s:'08:00',e:'18:00'},null,             { s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},null,             { s:'17:00',e:'02:00'},null            ],
+      [{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'}],
     ],
     requests: [
       { who: 'Наталія Поліщук', day: 'Сб 23', status: 'pending',  note: 'День народження сина' },
@@ -54,10 +54,10 @@ const ROSTERS = {
       { i: 'ВЗ', n: 'Валерія Захарченко', role: 'Бармен',         hours: 40 },
     ],
     grid: [
-      [{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
-      [null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
-      [{ t:'11–23',tag:'п'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             null,             { t:'11–23',tag:'п'}],
-      [{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             { t:'17–02',tag:'в'},{ t:'11–23',tag:'п'},null            ],
+      [{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
+      [null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
+      [{ s:'11:00',e:'23:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             null,             { s:'11:00',e:'23:00'}],
+      [{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             { s:'17:00',e:'02:00'},{ s:'11:00',e:'23:00'},null            ],
     ],
     requests: [
       { who: 'Андрій Лисенко', day: 'Нд 24', status: 'pending', note: 'Сімейне свято' },
@@ -75,12 +75,12 @@ const ROSTERS = {
       { i: 'ПК', n: 'Павло Кузьменко',   role: 'Офіціант',         hours: 40 },
     ],
     grid: [
-      [{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'}],
-      [null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
-      [{ t:'11–23',tag:'п'},null,             null,             { t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'}],
-      [{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'11–23',tag:'п'},null,             null            ],
-      [null,             null,             { t:'11–23',tag:'п'},{ t:'11–23',tag:'п'},null,             { t:'17–02',tag:'в'},{ t:'17–02',tag:'в'}],
-      [{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},{ t:'17–02',tag:'в'},null,             null,             { t:'11–23',tag:'п'}],
+      [{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'}],
+      [null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
+      [{ s:'11:00',e:'23:00'},null,             null,             { s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'}],
+      [{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},null,             null            ],
+      [null,             null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
+      [{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             null,             { s:'11:00',e:'23:00'}],
     ],
     requests: [
       { who: 'Юлія Бойко',     day: 'Сб 23', status: 'pending',  note: 'Медичний огляд' },
@@ -96,9 +96,9 @@ const ROSTERS = {
       { i: 'ОВ', n: 'Оксана Власенко',  role: 'Менеджер',      hours: 40 },
     ],
     grid: [
-      [{ t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null            ],
-      [null,             { t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'}],
-      [{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'},null,             { t:'10–20',tag:'д'},{ t:'10–20',tag:'д'}],
+      [{ s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null            ],
+      [null,             { s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'}],
+      [{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'}],
     ],
     requests: [
       { who: 'Сергій Панченко', day: 'Нд 24', status: 'pending', note: 'Особиста справа' },
@@ -113,9 +113,9 @@ const ROSTERS = {
       { i: 'ЛМ', n: 'Людмила Мусієнко', role: 'Прибиральниця',        hours: 36 },
     ],
     grid: [
-      [{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},null,             null            ],
-      [null,             { t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},{ t:'06–14',tag:'р'},null            ],
-      [{ t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'},null,             { t:'06–14',tag:'р'}],
+      [{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},null,             null            ],
+      [null,             { s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},null            ],
+      [{ s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'}],
     ],
     requests: [
       { who: 'Ірина Волошин', day: 'Вт 19', status: 'pending', note: 'Лікарняний' },
@@ -124,25 +124,14 @@ const ROSTERS = {
 };
 
 /* ════════════════════════════════════════
-   TAG META
-════════════════════════════════════════ */
-const TAG_META = {
-  р: { label: 'Ранок',  time: '06:00–14:00', color: '#FCD5EB', bg: 'rgba(252,213,235,0.12)', bd: 'rgba(252,213,235,0.28)' },
-  д: { label: 'День',   time: '10:00–20:00', color: '#FBBF24', bg: 'rgba(251,191,36,0.12)',  bd: 'rgba(251,191,36,0.28)'  },
-  п: { label: 'Обід',   time: '11:00–23:00', color: '#86EFAC', bg: 'rgba(134,239,172,0.12)', bd: 'rgba(134,239,172,0.28)' },
-  в: { label: 'Вечір',  time: '17:00–02:00', color: '#A88BFF', bg: 'rgba(168,139,255,0.12)', bd: 'rgba(168,139,255,0.28)' },
-  н: { label: 'Ніч',    time: '02:00–06:00', color: '#93C5FD', bg: 'rgba(147,197,253,0.12)', bd: 'rgba(147,197,253,0.28)' },
-};
-function tagMeta(t) { return TAG_META[t] || TAG_META.д; }
-
-/* ════════════════════════════════════════
    STATE
 ════════════════════════════════════════ */
-let _view      = 'hub';   // hub | role | booking
-let _role      = 'cooks';
-let _mode      = 'view';  // view | edit
-let _selDays   = new Set();
-let _editSheet = null;    // { roleKey, pi, di }
+let _view       = 'hub';    // hub | role | booking
+let _role       = 'cooks';
+let _mode       = 'view';   // view | edit
+let _selDays    = new Set();
+let _editSheet  = null;     // { roleKey, pi, di }
+let _sheetMode  = 'shift';  // shift | off (поточний вибір у bottom sheet)
 
 /* ════════════════════════════════════════
    HELPERS
@@ -457,11 +446,11 @@ function renderRoleView(roleKey) {
           : '';
         return `<td><div class="sch-off" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/></svg></div></td>`;
       }
-      const tm = tagMeta(cell.tag);
+      const compact = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
       const onclick = _mode === 'edit'
         ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
-        : `onclick="window.__sch.showTagInfo('${cell.tag}','${p.n.split(' ')[0]}','${cell.t}')"`;
-      return `<td><div class="sch-tag" style="background:${tm.bg};border:0.5px solid ${tm.bd};color:${tm.color}" ${onclick}>${cell.tag}</div></td>`;
+        : `onclick="window.__sch.showShiftInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}')"`;
+      return `<td><div class="sch-tag" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color};font-size:9px;letter-spacing:-.02em" ${onclick}>${compact}</div></td>`;
     }).join('');
     return `<tr>
       <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div>${p.n.split(' ')[0]}</div></td>
@@ -476,13 +465,6 @@ function renderRoleView(roleKey) {
       <div class="sch-cov-n${cnt<2?' lo':''}">${cnt}</div>
     </div>`;
   }).join('');
-
-  const legendHtml = Object.entries(TAG_META).map(([k, v]) =>
-    `<div class="sch-leg">
-      <div class="sch-leg-chip" style="background:${v.bg};border:0.5px solid ${v.bd};color:${v.color}">${k}</div>
-      <div class="sch-leg-lbl">${v.label}&nbsp;${v.time}</div>
-    </div>`
-  ).join('');
 
   const reqHtml = r.requests.map((req, ri) => `
     <div class="sch-req ${req.status}" id="sch-req-${roleKey}-${ri}">
@@ -542,8 +524,6 @@ function renderRoleView(roleKey) {
       </div>
       <div class="sch-sec"><div class="sch-sec-lbl">Покриття днів</div><div class="sch-sec-val">${r.people.length} людей</div></div>
       <div class="sch-cov">${covCells}</div>
-      <div class="sch-sec"><div class="sch-sec-lbl">Легенда</div></div>
-      <div class="sch-legend">${legendHtml}</div>
       ${r.requests.length ? `
       <div class="sch-sec"><div class="sch-sec-lbl">Запити на вихідні</div><div class="sch-sec-val">${r.requests.length}</div></div>
       <div class="sch-req-list" id="sch-reqs">${reqHtml}</div>` : ''}
@@ -648,15 +628,15 @@ function renderBooking() {
 function renderEditSheet() {
   if (!_editSheet) return '';
   const { roleKey, pi, di } = _editSheet;
-  const r = ROSTERS[roleKey];
-  const p = r.people[pi];
+  const r    = ROSTERS[roleKey];
+  const p    = r.people[pi];
   const cell = r.grid[pi][di];
-  const w = WEEK[di];
+  const w    = WEEK[di];
 
-  const opts = [
-    ...Object.entries(TAG_META),
-    ['off', { label:'Вихідний', time:'—', color:'#52525B', bg:'#1F1F22', bd:'rgba(255,255,255,0.08)' }],
-  ];
+  // Ініціалізуємо sheetMode на основі поточного стану клітинки
+  const isShift   = _sheetMode === 'shift';
+  const startDef  = cell ? cell.s : '10:00';
+  const endDef    = cell ? cell.e : '22:00';
 
   return `
   <div class="sch-ov" id="sch-edit-ov" onclick="window.__sch.closeEditOv(event)">
@@ -664,34 +644,79 @@ function renderEditSheet() {
       <div class="sch-sh-handle"></div>
       <div class="sch-sh-title">Зміна — ${p.n.split(' ')[0]}</div>
       <div class="sch-sh-sub">${w.d} ${w.n} травня</div>
+
       <div class="sch-sh-opts">
-        ${opts.map(([k, v]) => {
-          const isSel = k === 'off' ? cell === null : cell?.tag === k;
-          return `<div class="sch-sh-opt${isSel?' sel':''}" onclick="window.__sch.applyTag('${k}')">
-            <div class="sch-sh-tag" style="background:${v.bg};border:0.5px solid ${v.bd};color:${v.color}">${k==='off'?'—':k}</div>
-            <div><div class="sch-sh-name">${v.label}</div><div class="sch-sh-time">${v.time}</div></div>
-            ${isSel?`<svg style="margin-left:auto" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`:''}
-          </div>`;
-        }).join('')}
+
+        <!-- Варіант: Зміна -->
+        <div class="sch-sh-opt${isShift?' sel':''}" onclick="window.__sch.selectSheetMode('shift')" id="sch-opt-shift">
+          <div class="sch-sh-tag" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <div style="flex:1">
+            <div class="sch-sh-name">Зміна</div>
+            <div class="sch-sh-time" id="sch-shift-preview">${isShift ? startDef + ' – ' + endDef : 'Вказати години'}</div>
+          </div>
+          ${isShift ? `<svg style="flex-shrink:0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>` : ''}
+        </div>
+
+        <!-- Час зміни — видно тільки якщо isShift -->
+        <div id="sch-time-block" style="display:${isShift?'flex':'none'};flex-direction:column;gap:8px;padding:4px 0 6px">
+          <div style="display:flex;align-items:center;gap:10px;padding:0 2px">
+            <div style="font-size:12px;color:#71717A;min-width:72px">Початок</div>
+            <input id="sch-t-start" type="time" value="${startDef}"
+              oninput="window.__sch.updatePreview()"
+              style="flex:1;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;
+                     padding:10px 12px;font-size:16px;color:#fff;outline:none;font-family:inherit;text-align:center;
+                     -webkit-appearance:none;color-scheme:dark">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:0 2px">
+            <div style="font-size:12px;color:#71717A;min-width:72px">Кінець</div>
+            <input id="sch-t-end" type="time" value="${endDef}"
+              oninput="window.__sch.updatePreview()"
+              style="flex:1;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;
+                     padding:10px 12px;font-size:16px;color:#fff;outline:none;font-family:inherit;text-align:center;
+                     -webkit-appearance:none;color-scheme:dark">
+          </div>
+        </div>
+
+        <!-- Варіант: Вихідний -->
+        <div class="sch-sh-opt${!isShift?' sel':''}" onclick="window.__sch.selectSheetMode('off')" id="sch-opt-off">
+          <div class="sch-sh-tag" style="background:#1F1F22;border:0.5px solid rgba(255,255,255,0.08);color:#52525B">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </div>
+          <div style="flex:1">
+            <div class="sch-sh-name">Вихідний</div>
+            <div class="sch-sh-time">День відпочинку</div>
+          </div>
+          ${!isShift ? `<svg style="flex-shrink:0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>` : ''}
+        </div>
+
       </div>
+
       <div class="sch-sh-btns">
         <button class="sch-sbt sch-sbt-sec" onclick="window.__sch.closeEditSheet()">Скасувати</button>
+        <button class="sch-sbt sch-sbt-cta" onclick="window.__sch.saveShift()">Зберегти</button>
       </div>
     </div>
   </div>`;
 }
 
 /* ════════════════════════════════════════
-   OVERLAY: tag info popup
+   OVERLAY: shift info popup (view mode)
 ════════════════════════════════════════ */
-function renderTagPopup(tag, name, time) {
-  const tm = tagMeta(tag);
+function renderShiftPopup(name, start, end) {
+  const r = ROSTERS[_role];
   return `
   <div class="sch-popup" id="sch-popup" onclick="window.__sch.closePopup()">
     <div class="sch-popup-box">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div class="sch-sh-tag" style="width:36px;height:36px;border-radius:10px;background:${tm.bg};border:0.5px solid ${tm.bd};color:${tm.color};font-size:14px">${tag}</div>
-        <div><div style="font-size:14px;font-weight:600;color:#fff">${tm.label}</div><div style="font-size:12px;color:#71717A">${time}</div></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:36px;height:36px;border-radius:10px;background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color};display:flex;align-items:center;justify-content:center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#fff">Зміна</div>
+          <div style="font-size:13px;color:#A88BFF;font-variant-numeric:tabular-nums">${start} – ${end}</div>
+        </div>
       </div>
       <div style="font-size:12px;color:#71717A">${name}</div>
     </div>
@@ -733,16 +758,18 @@ export function init() {
       re();
     },
 
-    showTagInfo(tag, name, time) {
+    showShiftInfo(name, start, end) {
       const wrap = document.querySelector('.sch-wrap');
       if (!wrap) return;
       document.getElementById('sch-popup')?.remove();
-      wrap.insertAdjacentHTML('beforeend', renderTagPopup(tag, name, time));
+      wrap.insertAdjacentHTML('beforeend', renderShiftPopup(name, start, end));
     },
     closePopup() { document.getElementById('sch-popup')?.remove(); },
 
     openEditSheet(roleKey, pi, di) {
       _editSheet = { roleKey, pi: +pi, di: +di };
+      const cell = ROSTERS[roleKey].grid[+pi][+di];
+      _sheetMode = cell ? 'shift' : 'off';
       const wrap = document.querySelector('.sch-wrap');
       if (!wrap) return;
       document.getElementById('sch-edit-ov')?.remove();
@@ -751,11 +778,42 @@ export function init() {
     closeEditOv(e) { if (e?.target?.id === 'sch-edit-ov') this.closeEditSheet(); },
     closeEditSheet() { _editSheet = null; document.getElementById('sch-edit-ov')?.remove(); },
 
-    applyTag(tag) {
+    selectSheetMode(mode) {
+      _sheetMode = mode;
+      // Оновлюємо UI без повного re-render
+      const optShift = document.getElementById('sch-opt-shift');
+      const optOff   = document.getElementById('sch-opt-off');
+      const timeBlock = document.getElementById('sch-time-block');
+      if (!optShift) return;
+      const isShift = mode === 'shift';
+      optShift.className = 'sch-sh-opt' + (isShift ? ' sel' : '');
+      optOff.className   = 'sch-sh-opt' + (!isShift ? ' sel' : '');
+      timeBlock.style.display = isShift ? 'flex' : 'none';
+      // Оновлюємо чекмарки
+      optShift.querySelector('svg:last-child')?.remove();
+      optOff.querySelector('svg:last-child')?.remove();
+      const check = `<svg style="flex-shrink:0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+      if (isShift) optShift.insertAdjacentHTML('beforeend', check);
+      else optOff.insertAdjacentHTML('beforeend', check);
+    },
+
+    updatePreview() {
+      const s = document.getElementById('sch-t-start')?.value;
+      const e = document.getElementById('sch-t-end')?.value;
+      const prev = document.getElementById('sch-shift-preview');
+      if (prev && s && e) prev.textContent = s + ' – ' + e;
+    },
+
+    saveShift() {
       if (!_editSheet) return;
       const { roleKey, pi, di } = _editSheet;
-      const times = { р:'06–14', д:'10–20', п:'11–23', в:'17–02', н:'02–06' };
-      ROSTERS[roleKey].grid[pi][di] = tag === 'off' ? null : { t: times[tag], tag };
+      if (_sheetMode === 'off') {
+        ROSTERS[roleKey].grid[pi][di] = null;
+      } else {
+        const s = document.getElementById('sch-t-start')?.value || '10:00';
+        const e = document.getElementById('sch-t-end')?.value   || '22:00';
+        ROSTERS[roleKey].grid[pi][di] = { s, e };
+      }
       _editSheet = null;
       document.getElementById('sch-edit-ov')?.remove();
       re();
