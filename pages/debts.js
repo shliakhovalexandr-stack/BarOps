@@ -382,7 +382,8 @@ export default {
 
   init() {
     _tab = 'debt'; _filter = 'active'; _debts = []; _formOpen = false;
-    _form = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
+    _products = []; _productsLoaded = false;
+    _form = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'шт', price:'', note:'' };
 
     window.__dbt = {
       setTab(t)   { _tab = t; _filter = 'active'; redraw(); loadDebts(); },
