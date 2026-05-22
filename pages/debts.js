@@ -319,7 +319,6 @@ function redrawSheet() {
   const isSale = _tab === 'sale';
   const vOpts  = _venues.map(v => `<option value="${v.id}"${_form.fromVenueId===v.id?' selected':''}>${v.name}</option>`).join('');
   const vOpts2 = _venues.map(v => `<option value="${v.id}"${_form.toVenueId===v.id?' selected':''}>${v.name}</option>`).join('');
-  const units  = ['пляш.','шт','л','кг','порц.'].map(u => `<option value="${u}"${_form.unit===u?' selected':''}>${u}</option>`).join('');
   el.innerHTML = `
     <div class="dbt-sheet-handle"></div>
     <div class="dbt-sheet-title">${isSale?'Новий продаж':'Новий борг'}</div>
@@ -337,7 +336,7 @@ function redrawSheet() {
       <div class="dbt-field"><div class="dbt-label">Кількість</div>
         <input class="dbt-input" type="number" min="0.01" step="0.01" value="${_form.qty}" oninput="window.__dbt.f('qty',this.value)"></div>
       <div class="dbt-field"><div class="dbt-label">Одиниця</div>
-        <select class="dbt-select" onchange="window.__dbt.f('unit',this.value)">${units}</select></div>
+        <input class="dbt-input" type="text" placeholder="шт / л / кг..." value="${_form.unit}" oninput="window.__dbt.f('unit',this.value)"></div>
     </div>
     ${isSale?`<div class="dbt-field"><div class="dbt-label">Ціна (грн)</div>
       <input class="dbt-input" type="number" min="0" step="0.01" placeholder="0.00" value="${_form.price}" oninput="window.__dbt.f('price',this.value)"></div>`:''}
@@ -416,7 +415,7 @@ export default {
       },
       selectItem(name, unit) {
         _form.item = name;
-        if (unit) _form.unit = unit;
+        _form.unit = unit || 'шт';
         _pickerOpen = false;
         renderPickerOverlay();
         redrawSheet();
