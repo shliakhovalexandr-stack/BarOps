@@ -12,7 +12,7 @@ let _loading = true;
 let _saving = false;
 let _saveSuccess = false;
 let _toastTimer = null;
-let _draft = { name: '', posType: 'manual', topicUrl: '', posUrl: '', posApiKey: '', posLogin: '', posPassword: '' };
+let _draft = { name: '', posType: 'manual', topicUrl: '', posUrl: '', posApiKey: '', posLogin: '', posPassword: '', syrveDepartmentId: '' };
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
@@ -128,6 +128,7 @@ async function loadVenue(venueId) {
           posApiKey: '',
           posLogin: _venue.posLogin || '',
           posPassword: '',
+          syrveDepartmentId: found.syrveDepartmentId || '',
         };
         saveToLocal(_venue.name, _venue.posType, _venue.telegramTopicId);
         console.log('[VenueEdit] Loaded from API:', _venue);
@@ -303,6 +304,11 @@ ${CSS}
           <label class="ve-label">ПАРОЛЬ</label>
           <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
           <div class="ve-hint">Пароль співробітника Syrve</div>
+        </div>
+        <div class="ve-field" style="margin-bottom:12px">
+          <label class="ve-label">ID ДЕПАРТАМЕНТУ (необов'язково)</label>
+          <input class="ve-input" id="iiko-department-id" type="text" value="${escapeHtml(_draft.syrveDepartmentId)}" placeholder="UUID департаменту Syrve">
+          <div class="ve-hint">Якщо вказати — залишки та стоп-лист фільтруватимуться по складах цього департаменту</div>
         </div>
 
         <!-- Кнопки -->
@@ -655,10 +661,12 @@ async function initIikoSection(venueId) {
     setSyrveMode(isCloud ? 'cloud' : 'selfhosted');
 
     // Підставити збережені значення
-    const urlEl   = document.getElementById('iiko-cloud-url');
-    const loginEl = document.getElementById('iiko-login');
-    if (urlEl   && settings.posUrl)   urlEl.value   = settings.posUrl;
-    if (loginEl && settings.posLogin) loginEl.value = settings.posLogin;
+    const urlEl    = document.getElementById('iiko-cloud-url');
+    const loginEl  = document.getElementById('iiko-login');
+    const deptEl   = document.getElementById('iiko-department-id');
+    if (urlEl   && settings.posUrl)            urlEl.value   = settings.posUrl;
+    if (loginEl && settings.posLogin)          loginEl.value = settings.posLogin;
+    if (deptEl  && settings.syrveDepartmentId) deptEl.value  = settings.syrveDepartmentId;
     // Пароль не підставляємо з міркувань безпеки
 
     // Статус badge
@@ -734,6 +742,7 @@ async function initIikoSection(venueId) {
     btn.innerHTML = '⏳ Збереження...';
 
     const { url, apiKey, login, password } = getSyrveFormData();
+    const deptId = (document.getElementById('iiko-department-id')?.value || '').trim();
 
     if (!login || !password) {
       showToast('Введіть логін і пароль', 'error');
@@ -749,6 +758,13 @@ async function initIikoSection(venueId) {
       const data = await res.json();
 
       if (data.success) {
+        // Зберігаємо departmentId окремо (може бути порожнім для очищення)
+        await fetch(`${API}/api/pos/department/${venueId}`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          body:    JSON.stringify({ departmentId: deptId }),
+        });
+        _draft.syrveDepartmentId = deptId;
         showToast('Налаштування збережено!');
         badge.textContent      = '⚠️ Збережено — натисніть "Перевірити з\'єднання"';
         badge.style.background = 'rgba(234,179,8,.15)';
@@ -1009,7 +1025,7 @@ export default {
     _loading = true;
     _saving = false;
     _saveSuccess = false;
-    _draft = { name: '', posType: 'manual', topicUrl: '' };
+    _draft = { name: '', posType: 'manual', topicUrl: '', posUrl: '', posApiKey: '', posLogin: '', posPassword: '', syrveDepartmentId: '' };
     const venueId = params?.venueId || localStorage.getItem('barops_venueId');
     console.log('[VenueEdit] Render with venueId:', venueId);
     loadVenue(venueId);
