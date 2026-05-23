@@ -8,18 +8,9 @@ import { navigate, state } from '../shared/app.js';
 /* ════════════════════════
    DATA
 ════════════════════════ */
-const PRODS = [
-  { id:'p1',  name:"Hendrick's Gin",              emoji:'🌿', vol:0.7,  stock:0.4,  price:817  },
-  { id:'p2',  name:'Aperol',                       emoji:'🍊', vol:1.0,  stock:3.4,  price:348  },
-  { id:'p3',  name:'Campari',                      emoji:'🍷', vol:0.7,  stock:2.1,  price:412  },
-  { id:'p4',  name:'Johnnie Walker Black',         emoji:'🥃', vol:0.7,  stock:1.2,  price:680  },
-  { id:'p5',  name:'Martini Bianco',               emoji:'🍸', vol:1.0,  stock:2.0,  price:265  },
-  { id:'p6',  name:'Tanqueray Flor de Sevilla Gin',emoji:'🌸', vol:0.7,  stock:0.7,  price:817  },
-  { id:'p7',  name:'Baileys Irish Cream',          emoji:'🍫', vol:0.7,  stock:0.8,  price:510  },
-  { id:'p8',  name:'Prosecco DOC',                 emoji:'🍾', vol:0.75, stock:4.5,  price:287  },
-  { id:'p9',  name:'Kahlúa',                       emoji:'☕', vol:0.7,  stock:0.5,  price:620  },
-  { id:'p10', name:'Горілка Традиційна Українка',  emoji:'🇺🇦', vol:0.7, stock:8.4,  price:130  },
-];
+const API  = 'https://barops-backend-production.up.railway.app';
+let _prods     = [];   // завантажується з /api/pos/balance
+let _writeoffs = [];   // зберігається в localStorage barops_writeoffs_v1
 
 const REASONS = {
   biy:  ['Розбита пляшка (бій при роботі)', 'Пошкодження при транспортуванні', 'Падіння з полиці/стійки', 'Тріснула тара при відкритті'],
@@ -35,12 +26,6 @@ const CAT = {
   insh: { label:'📋 Інше',       color:'var(--purple)', bg:'var(--purple-bg)', border:'var(--purple-border)', selCls:'sel-insh' },
 };
 
-// Demo write-offs already in the log
-const EXISTING_WRITEOFFS = [
-  { cat:'biy',  prod:"Hendrick's Gin 0.7л",         emoji:'🌿', meta:'💥 Бій · Розбита пляшка при відкритті зміни', vol:'−0.7л', valColor:'var(--red)',   time:'18:05' },
-  { cat:'psuv', prod:'Aperol 1л',                   emoji:'🍊', meta:'🍂 Псування · Відкрита пляшка понад 48год',  vol:'−0.3л', valColor:'var(--amber)', time:'17:20' },
-  { cat:'deg',  prod:'Tanqueray Flor de Sevilla Gin',emoji:'🌸', meta:'🍸 Дегустація · Погодила менеджер',         vol:'−0.05л',valColor:'var(--green)', time:'16:40' },
-];
 
 /* ════════════════════════
    MODULE STATE
@@ -58,24 +43,30 @@ let _mgrPeriod  = 'day';
 let _mgrFilter  = 'all';
 let _succOpen   = false;
 
-/* KPI data by period */
-const MGR_KPI = {
-  day:    { count:'3',  vol:'1.05л', loss:'612₴'    },
-  week:   { count:'12', vol:'5.8л',  loss:'3 240₴'  },
-  month:  { count:'38', vol:'18.2л', loss:'10 450₴' },
-  custom: { count:'—',  vol:'—',     loss:'—'        },
-};
+/* Динамічний KPI з localStorage */
+function getMgrKpi(period) {
+  const now  = new Date();
+  const ds   = (y,m,d) => new Date(y,m,d);
+  const day  = ds(now.getFullYear(), now.getMonth(), now.getDate());
+  const week = new Date(day); week.setDate(week.getDate() - ((week.getDay()||7) - 1));
+  const mon  = ds(now.getFullYear(), now.getMonth(), 1);
+  const since = period==='day' ? day : period==='week' ? week : period==='month' ? mon : null;
+  const list  = since ? _writeoffs.filter(w => new Date(w.ts||0) >= since) : _writeoffs;
+  const vol   = list.reduce((s,w) => s + (w.volNum||0), 0);
+  const loss  = list.reduce((s,w) => s + (w.loss||0), 0);
+  return { count: list.length.toString(), vol: vol>0 ? vol.toFixed(2)+'л' : '0л', loss: loss>0 ? loss+'₴' : '—' };
+}
 
-/* Chart data */
-const CHART_DATA = [
-  {biy:1,psuv:0,deg:1,insh:0},
-  {biy:0,psuv:1,deg:0,insh:1},
-  {biy:2,psuv:1,deg:1,insh:0},
-  {biy:0,psuv:0,deg:2,insh:0},
-  {biy:1,psuv:2,deg:0,insh:1},
-  {biy:3,psuv:1,deg:1,insh:0},
-  {biy:1,psuv:1,deg:1,insh:0},
-];
+/* Динамічний чарт (останні 7 днів) */
+function getChartData() {
+  return Array.from({length:7}, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6-i));
+    const s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const e = new Date(s.getTime() + 86400000);
+    const day = _writeoffs.filter(w => { const t=new Date(w.ts||0); return t>=s&&t<e; });
+    return { biy:day.filter(w=>w.cat==='biy').length, psuv:day.filter(w=>w.cat==='psuv').length, deg:day.filter(w=>w.cat==='deg').length, insh:day.filter(w=>w.cat==='insh').length };
+  });
+}
 
 /* ════════════════════════
    CSS
@@ -314,7 +305,9 @@ const CSS = `<style id="wo-css">
    BARTENDER RENDER
 ════════════════════════ */
 function woList() {
-  return EXISTING_WRITEOFFS
+  return _writeoffs.length === 0
+    ? `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Списань за зміну немає.<br>Натисніть «Додати списання» нижче.</div>`
+    : [..._writeoffs].reverse()
     .filter(w => _catFilter === 'all' || w.cat === _catFilter)
     .map(w => `
     <div class="wo-card" data-cat="${w.cat}">
@@ -341,33 +334,28 @@ function renderBartender() {
       <div class="wo-title">Списання</div>
       <div class="wo-sub">${state.venue} · Зміна від 08.05.2026</div>
     </div>
-    <div style="font-family:var(--font-h);font-size:12px;color:var(--red);font-weight:700">${EXISTING_WRITEOFFS.length} записи</div>
+    <div style="font-family:var(--font-h);font-size:12px;color:var(--red);font-weight:700">${_writeoffs.length} записів</div>
   </div>
 
   <div class="wo-scroll">
     <!-- Today stats -->
-    <div class="wo-summary">
-      <div class="wo-stat wo-stat-r">
-        <div class="wo-stat-val" style="color:var(--red)">${EXISTING_WRITEOFFS.length}</div>
-        <div class="wo-stat-lbl">Записів<br/>сьогодні</div>
-      </div>
-      <div class="wo-stat wo-stat-a">
-        <div class="wo-stat-val" style="color:var(--amber)">1.05л</div>
-        <div class="wo-stat-lbl">Загальний<br/>об'єм</div>
-      </div>
-      <div class="wo-stat wo-stat-p">
-        <div class="wo-stat-val" style="color:var(--purple)">612₴</div>
-        <div class="wo-stat-lbl">Збиток<br/>за зміну</div>
-      </div>
-    </div>
-
-    <!-- Alert -->
-    <div class="wo-alert">
-      <div class="wo-alert-icon">
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1L12 11H1L6.5 1z" stroke="var(--amber)" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5v3M6.5 9.5v.4" stroke="var(--amber)" stroke-width="1.2" stroke-linecap="round"/></svg>
-      </div>
-      Hendrick's Gin — 3 бої за останній місяць. Менеджер отримає сповіщення.
-    </div>
+    ${(() => {
+      const kpi = getMgrKpi('day');
+      return `<div class="wo-summary">
+        <div class="wo-stat wo-stat-r">
+          <div class="wo-stat-val" style="color:var(--red)">${kpi.count}</div>
+          <div class="wo-stat-lbl">Записів<br/>сьогодні</div>
+        </div>
+        <div class="wo-stat wo-stat-a">
+          <div class="wo-stat-val" style="color:var(--amber)">${kpi.vol}</div>
+          <div class="wo-stat-lbl">Загальний<br/>об'єм</div>
+        </div>
+        <div class="wo-stat wo-stat-p">
+          <div class="wo-stat-val" style="color:var(--purple)">${kpi.loss}</div>
+          <div class="wo-stat-lbl">Збиток<br/>за зміну</div>
+        </div>
+      </div>`;
+    })()}
 
     <!-- Category filter -->
     <div class="wo-sec" style="padding-top:4px">Фільтр за категорією</div>
@@ -566,14 +554,16 @@ function renderBartender() {
 
 function prodListHTML() {
   const q = _prodSearch.toLowerCase();
-  return PRODS
-    .filter(p => !q || p.name.toLowerCase().includes(q))
-    .map(p => `
+  const list = _prods.filter(p => !q || p.name.toLowerCase().includes(q));
+  if (list.length === 0) {
+    return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_prods.length===0?'Завантаження товарів…':'Нічого не знайдено'}</div>`;
+  }
+  return list.map(p => `
     <div class="wo-prod-item ${_selProd?.id===p.id?'sel':''}" onclick="window.__wo.selectProd('${p.id}')">
-      <div class="wo-pi-emoji">${p.emoji}</div>
+      <div class="wo-pi-emoji">🍾</div>
       <div style="flex:1;min-width:0">
         <div class="wo-pi-name">${p.name}</div>
-        <div class="wo-pi-stock">Залишок: ${p.stock.toFixed(2)} л · ${p.vol}л/пляш.</div>
+        ${p.stock!=null?`<div class="wo-pi-stock">Залишок: ${typeof p.stock==='number'?p.stock.toFixed(2):p.stock}</div>`:''}
       </div>
       <div class="wo-pi-check">
         ${_selProd?.id===p.id?`<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
@@ -610,8 +600,9 @@ function summaryHTML() {
    MANAGER RENDER
 ════════════════════════ */
 function renderManager() {
-  const kpi   = MGR_KPI[_mgrPeriod];
-  const max   = Math.max(...CHART_DATA.map(d=>d.biy+d.psuv+d.deg+d.insh));
+  const kpi   = getMgrKpi(_mgrPeriod);
+  const CHART_DATA = getChartData();
+  const max   = Math.max(...CHART_DATA.map(d=>d.biy+d.psuv+d.deg+d.insh), 1);
   const days  = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
   const colors = { biy:'var(--red)', psuv:'var(--amber)', deg:'var(--green)', insh:'var(--purple)' };
 
@@ -626,13 +617,14 @@ function renderManager() {
     </div>`;
   }).join('');
 
-  const LOG_ITEMS = [
-    { dot:'var(--red)',    title:"Hendrick's Gin 0.7л · Бій",          meta:'Олексій К. · Розбита пляшка при відкритті', qty:'−0.7л', qColor:'var(--red)',    time:'08.05 · 18:05' },
-    { dot:'var(--amber)',  title:'Aperol 1л · Псування',               meta:'Олексій К. · Відкрита понад 48год',         qty:'−0.3л', qColor:'var(--amber)',  time:'08.05 · 17:20' },
-    { dot:'var(--green)',  title:'Tanqueray Flor de Sevilla · Дегустація',meta:'Олексій К. · Погодила менеджер',          qty:'−0.05л',qColor:'var(--green)',  time:'08.05 · 16:40' },
-    { dot:'var(--red)',    title:"Hendrick's Gin 0.7л · Бій",          meta:'Марія П. · Пошкодження при транспортуванні',qty:'−0.7л', qColor:'var(--red)',    time:'05.05 · 20:12' },
-    { dot:'var(--purple)', title:'Baileys Irish Cream · Інше',         meta:'Марія П. · Помилковий налив, вилито',       qty:'−0.05л',qColor:'var(--purple)', time:'03.05 · 19:55' },
-  ];
+  const LOG_ITEMS = [..._writeoffs].reverse().map(w => ({
+    dot: CAT[w.cat]?.color || 'var(--text2)',
+    title: `${w.prod} · ${CAT[w.cat]?.label || w.cat}`,
+    meta: w.reason || '—',
+    qty: w.vol || '—',
+    qColor: CAT[w.cat]?.color || 'var(--text2)',
+    time: w.dateStr || '',
+  }));
 
   const logVisible = LOG_ITEMS.filter(l =>
     _mgrFilter === 'all' ||
@@ -679,11 +671,14 @@ function renderManager() {
     </div>
 
     <!-- Category breakdown -->
-    <div class="wo-sec">Розбивка за категоріями</div>
-    <div class="wo-cat-breakdown">
-      ${[['💥','Бій','var(--red)','60','60%',2],['🍂','Псування','var(--amber)','27','27%',1],['🍸','Дегустація','var(--green)','13','13%',1]]
-        .map(([icon,name,col,w,pct,cnt]) => `
-        <div class="wo-cb-row">
+    ${(() => {
+      const total = _writeoffs.length;
+      if (!total) return '';
+      const cats = [['biy','💥','Бій','var(--red)'],['psuv','🍂','Псування','var(--amber)'],['deg','🍸','Дегустація','var(--green)'],['insh','📋','Інше','var(--purple)']];
+      const rows = cats.filter(([k]) => _writeoffs.some(w=>w.cat===k)).map(([k,icon,name,col]) => {
+        const cnt = _writeoffs.filter(w=>w.cat===k).length;
+        const w = Math.round(cnt/total*100);
+        return `<div class="wo-cb-row">
           <div class="wo-cb-icon" style="background:${col}22">${icon}</div>
           <div style="flex:1;min-width:0">
             <div class="wo-cb-name">${name}</div>
@@ -691,27 +686,30 @@ function renderManager() {
           </div>
           <div>
             <div class="wo-cb-count" style="color:${col}">${cnt}</div>
-            <div class="wo-cb-pct">${pct}</div>
+            <div class="wo-cb-pct">${w}%</div>
           </div>
-        </div>`).join('')}
-    </div>
+        </div>`;
+      }).join('');
+      return rows ? `<div class="wo-sec">Розбивка за категоріями</div><div class="wo-cat-breakdown">${rows}</div>` : '';
+    })()}
 
     <!-- Top losers -->
-    <div class="wo-sec">Топ позицій за місяць</div>
-    <div class="wo-toplosers">
-      ${[["Hendrick's Gin",'🌿','3 бої · 2 псування','−3.5л','var(--red)'],
-         ['Aperol','🍊','1 бій · 3 псування','−2.1л','var(--amber)'],
-         ['Johnnie Walker Black','🥃','0 боїв · 2 псування','−1.4л','var(--amber)']].map(([name,emoji,meta,vol,col],i) => `
-        <div class="wo-loser-row" ${i>0?'style="border-top:0.5px solid var(--border)"':''}>
-          <div class="wo-loser-rank">#${i+1}</div>
-          <div style="font-size:18px;flex-shrink:0">${emoji}</div>
-          <div style="flex:1;min-width:0">
-            <div class="wo-loser-name">${name}</div>
-            <div class="wo-loser-meta">${meta}</div>
-          </div>
-          <div class="wo-loser-val" style="color:${col}">${vol}</div>
-        </div>`).join('')}
-    </div>
+    ${(() => {
+      if (!_writeoffs.length) return '';
+      const map = {};
+      for (const w of _writeoffs) {
+        if (!map[w.prod]) map[w.prod] = { prod: w.prod, count: 0, vol: 0 };
+        map[w.prod].count++;
+        map[w.prod].vol += w.volNum || 0;
+      }
+      const top = Object.values(map).sort((a,b)=>b.count-a.count).slice(0,3);
+      const rows = top.map((t,i) => `<div class="wo-loser-row" ${i>0?'style="border-top:0.5px solid var(--border)"':''}>
+        <div class="wo-loser-rank">#${i+1}</div>
+        <div style="flex:1;min-width:0"><div class="wo-loser-name">${t.prod}</div><div class="wo-loser-meta">${t.count} записів</div></div>
+        <div class="wo-loser-val" style="color:var(--red)">−${t.vol.toFixed(2)}л</div>
+      </div>`).join('');
+      return `<div class="wo-sec">Топ позицій</div><div class="wo-toplosers">${rows}</div>`;
+    })()}
 
     <!-- Add (manager can too) -->
     <div class="wo-sec">Списання менеджера</div>
@@ -864,7 +862,7 @@ function selectCat(cat) {
   setTimeout(() => { _formStep = 2; fullRender(); }, 180);
 }
 function searchProds(q) { _prodSearch = q; refreshProdList(); }
-function selectProd(id) { _selProd = PRODS.find(p=>p.id===id); refreshProdList(); updateNextBtn(); }
+function selectProd(id) { _selProd = _prods.find(p=>p.id===id); refreshProdList(); updateNextBtn(); }
 
 function setVol(v) {
   _selVol = v;
@@ -918,31 +916,52 @@ async function submitForm() {
   const vol  = _selVol || 0;
   const unit = document.getElementById('wo-vol-unit')?.value || 'l';
   const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг'}[unit]||'л';
+  const now  = new Date();
+  const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const dd   = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  const entry = {
+    id:      Date.now().toString(36),
+    cat:     _selCat,
+    prod:    _selProd?.name || 'Товар',
+    prodId:  _selProd?.id   || null,
+    meta:    `${CAT[_selCat]?.label||''} · ${_selReason||'Без причини'}`,
+    vol:     `−${vol}${uLbl}`,
+    volNum:  vol,
+    valColor: CAT[_selCat]?.color || 'var(--text0)',
+    reason:  _selReason || '',
+    time:    hhmm,
+    dateStr: `${dd} · ${hhmm}`,
+    ts:      now.toISOString(),
+  };
+
+  _writeoffs.push(entry);
+
+  // Зберігаємо в localStorage
+  const vId = localStorage.getItem('barops_venueId') || '';
+  const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+  if (!raw[vId]) raw[vId] = [];
+  raw[vId].push(entry);
+  localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
 
   // Відправляємо на backend
   try {
     const { writeoffsAPI } = await import('../shared/api.js');
     await writeoffsAPI.create({
-      items: [{
-        productName: _selProd?.name || 'Товар',
-        productId:   _selProd?.id   || null,
-        qty:         vol,
-        unit:        uLbl,
-      }],
+      items: [{ productName: entry.prod, productId: entry.prodId, qty: vol, unit: uLbl }],
       category: CAT[_selCat]?.label || _selCat || 'Інше',
-      reason:   _selReason || null,
+      reason:   entry.reason || null,
     });
-    console.log('[Writeoff] Збережено в БД');
   } catch (err) {
-    console.warn('[Writeoff] Backend недоступний, зберігаємо локально:', err.message);
+    console.warn('[Writeoff] Backend недоступний:', err.message);
   }
 
   _formOpen = false;
   _succOpen = true;
   const subEl  = document.getElementById('wo-succ-sub');
   const pillEl = document.getElementById('wo-succ-pill');
-  if (subEl)  subEl.textContent  = `${_selProd?.name||'Товар'} · ${CAT[_selCat]?.label||''} · записано в журнал`;
-  if (pillEl) pillEl.textContent = `${_selProd?.emoji||''} ${_selProd?.name||''} · −${vol}${uLbl} · ${CAT[_selCat]?.label||''}`;
+  if (subEl)  subEl.textContent  = `${entry.prod} · ${CAT[_selCat]?.label||''} · записано в журнал`;
+  if (pillEl) pillEl.textContent = `${entry.prod} · −${vol}${uLbl} · ${CAT[_selCat]?.label||''}`;
   fullRender();
 }
 function closeSuccess()     { _succOpen=false; openForm(); }
@@ -989,7 +1008,7 @@ function removeReason(cat, idx) {
    PAGE MODULE EXPORT
 ════════════════════════ */
 export default {
-  render() {
+  async render() {
     _view       = (state.role === 'admin' || state.role === 'manager') ? 'manager' : 'bartender';
     _catFilter  = 'all';
     _formOpen   = false;
@@ -1002,6 +1021,34 @@ export default {
     _mgrPeriod  = 'day';
     _mgrFilter  = 'all';
     _succOpen   = false;
+
+    // Завантажуємо списання з localStorage
+    const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
+    const stored = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    _writeoffs = stored[vId] || [];
+
+    // Завантажуємо товари з POS balance API
+    try {
+      const token = localStorage.getItem('barops_token');
+      const res = await fetch(`${API}/api/pos/balance/${vId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        _prods = [];
+        for (const store of (data.stores || [])) {
+          for (const item of (store.items || [])) {
+            if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !_prods.find(p=>p.id===item.id)) {
+              _prods.push({ id: item.id, name: item.name, stock: item.amount ?? null });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Writeoff] Товари не завантажились:', e.message);
+      _prods = [];
+    }
+
     return buildHTML();
   },
 
