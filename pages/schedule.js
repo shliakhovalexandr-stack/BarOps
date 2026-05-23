@@ -72,6 +72,8 @@ let _selDays       = new Set();
 let _editSheet     = null;
 let _sheetMode     = 'shift';
 let _defaultsSheet = null;
+let _daySheet      = null;  // { roleKey, di }
+let _dayEdits      = {};    // { [pi]: { on, s, e } }
 let _weekOffset    = 0;
 let _rosters       = {};
 let _venueId       = '';
@@ -336,6 +338,32 @@ const CSS = `<style id="sch-css">
 .sch-cmnt-lbl{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px}
 .sch-cmnt-inp{width:100%;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.10);border-radius:12px;padding:12px 14px;font-size:13px;color:#fff;resize:none;outline:none;font-family:inherit}
 .sch-cmnt-inp:focus{border-color:rgba(168,139,255,0.40)}.sch-cmnt-inp::placeholder{color:#52525B}
+.sch-day-list{display:flex;flex-direction:column;gap:6px;padding:0 18px 16px}
+.sch-day-card{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden}
+.sch-day-card.editable{cursor:pointer}.sch-day-card.editable:active{background:#141416}
+.sch-day-card.today-card{border-color:rgba(168,139,255,0.30)}
+.sch-day-head{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.sch-day-lbl{min-width:38px;flex-shrink:0}
+.sch-day-d{font-size:9px;font-weight:600;color:#52525B;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:2px}
+.sch-day-n{font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;line-height:1;display:block}
+.sch-day-n.wknd{color:#A88BFF}
+.sch-day-body{flex:1;min-width:0}
+.sch-day-shifts-inline{display:flex;flex-direction:column;gap:4px}
+.sch-day-shift-row{display:flex;align-items:center;gap:7px}
+.sch-day-shift-ini{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#000;flex-shrink:0}
+.sch-day-shift-name{font-size:12px;font-weight:500;color:#A1A1AA;flex:1}
+.sch-day-shift-time{font-size:11px;color:#71717A;font-variant-numeric:tabular-nums}
+.sch-day-empty{font-size:12px;color:#3F3F46}
+.sch-prow{display:flex;flex-direction:column;padding:0 20px;margin-bottom:8px}
+.sch-prow-item{padding:14px 0;display:flex;flex-direction:column;gap:10px;border-bottom:0.5px solid rgba(255,255,255,0.06)}
+.sch-prow-item:last-child{border-bottom:none}
+.sch-prow-top{display:flex;align-items:center;gap:10px}
+.sch-prow-seg{display:flex;height:28px;background:#141416;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:2px;gap:2px;margin-left:auto;flex-shrink:0}
+.sch-prow-sbtn{height:100%;padding:0 10px;border:none;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:#71717A;white-space:nowrap;font-family:inherit}
+.sch-prow-sbtn.on{background:#A88BFF;color:#000}
+.sch-prow-times{display:flex;align-items:center;gap:8px}
+.sch-prow-tinp{flex:1;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:8px 10px;font-size:15px;color:#fff;outline:none;font-family:inherit;text-align:center;-webkit-appearance:none;color-scheme:dark}
+.sch-prow-tsep{font-size:14px;color:#52525B;flex-shrink:0}
 </style>`;
 
 /* ════════════════════════════════════════
@@ -436,33 +464,6 @@ function renderRoleView(roleKey) {
   const totalOff    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
   const pendCnt     = r.requests.filter(x => x.status === 'pending').length;
 
-  const thCells = weekDates.map(w => {
-    const cls = [w.weekend ? 'wk' : '', isToday(w.date) ? 'td' : ''].filter(Boolean).join(' ');
-    return `<th class="${cls}">${w.d}<br><span style="font-size:11px;font-weight:400">${w.n}</span></th>`;
-  }).join('');
-
-  const bodyRows = r.people.length === 0
-    ? `<tr><td colspan="8"><div class="sch-empty-state">Немає співробітників.<br>Додайте у розділі «Команда».</div></td></tr>`
-    : r.people.map((p, pi) => {
-        const cells = r.grid[pi].map((cell, di) => {
-          if (!cell) {
-            const onclick = _mode === 'edit'
-              ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
-              : '';
-            return `<td><div class="sch-off" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/></svg></div></td>`;
-          }
-          const compact = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
-          const onclick = _mode === 'edit'
-            ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
-            : `onclick="window.__sch.showShiftInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}')"`;
-          return `<td><div class="sch-tag" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color};font-size:9px;letter-spacing:-.02em" ${onclick}>${compact}</div></td>`;
-        }).join('');
-        return `<tr>
-          <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div>${p.n.split(' ')[0]}</div></td>
-          ${cells}
-        </tr>`;
-      }).join('');
-
   const covCells = weekDates.map((w, di) => {
     const cnt   = r.grid.filter(row => row[di] !== null).length;
     const isLo  = r.people.length > 0 && cnt < 2;
@@ -531,12 +532,10 @@ function renderRoleView(roleKey) {
           ${_mode === 'edit' ? '● Режим редагування' : 'Редагувати →'}
         </div>
       </div>
-      <div class="sch-grid-wrap">
-        <table class="sch-table">
-          <thead><tr><th style="text-align:left;padding-right:6px;color:#52525B">Хто</th>${thCells}</tr></thead>
-          <tbody>${bodyRows}</tbody>
-        </table>
-      </div>
+      ${r.people.length === 0
+        ? `<div class="sch-empty-state">Немає співробітників.<br>Додайте у розділі «Команда».</div>`
+        : renderDayCards(roleKey, weekDates)
+      }
       <div class="sch-sec"><div class="sch-sec-lbl">Покриття днів</div><div class="sch-sec-val">${r.people.length} людей</div></div>
       <div class="sch-cov">${covCells}</div>
       ${r.requests.length ? `
@@ -623,6 +622,93 @@ function renderBooking() {
       <button class="sch-cta" ${selArr.length===0?'disabled':''}>
         Надіслати запит · ${selArr.length} ${selArr.length===1?'день':selArr.length<5?'дні':'днів'}
       </button>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════
+   DAY CARDS (замість таблиці)
+════════════════════════════════════════ */
+function renderDayCards(roleKey, weekDates) {
+  const r = _rosters[roleKey];
+  const cards = weekDates.map((w, di) => {
+    const onShift = r.people.map((p, pi) => ({ p, cell: r.grid[pi][di] })).filter(x => x.cell);
+    const isT     = isToday(w.date);
+    const onclick = _mode === 'edit' ? `onclick="window.__sch.openDaySheet('${roleKey}',${di})"` : '';
+    const cls     = ['sch-day-card', _mode === 'edit' ? 'editable' : '', isT ? 'today-card' : ''].filter(Boolean).join(' ');
+
+    const shiftRows = onShift.map(({ p, cell }) => `
+      <div class="sch-day-shift-row">
+        <div class="sch-day-shift-ini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div>
+        <span class="sch-day-shift-name">${p.n.split(' ')[0]}</span>
+        <span class="sch-day-shift-time">${cell.s.slice(0,5)} – ${cell.e.slice(0,5)}</span>
+      </div>`).join('');
+
+    const body = onShift.length
+      ? `<div class="sch-day-shifts-inline">${shiftRows}</div>`
+      : `<div class="sch-day-empty">Вихідний</div>`;
+
+    const arrow = _mode === 'edit'
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`
+      : '';
+
+    return `
+    <div class="${cls}" ${onclick}>
+      <div class="sch-day-head">
+        <div class="sch-day-lbl">
+          <span class="sch-day-d">${w.d}</span>
+          <span class="sch-day-n${w.weekend?' wknd':''}">${w.n}</span>
+        </div>
+        <div class="sch-day-body">${body}</div>
+        ${arrow ? `<div class="sch-day-arr">${arrow}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="sch-day-list">${cards}</div>`;
+}
+
+/* ════════════════════════════════════════
+   DAY SHEET — призначення людей на день
+════════════════════════════════════════ */
+function renderDaySheet(roleKey, di) {
+  const r   = _rosters[roleKey];
+  const w   = getWeekDates(_weekOffset)[di];
+  const def = DEFAULTS[roleKey];
+
+  const rows = r.people.map((p, pi) => {
+    const edit   = _dayEdits[pi];
+    const isOn   = edit.on;
+    return `
+    <div class="sch-prow-item">
+      <div class="sch-prow-top">
+        <div class="sch-gini" style="width:28px;height:28px;border-radius:8px;background:${r.bgIcon};color:${r.color};font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.i}</div>
+        <div style="flex:1;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.n}</div>
+        <div class="sch-prow-seg">
+          <button id="sch-dp-shift-${pi}" class="sch-prow-sbtn${isOn?' on':''}" onclick="window.__sch.toggleDayPerson(${pi},'shift')">Зміна</button>
+          <button id="sch-dp-off-${pi}"   class="sch-prow-sbtn${!isOn?' on':''}" onclick="window.__sch.toggleDayPerson(${pi},'off')">Вихідний</button>
+        </div>
+      </div>
+      <div id="sch-dp-times-${pi}" class="sch-prow-times" style="display:${isOn?'flex':'none'}">
+        <input id="sch-dp-s-${pi}" type="time" class="sch-prow-tinp" value="${edit.s}"
+          oninput="window.__sch.updateDayTime(${pi},'s',this.value)">
+        <span class="sch-prow-tsep">—</span>
+        <input id="sch-dp-e-${pi}" type="time" class="sch-prow-tinp" value="${edit.e}"
+          oninput="window.__sch.updateDayTime(${pi},'e',this.value)">
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="sch-ov" id="sch-day-ov" onclick="window.__sch.closeDayOv(event)">
+    <div class="sch-sheet">
+      <div class="sch-sh-handle"></div>
+      <div class="sch-sh-title">${w.d} ${w.n} ${MONTHS_GEN[w.m]}</div>
+      <div class="sch-sh-sub">${r.label} · стандарт ${def.s} – ${def.e}</div>
+      <div class="sch-prow">${rows}</div>
+      <div style="padding:0 20px">
+        <button class="sch-cta" style="width:100%" onclick="window.__sch.saveDaySheet()">Зберегти</button>
+      </div>
     </div>
   </div>`;
 }
@@ -860,6 +946,53 @@ export function init() {
       saveShiftToStorage(roleKey, pi, di, value);
       _editSheet = null;
       document.getElementById('sch-edit-ov')?.remove();
+      re();
+    },
+
+    openDaySheet(roleKey, di) {
+      _daySheet = { roleKey, di: +di };
+      const r = _rosters[roleKey];
+      const def = DEFAULTS[roleKey];
+      _dayEdits = {};
+      r.people.forEach((p, pi) => {
+        const cell = r.grid[pi][+di];
+        _dayEdits[pi] = { on: cell !== null, s: cell?.s || def.s, e: cell?.e || def.e };
+      });
+      const wrap = document.querySelector('.sch-wrap');
+      if (!wrap) return;
+      document.getElementById('sch-day-ov')?.remove();
+      wrap.insertAdjacentHTML('beforeend', renderDaySheet(roleKey, +di));
+    },
+    closeDayOv(e) { if (e?.target?.id === 'sch-day-ov') this.closeDaySheet(); },
+    closeDaySheet() { _daySheet = null; document.getElementById('sch-day-ov')?.remove(); },
+
+    toggleDayPerson(pi, mode) {
+      _dayEdits[+pi].on = (mode === 'shift');
+      const isOn    = mode === 'shift';
+      const btnOn   = document.getElementById(`sch-dp-shift-${pi}`);
+      const btnOff  = document.getElementById(`sch-dp-off-${pi}`);
+      const times   = document.getElementById(`sch-dp-times-${pi}`);
+      if (!btnOn) return;
+      btnOn.className  = 'sch-prow-sbtn' + (isOn  ? ' on' : '');
+      btnOff.className = 'sch-prow-sbtn' + (!isOn ? ' on' : '');
+      if (times) times.style.display = isOn ? 'flex' : 'none';
+    },
+
+    updateDayTime(pi, field, val) {
+      if (_dayEdits[+pi]) _dayEdits[+pi][field] = val;
+    },
+
+    saveDaySheet() {
+      if (!_daySheet) return;
+      const { roleKey, di } = _daySheet;
+      Object.entries(_dayEdits).forEach(([piStr, edit]) => {
+        const pi  = +piStr;
+        const val = edit.on ? { s: edit.s, e: edit.e } : null;
+        _rosters[roleKey].grid[pi][di] = val;
+        saveShiftToStorage(roleKey, pi, di, val);
+      });
+      _daySheet = null;
+      document.getElementById('sch-day-ov')?.remove();
       re();
     },
 
