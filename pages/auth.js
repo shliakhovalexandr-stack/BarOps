@@ -144,7 +144,7 @@ function viewPin() {
         <div class="apin-links">
           <span class="apin-link" onclick="window.__auth.goTo('admin-login')">ADMIN</span>
           <span class="apin-link-sep">·</span>
-          <span class="apin-link" onclick="window.__auth.goTo('admin-login')">Зареєструватись</span>
+          <span class="apin-link" onclick="window.__auth.goTo('reg-1')">Зареєструватись</span>
         </div>
       </div>
     </div>
@@ -189,7 +189,7 @@ function viewSetup() {
           style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
           ADMIN →
         </span>
-        <span onclick="window.__auth.goTo('admin-login')"
+        <span onclick="window.__auth.goTo('reg-1')"
           style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
           Зареєструватись →
         </span>
