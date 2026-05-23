@@ -5,122 +5,17 @@
 
 import { state } from '../shared/app.js';
 
-/* ════════════════════════════════════════
-   WEEK
-════════════════════════════════════════ */
-const WEEK = [
-  { d: 'ПН', n: 18 },
-  { d: 'ВТ', n: 19 },
-  { d: 'СР', n: 20 },
-  { d: 'ЧТ', n: 21 },
-  { d: 'ПТ', n: 22 },
-  { d: 'СБ', n: 23, weekend: true },
-  { d: 'НД', n: 24, weekend: true },
-];
+const API = 'https://barops-backend-production.up.railway.app';
 
 /* ════════════════════════════════════════
-   ROSTERS
+   ROLE CONFIG (статичний)
 ════════════════════════════════════════ */
-const ROSTERS = {
-  cooks: {
-    label: 'Кухарі', sub: 'Кухня · 5 людей', icon: 'fork',
-    color: '#FBBF24', bgIcon: 'rgba(251,191,36,0.10)', bdIcon: 'rgba(251,191,36,0.28)',
-    people: [
-      { i: 'ВК', n: 'Віктор Кравчук',   role: 'Шеф-кухар',        hours: 48 },
-      { i: 'ОМ', n: 'Олена Мороз',      role: 'Кухар',             hours: 40 },
-      { i: 'НП', n: 'Наталія Поліщук',  role: 'Кухар',             hours: 40, ask: true },
-      { i: 'ІД', n: 'Ігор Драч',        role: 'Кухар-заготівник',  hours: 36 },
-      { i: 'МС', n: 'Марина Савченко',  role: 'Кухар',             hours: 40 },
-    ],
-    grid: [
-      [{ s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
-      [{ s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             null,             { s:'08:00',e:'18:00'}],
-      [null,             { s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},null,             { s:'08:00',e:'18:00'},null,             null            ],
-      [{ s:'08:00',e:'18:00'},null,             { s:'08:00',e:'18:00'},{ s:'08:00',e:'18:00'},null,             { s:'17:00',e:'02:00'},null            ],
-      [{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'}],
-    ],
-    requests: [
-      { who: 'Наталія Поліщук', day: 'Сб 23', status: 'pending',  note: 'День народження сина' },
-      { who: 'Ігор Драч',       day: 'Чт 21', status: 'approved', note: '' },
-    ],
-  },
-  bartenders: {
-    label: 'Бармени', sub: 'Бар · 4 людини', icon: 'glass',
-    color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)', bdIcon: 'rgba(168,139,255,0.28)',
-    people: [
-      { i: 'ОП', n: 'Олег Петренко',      role: 'Старший бармен', hours: 48 },
-      { i: 'КС', n: 'Катерина Сидоренко', role: 'Бармен',         hours: 40 },
-      { i: 'АЛ', n: 'Андрій Лисенко',     role: 'Бармен',         hours: 36, ask: true },
-      { i: 'ВЗ', n: 'Валерія Захарченко', role: 'Бармен',         hours: 40 },
-    ],
-    grid: [
-      [{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
-      [null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
-      [{ s:'11:00',e:'23:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             null,             { s:'11:00',e:'23:00'}],
-      [{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             { s:'17:00',e:'02:00'},{ s:'11:00',e:'23:00'},null            ],
-    ],
-    requests: [
-      { who: 'Андрій Лисенко', day: 'Нд 24', status: 'pending', note: 'Сімейне свято' },
-    ],
-  },
-  waiters: {
-    label: 'Офіціанти', sub: 'Зал · 6 людей', icon: 'tray',
-    color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)', bdIcon: 'rgba(134,239,172,0.28)',
-    people: [
-      { i: 'ТК', n: 'Тетяна Коваленко',  role: 'Старший офіціант', hours: 48 },
-      { i: 'РШ', n: 'Роман Шевченко',    role: 'Офіціант',         hours: 40 },
-      { i: 'ЮБ', n: 'Юлія Бойко',        role: 'Офіціант',         hours: 40, ask: true },
-      { i: 'ДМ', n: 'Дмитро Мельник',    role: 'Офіціант',         hours: 36 },
-      { i: 'СГ', n: 'Світлана Гриценко', role: 'Офіціант',         hours: 40 },
-      { i: 'ПК', n: 'Павло Кузьменко',   role: 'Офіціант',         hours: 40 },
-    ],
-    grid: [
-      [{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'}],
-      [null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
-      [{ s:'11:00',e:'23:00'},null,             null,             { s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'}],
-      [{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'11:00',e:'23:00'},null,             null            ],
-      [null,             null,             { s:'11:00',e:'23:00'},{ s:'11:00',e:'23:00'},null,             { s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'}],
-      [{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},{ s:'17:00',e:'02:00'},null,             null,             { s:'11:00',e:'23:00'}],
-    ],
-    requests: [
-      { who: 'Юлія Бойко',     day: 'Сб 23', status: 'pending',  note: 'Медичний огляд' },
-      { who: 'Дмитро Мельник', day: 'Пт 22', status: 'approved', note: '' },
-    ],
-  },
-  managers: {
-    label: 'Менеджери', sub: 'Управління · 3 людини', icon: 'star',
-    color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)', bdIcon: 'rgba(168,139,255,0.28)',
-    people: [
-      { i: 'ЛД', n: 'Людмила Данченко', role: 'Адміністратор', hours: 48 },
-      { i: 'СП', n: 'Сергій Панченко',  role: 'Менеджер',      hours: 40, ask: true },
-      { i: 'ОВ', n: 'Оксана Власенко',  role: 'Менеджер',      hours: 40 },
-    ],
-    grid: [
-      [{ s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null            ],
-      [null,             { s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'}],
-      [{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'},null,             { s:'10:00',e:'20:00'},{ s:'10:00',e:'20:00'}],
-    ],
-    requests: [
-      { who: 'Сергій Панченко', day: 'Нд 24', status: 'pending', note: 'Особиста справа' },
-    ],
-  },
-  cleaners: {
-    label: 'Хозяюшки', sub: 'Прибирання · 3 людини', icon: 'broom',
-    color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)', bdIcon: 'rgba(134,239,172,0.28)',
-    people: [
-      { i: 'ГН', n: 'Галина Назаренко',  role: 'Старша прибиральниця', hours: 40 },
-      { i: 'ІВ', n: 'Ірина Волошин',     role: 'Прибиральниця',        hours: 36, ask: true },
-      { i: 'ЛМ', n: 'Людмила Мусієнко', role: 'Прибиральниця',        hours: 36 },
-    ],
-    grid: [
-      [{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},null,             null            ],
-      [null,             { s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},{ s:'06:00',e:'14:00'},null            ],
-      [{ s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'},null,             { s:'06:00',e:'14:00'}],
-    ],
-    requests: [
-      { who: 'Ірина Волошин', day: 'Вт 19', status: 'pending', note: 'Лікарняний' },
-    ],
-  },
+const ROLE_CONFIG = {
+  cooks:      { label: 'Кухарі',    icon: 'fork',  color: '#FBBF24', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']         },
+  bartenders: { label: 'Бармени',   icon: 'glass', color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']  },
+  waiters:    { label: 'Офіціанти', icon: 'tray',  color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']              },
+  managers:   { label: 'Менеджери', icon: 'star',  color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['manager','admin']     },
+  cleaners:   { label: 'Хозяюшки', icon: 'broom', color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess']             },
 };
 
 /* ════════════════════════════════════════
@@ -135,15 +30,108 @@ const DEFAULTS = {
 };
 
 /* ════════════════════════════════════════
+   WEEK HELPERS
+════════════════════════════════════════ */
+const DOW_SHORT    = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
+const MONTHS_GEN   = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+
+function getWeekDates(offset = 0) {
+  const today = new Date();
+  const dow   = today.getDay();
+  const diff  = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(today);
+  monday.setDate(monday.getDate() + diff + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + i);
+    return { d: DOW_SHORT[i], date: d, n: d.getDate(), m: d.getMonth(), weekend: i >= 5 };
+  });
+}
+
+function dateKey(d) { return d.toISOString().split('T')[0]; }
+
+function weekLabel(wd) {
+  const f = wd[0], l = wd[6];
+  if (f.m === l.m) return `${MONTHS_GEN[f.m]}  ${f.n}–${l.n}`;
+  return `${f.n} ${MONTHS_GEN[f.m]} – ${l.n} ${MONTHS_GEN[l.m]}`;
+}
+
+function isToday(d) {
+  const t = new Date();
+  return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
+}
+
+/* ════════════════════════════════════════
    STATE
 ════════════════════════════════════════ */
-let _view          = 'hub';    // hub | role | booking
+let _view          = 'hub';
 let _role          = 'cooks';
-let _mode          = 'view';   // view | edit
+let _mode          = 'view';
 let _selDays       = new Set();
-let _editSheet     = null;     // { roleKey, pi, di }
-let _sheetMode     = 'shift';  // shift | off (поточний вибір у bottom sheet)
-let _defaultsSheet = null;     // roleKey | null
+let _editSheet     = null;
+let _sheetMode     = 'shift';
+let _defaultsSheet = null;
+let _weekOffset    = 0;
+let _rosters       = {};
+let _venueId       = '';
+
+/* ════════════════════════════════════════
+   LOAD ROSTERS (API + localStorage)
+════════════════════════════════════════ */
+async function loadRosters() {
+  _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+  const token = localStorage.getItem('barops_token');
+  const weekDates = getWeekDates(_weekOffset);
+
+  let teamMembers = [];
+  try {
+    const url = _venueId
+      ? `${API}/api/auth/team?venueId=${_venueId}`
+      : `${API}/api/auth/team`;
+    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const data = await res.json();
+    if (Array.isArray(data.team)) teamMembers = data.team;
+  } catch (_) {}
+
+  const stored   = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
+  const vData    = stored[_venueId] || {};
+
+  _rosters = {};
+  for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
+    const people = teamMembers
+      .filter(m => cfg.apiRoles.includes(m.role))
+      .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: m.role }));
+
+    const grid = people.map(p => {
+      const emp = vData[p.id] || {};
+      return weekDates.map(w => {
+        const slot = emp[dateKey(w.date)];
+        return slot ? { s: slot.start, e: slot.end } : null;
+      });
+    });
+
+    _rosters[key] = { ...cfg, sub: `${cfg.label} · ${people.length} люд`, people, grid, requests: [] };
+  }
+}
+
+function saveShiftToStorage(roleKey, pi, di, value) {
+  const weekDates = getWeekDates(_weekOffset);
+  const dk   = dateKey(weekDates[di].date);
+  const empId = _rosters[roleKey]?.people[pi]?.id;
+  if (!empId || !_venueId) return;
+
+  const raw = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
+  if (!raw[_venueId]) raw[_venueId] = {};
+  if (!raw[_venueId][empId]) raw[_venueId][empId] = {};
+
+  if (value === null) {
+    delete raw[_venueId][empId][dk];
+  } else {
+    raw[_venueId][empId][dk] = { start: value.s, end: value.e };
+  }
+  localStorage.setItem('barops_schedule_v1', JSON.stringify(raw));
+}
 
 /* ════════════════════════════════════════
    HELPERS
@@ -185,7 +173,7 @@ function avatarStack(people, max = 3) {
 function statusChips(r) {
   const gaps    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
   const pending = r.requests.filter(x => x.status === 'pending').length;
-  if (!gaps && !pending)
+  if (!gaps && !pending && r.people.length > 0)
     return `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(134,239,172,0.10);border:0.5px solid rgba(134,239,172,0.25);font-size:10px;color:#86EFAC;font-weight:500">Без зауважень</span>`;
   let out = '';
   if (gaps)    out += `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(251,113,133,0.10);border:0.5px solid rgba(251,113,133,0.25);font-size:10px;color:#FB7185;font-weight:500">${gaps} дірок</span>`;
@@ -195,9 +183,9 @@ function statusChips(r) {
 
 function summaryStats() {
   let total = 0, onShift = 0, gaps = 0, pending = 0;
-  for (const r of Object.values(ROSTERS)) {
+  for (const r of Object.values(_rosters)) {
     total   += r.people.length;
-    onShift += r.grid.filter(row => row[0] !== null).length;
+    onShift += r.grid.filter(row => row.some(c => c !== null)).length;
     gaps    += r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
     pending += r.requests.filter(x => x.status === 'pending').length;
   }
@@ -262,6 +250,7 @@ const CSS = `<style id="sch-css">
 .sch-table{border-collapse:collapse;width:100%;min-width:300px}
 .sch-table th{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.04em;text-align:center;padding:0 2px 8px;vertical-align:bottom}
 .sch-table th.wk{color:#A88BFF}
+.sch-table th.td{color:#A88BFF}
 .sch-table td{padding:3px 2px;vertical-align:middle}
 .sch-gname{font-size:11px;font-weight:500;color:#A1A1AA;white-space:nowrap;padding-right:6px;display:flex;align-items:center;gap:5px}
 .sch-gini{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;flex-shrink:0}
@@ -269,13 +258,11 @@ const CSS = `<style id="sch-css">
 .sch-tag:active{transform:scale(.9)}
 .sch-off{width:30px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.3}
 .sch-off:hover{opacity:.6;background:#141416}
-.sch-legend{display:flex;flex-wrap:wrap;gap:6px;padding:0 18px 16px}
-.sch-leg{display:flex;align-items:center;gap:5px}
-.sch-leg-chip{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
-.sch-leg-lbl{font-size:11px;color:#71717A}
+.sch-empty-state{text-align:center;padding:40px 20px;color:#52525B;font-size:13px;line-height:1.6}
 .sch-cov{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 18px 16px}
 .sch-cov-cell{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center}
 .sch-cov-cell.lo{border-color:rgba(251,113,133,0.28)}
+.sch-cov-cell.td{border-color:rgba(168,139,255,0.30)}
 .sch-cov-d{font-size:9px;color:#52525B;letter-spacing:.04em;margin-bottom:4px;text-transform:uppercase}
 .sch-cov-n{font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
 .sch-cov-n.lo{color:#FB7185}
@@ -351,11 +338,13 @@ const CSS = `<style id="sch-css">
    SCREEN 1 — HUB
 ════════════════════════════════════════ */
 function renderHub() {
-  const stats = summaryStats();
-  const venueName = localStorage.getItem('barops_venue') || 'Bar Noir';
+  const stats     = summaryStats();
+  const venueName = state.venue || localStorage.getItem('barops_venue') || 'Bar Noir';
+  const weekDates = getWeekDates(_weekOffset);
+  const wLabel    = weekLabel(weekDates);
 
-  const cards = Object.entries(ROSTERS).map(([key, r]) => {
-    const onShift = r.grid.filter(row => row[0] !== null).length;
+  const cards = Object.entries(_rosters).map(([key, r]) => {
+    const onShift = r.grid.filter(row => row.some(c => c !== null)).length;
     return `
     <div class="sch-dc" onclick="window.__sch.goRole('${key}')">
       <div class="sch-dc-icon" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color}">
@@ -363,7 +352,10 @@ function renderHub() {
       </div>
       <div class="sch-dc-body">
         <div class="sch-dc-name">${r.label}</div>
-        <div class="sch-dc-sub"><span class="sch-live"></span>${r.people.length} люд · ${onShift} на зміні</div>
+        <div class="sch-dc-sub">
+          ${r.people.length > 0 ? `<span class="sch-live"></span>` : ''}
+          ${r.people.length} люд · ${onShift} на зміні
+        </div>
         <div class="sch-dc-chips">${statusChips(r)}</div>
       </div>
       <div class="sch-dc-right">
@@ -388,10 +380,10 @@ function renderHub() {
       </div>
     </div>
     <div class="sch-week">
-      <div class="sch-week-lbl">Тиждень · травень&nbsp;&nbsp;18–24</div>
+      <div class="sch-week-lbl">${wLabel}</div>
       <div class="sch-week-nav">
-        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
-        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </div>
     </div>
     <div class="sch-scroll">
@@ -405,24 +397,16 @@ function renderHub() {
           <div class="sch-sum-div"></div>
           <div class="sch-sum-cell"><div class="sch-sum-val"${stats.pending?` style="color:#FBBF24"`:''}>${stats.pending}</div><div class="sch-sum-lbl">Запитів</div></div>
         </div>
-        <div class="sch-sum-meta">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-          8 хв тому
-        </div>
       </div>
       <div class="sch-seg">
         <button class="sch-seg-btn${_mode==='view'?' on':''}" onclick="window.__sch.setMode('view')">Переглянути</button>
         <button class="sch-seg-btn${_mode==='edit'?' on':''}" onclick="window.__sch.setMode('edit')">Редагувати</button>
       </div>
-      <div class="sch-sec"><div class="sch-sec-lbl">Підрозділи</div><div class="sch-sec-val">${Object.keys(ROSTERS).length}</div></div>
+      <div class="sch-sec"><div class="sch-sec-lbl">Підрозділи</div><div class="sch-sec-val">${Object.keys(_rosters).length}</div></div>
       <div class="sch-dept-list">${cards}</div>
-      <div class="sch-add">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        Додати підрозділ
-      </div>
       <div class="sch-sec" style="margin-top:20px"><div class="sch-sec-lbl">Швидкі дії</div></div>
       <div class="sch-quick">
-        <div class="sch-qcard" onclick="window.__sch.goRole('cooks')">
+        <div class="sch-qcard" onclick="window.__sch.goRole('bartenders')">
           <div class="sch-qicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></div>
           <div class="sch-qlbl">Усі<br>зведений</div>
         </div>
@@ -439,42 +423,49 @@ function renderHub() {
    SCREEN 2 — ROLE VIEW
 ════════════════════════════════════════ */
 function renderRoleView(roleKey) {
-  const r = ROSTERS[roleKey];
+  const r = _rosters[roleKey];
   if (!r) return renderHub();
 
+  const weekDates   = getWeekDates(_weekOffset);
+  const wLabel      = weekLabel(weekDates);
   const totalShifts = r.grid.reduce((a, row) => a + row.filter(c => c !== null).length, 0);
   const totalOff    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
   const pendCnt     = r.requests.filter(x => x.status === 'pending').length;
 
-  const thCells = WEEK.map(w =>
-    `<th class="${w.weekend?'wk':''}">${w.d}<br><span style="font-size:11px;font-weight:400">${w.n}</span></th>`
-  ).join('');
-
-  const bodyRows = r.people.map((p, pi) => {
-    const cells = r.grid[pi].map((cell, di) => {
-      if (!cell) {
-        const onclick = _mode === 'edit'
-          ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
-          : '';
-        return `<td><div class="sch-off" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/></svg></div></td>`;
-      }
-      const compact = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
-      const onclick = _mode === 'edit'
-        ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
-        : `onclick="window.__sch.showShiftInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}')"`;
-      return `<td><div class="sch-tag" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color};font-size:9px;letter-spacing:-.02em" ${onclick}>${compact}</div></td>`;
-    }).join('');
-    return `<tr>
-      <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div>${p.n.split(' ')[0]}</div></td>
-      ${cells}
-    </tr>`;
+  const thCells = weekDates.map(w => {
+    const cls = [w.weekend ? 'wk' : '', isToday(w.date) ? 'td' : ''].filter(Boolean).join(' ');
+    return `<th class="${cls}">${w.d}<br><span style="font-size:11px;font-weight:400">${w.n}</span></th>`;
   }).join('');
 
-  const covCells = WEEK.map((w, di) => {
-    const cnt = r.grid.filter(row => row[di] !== null).length;
-    return `<div class="sch-cov-cell${cnt<2?' lo':''}">
+  const bodyRows = r.people.length === 0
+    ? `<tr><td colspan="8"><div class="sch-empty-state">Немає співробітників.<br>Додайте у розділі «Команда».</div></td></tr>`
+    : r.people.map((p, pi) => {
+        const cells = r.grid[pi].map((cell, di) => {
+          if (!cell) {
+            const onclick = _mode === 'edit'
+              ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
+              : '';
+            return `<td><div class="sch-off" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/></svg></div></td>`;
+          }
+          const compact = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
+          const onclick = _mode === 'edit'
+            ? `onclick="window.__sch.openEditSheet('${roleKey}',${pi},${di})"`
+            : `onclick="window.__sch.showShiftInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}')"`;
+          return `<td><div class="sch-tag" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color};font-size:9px;letter-spacing:-.02em" ${onclick}>${compact}</div></td>`;
+        }).join('');
+        return `<tr>
+          <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div>${p.n.split(' ')[0]}</div></td>
+          ${cells}
+        </tr>`;
+      }).join('');
+
+  const covCells = weekDates.map((w, di) => {
+    const cnt   = r.grid.filter(row => row[di] !== null).length;
+    const isLo  = r.people.length > 0 && cnt < 2;
+    const isTd  = isToday(w.date);
+    return `<div class="sch-cov-cell${isLo?' lo':''}${isTd?' td':''}">
       <div class="sch-cov-d">${w.d}</div>
-      <div class="sch-cov-n${cnt<2?' lo':''}">${cnt}</div>
+      <div class="sch-cov-n${isLo?' lo':''}">${cnt}</div>
     </div>`;
   }).join('');
 
@@ -510,10 +501,10 @@ function renderRoleView(roleKey) {
       <div class="sch-hdr-icon" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color}">${roleIcon(r.icon)}</div>
     </div>
     <div class="sch-week">
-      <div class="sch-week-lbl">Тиждень · травень&nbsp;&nbsp;18–24</div>
+      <div class="sch-week-lbl">${wLabel}</div>
       <div class="sch-week-nav">
-        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
-        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </div>
     </div>
     <div class="sch-scroll">
@@ -556,39 +547,37 @@ function renderRoleView(roleKey) {
    SCREEN 3 — BOOKING
 ════════════════════════════════════════ */
 function renderBooking() {
-  // May 2026: May 1 = Friday (getDay()=5 → Mon-first offset = 4)
-  const offset = 4;
-  const daysInMonth = 31;
-  const todayNum = 19;
-  const pendingDays = new Set([18]);
-  const DOW = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
-  const MONTHS_UK = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+  const today = new Date();
+  const year  = today.getFullYear();
+  const month = today.getMonth();
+  const MONTHS_NOM = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+
+  const firstDow = new Date(year, month, 1).getDay();
+  const offset   = firstDow === 0 ? 6 : firstDow - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayNum = today.getDate();
 
   const cells = [];
   for (let i = 0; i < offset; i++) cells.push(`<div class="sch-cell empty"></div>`);
   for (let d = 1; d <= daysInMonth; d++) {
-    const dowIdx = (offset + d - 1) % 7;
+    const dowIdx  = (offset + d - 1) % 7;
     const isWeekend = dowIdx >= 5;
-    const isPast    = d < todayNum;
-    const isToday   = d === todayNum;
-    const isSel     = _selDays.has(d);
-    const isPending = pendingDays.has(d);
+    const isPast  = d < todayNum;
+    const isTodayCell = d === todayNum;
+    const isSel   = _selDays.has(d);
     let cls = 'sch-cell';
-    if (isPending) cls += ' preq';
-    else if (isPast) cls += ' past';
+    if (isPast)    cls += ' past';
     else if (isSel) cls += ' sel';
     else if (isWeekend) cls += ' wknd';
-    if (isToday) cls += ' today';
-    const onclick = (!isPast && !isPending) ? `onclick="window.__sch.toggleDay(${d})"` : '';
+    if (isTodayCell) cls += ' today';
+    const onclick = !isPast ? `onclick="window.__sch.toggleDay(${d})"` : '';
     cells.push(`<div class="${cls}" ${onclick}>${d}</div>`);
   }
 
   const selArr = [..._selDays].sort((a, b) => a - b);
   const chips = selArr.map(d =>
-    `<div class="sch-bchip" onclick="window.__sch.toggleDay(${d})">${d}&nbsp;${MONTHS_UK[4]}&nbsp;<span style="opacity:.6">×</span></div>`
+    `<div class="sch-bchip" onclick="window.__sch.toggleDay(${d})">${d}&nbsp;${MONTHS_GEN[month]}&nbsp;<span style="opacity:.6">×</span></div>`
   ).join('');
-  const quota = 8;
-  const remaining = quota - pendingDays.size - selArr.length;
 
   return CSS + `
   <div class="sch-wrap">
@@ -597,41 +586,33 @@ function renderBooking() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </div>
       <div class="sch-hdr-body">
-        <div class="sch-hdr-venue">Графік · Олег П.</div>
+        <div class="sch-hdr-venue">Графік</div>
         <div class="sch-hdr-title">Бронювання вихідних</div>
       </div>
     </div>
     <div class="sch-scroll">
       <div class="sch-cal-nav">
         <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
-        <div class="sch-cal-month">Травень 2026</div>
+        <div class="sch-cal-month">${MONTHS_NOM[month]} ${year}</div>
         <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </div>
       <div class="sch-cal-wrap">
         <div class="sch-cal-dow">
-          ${DOW.map(d => `<div class="${d==='СБ'||d==='НД'?'vio':''}">${d}</div>`).join('')}
+          ${DOW_SHORT.map(d => `<div class="${d==='СБ'||d==='НД'?'vio':''}">${d}</div>`).join('')}
         </div>
-        <div class="sch-cal-grid" id="sch-cal">${cells.join('')}</div>
+        <div class="sch-cal-grid">${cells.join('')}</div>
       </div>
       <div class="sch-bsum">
         <div class="sch-bsum-head">
           <div class="sch-bsum-title">Обрано вихідних</div>
           <div class="sch-bsum-count">${selArr.length}</div>
         </div>
-        ${selArr.length ? `<div class="sch-bchips" id="sch-bchips">${chips}</div>` : ''}
-        <div class="sch-bquota">Норма для бармена · ${quota} вихідних на місяць. ${remaining > 0 ? `Залишилось ${remaining}.` : 'Ліміт вичерпано.'}</div>
-      </div>
-      <div class="sch-sec"><div class="sch-sec-lbl">Очікують на розгляд</div></div>
-      <div class="sch-plist">
-        <div class="sch-pcard">
-          <div class="sch-picon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-          <div style="flex:1"><div class="sch-pday">18 травня</div><div class="sch-plbl">Очікує підтвердження</div></div>
-          <button class="sch-pcancel">Скасувати</button>
-        </div>
+        ${selArr.length ? `<div class="sch-bchips">${chips}</div>` : ''}
+        <div class="sch-bquota">Обрані дні будуть надіслані на підтвердження адміністратору.</div>
       </div>
       <div class="sch-cmnt">
         <div class="sch-cmnt-lbl">Коментар (опційно)</div>
-        <textarea class="sch-cmnt-inp" placeholder="Сімейне свято на вихідні..." rows="3"></textarea>
+        <textarea class="sch-cmnt-inp" placeholder="Причина запиту..." rows="3"></textarea>
       </div>
     </div>
     <div class="sch-bar">
@@ -648,27 +629,25 @@ function renderBooking() {
 function renderEditSheet() {
   if (!_editSheet) return '';
   const { roleKey, pi, di } = _editSheet;
-  const r    = ROSTERS[roleKey];
+  const r    = _rosters[roleKey];
   const p    = r.people[pi];
   const cell = r.grid[pi][di];
-  const w    = WEEK[di];
+  const w    = getWeekDates(_weekOffset)[di];
 
-  // Ініціалізуємо sheetMode на основі поточного стану клітинки
-  const isShift   = _sheetMode === 'shift';
-  const def       = DEFAULTS[roleKey];
-  const startDef  = cell ? cell.s : def.s;
-  const endDef    = cell ? cell.e : def.e;
+  const isShift  = _sheetMode === 'shift';
+  const def      = DEFAULTS[roleKey];
+  const startDef = cell ? cell.s : def.s;
+  const endDef   = cell ? cell.e : def.e;
 
   return `
   <div class="sch-ov" id="sch-edit-ov" onclick="window.__sch.closeEditOv(event)">
     <div class="sch-sheet">
       <div class="sch-sh-handle"></div>
       <div class="sch-sh-title">Зміна — ${p.n.split(' ')[0]}</div>
-      <div class="sch-sh-sub">${w.d} ${w.n} травня</div>
+      <div class="sch-sh-sub">${w.d} ${w.n} ${MONTHS_GEN[w.m]}</div>
 
       <div class="sch-sh-opts">
 
-        <!-- Варіант: Зміна -->
         <div class="sch-sh-opt${isShift?' sel':''}" onclick="window.__sch.selectSheetMode('shift')" id="sch-opt-shift">
           <div class="sch-sh-tag" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -680,7 +659,6 @@ function renderEditSheet() {
           ${isShift ? `<svg style="flex-shrink:0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>` : ''}
         </div>
 
-        <!-- Час зміни — видно тільки якщо isShift -->
         <div id="sch-time-block" style="display:${isShift?'flex':'none'};flex-direction:column;gap:8px;padding:4px 0 6px">
           <div style="display:flex;align-items:center;gap:10px;padding:0 2px">
             <div style="font-size:12px;color:#71717A;min-width:72px">Початок</div>
@@ -703,7 +681,6 @@ function renderEditSheet() {
           </div>
         </div>
 
-        <!-- Варіант: Вихідний -->
         <div class="sch-sh-opt${!isShift?' sel':''}" onclick="window.__sch.selectSheetMode('off')" id="sch-opt-off">
           <div class="sch-sh-tag" style="background:#1F1F22;border:0.5px solid rgba(255,255,255,0.08);color:#52525B">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -726,10 +703,10 @@ function renderEditSheet() {
 }
 
 /* ════════════════════════════════════════
-   OVERLAY: defaults sheet (edit default times per role)
+   OVERLAY: defaults sheet
 ════════════════════════════════════════ */
 function renderDefaultsSheet(roleKey) {
-  const r   = ROSTERS[roleKey];
+  const r   = _rosters[roleKey];
   const def = DEFAULTS[roleKey];
   return `
   <div class="sch-ov" id="sch-def-ov" onclick="window.__sch.closeDefaultsOv(event)">
@@ -752,7 +729,7 @@ function renderDefaultsSheet(roleKey) {
                    padding:10px 12px;font-size:16px;color:#fff;outline:none;font-family:inherit;text-align:center;
                    -webkit-appearance:none;color-scheme:dark">
         </div>
-        <div style="font-size:11px;color:#52525B;margin-top:4px;line-height:1.5">Стандарт автоматично підставляється у нові клітинки. Кожну клітинку можна змінити індивідуально.</div>
+        <div style="font-size:11px;color:#52525B;margin-top:4px;line-height:1.5">Стандарт підставляється у нові клітинки. Кожну клітинку можна змінити індивідуально.</div>
       </div>
       <div class="sch-sh-btns">
         <button class="sch-sbt sch-sbt-sec" onclick="window.__sch.closeDefaultsSheet()">Скасувати</button>
@@ -766,7 +743,7 @@ function renderDefaultsSheet(roleKey) {
    OVERLAY: shift info popup (view mode)
 ════════════════════════════════════════ */
 function renderShiftPopup(name, start, end) {
-  const r = ROSTERS[_role];
+  const r = _rosters[_role];
   return `
   <div class="sch-popup" id="sch-popup" onclick="window.__sch.closePopup()">
     <div class="sch-popup-box">
@@ -790,7 +767,7 @@ function renderShiftPopup(name, start, end) {
 function re() {
   const v = document.getElementById('app-view');
   if (!v) return;
-  if (_view === 'hub')     v.innerHTML = renderHub();
+  if (_view === 'hub')          v.innerHTML = renderHub();
   else if (_view === 'role')    v.innerHTML = renderRoleView(_role);
   else if (_view === 'booking') v.innerHTML = renderBooking();
 }
@@ -798,20 +775,25 @@ function re() {
 /* ════════════════════════════════════════
    EXPORTS
 ════════════════════════════════════════ */
-export function render() {
-  _view    = 'hub';
-  _role    = 'cooks';
-  _mode    = localStorage.getItem('barops_sch_mode') || 'view';
-  _selDays = new Set();
+export async function render() {
+  _view      = 'hub';
+  _role      = 'cooks';
+  _mode      = localStorage.getItem('barops_sch_mode') || 'view';
+  _selDays   = new Set();
   _editSheet = null;
+  _weekOffset = 0;
+  await loadRosters();
   return renderHub();
 }
 
 export function init() {
   window.__sch = {
-    goHub()        { _view = 'hub';     re(); },
-    goRole(key)    { _role = key; _view = 'role'; re(); },
-    goBooking()    { _view = 'booking'; re(); },
+    goHub()     { _view = 'hub';     re(); },
+    goRole(key) { _role = key; _view = 'role'; re(); },
+    goBooking() { _view = 'booking'; re(); },
+
+    async prevWeek() { _weekOffset--; await loadRosters(); re(); },
+    async nextWeek() { _weekOffset++; await loadRosters(); re(); },
 
     setMode(m) {
       _mode = m;
@@ -829,8 +811,8 @@ export function init() {
 
     openEditSheet(roleKey, pi, di) {
       _editSheet = { roleKey, pi: +pi, di: +di };
-      const cell = ROSTERS[roleKey].grid[+pi][+di];
-      _sheetMode = cell ? 'shift' : 'off';
+      const cell = _rosters[roleKey].grid[+pi][+di];
+      _sheetMode = cell ? 'shift' : 'shift'; // default to shift for new cells
       const wrap = document.querySelector('.sch-wrap');
       if (!wrap) return;
       document.getElementById('sch-edit-ov')?.remove();
@@ -838,6 +820,44 @@ export function init() {
     },
     closeEditOv(e) { if (e?.target?.id === 'sch-edit-ov') this.closeEditSheet(); },
     closeEditSheet() { _editSheet = null; document.getElementById('sch-edit-ov')?.remove(); },
+
+    selectSheetMode(mode) {
+      _sheetMode = mode;
+      const optShift  = document.getElementById('sch-opt-shift');
+      const optOff    = document.getElementById('sch-opt-off');
+      const timeBlock = document.getElementById('sch-time-block');
+      if (!optShift) return;
+      const isShift = mode === 'shift';
+      optShift.className  = 'sch-sh-opt' + (isShift ? ' sel' : '');
+      optOff.className    = 'sch-sh-opt' + (!isShift ? ' sel' : '');
+      timeBlock.style.display = isShift ? 'flex' : 'none';
+      optShift.querySelector('svg:last-child')?.remove();
+      optOff.querySelector('svg:last-child')?.remove();
+      const check = `<svg style="flex-shrink:0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+      if (isShift) optShift.insertAdjacentHTML('beforeend', check);
+      else optOff.insertAdjacentHTML('beforeend', check);
+    },
+
+    updatePreview() {
+      const s    = document.getElementById('sch-t-start')?.value;
+      const e    = document.getElementById('sch-t-end')?.value;
+      const prev = document.getElementById('sch-shift-preview');
+      if (prev && s && e) prev.textContent = s + ' – ' + e;
+    },
+
+    saveShift() {
+      if (!_editSheet) return;
+      const { roleKey, pi, di } = _editSheet;
+      const value = _sheetMode === 'off' ? null : {
+        s: document.getElementById('sch-t-start')?.value || DEFAULTS[roleKey].s,
+        e: document.getElementById('sch-t-end')?.value   || DEFAULTS[roleKey].e,
+      };
+      _rosters[roleKey].grid[pi][di] = value;
+      saveShiftToStorage(roleKey, pi, di, value);
+      _editSheet = null;
+      document.getElementById('sch-edit-ov')?.remove();
+      re();
+    },
 
     openDefaultsSheet(roleKey) {
       _defaultsSheet = roleKey;
@@ -861,65 +881,24 @@ export function init() {
     resetToDefault() {
       if (!_editSheet) return;
       const def = DEFAULTS[_editSheet.roleKey];
-      const startEl = document.getElementById('sch-t-start');
-      const endEl   = document.getElementById('sch-t-end');
-      if (startEl) startEl.value = def.s;
-      if (endEl)   endEl.value   = def.e;
+      const s   = document.getElementById('sch-t-start');
+      const e   = document.getElementById('sch-t-end');
+      if (s) s.value = def.s;
+      if (e) e.value = def.e;
       window.__sch.updatePreview();
     },
 
-    selectSheetMode(mode) {
-      _sheetMode = mode;
-      // Оновлюємо UI без повного re-render
-      const optShift = document.getElementById('sch-opt-shift');
-      const optOff   = document.getElementById('sch-opt-off');
-      const timeBlock = document.getElementById('sch-time-block');
-      if (!optShift) return;
-      const isShift = mode === 'shift';
-      optShift.className = 'sch-sh-opt' + (isShift ? ' sel' : '');
-      optOff.className   = 'sch-sh-opt' + (!isShift ? ' sel' : '');
-      timeBlock.style.display = isShift ? 'flex' : 'none';
-      // Оновлюємо чекмарки
-      optShift.querySelector('svg:last-child')?.remove();
-      optOff.querySelector('svg:last-child')?.remove();
-      const check = `<svg style="flex-shrink:0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
-      if (isShift) optShift.insertAdjacentHTML('beforeend', check);
-      else optOff.insertAdjacentHTML('beforeend', check);
-    },
-
-    updatePreview() {
-      const s = document.getElementById('sch-t-start')?.value;
-      const e = document.getElementById('sch-t-end')?.value;
-      const prev = document.getElementById('sch-shift-preview');
-      if (prev && s && e) prev.textContent = s + ' – ' + e;
-    },
-
-    saveShift() {
-      if (!_editSheet) return;
-      const { roleKey, pi, di } = _editSheet;
-      if (_sheetMode === 'off') {
-        ROSTERS[roleKey].grid[pi][di] = null;
-      } else {
-        const s = document.getElementById('sch-t-start')?.value || '10:00';
-        const e = document.getElementById('sch-t-end')?.value   || '22:00';
-        ROSTERS[roleKey].grid[pi][di] = { s, e };
-      }
-      _editSheet = null;
-      document.getElementById('sch-edit-ov')?.remove();
-      re();
-    },
-
     approveReq(roleKey, ri) {
-      ROSTERS[roleKey].requests[ri].status = 'approved';
-      const el = document.getElementById(`sch-req-${roleKey}-${ri}`);
+      _rosters[roleKey].requests[ri].status = 'approved';
+      const el  = document.getElementById(`sch-req-${roleKey}-${ri}`);
+      const req = _rosters[roleKey].requests[ri];
       if (el) {
-        const req = ROSTERS[roleKey].requests[ri];
         el.className = 'sch-req approved';
         el.innerHTML = `<div style="flex:1"><div class="sch-req-who">${req.who}</div><div class="sch-req-day">${req.day}</div></div><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
       }
     },
     rejectReq(roleKey, ri) {
-      ROSTERS[roleKey].requests.splice(+ri, 1);
+      _rosters[roleKey].requests.splice(+ri, 1);
       re();
     },
 
