@@ -16,8 +16,12 @@ let _mgr        = { email: '', password: '' };
 let _mgrLoading = false;
 let _mgrError   = '';
 
-let _reg        = { name: '', email: '', password: '', venueName: '' };
+let _reg        = { name: '', email: '', phone: '', password: '', venueName: '' };
 let _regLoading = false;
+let _otpUserId  = '';
+let _otpCode    = '';
+let _otpLoading = false;
+let _otpError   = '';
 
 const BOTTLE_SVG = `<svg width="44" height="76" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect x="18" y="1" width="16" height="9" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
@@ -140,7 +144,7 @@ function viewPin() {
         <div class="apin-links">
           <span class="apin-link" onclick="window.__auth.goTo('admin-login')">ADMIN</span>
           <span class="apin-link-sep">·</span>
-          <span class="apin-link" onclick="window.__auth.showComingSoon()">Зареєструватись</span>
+          <span class="apin-link" onclick="window.__auth.goTo('admin-login')">Зареєструватись</span>
         </div>
       </div>
     </div>
@@ -185,7 +189,7 @@ function viewSetup() {
           style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
           ADMIN →
         </span>
-        <span onclick="window.__auth.showComingSoon()"
+        <span onclick="window.__auth.goTo('admin-login')"
           style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
           Зареєструватись →
         </span>
@@ -253,6 +257,10 @@ function viewReg1() {
       <div class="auth-lbl">Ім'я та прізвище</div>
       <input class="auth-inp" id="reg-name" type="text" placeholder="Олексій Коваленко" value="${_reg.name}"
         oninput="window.__auth.regField('name',this.value)"
+        onkeydown="if(event.key==='Enter')document.getElementById('reg-phone').focus()"/>
+      <div class="auth-lbl">Телефон</div>
+      <input class="auth-inp" id="reg-phone" type="tel" inputmode="tel" placeholder="+380 67 123 4567" value="${_reg.phone}"
+        oninput="window.__auth.regField('phone',this.value)"
         onkeydown="if(event.key==='Enter')document.getElementById('reg-email').focus()"/>
       <div class="auth-lbl">Email</div>
       <input class="auth-inp" id="reg-email" type="email" inputmode="email" placeholder="your@email.com" value="${_reg.email}"
@@ -300,28 +308,92 @@ function viewReg2() {
   </div>`;
 }
 
+function viewRegOtp() {
+  const maskedEmail = _reg.email
+    ? _reg.email.replace(/(.{2}).+(@.+)/, '$1***$2')
+    : '';
+  return `
+  <div class="auth-view ${_view==='reg-otp'?'active':''}" id="auth-reg-otp">
+    <div class="auth-inner">
+      <div class="auth-header">
+        <div class="auth-back" onclick="window.__auth.goTo('reg-2')">${BACK_SVG}</div>
+        <div>
+          <div class="auth-screen-title">Підтвердження</div>
+          <div class="auth-screen-sub">Перевірте пошту</div>
+        </div>
+      </div>
+      <div style="background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px;text-align:center">
+        <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Код надіслано на</div>
+        <div style="font-size:15px;font-family:var(--font-h);font-weight:600;color:var(--text0);margin-top:4px">${maskedEmail}</div>
+      </div>
+      <div class="auth-lbl">6-значний код</div>
+      <input class="auth-inp" id="otp-inp" type="text" inputmode="numeric" maxlength="6"
+        placeholder="000000" value="${_otpCode}"
+        style="font-size:28px;font-family:var(--font-h);font-weight:700;letter-spacing:8px;text-align:center"
+        oninput="window.__auth.onOtpInput(this)"
+        onkeydown="if(event.key==='Enter')window.__auth.doVerifyOtp()"/>
+      <div class="auth-error ${_otpError?'show':''}" id="otp-err">${_otpError}</div>
+      <div class="auth-spacer"></div>
+      <button class="auth-btn auth-btn-primary" id="otp-btn"
+        onclick="window.__auth.doVerifyOtp()" ${_otpLoading?'disabled':''}>
+        ${_otpLoading?'<span class="auth-spinner"></span>':'Підтвердити →'}
+      </button>
+      <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text2);font-family:var(--font-b)">
+        Не отримали?
+        <span onclick="window.__auth.resendOtp()" style="color:var(--purple);cursor:pointer;font-weight:600"> Надіслати ще раз</span>
+      </div>
+      <div style="height:12px"></div>
+    </div>
+  </div>`;
+}
+
 function viewReg3() {
+  const PLANS = [
+    { key:'starter', name:'Старт',      price:'990',  per:'міс', color:'var(--green)',  features:['1 заклад','До 10 співробітників','Списання, склад, звіти','Email підтримка'] },
+    { key:'pro',     name:'Про',        price:'1990', per:'міс', color:'var(--purple)', features:['3 заклади','Необмежена команда','AI-закупівля','Пріоритетна підтримка'], badge:'Популярний' },
+    { key:'enter',   name:'Підприємство',price:'?',   per:'',    color:'var(--amber)',  features:['10+ закладів','API-доступ','Виділений менеджер','SLA 99.9%'] },
+  ];
   return `
   <div class="auth-view ${_view==='reg-3'?'active':''}" id="auth-reg-3">
-    <div class="auth-inner" style="align-items:center;justify-content:center;text-align:center">
-      <div style="width:80px;height:80px;border-radius:24px;background:var(--green);display:flex;align-items:center;justify-content:center;margin-bottom:24px;box-shadow:0 0 48px rgba(168,139,255,.50)">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-          <path d="M10 20l7 7 13-13" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+    <div class="auth-inner">
+      <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:24px;margin-bottom:28px">
+        <div style="width:72px;height:72px;border-radius:20px;background:var(--green);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <path d="M9 18l6 6 12-12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:var(--text0)">Вітаємо!</div>
+        <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-top:6px;line-height:1.6">
+          Заклад <strong style="color:var(--text0)">${_reg.venueName}</strong> створено.<br/>
+          <span style="color:var(--green);font-weight:600">7 днів безкоштовно</span> — без картки.
+        </div>
       </div>
-      <div style="font-family:var(--font-h);font-size:26px;font-weight:800;color:var(--text0);margin-bottom:8px">Вітаємо!</div>
-      <div style="font-size:14px;color:var(--text2);font-family:var(--font-b);line-height:1.6;max-width:260px">
-        Заклад <strong style="color:var(--text0)">${_reg.venueName}</strong> створено.<br/>Trial активовано на 7 днів.
+
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px">Оберіть план після тріалу</div>
+      ${PLANS.map(p => `
+      <div style="background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:${p.color}22;border:0.5px solid ${p.color}44;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <span style="font-size:16px;font-family:var(--font-h);font-weight:800;color:${p.color}">${p.price==='?'?'?':''}</span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px;font-family:var(--font-h);font-weight:700;color:var(--text0)">${p.name}</span>
+            ${p.badge?`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${p.color}22;color:${p.color};font-family:var(--font-b);font-weight:600">${p.badge}</span>`:''}
+            <span style="margin-left:auto;font-size:15px;font-family:var(--font-h);font-weight:700;color:${p.color}">${p.price==='?'?'Запит':'₴'+p.price}<span style="font-size:11px;color:var(--text2);font-family:var(--font-b)"> /${p.per}</span></span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+            ${p.features.map(f=>`<span style="font-size:11px;color:var(--text2);font-family:var(--font-b)">${f}</span>`).join('<span style="color:var(--border2);font-size:11px"> · </span>')}
+          </div>
+        </div>
+      </div>`).join('')}
+
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);text-align:center;margin:8px 0 16px">
+        Обираєте пізніше — оплата лише після закінчення тріалу
       </div>
-      <div class="auth-trial-badge" style="margin-top:32px;width:100%">
-        <div class="auth-trial-num">7</div>
-        <div class="auth-trial-lbl">днів безкоштовно</div>
-      </div>
-      <div class="auth-spacer"></div>
-      <button class="auth-btn auth-btn-primary" style="width:100%" onclick="window.__auth.enterApp()">
+      <button class="auth-btn auth-btn-primary" onclick="window.__auth.enterApp()">
         Перейти до додатку →
       </button>
-      <div style="height:12px"></div>
+      <div style="height:16px"></div>
     </div>
   </div>`;
 }
@@ -332,7 +404,7 @@ function viewReg3() {
 function rerender() {
   const c = document.querySelector('.auth-views-wrap');
   if (!c) return;
-  c.innerHTML = viewPin() + viewSetup() + viewAdminLogin() + viewReg1() + viewReg2() + viewReg3();
+  c.innerHTML = viewPin() + viewSetup() + viewAdminLogin() + viewReg1() + viewReg2() + viewRegOtp() + viewReg3();
 }
 
 function goTo(sub) {
@@ -341,6 +413,7 @@ function goTo(sub) {
   if (sub === 'admin-login') setTimeout(() => document.getElementById('mgr-email')?.focus(), 100);
   if (sub === 'reg-1')       setTimeout(() => document.getElementById('reg-name')?.focus(), 100);
   if (sub === 'reg-2')       setTimeout(() => document.getElementById('reg-venue')?.focus(), 100);
+  if (sub === 'reg-otp')     { _otpCode = ''; _otpError = ''; setTimeout(() => document.getElementById('otp-inp')?.focus(), 100); }
   if (sub === 'setup')       setTimeout(() => document.getElementById('setup-phone-inp')?.focus(), 100);
   if (sub === 'pin')         { _pin = ''; }
 }
@@ -498,18 +571,76 @@ async function doRegister() {
   }
   _regLoading = true; rerender();
   try {
-    const res  = await fetch(`${API}/api/register`, {
+    const res  = await fetch(`${API}/api/auth/register`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ name: _reg.name.trim(), email: _reg.email.toLowerCase().trim(), password: _reg.password, venueName: _reg.venueName.trim() }),
+      body:    JSON.stringify({
+        name:      _reg.name.trim(),
+        email:     _reg.email.toLowerCase().trim(),
+        phone:     _reg.phone.trim() || undefined,
+        password:  _reg.password,
+        venueName: _reg.venueName.trim(),
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка реєстрації');
-    saveSession(data);
-    goTo('reg-3');
+    _otpUserId = data.userId;
+    _regLoading = false;
+    goTo('reg-otp');
   } catch (err) {
     _regLoading = false; rerender();
     const e = document.getElementById('reg2-err');
+    if (e) { e.textContent = err.message; e.classList.add('show'); }
+  }
+}
+
+function onOtpInput(inp) {
+  _otpCode = inp.value.replace(/\D/g, '').slice(0, 6);
+  inp.value = _otpCode;
+  const errEl = document.getElementById('otp-err');
+  if (errEl) errEl.classList.remove('show');
+  if (_otpCode.length === 6) setTimeout(() => doVerifyOtp(), 120);
+}
+
+async function doVerifyOtp() {
+  if (_otpCode.length < 6) {
+    const e = document.getElementById('otp-err');
+    if (e) { e.textContent = 'Введіть 6-значний код'; e.classList.add('show'); }
+    return;
+  }
+  _otpLoading = true; _otpError = ''; rerender();
+  try {
+    const res  = await fetch(`${API}/api/auth/verify-email`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ userId: _otpUserId, otp: _otpCode }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Невірний код');
+    saveSession(data);
+    _otpLoading = false;
+    goTo('reg-3');
+  } catch (err) {
+    _otpLoading = false;
+    _otpError   = err.message;
+    rerender();
+  }
+}
+
+async function resendOtp() {
+  if (!_otpUserId) return;
+  try {
+    const res = await fetch(`${API}/api/auth/resend-otp`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ userId: _otpUserId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Помилка');
+    const e = document.getElementById('otp-err');
+    if (e) { e.textContent = 'Новий код надіслано на пошту'; e.classList.add('show'); }
+  } catch (err) {
+    const e = document.getElementById('otp-err');
     if (e) { e.textContent = err.message; e.classList.add('show'); }
   }
 }
@@ -556,11 +687,15 @@ export default {
     _mgrError   = '';
     _mgrLoading = false;
     _regLoading = false;
+    _otpUserId  = '';
+    _otpCode    = '';
+    _otpLoading = false;
+    _otpError   = '';
     return `
       ${CSS}
       <div class="auth-wrap">
         <div class="auth-views-wrap" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-          ${viewPin()}${viewSetup()}${viewAdminLogin()}${viewReg1()}${viewReg2()}${viewReg3()}
+          ${viewPin()}${viewSetup()}${viewAdminLogin()}${viewReg1()}${viewReg2()}${viewRegOtp()}${viewReg3()}
         </div>
       </div>`;
   },
@@ -572,6 +707,7 @@ export default {
       onSetupPhoneInput, submitSetup, changeAccount,
       mgrField, doManagerLogin,
       regField, goToReg2, doRegister, enterApp,
+      onOtpInput, doVerifyOtp, resendOtp,
     };
 
     const token = localStorage.getItem('barops_token');
