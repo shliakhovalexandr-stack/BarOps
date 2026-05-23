@@ -43,6 +43,23 @@ let _mgrPeriod  = 'day';
 let _mgrFilter  = 'all';
 let _succOpen   = false;
 
+/* ── Unit helpers ── */
+function normalizeUnit(u) {
+  const s = (u || '').toLowerCase().trim();
+  if (['кг','kg','kilogram','kilograms','кілограм'].includes(s)) return 'kg';
+  if (['г','g','gram','гр','грам'].includes(s))                  return 'g';
+  if (['шт','sht','piece','pieces','порц','порция','порція','штук','штука'].includes(s)) return 'sht';
+  if (['мл','ml','milliliter'].includes(s))                      return 'ml';
+  return 'l';
+}
+function unitLabel(u) {
+  return { l:'л', ml:'мл', kg:'кг', g:'г', sht:'шт' }[u || 'l'] || 'л';
+}
+function fmtStock(amount, u) {
+  if (u === 'sht') return Math.round(amount || 0) + ' шт';
+  return (amount || 0).toFixed(2) + ' ' + unitLabel(u);
+}
+
 /* Динамічний KPI з localStorage */
 function getMgrKpi(period) {
   const now  = new Date();
@@ -458,11 +475,11 @@ function renderBartender() {
                 placeholder="0.000" value="${_selVol||''}"
                 oninput="window.__wo.updateVol()"/>
               <select class="wo-vol-unit" id="wo-vol-unit" onchange="window.__wo.updateVol()">
-                ${_selProd?.unit==='kg'
-                  ? `<option value="kg" selected>кг</option><option value="l">л</option>`
-                  : _selProd?.unit==='sht'
-                  ? `<option value="sht" selected>шт</option><option value="l">л</option>`
-                  : `<option value="l" selected>л</option><option value="ml">мл</option>`}
+                ${_selProd?.unit==='kg'  ? `<option value="kg" selected>кг</option><option value="g">г</option>`
+                : _selProd?.unit==='g'   ? `<option value="g" selected>г</option><option value="kg">кг</option>`
+                : _selProd?.unit==='sht' ? `<option value="sht" selected>шт</option>`
+                : _selProd?.unit==='ml'  ? `<option value="ml" selected>мл</option><option value="l">л</option>`
+                :                         `<option value="l" selected>л</option><option value="ml">мл</option>`}
               </select>
             </div>
             ${_selProd ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-align:center">
@@ -471,8 +488,20 @@ function renderBartender() {
           </div>
           <div class="wo-presets">
             ${_selProd ? (() => {
+              const pu = _selProd.unit || 'l';
+              if (pu === 'sht') {
+                return [1,2,3,5,10].map(v =>
+                  `<button class="wo-preset ${_selVol===v?'act':''}"
+                    onclick="window.__wo.setVol(${v})">${v} шт</button>`
+                ).join('');
+              }
+              if (pu === 'kg' || pu === 'g') {
+                return [0.1,0.25,0.5,1,2].map(v =>
+                  `<button class="wo-preset ${_selVol===v?'act':''}"
+                    onclick="window.__wo.setVol(${v})">${v} кг</button>`
+                ).join('');
+              }
               const vol = _selProd.vol || 0.7;
-              const unit = _selProd.unit === 'kg' ? 'кг' : _selProd.unit === 'sht' ? 'шт' : 'л';
               const presets = [
                 [parseFloat((vol*0.1).toFixed(3)), `10%`],
                 [parseFloat((vol*0.25).toFixed(3)), `25%`],
@@ -482,7 +511,7 @@ function renderBartender() {
               ];
               return presets.map(([v,lbl]) =>
                 `<button class="wo-preset ${_selVol===v?'act':''}"
-                  onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} ${unit}</span></button>`
+                  onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} л</span></button>`
               ).join('');
             })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
               `<button class="wo-preset ${_selVol===v?'act':''}"
@@ -495,9 +524,9 @@ function renderBartender() {
               <div class="wo-sp-name" id="wo-sp-name">${_selProd?_selProd.name:'—'}</div>
             </div>
             <div>
-              <div class="wo-sp-before" id="wo-sp-before">${_selProd?_selProd.stock.toFixed(2)+' л':'—'}</div>
+              <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
               <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin:2px 0;text-align:right">після списання</div>
-              <div class="wo-sp-after" id="wo-sp-after">— л</div>
+              <div class="wo-sp-after" id="wo-sp-after">— ${_selProd ? unitLabel(_selProd.unit) : 'л'}</div>
             </div>
           </div>
         </div>
@@ -856,11 +885,11 @@ function renderManager() {
                   placeholder="0.000" value="${_selVol||''}"
                   oninput="window.__wo.updateVol()"/>
                 <select class="wo-vol-unit" id="wo-vol-unit" onchange="window.__wo.updateVol()">
-                  ${_selProd?.unit==='kg'
-                    ? `<option value="kg" selected>кг</option><option value="l">л</option>`
-                    : _selProd?.unit==='sht'
-                    ? `<option value="sht" selected>шт</option><option value="l">л</option>`
-                    : `<option value="l" selected>л</option><option value="ml">мл</option>`}
+                  ${_selProd?.unit==='kg'  ? `<option value="kg" selected>кг</option><option value="g">г</option>`
+                  : _selProd?.unit==='g'   ? `<option value="g" selected>г</option><option value="kg">кг</option>`
+                  : _selProd?.unit==='sht' ? `<option value="sht" selected>шт</option>`
+                  : _selProd?.unit==='ml'  ? `<option value="ml" selected>мл</option><option value="l">л</option>`
+                  :                         `<option value="l" selected>л</option><option value="ml">мл</option>`}
                 </select>
               </div>
               ${_selProd ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-align:center">
@@ -869,8 +898,20 @@ function renderManager() {
             </div>
             <div class="wo-presets">
               ${_selProd ? (() => {
+                const pu = _selProd.unit || 'l';
+                if (pu === 'sht') {
+                  return [1,2,3,5,10].map(v =>
+                    `<button class="wo-preset ${_selVol===v?'act':''}"
+                      onclick="window.__wo.setVol(${v})">${v} шт</button>`
+                  ).join('');
+                }
+                if (pu === 'kg' || pu === 'g') {
+                  return [0.1,0.25,0.5,1,2].map(v =>
+                    `<button class="wo-preset ${_selVol===v?'act':''}"
+                      onclick="window.__wo.setVol(${v})">${v} кг</button>`
+                  ).join('');
+                }
                 const vol = _selProd.vol || 0.7;
-                const unit = _selProd.unit === 'kg' ? 'кг' : _selProd.unit === 'sht' ? 'шт' : 'л';
                 const presets = [
                   [parseFloat((vol*0.1).toFixed(3)), `10%`],
                   [parseFloat((vol*0.25).toFixed(3)), `25%`],
@@ -880,7 +921,7 @@ function renderManager() {
                 ];
                 return presets.map(([v,lbl]) =>
                   `<button class="wo-preset ${_selVol===v?'act':''}"
-                    onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} ${unit}</span></button>`
+                    onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} л</span></button>`
                 ).join('');
               })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
                 `<button class="wo-preset ${_selVol===v?'act':''}"
@@ -893,9 +934,9 @@ function renderManager() {
                 <div class="wo-sp-name" id="wo-sp-name">${_selProd?_selProd.name:'—'}</div>
               </div>
               <div>
-                <div class="wo-sp-before" id="wo-sp-before">${_selProd?_selProd.stock.toFixed(2)+' л':'—'}</div>
+                <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
                 <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin:2px 0;text-align:right">після списання</div>
-                <div class="wo-sp-after" id="wo-sp-after">— л</div>
+                <div class="wo-sp-after" id="wo-sp-after">— ${_selProd ? unitLabel(_selProd.unit) : 'л'}</div>
               </div>
             </div>
           </div>
@@ -999,19 +1040,23 @@ function setVol(v) {
   updateVol();
 }
 function updateVol() {
-  const inp  = document.getElementById('wo-vol-input');
-  const unit = document.getElementById('wo-vol-unit')?.value || 'l';
-  const raw  = parseFloat(inp?.value);
+  const inp      = document.getElementById('wo-vol-input');
+  const selUnit  = document.getElementById('wo-vol-unit')?.value || _selProd?.unit || 'l';
+  const raw      = parseFloat(inp?.value);
   if (!isNaN(raw) && raw > 0) _selVol = raw;
   if (!_selProd) return;
-  const lv = unit==='ml' ? raw/1000 : raw;
-  const after = Math.max(0, _selProd.stock - (isNaN(raw)?0:lv));
+  // Convert sub-unit input to native unit for stock calculation
+  const nativeVal = selUnit === 'ml' ? raw / 1000
+                  : selUnit === 'g'  ? raw / 1000
+                  : raw;
+  const after = Math.max(0, _selProd.stock - (isNaN(raw) ? 0 : nativeVal));
+  const nativeUnit = _selProd.unit || 'l';
   const nameEl  = document.getElementById('wo-sp-name');
   const befEl   = document.getElementById('wo-sp-before');
   const aftEl   = document.getElementById('wo-sp-after');
   if (nameEl) nameEl.textContent = _selProd.name;
-  if (befEl)  befEl.textContent  = _selProd.stock.toFixed(2)+' л';
-  if (aftEl)  aftEl.textContent  = after.toFixed(2)+' л';
+  if (befEl)  befEl.textContent  = fmtStock(_selProd.stock, nativeUnit);
+  if (aftEl)  aftEl.textContent  = fmtStock(after, nativeUnit);
   updateNextBtn();
 }
 function updateNextBtn() {
@@ -1042,7 +1087,7 @@ function prevStep() { if (_formStep>1) { _formStep--; fullRender(); } }
 async function submitForm() {
   const vol  = _selVol || 0;
   const unit = document.getElementById('wo-vol-unit')?.value || 'l';
-  const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг'}[unit]||'л';
+  const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[unit] || 'л';
   const now  = new Date();
   const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const dd   = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -1166,7 +1211,7 @@ export default {
         for (const store of (data.stores || [])) {
           for (const item of (store.items || [])) {
             if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !_prods.find(p=>p.id===item.id)) {
-              _prods.push({ id: item.id, name: item.name, stock: item.amount ?? null });
+              _prods.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit) });
             }
           }
         }
