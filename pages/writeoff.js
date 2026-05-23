@@ -791,35 +791,162 @@ function renderManager() {
       </div>`).join('')}
     </div>
 
-    <!-- Form overlay (same as bartender) -->
+    <!-- Form overlay -->
     <div class="wo-form-overlay ${_formOpen?'open':''}" id="wo-form-overlay"
          onclick="window.__wo.maybeClose(event)">
       <div class="wo-sheet" onclick="event.stopPropagation()">
         <div class="wo-sheet-handle"></div>
         <div class="wo-sheet-hdr">
-          <div class="wo-sheet-title">Нове списання</div>
+          <div class="wo-sheet-title" id="wo-sheet-title">Нове списання</div>
           <div class="wo-sheet-close" onclick="window.__wo.closeForm()">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
           </div>
         </div>
         <div class="wo-dots">
-          ${[1,2,3,4].map(i=>`<div class="wo-dot ${_formStep===i?'act':_formStep>i?'done':''}"></div>`).join('')}
+          ${[1,2,3,4].map(i=>`<div class="wo-dot ${_formStep===i?'act':_formStep>i?'done':''}" id="wdot${i}"></div>`).join('')}
         </div>
-        <div class="wo-scroll2">
-          <div class="wo-fstep act">
-            <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Оберіть причину списання</div>
+        <div class="wo-scroll2" id="wo-scroll2">
+
+          <!-- Step 1: Category -->
+          <div class="wo-fstep ${_formStep===1?'act':''}" id="wfstep1">
+            <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть причину списання</div>
             <div class="wo-cat-grid">
-              <div class="wo-cat-card" onclick="window.__wo.selectCat('biy')"><div class="wo-cat-icon" style="background:var(--red-bg)">💥</div><div class="wo-cat-name">Бій</div></div>
-              <div class="wo-cat-card" onclick="window.__wo.selectCat('psuv')"><div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div><div class="wo-cat-name">Псування</div></div>
-              <div class="wo-cat-card" onclick="window.__wo.selectCat('deg')"><div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div><div class="wo-cat-name">Дегустація</div></div>
-              <div class="wo-cat-card" onclick="window.__wo.selectCat('insh')"><div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div><div class="wo-cat-name">Інше</div></div>
+              <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" id="wcat-biy" onclick="window.__wo.selectCat('biy')">
+                <div class="wo-cat-icon" style="background:var(--red-bg)">💥</div>
+                <div class="wo-cat-name">Бій</div>
+                <div class="wo-cat-desc">Розбита тара, механічне пошкодження</div>
+              </div>
+              <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" id="wcat-psuv" onclick="window.__wo.selectCat('psuv')">
+                <div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div>
+                <div class="wo-cat-name">Псування</div>
+                <div class="wo-cat-desc">Прострочення, зміна якості</div>
+              </div>
+              <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" id="wcat-deg" onclick="window.__wo.selectCat('deg')">
+                <div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div>
+                <div class="wo-cat-name">Дегустація</div>
+                <div class="wo-cat-desc">Персонал, гості, презентація</div>
+              </div>
+              <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" id="wcat-insh" onclick="window.__wo.selectCat('insh')">
+                <div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div>
+                <div class="wo-cat-name">Інше</div>
+                <div class="wo-cat-desc">Вказати вручну</div>
+              </div>
             </div>
           </div>
-        </div>
+
+          <!-- Step 2: Product -->
+          <div class="wo-fstep ${_formStep===2?'act':''}" id="wfstep2">
+            <div class="wo-prod-search-wrap">
+              <svg class="wo-prod-search-ico" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/>
+                <path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              <input class="wo-prod-inp" id="wo-prod-search" placeholder="Пошук товару…"
+                value="${_prodSearch}" oninput="window.__wo.searchProds(this.value)"/>
+            </div>
+            <div class="wo-prod-list" id="wo-prod-list">${prodListHTML()}</div>
+          </div>
+
+          <!-- Step 3: Volume -->
+          <div class="wo-fstep ${_formStep===3?'act':''}" id="wfstep3">
+            <div>
+              <div class="wo-custom-lbl">Об'єм списання</div>
+              <div class="wo-vol-row">
+                <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
+                  placeholder="0.000" value="${_selVol||''}"
+                  oninput="window.__wo.updateVol()"/>
+                <select class="wo-vol-unit" id="wo-vol-unit" onchange="window.__wo.updateVol()">
+                  ${_selProd?.unit==='kg'
+                    ? `<option value="kg" selected>кг</option><option value="l">л</option>`
+                    : _selProd?.unit==='sht'
+                    ? `<option value="sht" selected>шт</option><option value="l">л</option>`
+                    : `<option value="l" selected>л</option><option value="ml">мл</option>`}
+                </select>
+              </div>
+              ${_selProd ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-align:center">
+                Одиниця виміру підтягнута з картки товару
+              </div>` : ''}
+            </div>
+            <div class="wo-presets">
+              ${_selProd ? (() => {
+                const vol = _selProd.vol || 0.7;
+                const unit = _selProd.unit === 'kg' ? 'кг' : _selProd.unit === 'sht' ? 'шт' : 'л';
+                const presets = [
+                  [parseFloat((vol*0.1).toFixed(3)), `10%`],
+                  [parseFloat((vol*0.25).toFixed(3)), `25%`],
+                  [parseFloat((vol*0.5).toFixed(3)), `½`],
+                  [parseFloat((vol*0.75).toFixed(3)), `75%`],
+                  [vol, `1 пляш.`],
+                ];
+                return presets.map(([v,lbl]) =>
+                  `<button class="wo-preset ${_selVol===v?'act':''}"
+                    onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} ${unit}</span></button>`
+                ).join('');
+              })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
+                `<button class="wo-preset ${_selVol===v?'act':''}"
+                  onclick="window.__wo.setVol(${v})">${['0.05 л','0.1 л','½ пляш.','1 пляш.','1.0 л'][i]}</button>`
+              ).join('')}
+            </div>
+            <div class="wo-stock-preview">
+              <div>
+                <div class="wo-sp-label">Поточний залишок</div>
+                <div class="wo-sp-name" id="wo-sp-name">${_selProd?_selProd.name:'—'}</div>
+              </div>
+              <div>
+                <div class="wo-sp-before" id="wo-sp-before">${_selProd?_selProd.stock.toFixed(2)+' л':'—'}</div>
+                <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin:2px 0;text-align:right">після списання</div>
+                <div class="wo-sp-after" id="wo-sp-after">— л</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Reason + Confirm -->
+          <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
+            <div>
+              <div class="wo-custom-lbl">Причина (швидкий вибір)</div>
+              <div class="wo-reason-list" id="wo-reason-list">${reasonListHTML()}</div>
+            </div>
+            <div>
+              <div class="wo-custom-lbl">Або введіть вручну</div>
+              <textarea class="wo-textarea" id="wo-reason-custom"
+                placeholder="Опишіть деталі: де, коли, хто присутній…">${_selReason||''}</textarea>
+            </div>
+            ${summaryHTML()}
+          </div>
+
+        </div><!-- scroll2 -->
+
+        <!-- Form nav -->
         <div class="wo-fnav">
-          <button class="wo-fnext" disabled style="opacity:.35">Далі</button>
+          <div class="wo-fback" id="wo-fback" style="${_formStep>1?'':'display:none'}"
+               onclick="window.__wo.prevStep()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <button class="wo-fnext" id="wo-fnext" onclick="window.__wo.nextStep()"
+            ${(_formStep===1&&!_selCat)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol)?'disabled style="opacity:.35"':''}>
+            ${_formStep===4
+              ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Зафіксувати списання`
+              : `Далі <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 11l6-4-6-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+          </button>
         </div>
       </div>
+    </div>
+
+    <!-- SUCCESS OVERLAY -->
+    <div class="wo-succ-overlay ${_succOpen?'open':''}" id="wo-succ-overlay">
+      <div class="wo-succ-icon">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <path d="M9 17l6 6 12-12" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="wo-succ-title">Списання зафіксовано</div>
+      <div class="wo-succ-sub" id="wo-succ-sub">Запис збережено</div>
+      <div class="wo-succ-pill" id="wo-succ-pill">—</div>
+      <button class="wo-succ-btn" onclick="window.__wo.closeSuccess()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Додати ще одне
+      </button>
+      <button class="wo-succ-ghost" onclick="window.__wo.closeSuccessExit()">Готово</button>
     </div>
 
     <div style="height:16px"></div>
