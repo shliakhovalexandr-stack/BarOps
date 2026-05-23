@@ -629,6 +629,8 @@ function summaryHTML() {
 function renderManager() {
   const kpi   = getMgrKpi(_mgrPeriod);
   const CHART_DATA = getChartData();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayWo = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
   const max   = Math.max(...CHART_DATA.map(d=>d.biy+d.psuv+d.deg+d.insh), 1);
   const days  = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
   const colors = { biy:'var(--red)', psuv:'var(--amber)', deg:'var(--green)', insh:'var(--purple)' };
@@ -750,6 +752,26 @@ function renderManager() {
           <div class="wo-add-sub">З облікового запису менеджера</div>
         </div>
       </div>
+    </div>
+
+    <!-- Syrve Office -->
+    <div class="wo-sec" style="padding-top:14px">Syrve Office</div>
+    <div style="margin:0 14px 14px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Акт списання</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${todayWo.length
+          ? `${todayWo.length} поз. за сьогодні · буде непроведеним`
+          : 'Немає списань з productId за сьогодні'}</div>
+      </div>
+      <button id="wo-syrve-btn"
+        onclick="window.__wo.sendActToSyrve()"
+        ${!todayWo.length ? 'disabled' : ''}
+        style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${todayWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${todayWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${todayWo.length ? 'pointer' : 'default'};white-space:nowrap">
+        Надіслати
+      </button>
     </div>
 
     <!-- Export -->
@@ -1097,6 +1119,7 @@ async function submitForm() {
     meta:    `${CAT[_selCat]?.label||''} · ${_selReason||'Без причини'}`,
     vol:     `−${vol}${uLbl}`,
     volNum:  vol,
+    unitKey: unit,
     valColor: CAT[_selCat]?.color || 'var(--text0)',
     reason:  _selReason || '',
     time:    hhmm,
@@ -1139,6 +1162,53 @@ function closeSuccessExit() { _succOpen=false; _formOpen=false; fullRender(); }
 /* manager */
 function setPeriod(p) { _mgrPeriod=p; fullRender(); }
 function setMgrFilter(f) { _mgrFilter=f; fullRender(); }
+
+async function sendActToSyrve() {
+  const vId   = localStorage.getItem('barops_venueId') || state.venueId || '';
+  const token = localStorage.getItem('barops_token');
+  if (!vId || !token) { alert('Немає авторизації або venueId'); return; }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
+  if (!todayItems.length) { alert('Немає списань з productId за сьогодні'); return; }
+
+  // Групуємо по productId — якщо продукт списували кілька разів, сумуємо
+  const grouped = {};
+  for (const w of todayItems) {
+    if (!grouped[w.prodId]) {
+      grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
+    }
+    grouped[w.prodId].amount += w.volNum || 0;
+  }
+  const items = Object.values(grouped);
+
+  const summary = items.map(i => `• ${i.productName}: ${i.amount.toFixed(2)} ${unitLabel(i.unitKey)}`).join('\n');
+  const confirmed = confirm(
+    `Надіслати акт списання до Syrve (без проведення)?\n\n${summary}\n\nЗагалом позицій: ${items.length}`
+  );
+  if (!confirmed) return;
+
+  const btn = document.getElementById('wo-syrve-btn');
+  if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
+
+  try {
+    const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        items,
+        comment: `BarOps · Списання ${new Date().toLocaleDateString('uk-UA')} · ${items.length} позицій`,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || (data.details ? JSON.stringify(data.details) : 'Помилка сервера'));
+    alert(`Акт списання створено в Syrve!\nСтатус: непроведений (бухгалтер перевірить зранку)\nПозицій: ${data.itemCount}`);
+  } catch (err) {
+    alert(`Помилка при відправці до Syrve:\n${err.message}`);
+  } finally {
+    if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+  }
+}
 function exportReport(t) {
   const m = { pdf:'📄 PDF-звіт сформовано', csv:'📊 Excel готовий', tg:'✈️ Відправлено в Telegram' };
   alert(m[t]||'Готово');
@@ -1227,7 +1297,7 @@ export default {
       selectCat, searchProds, selectProd,
       setVol, updateVol, setUnit, selectReason,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
-      setPeriod, setMgrFilter, exportReport,
+      setPeriod, setMgrFilter, exportReport, sendActToSyrve,
       addCustomReason, removeReason,
     };
   },
