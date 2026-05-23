@@ -565,14 +565,20 @@ function goToReg2() {
 }
 
 async function doRegister() {
-  const errEl = document.getElementById('reg2-err');
   if (!_reg.venueName?.trim()) {
-    if (errEl) { errEl.textContent = 'Введіть назву закладу'; errEl.classList.add('show'); } return;
+    const errEl = document.getElementById('reg2-err');
+    if (errEl) { errEl.style.cssText = 'display:block;color:var(--red);font-size:13px;margin-top:8px'; errEl.textContent = 'Введіть назву закладу'; }
+    return;
   }
   _regLoading = true; rerender();
+
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+
   try {
-    const res  = await fetch(`${API}/api/auth/register`, {
+    const res = await fetch(`${API}/api/auth/register`, {
       method:  'POST',
+      signal:  ctrl.signal,
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
         name:      _reg.name.trim(),
@@ -582,15 +588,20 @@ async function doRegister() {
         venueName: _reg.venueName.trim(),
       }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка реєстрації');
+    clearTimeout(timer);
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (!res.ok) throw new Error(data.error || `Помилка ${res.status}`);
     _otpUserId = data.userId;
     _regLoading = false;
     goTo('reg-otp');
   } catch (err) {
+    clearTimeout(timer);
     _regLoading = false; rerender();
+    const msg = err.name === 'AbortError' ? 'Час очікування (15с). Перевірте інтернет.' : err.message;
     const e = document.getElementById('reg2-err');
-    if (e) { e.textContent = err.message; e.classList.add('show'); }
+    if (e) { e.style.cssText = 'display:block;color:var(--red);font-size:13px;margin-top:8px'; e.textContent = msg; }
+    console.error('[doRegister]', err.name, err.message);
   }
 }
 
