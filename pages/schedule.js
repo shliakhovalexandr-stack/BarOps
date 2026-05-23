@@ -11,11 +11,11 @@ const API = 'https://barops-backend-production.up.railway.app';
    ROLE CONFIG (статичний)
 ════════════════════════════════════════ */
 const ROLE_CONFIG = {
-  cooks:      { label: 'Кухарі',    icon: 'fork',  color: '#FBBF24', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']         },
-  bartenders: { label: 'Бармени',   icon: 'glass', color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']  },
-  waiters:    { label: 'Офіціанти', icon: 'tray',  color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']              },
-  managers:   { label: 'Менеджери', icon: 'star',  color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['manager','admin']     },
-  cleaners:   { label: 'Хозяюшки', icon: 'broom', color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess']             },
+  cooks:      { label: 'Кухарі',    icon: 'fork',  color: '#FBBF24', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']                    },
+  bartenders: { label: 'Бармени',   icon: 'glass', color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']             },
+  waiters:    { label: 'Офіціанти', icon: 'tray',  color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']                         },
+  managers:   { label: 'Менеджери', icon: 'star',  color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['manager','admin']                },
+  cleaners:   { label: 'Хозяюшки', icon: 'broom', color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess','cleaner','housekeeper'] },
 };
 
 /* ════════════════════════════════════════
@@ -89,10 +89,14 @@ async function loadRosters() {
     const url = _venueId
       ? `${API}/api/auth/team?venueId=${_venueId}`
       : `${API}/api/auth/team`;
-    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const res  = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     const data = await res.json();
     if (Array.isArray(data.team)) teamMembers = data.team;
-  } catch (_) {}
+    console.log('[Schedule] team loaded:', teamMembers.length, 'venueId:', _venueId,
+      teamMembers.map(m => `${m.name}(${m.role})`).join(', '));
+  } catch (err) {
+    console.warn('[Schedule] team load error:', err);
+  }
 
   const stored   = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
   const vData    = stored[_venueId] || {};
@@ -100,8 +104,8 @@ async function loadRosters() {
   _rosters = {};
   for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
     const people = teamMembers
-      .filter(m => cfg.apiRoles.includes(m.role))
-      .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: m.role }));
+      .filter(m => cfg.apiRoles.includes((m.role || '').toLowerCase()))
+      .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: (m.role || '').toLowerCase() }));
 
     const grid = people.map(p => {
       const emp = vData[p.id] || {};
