@@ -660,7 +660,67 @@ export const STATUS_BAR_HTML = `
   </div>`;
 
 /* ══════════════════════════════════════
-   10. BOOTSTRAP
+   10. PLAN EXPIRED OVERLAY
+   ══════════════════════════════════════ */
+let _planExpiredShown = false;
+
+function showPlanExpired() {
+  if (_planExpiredShown) return;
+  _planExpiredShown = true;
+
+  const el = document.createElement('div');
+  el.id = 'plan-expired-overlay';
+  el.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:9999',
+    'background:rgba(0,0,0,.94)',
+    'display:flex', 'flex-direction:column',
+    'align-items:center', 'justify-content:center',
+    'padding:40px 32px', 'text-align:center',
+  ].join(';');
+
+  el.innerHTML = `
+    <svg width="56" height="56" viewBox="0 0 56 56" fill="none" style="margin-bottom:24px">
+      <rect width="56" height="56" rx="16" fill="rgba(168,139,255,.12)"/>
+      <path d="M28 18a6 6 0 016 6v2H22v-2a6 6 0 016-6z" stroke="#A88BFF" stroke-width="1.6" fill="none"/>
+      <rect x="18" y="26" width="20" height="14" rx="3" stroke="#A88BFF" stroke-width="1.6" fill="none"/>
+      <circle cx="28" cy="33" r="1.5" fill="#A88BFF"/>
+    </svg>
+    <div style="font-family:'Geist',system-ui,sans-serif;font-size:22px;font-weight:700;
+                color:#fff;margin-bottom:12px;letter-spacing:-.02em">
+      Доступ обмежено
+    </div>
+    <div style="font-size:14px;color:rgba(255,255,255,.55);
+                font-family:-apple-system,system-ui,sans-serif;
+                max-width:280px;line-height:1.65;margin-bottom:36px">
+      Пробний період закінчився.<br>
+      Зверніться до команди BarOps для поновлення доступу.
+    </div>
+    <button onclick="window.__barops.logout()"
+      style="height:52px;padding:0 36px;background:rgba(168,139,255,.18);
+             border:1px solid rgba(168,139,255,.35);border-radius:14px;
+             font-size:15px;font-weight:600;color:#A88BFF;cursor:pointer;
+             font-family:'Geist',system-ui,sans-serif;transition:background .15s">
+      Вийти з акаунту
+    </button>`;
+
+  document.body.appendChild(el);
+}
+
+// Глобальний перехоплювач — ловить 403 plan_expired з будь-якого fetch-запиту
+const _origFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const res = await _origFetch(...args);
+  if (res.status === 403) {
+    try {
+      const data = await res.clone().json();
+      if (data.error === 'plan_expired') showPlanExpired();
+    } catch {}
+  }
+  return res;
+};
+
+/* ══════════════════════════════════════
+   11. BOOTSTRAP
    ══════════════════════════════════════ */
 export async function bootstrap() {
   window.__barops = {
