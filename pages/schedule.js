@@ -64,8 +64,9 @@ function getWeekDates(offset = 0) {
 function dateKey(d) { return d.toISOString().split('T')[0]; }
 function weekLabel(wd) {
   const f = wd[0], l = wd[6];
-  if (f.m === l.m) return `${MONTHS_GEN[f.m]}  ${f.n}–${l.n}`;
-  return `${f.n} ${MONTHS_GEN[f.m]} – ${l.n} ${MONTHS_GEN[l.m]}`;
+  const yr = f.date.getFullYear();
+  if (f.m === l.m) return `${f.n} — ${l.n} ${MONTHS_GEN[f.m]} · ${yr}`;
+  return `${f.n} ${MONTHS_GEN[f.m]} — ${l.n} ${MONTHS_GEN[l.m]} · ${yr}`;
 }
 function isToday(d) {
   const t = new Date();
@@ -206,6 +207,21 @@ function summaryStats() {
     pending += r.requests.filter(x => x.status === 'pending').length;
   }
   return { total, onShift, gaps, pending };
+}
+
+/* ════════════════════════════════════════
+   ROLE LABEL MAP + SHORT NAME HELPER
+════════════════════════════════════════ */
+const ROLE_LABEL = {
+  chef: 'Шеф', cook: 'Кухар', bartender: 'Бармен', barman: 'Бармен',
+  waiter: 'Офіціант', manager: 'Менеджер', admin: 'Адмін',
+  hostess: 'Хостес', cleaner: 'Хозяюшка', housekeeper: 'Хозяюшка',
+  accountant: 'Бухгалтер',
+};
+function shortName(n) {
+  const p = (n || '').trim().split(/\s+/);
+  if (p.length >= 2) return `${p[0]} ${p[1][0]}.`;
+  return p[0] || '?';
 }
 
 /* ════════════════════════════════════════
@@ -470,7 +486,7 @@ function renderHub() {
 }
 
 /* ════════════════════════════════════════
-   SCREEN 2 — ROLE VIEW (таблиця)
+   SCREEN 2 — ROLE VIEW
 ════════════════════════════════════════ */
 function renderRoleView(roleKey) {
   const r = _rosters[roleKey];
@@ -479,20 +495,112 @@ function renderRoleView(roleKey) {
   const weekDates   = getWeekDates(_weekOffset);
   const wLabel      = weekLabel(weekDates);
   const stns        = _stations[roleKey] || [];
+  const venueName   = state.venue || localStorage.getItem('barops_venue') || 'Bar Noir';
+  const totalPeople = r.people.length;
   const totalShifts = r.grid.reduce((a, row) => a + row.filter(c => c !== null).length, 0);
   const totalOff    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
-  const pendCnt     = r.requests.filter(x => x.status === 'pending').length;
 
+  // Station color map
+  const stnColorMap = {};
+  stns.forEach((s, i) => { stnColorMap[s.id] = stClr(i); });
 
-  // Coverage row
-  const covCells = weekDates.map((w, di) => {
-    const cnt  = r.grid.filter(row => row[di] !== null).length;
-    const isLo = r.people.length > 0 && cnt < 2;
-    const isTd = isToday(w.date);
-    return `<div class="sch-cov-cell${isLo?' lo':''}${isTd?' td':''}">
-      <div class="sch-cov-d">${w.d}</div><div class="sch-cov-n${isLo?' lo':''}">${cnt}</div>
-    </div>`;
+  // Table header cells
+  const thCells = weekDates.map(w => {
+    const isWk = w.weekend, isTd = isToday(w.date);
+    const clr  = (isWk || isTd) ? '#A88BFF' : '#52525B';
+    const fw   = isTd ? '700' : '500';
+    return `<th style="text-align:center;padding:0 2px 10px;white-space:nowrap;min-width:44px">
+      <div style="font-size:10px;font-weight:${fw};color:${clr};letter-spacing:.03em">${w.d}</div>
+      <div style="font-size:12px;font-weight:${fw};color:${isTd||isWk?'#A88BFF':'#A1A1AA'}">${w.n}</div>
+    </th>`;
   }).join('');
+
+  // Column header label (singularize Ukrainian plural)
+  const colHdr = r.label.toUpperCase().replace(/[ІИ]$/, '');
+
+  // Table body rows
+  const bodyRows = r.people.length === 0
+    ? `<tr><td colspan="8"><div style="padding:24px 0;color:#3F3F46;font-size:12px;text-align:center">Немає співробітників.<br>Додайте у розділі «Команда».</div></td></tr>`
+    : r.people.map((p, pi) => {
+        const subtitle = ROLE_LABEL[p.role] || 'Співробітник';
+        const cells = r.grid[pi].map((cell, di) => {
+          if (!cell) {
+            const edt = _mode === 'edit';
+            return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#3F3F46;cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>off</div></td>`;
+          }
+          let bg = r.bgIcon, bd = r.bdIcon, tx = r.color;
+          let label = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
+          if (cell.station && stnColorMap[cell.station]) {
+            const c = stnColorMap[cell.station];
+            bg = c.bg; bd = c.bd; tx = c.tx;
+            const stn = stns.find(s => s.id === cell.station);
+            if (stn) label = stn.label;
+          }
+          const onclick = _mode === 'edit'
+            ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`
+            : `onclick="window.__sch.showCellInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}','${cell.station||''}')"`;
+          return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;white-space:nowrap;padding:0 7px;cursor:pointer" ${onclick}>${label}</div></td>`;
+        }).join('');
+        return `<tr>
+          <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle">
+            <div style="font-size:12px;font-weight:600;color:#fff;line-height:1.2;white-space:nowrap">${shortName(p.n)}</div>
+            <div style="font-size:10px;color:#52525B;margin-top:1px">${subtitle}</div>
+          </td>
+          ${cells}
+        </tr>`;
+      }).join('');
+
+  // ПРОЦЕСИ chips
+  const procChips = `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 18px 16px;align-items:center">
+    ${stns.map((s, i) => {
+      const c = stClr(i);
+      return `<div style="display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:8px;background:${c.bg};border:0.5px solid ${c.bd};font-size:11px;font-weight:500;color:${c.tx}">
+        <span style="width:6px;height:6px;border-radius:50%;background:${c.tx};flex-shrink:0"></span>
+        ${s.label}
+        ${_mode==='edit'?`<button onclick="window.__sch.removeStation('${roleKey}','${s.id}')" style="background:none;border:none;color:${c.tx};opacity:.55;cursor:pointer;font-size:12px;padding:0;margin-left:1px;line-height:1;font-family:inherit">×</button>`:''}
+      </div>`;
+    }).join('')}
+    ${_mode==='edit'?`<div style="display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:8px;background:rgba(168,139,255,.08);border:0.5px solid rgba(168,139,255,.25);font-size:11px;color:#A88BFF;cursor:pointer" onclick="window.__sch.showAddStationInput('${roleKey}')">+ Процес</div>`:''}
+    ${stns.length===0&&_mode!=='edit'?`<span style="font-size:11px;color:#3F3F46">Немає процесів — перейдіть до «Редагувати»</span>`:''}
+  </div>
+  <div id="sch-stn-list" style="padding:0 18px 8px"></div>`;
+
+  // ПОКРИТТЯ ПРОЦЕСІВ per-station table
+  let coverageSection = '';
+  if (stns.length > 0 && r.people.length > 0) {
+    const rows = stns.map((s, si) => {
+      const c = stClr(si);
+      const dayCounts = weekDates.map((w, di) =>
+        r.grid.filter(row => row[di]?.station === s.id).length
+      );
+      const cells = dayCounts.map((cnt, di) => {
+        const isTd = isToday(weekDates[di].date);
+        const clr  = cnt === 0 ? '#FB7185' : isTd ? '#A88BFF' : '#A1A1AA';
+        return `<td style="text-align:center;padding:3px 2px;font-size:12px;font-weight:700;color:${clr};font-variant-numeric:tabular-nums;min-width:44px">${cnt}</td>`;
+      }).join('');
+      return `<tr>
+        <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="width:6px;height:6px;border-radius:50%;background:${c.tx};flex-shrink:0"></span>
+            <span style="font-size:11px;color:#71717A;white-space:nowrap">${s.label}</span>
+          </div>
+        </td>${cells}
+      </tr>`;
+    }).join('');
+    coverageSection = `
+      <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Покриття процесів</div>
+      <div style="margin:0 18px 16px;overflow-x:auto"><table style="border-collapse:collapse;min-width:100%">${rows}</table></div>`;
+  }
+
+  // Defaults (edit mode)
+  const defaultsSection = _mode === 'edit' ? `
+    <div style="margin:0 18px 12px;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(168,139,255,0.22);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:10px;font-weight:500;color:#71717A;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Стандартна зміна</div>
+        <div style="font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">${DEFAULTS[roleKey].s} – ${DEFAULTS[roleKey].e}</div>
+      </div>
+      <button onclick="window.__sch.openDefaultsSheet('${roleKey}')" style="height:30px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,0.10);border:0.5px solid rgba(168,139,255,0.28);font-size:12px;color:#A88BFF;cursor:pointer;font-family:inherit">Змінити</button>
+    </div>` : '';
 
   // Requests
   const reqHtml = r.requests.map((req, ri) => `
@@ -506,41 +614,7 @@ function renderRoleView(roleKey) {
     </div>`
   ).join('');
 
-  // Station management section (edit mode)
-  const stationsSection = _mode === 'edit' ? `
-    <div style="margin:0 18px 12px;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${stns.length?'10px':'6px'}">
-        <div style="font-size:10px;font-weight:500;color:#71717A;text-transform:uppercase;letter-spacing:.07em">Локації · Станції</div>
-        <button onclick="window.__sch.showAddStationInput('${roleKey}')"
-          style="height:24px;padding:0 10px;border-radius:6px;background:rgba(168,139,255,0.10);border:0.5px solid rgba(168,139,255,0.28);font-size:11px;color:#A88BFF;cursor:pointer;font-family:inherit">+ Додати</button>
-      </div>
-      <div id="sch-stn-list">
-        ${stns.length === 0
-          ? `<div style="font-size:11px;color:#3F3F46">Немає локацій. Додайте: Тераса, Хочу 2.0, …</div>`
-          : `<div class="sch-stn-row">${stns.map((s, i) => {
-              const c = stClr(i);
-              return `<div class="sch-stn-chip" style="background:${c.bg};border:0.5px solid ${c.bd};color:${c.tx};cursor:default">
-                ${s.label}
-                <button class="sch-stn-del" onclick="window.__sch.removeStation('${roleKey}','${s.id}')">×</button>
-              </div>`;
-            }).join('')}</div>`
-        }
-      </div>
-    </div>` : '';
-
-  // Defaults section (edit mode)
-  const defaultsSection = _mode === 'edit' ? `
-    <div style="margin:0 18px 12px;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(168,139,255,0.22);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:10px;font-weight:500;color:#71717A;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Стандартна зміна</div>
-        <div style="font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">${DEFAULTS[roleKey].s} – ${DEFAULTS[roleKey].e}</div>
-      </div>
-      <button onclick="window.__sch.openDefaultsSheet('${roleKey}')" style="height:30px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,0.10);border:0.5px solid rgba(168,139,255,0.28);font-size:12px;color:#A88BFF;cursor:pointer;font-family:inherit">Змінити</button>
-    </div>` : '';
-
-  const bar = _mode === 'edit'
-    ? `<div class="sch-bar"><button class="sch-cta-sec" onclick="window.__sch.setMode('view')">Скасувати</button><button class="sch-cta" style="flex:2" onclick="window.__sch.setMode('view')">Зберегти зміни</button></div>`
-    : `<div class="sch-bar"><div class="sch-bar-icon" onclick=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`;
+  const bar = `<div class="sch-bar"><div class="sch-bar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`;
 
   return CSS + `
   <div class="sch-wrap">
@@ -549,36 +623,40 @@ function renderRoleView(roleKey) {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </div>
       <div class="sch-hdr-body">
-        <div class="sch-hdr-venue">Графік</div>
+        <div class="sch-hdr-venue">Графік · ${venueName}</div>
         <div class="sch-hdr-title">${r.label}</div>
-        <div class="sch-hdr-sub">${r.sub}</div>
       </div>
-      <div class="sch-hdr-icon" style="background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color}">${roleIcon(r.icon)}</div>
+      <button onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')"
+        style="height:34px;padding:0 14px;border-radius:20px;background:${_mode==='edit'?'#1F1F22':'#A88BFF'};border:${_mode==='edit'?'0.5px solid rgba(255,255,255,0.12)':'none'};font-size:13px;font-weight:600;color:${_mode==='edit'?'#A1A1AA':'#000'};cursor:pointer;font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:6px;margin-top:2px">
+        ${_mode==='edit'
+          ? 'Готово'
+          : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Редагувати`}
+      </button>
     </div>
-    <div class="sch-week">
-      <div class="sch-week-lbl">${wLabel}</div>
-      <div class="sch-week-nav">
-        <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
-        <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
-      </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 18px 12px;flex-shrink:0">
+      <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <div style="font-size:14px;font-weight:600;color:#fff;letter-spacing:-.01em">${wLabel}</div>
+      <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </div>
     <div class="sch-scroll">
-      <div class="sch-kpi">
-        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalShifts}</div><div class="sch-kpi-lbl">Змін</div></div>
-        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalOff}</div><div class="sch-kpi-lbl">Вихід</div></div>
-        <div class="sch-kpi-cell"><div class="sch-kpi-val"${pendCnt?` style="color:#FBBF24"`:''}>${pendCnt}</div><div class="sch-kpi-lbl">Запит</div></div>
+      <div class="sch-kpi" style="margin:0 18px 16px">
+        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalPeople}</div><div class="sch-kpi-lbl">${colHdr}</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalShifts}</div><div class="sch-kpi-lbl">ЗМІН</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalOff}</div><div class="sch-kpi-lbl">ВИХІДНИХ</div></div>
       </div>
-      ${stationsSection}
       ${defaultsSection}
-      <div class="sch-sec">
-        <div class="sch-sec-lbl">Тиждень</div>
-        <div class="sch-sec-val" style="color:${_mode==='edit'?'#A88BFF':'#71717A'};cursor:pointer" onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')">
-          ${_mode === 'edit' ? '● Режим редагування' : 'Редагувати →'}
-        </div>
+      <div style="margin:0 18px 16px;overflow-x:auto">
+        <table style="border-collapse:collapse;min-width:100%">
+          <thead><tr>
+            <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:#52525B;letter-spacing:.06em;min-width:84px">${colHdr}</th>
+            ${thCells}
+          </tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
       </div>
-      ${renderDeptTable(roleKey)}
-      <div class="sch-sec"><div class="sch-sec-lbl">Покриття днів</div><div class="sch-sec-val">${r.people.length} люд</div></div>
-      <div class="sch-cov">${covCells}</div>
+      <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
+      ${procChips}
+      ${coverageSection}
       ${r.requests.length ? `
       <div class="sch-sec"><div class="sch-sec-lbl">Запити</div><div class="sch-sec-val">${r.requests.length}</div></div>
       <div class="sch-req-list" id="sch-reqs">${reqHtml}</div>` : ''}
