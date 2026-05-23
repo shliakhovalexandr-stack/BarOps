@@ -37,6 +37,7 @@ let _formStep   = 1;
 let _selCat     = null;
 let _selProd    = null;
 let _selVol     = null;
+let _selUnit    = 'l';
 let _selReason  = null;
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
@@ -200,10 +201,11 @@ const CSS = `<style id="wo-css">
 .wo-prod-item.sel .wo-pi-check{background:var(--red);border-color:var(--red)}
 
 /* volume step */
-.wo-vol-row{display:flex;gap:8px;align-items:stretch}
-.wo-vol-field{flex:1;height:64px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;font-size:28px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;text-align:center;transition:border-color .2s}
+.wo-vol-field{display:block;width:100%;box-sizing:border-box;height:64px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;font-size:28px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;text-align:center;transition:border-color .2s}
 .wo-vol-field:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.10)}
-.wo-vol-unit{width:72px;height:64px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;flex-shrink:0;-webkit-appearance:none;appearance:none;text-align:center}
+.wo-unit-row{display:flex;justify-content:center;gap:8px;margin-top:10px}
+.wo-unit-btn{height:30px;padding:0 20px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:10px;font-size:13px;color:var(--text1);font-family:var(--font-b);cursor:pointer;transition:all .15s}
+.wo-unit-btn.act{background:var(--purple-bg);border-color:var(--purple-border);color:var(--purple);font-weight:600}
 .wo-presets{display:flex;gap:6px;flex-wrap:wrap}
 .wo-preset{flex:1;min-width:56px;height:36px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .wo-preset:active{transform:scale(.95)}
@@ -470,34 +472,30 @@ function renderBartender() {
         <div class="wo-fstep ${_formStep===3?'act':''}" id="wfstep3">
           <div>
             <div class="wo-custom-lbl">Об'єм списання</div>
-            <div class="wo-vol-row">
-              <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
-                placeholder="0.000" value="${_selVol||''}"
-                oninput="window.__wo.updateVol()"/>
-              <select class="wo-vol-unit" id="wo-vol-unit" onchange="window.__wo.updateVol()">
-                ${_selProd?.unit==='kg'  ? `<option value="kg" selected>кг</option><option value="g">г</option>`
-                : _selProd?.unit==='g'   ? `<option value="g" selected>г</option><option value="kg">кг</option>`
-                : _selProd?.unit==='sht' ? `<option value="sht" selected>шт</option>`
-                : _selProd?.unit==='ml'  ? `<option value="ml" selected>мл</option><option value="l">л</option>`
-                :                         `<option value="l" selected>л</option><option value="ml">мл</option>`}
-              </select>
-            </div>
-            ${_selProd ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-align:center">
-              Одиниця виміру підтягнута з картки товару
-            </div>` : ''}
+            <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
+              placeholder="0" value="${_selVol||''}"
+              oninput="window.__wo.updateVol()"/>
+            ${(() => {
+              const unitOpts = _selProd?.unit==='kg'  ? [['kg','кг'],['g','г']]
+                             : _selProd?.unit==='g'   ? [['g','г'],['kg','кг']]
+                             : _selProd?.unit==='sht' ? [['sht','шт']]
+                             : _selProd?.unit==='ml'  ? [['ml','мл'],['l','л']]
+                             :                         [['l','л'],['ml','мл']];
+              return `<div class="wo-unit-row">${unitOpts.map(([u,lbl])=>`<button class="wo-unit-btn ${_selUnit===u?'act':''}" data-u="${u}" onclick="window.__wo.setUnit('${u}')">${lbl}</button>`).join('')}</div>`;
+            })()}
           </div>
           <div class="wo-presets">
             ${_selProd ? (() => {
               const pu = _selProd.unit || 'l';
               if (pu === 'sht') {
                 return [1,2,3,5,10].map(v =>
-                  `<button class="wo-preset ${_selVol===v?'act':''}"
+                  `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
                     onclick="window.__wo.setVol(${v})">${v} шт</button>`
                 ).join('');
               }
               if (pu === 'kg' || pu === 'g') {
                 return [0.1,0.25,0.5,1,2].map(v =>
-                  `<button class="wo-preset ${_selVol===v?'act':''}"
+                  `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
                     onclick="window.__wo.setVol(${v})">${v} кг</button>`
                 ).join('');
               }
@@ -510,11 +508,11 @@ function renderBartender() {
                 [vol, `1 пляш.`],
               ];
               return presets.map(([v,lbl]) =>
-                `<button class="wo-preset ${_selVol===v?'act':''}"
+                `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
                   onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} л</span></button>`
               ).join('');
             })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
-              `<button class="wo-preset ${_selVol===v?'act':''}"
+              `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
                 onclick="window.__wo.setVol(${v})">${['0.05 л','0.1 л','½ пляш.','1 пляш.','1.0 л'][i]}</button>`
             ).join('')}
           </div>
@@ -880,21 +878,17 @@ function renderManager() {
           <div class="wo-fstep ${_formStep===3?'act':''}" id="wfstep3">
             <div>
               <div class="wo-custom-lbl">Об'єм списання</div>
-              <div class="wo-vol-row">
-                <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
-                  placeholder="0.000" value="${_selVol||''}"
-                  oninput="window.__wo.updateVol()"/>
-                <select class="wo-vol-unit" id="wo-vol-unit" onchange="window.__wo.updateVol()">
-                  ${_selProd?.unit==='kg'  ? `<option value="kg" selected>кг</option><option value="g">г</option>`
-                  : _selProd?.unit==='g'   ? `<option value="g" selected>г</option><option value="kg">кг</option>`
-                  : _selProd?.unit==='sht' ? `<option value="sht" selected>шт</option>`
-                  : _selProd?.unit==='ml'  ? `<option value="ml" selected>мл</option><option value="l">л</option>`
-                  :                         `<option value="l" selected>л</option><option value="ml">мл</option>`}
-                </select>
-              </div>
-              ${_selProd ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-align:center">
-                Одиниця виміру підтягнута з картки товару
-              </div>` : ''}
+              <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
+                placeholder="0" value="${_selVol||''}"
+                oninput="window.__wo.updateVol()"/>
+              ${(() => {
+                const unitOpts = _selProd?.unit==='kg'  ? [['kg','кг'],['g','г']]
+                               : _selProd?.unit==='g'   ? [['g','г'],['kg','кг']]
+                               : _selProd?.unit==='sht' ? [['sht','шт']]
+                               : _selProd?.unit==='ml'  ? [['ml','мл'],['l','л']]
+                               :                         [['l','л'],['ml','мл']];
+                return `<div class="wo-unit-row">${unitOpts.map(([u,lbl])=>`<button class="wo-unit-btn ${_selUnit===u?'act':''}" data-u="${u}" onclick="window.__wo.setUnit('${u}')">${lbl}</button>`).join('')}</div>`;
+              })()}
             </div>
             <div class="wo-presets">
               ${_selProd ? (() => {
@@ -924,7 +918,7 @@ function renderManager() {
                     onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} л</span></button>`
                 ).join('');
               })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
-                `<button class="wo-preset ${_selVol===v?'act':''}"
+                `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
                   onclick="window.__wo.setVol(${v})">${['0.05 л','0.1 л','½ пляш.','1 пляш.','1.0 л'][i]}</button>`
               ).join('')}
             </div>
@@ -1020,7 +1014,7 @@ function refreshProdList() {
 function setCatFilter(cat) { _catFilter = cat; refreshList(); fullRender(); }
 
 /* form */
-function openForm()  { _formOpen=true; _formStep=1; _selCat=null; _selProd=null; _selVol=null; _selReason=null; _prodSearch=''; fullRender(); }
+function openForm()  { _formOpen=true; _formStep=1; _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _prodSearch=''; fullRender(); }
 function closeForm() { _formOpen=false; fullRender(); }
 function maybeClose(e) { if (e.target===document.getElementById('wo-form-overlay')) closeForm(); }
 
@@ -1030,34 +1024,37 @@ function selectCat(cat) {
   setTimeout(() => { _formStep = 2; fullRender(); }, 180);
 }
 function searchProds(q) { _prodSearch = q; refreshProdList(); }
-function selectProd(id) { _selProd = _prods.find(p=>p.id===id); refreshProdList(); updateNextBtn(); }
+function selectProd(id) { _selProd = _prods.find(p=>p.id===id); _selUnit = _selProd?.unit || 'l'; refreshProdList(); updateNextBtn(); }
 
 function setVol(v) {
   _selVol = v;
   const inp = document.getElementById('wo-vol-input');
   if (inp) inp.value = v;
-  document.querySelectorAll('.wo-preset').forEach((b,i)=>b.classList.toggle('act',[0.05,0.1,0.35,0.7,1.0][i]===v));
+  document.querySelectorAll('.wo-preset').forEach(b=>b.classList.toggle('act', parseFloat(b.dataset?.v)===v));
   updateVol();
 }
 function updateVol() {
-  const inp      = document.getElementById('wo-vol-input');
-  const selUnit  = document.getElementById('wo-vol-unit')?.value || _selProd?.unit || 'l';
-  const raw      = parseFloat(inp?.value);
+  const inp  = document.getElementById('wo-vol-input');
+  const raw  = parseFloat(inp?.value);
   if (!isNaN(raw) && raw > 0) _selVol = raw;
   if (!_selProd) return;
-  // Convert sub-unit input to native unit for stock calculation
-  const nativeVal = selUnit === 'ml' ? raw / 1000
-                  : selUnit === 'g'  ? raw / 1000
+  const nativeVal = _selUnit === 'ml' ? raw / 1000
+                  : _selUnit === 'g'  ? raw / 1000
                   : raw;
-  const after = Math.max(0, _selProd.stock - (isNaN(raw) ? 0 : nativeVal));
+  const after      = Math.max(0, _selProd.stock - (isNaN(raw) ? 0 : nativeVal));
   const nativeUnit = _selProd.unit || 'l';
-  const nameEl  = document.getElementById('wo-sp-name');
-  const befEl   = document.getElementById('wo-sp-before');
-  const aftEl   = document.getElementById('wo-sp-after');
+  const nameEl = document.getElementById('wo-sp-name');
+  const befEl  = document.getElementById('wo-sp-before');
+  const aftEl  = document.getElementById('wo-sp-after');
   if (nameEl) nameEl.textContent = _selProd.name;
   if (befEl)  befEl.textContent  = fmtStock(_selProd.stock, nativeUnit);
   if (aftEl)  aftEl.textContent  = fmtStock(after, nativeUnit);
   updateNextBtn();
+}
+function setUnit(u) {
+  _selUnit = u;
+  document.querySelectorAll('.wo-unit-btn').forEach(b => b.classList.toggle('act', b.dataset.u === u));
+  updateVol();
 }
 function updateNextBtn() {
   const btn = document.getElementById('wo-fnext');
@@ -1086,7 +1083,7 @@ function prevStep() { if (_formStep>1) { _formStep--; fullRender(); } }
 
 async function submitForm() {
   const vol  = _selVol || 0;
-  const unit = document.getElementById('wo-vol-unit')?.value || 'l';
+  const unit = _selUnit || _selProd?.unit || 'l';
   const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[unit] || 'л';
   const now  = new Date();
   const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -1228,7 +1225,7 @@ export default {
     window.__wo = {
       setCatFilter, openForm, closeForm, maybeClose,
       selectCat, searchProds, selectProd,
-      setVol, updateVol, selectReason,
+      setVol, updateVol, setUnit, selectReason,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport,
       addCustomReason, removeReason,
