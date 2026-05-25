@@ -1302,10 +1302,53 @@ export default {
     _mgrFilter  = 'all';
     _succOpen   = false;
 
-    // Завантажуємо списання з localStorage
+    // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
     const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
     const stored = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     _writeoffs = stored[vId] || [];
+
+    try {
+      const woToken = localStorage.getItem('barops_token');
+      const woRes = await fetch(`${API}/api/writeoffs`, {
+        headers: woToken ? { Authorization: `Bearer ${woToken}` } : {},
+      });
+      if (woRes.ok) {
+        const woData = await woRes.json();
+        _writeoffs = (woData.data || []).reverse().map(w => {
+          const catKey = Object.entries(CAT).find(([, v]) => v.label === w.category)?.[0] || 'insh';
+          const item   = w.items?.[0] || {};
+          const qty    = item.qty || 0;
+          const uLbl   = item.unit || 'л';
+          const uKey   = {'л':'l','мл':'ml','шт':'sht','кг':'kg','г':'g'}[uLbl] || 'l';
+          const d      = new Date(w.createdAt);
+          const hhmm   = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+          const dd     = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+          return {
+            id:          w.id,
+            cat:         catKey,
+            prod:        item.productName || 'Товар',
+            prodId:      item.productId || null,
+            meta:        `${CAT[catKey]?.label||''} · ${w.reason||'Без причини'}`,
+            vol:         `−${qty}${uLbl}`,
+            volNum:      qty,
+            unitKey:     uKey,
+            valColor:    CAT[catKey]?.color || 'var(--text0)',
+            reason:      w.reason || '',
+            accountId:   null,
+            accountName: null,
+            time:        hhmm,
+            dateStr:     `${dd} · ${hhmm}`,
+            ts:          w.createdAt,
+          };
+        });
+        // Оновлюємо кеш
+        const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+        raw[vId] = _writeoffs;
+        localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
+      }
+    } catch (e) {
+      console.warn('[Writeoff] Не вдалось завантажити з backend, використовуємо localStorage:', e.message);
+    }
 
     // Завантажуємо товари з POS balance API
     try {
