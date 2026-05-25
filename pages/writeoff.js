@@ -40,7 +40,8 @@ let _selVol     = null;
 let _selUnit    = 'l';
 let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
-let _sentHistory = []; // [{ts, date, accounts, itemCount}] — відправлені акти Syrve
+let _sentHistory = []; // [{ts, date, accounts, itemCount, acts}] — відправлені акти Syrve
+let _detailAct   = null; // відкритий акт для перегляду
 let _swipeListenerAdded = false;
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
@@ -308,6 +309,14 @@ const CSS = `<style id="wo-css">
 .wo-fr-pill.act{background:var(--bg3);border-color:var(--border3);color:var(--text0)}
 
 .wo-log{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.wo-act-card{background:rgba(139,92,246,.08);border:0.5px solid var(--purple-border);border-radius:12px;display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;transition:background .15s}
+.wo-act-card:hover{background:rgba(139,92,246,.14)}
+.wo-act-card:active{transform:scale(.98)}
+.wo-detail-overlay{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.75);display:none;flex-direction:column;justify-content:flex-end}
+.wo-detail-overlay.open{display:flex}
+.wo-detail-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 32px;max-height:80%;display:flex;flex-direction:column;animation:woSlide .28s cubic-bezier(.22,1,.36,1)}
+.wo-detail-scroll{overflow-y:auto;flex:1;padding:0 18px 4px}
+.wo-detail-scroll::-webkit-scrollbar{width:0}
 .wo-ctx-menu{position:fixed;z-index:9999;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:140px;animation:woFadeUp .12s ease both}
 .wo-ctx-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;cursor:pointer;font-size:13px;font-family:var(--font-b);color:var(--red);transition:background .12s}
 .wo-ctx-item:hover{background:var(--red-bg)}
@@ -847,18 +856,6 @@ function renderManager() {
         Надіслати
       </button>
     </div>
-    ${_sentHistory.length ? `
-    <div style="margin:0 14px 14px;display:flex;flex-direction:column;gap:4px">
-      ${_sentHistory.map(h => `
-      <div style="background:rgba(139,92,246,.07);border:0.5px solid var(--purple-border);border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:8px">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;color:var(--text0);font-family:var(--font-b)">Надіслано · ${h.date}</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:1px">${h.accounts.join(' · ')}</div>
-        </div>
-        <div style="font-size:11px;color:var(--purple);font-family:var(--font-h);font-weight:700;flex-shrink:0">${h.itemCount} поз.</div>
-      </div>`).join('')}
-    </div>` : ''}
 
     <!-- Export -->
     <div class="wo-sec" style="padding-top:14px">Звіт</div>
@@ -876,57 +873,61 @@ function renderManager() {
       </div>
     </div>
 
-    <!-- History grouped by date -->
+    <!-- History: sent acts only -->
     <div class="wo-sec" style="padding-top:10px">Історія списань</div>
-    <div id="wo-list" style="padding:0 14px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-      ${(() => {
-        const MONTHS = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
-        const now = new Date();
-        const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
-        const yesterKey = (() => { const y = new Date(now); y.setDate(y.getDate()-1); return `${y.getFullYear()}-${y.getMonth()}-${y.getDate()}`; })();
-        const groups = {};
-        const sorted = [..._writeoffs].sort((a,b) => new Date(b.ts||0) - new Date(a.ts||0));
-        for (const w of sorted) {
-          const d = new Date(w.ts || 0);
-          const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-          if (!groups[key]) {
-            let label;
-            if (key === todayKey) label = 'Сьогодні';
-            else if (key === yesterKey) label = 'Вчора';
-            else label = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
-            groups[key] = { label, items: [] };
-          }
-          groups[key].items.push(w);
-        }
-        if (!Object.keys(groups).length) return `
-          <div style="padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
-            <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Списань немає</div>
-          </div>`;
-        return Object.entries(groups).map(([, g]) => `
-          <div>
-            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;padding-left:2px">${g.label}</div>
-            <div style="display:flex;flex-direction:column;gap:5px">
-              ${g.items.map(w => `
-              <div class="wo-swipe-wrap" data-id="${w.id}">
-                <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-                  <span class="wo-swipe-del-lbl">Видалити</span>
-                </div>
-                <div class="wo-card" data-id="${w.id}" style="gap:10px">
-                  <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
-                    <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${CAT[w.cat]?.label||''} · ${w.reason||'Без причини'}</div>
-                  </div>
-                  <div style="text-align:right;flex-shrink:0">
-                    <div style="font-family:var(--font-h);font-size:15px;font-weight:700;color:${CAT[w.cat]?.color||'var(--text0)'}">${w.vol||'—'}</div>
-                    <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${w.time||''}</div>
-                  </div>
-                </div>
-              </div>`).join('')}
+    <div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+      ${_sentHistory.length ? _sentHistory.map((h, i) => {
+        const time = h.date || '';
+        return `
+        <div class="wo-act-card" onclick="window.__wo.openActDetail(${i})">
+          <div style="width:32px;height:32px;border-radius:9px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M1.5 7.5h12M7.5 2l5 5.5-5 5.5" stroke="var(--purple)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--text0);font-family:var(--font-b)">Акт · ${time}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.acts?.map(a=>a.accountName).join(', ') || h.accounts?.join(' · ') || ''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--purple)">${h.itemCount} поз.</div>
+          </div>
+        </div>`;
+      }).join('') : `
+        <div style="padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
+          <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Відправлених актів немає</div>
+        </div>`}
+    </div>
+
+    <!-- Act detail overlay -->
+    <div class="wo-detail-overlay ${_detailAct ? 'open' : ''}" id="wo-detail-overlay"
+         onclick="if(event.target===this)window.__wo.closeActDetail()">
+      <div class="wo-detail-sheet" onclick="event.stopPropagation()">
+        <div class="wo-sheet-handle"></div>
+        <div class="wo-sheet-hdr">
+          <div style="flex:1">
+            <div class="wo-sheet-title">Акт списання</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${_detailAct?.date || ''}</div>
+          </div>
+          <div class="wo-sheet-close" onclick="window.__wo.closeActDetail()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="wo-detail-scroll">
+          ${_detailAct?.acts?.map(a => `
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;color:var(--purple);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <div style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>
+              ${a.accountName}
             </div>
-          </div>`).join('');
-      })()}
+            <div style="display:flex;flex-direction:column;gap:4px">
+              ${a.items?.map(it => `
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
+                <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.prod}</div>
+                <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--purple);flex-shrink:0;margin-left:10px">−${it.amount.toFixed(2)} ${unitLabel(it.unitKey)}</div>
+              </div>`).join('') || ''}
+            </div>
+          </div>`).join('') || ''}
+        </div>
+      </div>
     </div>
 
     <!-- Form overlay -->
@@ -1349,6 +1350,15 @@ async function sendActToSyrve() {
       date:      `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')} · ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
       accounts:  results,
       itemCount: todayItems.length,
+      acts: groups.map(g => ({
+        accountName: g.accountName,
+        items: Object.values(g.items.reduce((acc, w) => {
+          const k = w.prodId || w.prod;
+          if (!acc[k]) acc[k] = { prod: w.prod, amount: 0, unitKey: w.unitKey || 'l' };
+          acc[k].amount += w.volNum || 0;
+          return acc;
+        }, {})),
+      })),
     };
     _sentHistory.unshift(histEntry);
     const histKey = `barops_wo_history_${vId}`;
@@ -1377,6 +1387,9 @@ async function sendActToSyrve() {
     alert(errors.length ? `Завершено з помилками:\n\n${msg}` : `Акти списання створено в Syrve!\n\n${msg}`);
   }
 }
+function openActDetail(idx) { _detailAct = _sentHistory[idx] || null; fullRender(); }
+function closeActDetail()  { _detailAct = null; fullRender(); }
+
 function exportReport(t) {
   const m = { pdf:'📄 PDF-звіт сформовано', csv:'📊 Excel готовий', tg:'✈️ Відправлено в Telegram' };
   alert(m[t]||'Готово');
@@ -1606,6 +1619,7 @@ export default {
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport, sendActToSyrve,
+      openActDetail, closeActDetail,
       addCustomReason, removeReason,
       deleteWriteoff,
     };
