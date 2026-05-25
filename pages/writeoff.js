@@ -308,6 +308,9 @@ const CSS = `<style id="wo-css">
 .wo-fr-pill.act{background:var(--bg3);border-color:var(--border3);color:var(--text0)}
 
 .wo-log{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.wo-ctx-menu{position:fixed;z-index:9999;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:140px;animation:woFadeUp .12s ease both}
+.wo-ctx-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;cursor:pointer;font-size:13px;font-family:var(--font-b);color:var(--red);transition:background .12s}
+.wo-ctx-item:hover{background:var(--red-bg)}
 .wo-log-item{display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
 .wo-log-item:last-child{border-bottom:none}
 .wo-log-item:active{background:rgba(255,255,255,.08)}
@@ -1392,6 +1395,42 @@ function removeReason(cat, idx) {
   if (REASONS[cat]) { REASONS[cat].splice(idx, 1); refreshReasons(); }
 }
 
+let _ctxMenuEl = null;
+function removeCtxMenu() {
+  if (_ctxMenuEl) { _ctxMenuEl.remove(); _ctxMenuEl = null; }
+}
+function initContextMenu() {
+  document.addEventListener('contextmenu', e => {
+    const card = e.target.closest('.wo-card');
+    if (!card) return;
+    const id = card.dataset.id;
+    if (!id) return;
+    e.preventDefault();
+    removeCtxMenu();
+    const menu = document.createElement('div');
+    menu.className = 'wo-ctx-menu';
+    menu.innerHTML = `
+      <div class="wo-ctx-item" id="wo-ctx-del">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2 4h10M5 4V2.5h4V4M5.5 6.5v4M8.5 6.5v4M3 4l.7 7.5h6.6L11 4" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Видалити
+      </div>`;
+    const x = Math.min(e.clientX, window.innerWidth  - 160);
+    const y = Math.min(e.clientY, window.innerHeight - 60);
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+    document.body.appendChild(menu);
+    _ctxMenuEl = menu;
+    menu.querySelector('#wo-ctx-del').addEventListener('click', () => {
+      removeCtxMenu();
+      deleteWriteoff(id);
+    });
+  });
+  document.addEventListener('click',   removeCtxMenu);
+  document.addEventListener('keydown',  e => { if (e.key === 'Escape') removeCtxMenu(); });
+}
+
 function initSwipe() {
   if (_swipeListenerAdded) return;
   _swipeListenerAdded = true;
@@ -1555,5 +1594,6 @@ export default {
       deleteWriteoff,
     };
     initSwipe();
+    initContextMenu();
   },
 };
