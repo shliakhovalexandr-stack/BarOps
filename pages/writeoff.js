@@ -1212,6 +1212,10 @@ function nextStep() {
 function prevStep() { if (_formStep>1) { _formStep--; fullRender(); } }
 
 async function submitForm() {
+  // Читаємо причину прямо з DOM (надійніше ніж покладатися тільки на _selReason)
+  const taVal = (document.getElementById('wo-reason-custom')?.value || '').trim();
+  if (taVal) _selReason = taVal;
+
   const vol  = _selVol || 0;
   const unit = _selUnit || _selProd?.unit || 'l';
   const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[unit] || 'л';
