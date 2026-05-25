@@ -529,14 +529,10 @@ function renderBartender() {
           </div>
         </div>
 
-        <!-- Step 4: Reason + Confirm -->
+        <!-- Step 4: Reason -->
         <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
           <div>
-            <div class="wo-custom-lbl">Причина (швидкий вибір)</div>
-            <div class="wo-reason-list" id="wo-reason-list">${reasonListHTML()}</div>
-          </div>
-          <div>
-            <div class="wo-custom-lbl">Або введіть вручну</div>
+            <div class="wo-custom-lbl">Причина списання</div>
             <textarea class="wo-textarea" id="wo-reason-custom"
               placeholder="Опишіть деталі: де, коли, хто присутній…">${_selReason||''}</textarea>
           </div>
@@ -957,14 +953,10 @@ function renderManager() {
             </div>
           </div>
 
-          <!-- Step 4: Reason + Confirm -->
+          <!-- Step 4: Reason -->
           <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
             <div>
-              <div class="wo-custom-lbl">Причина (швидкий вибір)</div>
-              <div class="wo-reason-list" id="wo-reason-list">${reasonListHTML()}</div>
-            </div>
-            <div>
-              <div class="wo-custom-lbl">Або введіть вручну</div>
+              <div class="wo-custom-lbl">Причина списання</div>
               <textarea class="wo-textarea" id="wo-reason-custom"
                 placeholder="Опишіть деталі: де, коли, хто присутній…">${_selReason||''}</textarea>
             </div>
@@ -1172,7 +1164,21 @@ async function sendActToSyrve() {
   const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
   if (!todayItems.length) { alert('Немає списань з productId за сьогодні'); return; }
 
-  // Групуємо по productId — якщо продукт списували кілька разів, сумуємо
+  // Вибір рахунку з дозволених (збережених менеджером)
+  const savedRaw = localStorage.getItem(`barops_wo_accounts_${vId}`);
+  const allowedAccounts = savedRaw ? JSON.parse(savedRaw) : [];
+  let accountId = null;
+  if (allowedAccounts.length === 1) {
+    accountId = allowedAccounts[0].id;
+  } else if (allowedAccounts.length > 1) {
+    const names = allowedAccounts.map((a, i) => `${i + 1}. ${a.name}`).join('\n');
+    const pick = prompt(`Оберіть рахунок для акту списання:\n\n${names}\n\nВведіть номер:`);
+    const idx = parseInt(pick, 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= allowedAccounts.length) { alert('Скасовано або невірний номер'); return; }
+    accountId = allowedAccounts[idx].id;
+  }
+  // Якщо accounts не налаштовано — backend обере перший автоматично
+
   const grouped = {};
   for (const w of todayItems) {
     if (!grouped[w.prodId]) {
@@ -1183,8 +1189,9 @@ async function sendActToSyrve() {
   const items = Object.values(grouped);
 
   const summary = items.map(i => `• ${i.productName}: ${i.amount.toFixed(2)} ${unitLabel(i.unitKey)}`).join('\n');
+  const accountLabel = accountId ? allowedAccounts.find(a => a.id === accountId)?.name || accountId : 'авто';
   const confirmed = confirm(
-    `Надіслати акт списання до Syrve (без проведення)?\n\n${summary}\n\nЗагалом позицій: ${items.length}`
+    `Надіслати акт списання до Syrve?\n\nРахунок: ${accountLabel}\n\n${summary}\n\nПозицій: ${items.length}`
   );
   if (!confirmed) return;
 
@@ -1192,17 +1199,19 @@ async function sendActToSyrve() {
   if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
 
   try {
+    const body = {
+      items,
+      comment: `BarOps · Списання ${new Date().toLocaleDateString('uk-UA')} · ${items.length} позицій`,
+    };
+    if (accountId) body.accountId = accountId;
     const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        items,
-        comment: `BarOps · Списання ${new Date().toLocaleDateString('uk-UA')} · ${items.length} позицій`,
-      }),
+      body: JSON.stringify(body),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || (data.details ? JSON.stringify(data.details) : 'Помилка сервера'));
-    alert(`Акт списання створено в Syrve!\nСтатус: непроведений (бухгалтер перевірить зранку)\nПозицій: ${data.itemCount}`);
+    alert(`Акт списання створено в Syrve!\nРахунок: ${accountLabel}\nСтатус: непроведений\nПозицій: ${data.itemCount}`);
   } catch (err) {
     alert(`Помилка при відправці до Syrve:\n${err.message}`);
   } finally {

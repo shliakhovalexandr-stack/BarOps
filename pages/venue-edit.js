@@ -332,6 +332,23 @@ ${CSS}
           ❌ Відключити Syrve
         </button>
       </div>
+
+      <!-- Рахунки для списань -->
+      <div class="ve-sec">На рахунок (списання)</div>
+      <div class="ve-card">
+        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:12px">
+          Оберіть рахунки зі списку Syrve, які бармен зможе вибрати при надсиланні акту списання.
+        </div>
+        <button type="button" id="btn-load-wo-accounts" class="ve-btn"
+          style="width:100%;background:transparent;border:1.5px solid var(--purple);color:var(--purple);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:44px;border-radius:12px;margin-bottom:12px">
+          Завантажити рахунки з Syrve
+        </button>
+        <div id="wo-accounts-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <button type="button" id="btn-save-wo-accounts" class="ve-btn ve-btn-green"
+          style="width:100%;margin-top:12px;height:44px;border-radius:12px;display:none">
+          Зберегти вибір рахунків
+        </button>
+      </div>
       ` : _draft.posType === 'poster' ? `
       <div class="ve-sec">🍃 Poster інтеграція</div>
       <div class="ve-card">
@@ -786,6 +803,59 @@ async function initIikoSection(venueId) {
     } finally {
       btn.disabled  = false;
       btn.innerHTML = '💾 Зберегти';
+    }
+  });
+
+  // ── Рахунки для списань ──
+  let _woAllAccounts = [];
+  let _woSelectedIds = new Set(
+    (() => { try { return JSON.parse(localStorage.getItem(`barops_wo_accounts_${venueId}`) || '[]').map(a => a.id); } catch { return []; } })()
+  );
+
+  document.getElementById('btn-load-wo-accounts')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-load-wo-accounts');
+    btn.disabled = true; btn.textContent = '⏳ Завантаження...';
+    try {
+      const r = await fetch(`${API}/api/pos/syrve-accounts/${venueId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Помилка');
+      _woAllAccounts = d.accounts || [];
+      const wrap = document.getElementById('wo-accounts-list');
+      const saveBtn = document.getElementById('btn-save-wo-accounts');
+      wrap.innerHTML = _woAllAccounts.map(a => `
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
+          <input type="checkbox" data-id="${a.id}" ${_woSelectedIds.has(a.id) ? 'checked' : ''}
+            style="width:16px;height:16px;accent-color:var(--purple)">
+          <span style="font-size:13px;color:var(--text0);font-family:var(--font-b)">${a.name}</span>
+        </label>
+      `).join('');
+      if (saveBtn) saveBtn.style.display = 'block';
+    } catch (err) {
+      alert('Не вдалось завантажити рахунки: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Завантажити рахунки з Syrve';
+    }
+  });
+
+  document.getElementById('btn-save-wo-accounts')?.addEventListener('click', async () => {
+    const checks = document.querySelectorAll('#wo-accounts-list input[type=checkbox]');
+    const selected = _woAllAccounts.filter(a => {
+      const cb = document.querySelector(`#wo-accounts-list input[data-id="${a.id}"]`);
+      return cb?.checked;
+    });
+    try {
+      const r = await fetch(`${API}/api/pos/writeoff-accounts/${venueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ accounts: selected }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error);
+      localStorage.setItem(`barops_wo_accounts_${venueId}`, JSON.stringify(selected));
+      showToast(`Збережено ${selected.length} рахунків`);
+    } catch (err) {
+      alert('Помилка збереження: ' + err.message);
     }
   });
 
