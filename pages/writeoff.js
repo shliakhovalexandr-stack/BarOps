@@ -40,6 +40,7 @@ let _selVol     = null;
 let _selUnit    = 'l';
 let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
+let _sentHistory = []; // [{ts, date, accounts, itemCount}] — відправлені акти Syrve
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
 let _mgrFilter  = 'all';
@@ -130,7 +131,10 @@ const CSS = `<style id="wo-css">
 
 /* write-off list */
 .wo-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
-.wo-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px;padding:11px 13px;transition:background .12s}
+.wo-swipe-wrap{position:relative;border-radius:12px;overflow:hidden}
+.wo-swipe-del{position:absolute;right:0;top:0;bottom:0;width:76px;background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:0 12px 12px 0;flex-shrink:0}
+.wo-swipe-del-lbl{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600}
+.wo-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px;padding:11px 13px;transition:transform .25s cubic-bezier(.22,1,.36,1);position:relative;z-index:1;will-change:transform}
 .wo-bar{width:3px;height:38px;border-radius:2px;flex-shrink:0}
 .wo-emoji{width:34px;height:34px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .wo-info{flex:1;min-width:0}
@@ -330,16 +334,22 @@ function woList() {
     : [..._writeoffs].reverse()
     .filter(w => _catFilter === 'all' || w.cat === _catFilter)
     .map(w => `
-    <div class="wo-card" data-cat="${w.cat}">
-      <div class="wo-bar" style="background:${CAT[w.cat]?.color||'var(--text2)'}"></div>
-      <div class="wo-emoji">${w.emoji}</div>
-      <div class="wo-info">
-        <div class="wo-name">${w.prod}</div>
-        <div class="wo-meta">${w.meta}</div>
+    <div class="wo-swipe-wrap" data-id="${w.id}">
+      <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3h4v2M7.5 8.5v5M10.5 8.5v5M4 5l1 10h8l1-10" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="wo-swipe-del-lbl">Видалити</span>
       </div>
-      <div class="wo-right">
-        <div class="wo-vol" style="color:${w.valColor}">${w.vol}</div>
-        <div class="wo-time">${w.time}</div>
+      <div class="wo-card" data-cat="${w.cat}" data-id="${w.id}">
+        <div class="wo-bar" style="background:${CAT[w.cat]?.color||'var(--text2)'}"></div>
+        <div class="wo-emoji">${w.emoji||''}</div>
+        <div class="wo-info">
+          <div class="wo-name">${w.prod}</div>
+          <div class="wo-meta">${w.meta}</div>
+        </div>
+        <div class="wo-right">
+          <div class="wo-vol" style="color:${w.valColor}">${w.vol}</div>
+          <div class="wo-time">${w.time}</div>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -782,7 +792,7 @@ function renderManager() {
 
     <!-- Syrve Office -->
     <div class="wo-sec" style="padding-top:14px">Syrve Office</div>
-    <div style="margin:0 14px 14px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+    <div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
       <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
       </div>
@@ -799,6 +809,18 @@ function renderManager() {
         Надіслати
       </button>
     </div>
+    ${_sentHistory.length ? `
+    <div style="margin:0 14px 14px;display:flex;flex-direction:column;gap:4px">
+      ${_sentHistory.map(h => `
+      <div style="background:rgba(139,92,246,.07);border:0.5px solid var(--purple-border);border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text0);font-family:var(--font-b)">Надіслано · ${h.date}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:1px">${h.accounts.join(' · ')}</div>
+        </div>
+        <div style="font-size:11px;color:var(--purple);font-family:var(--font-h);font-weight:700;flex-shrink:0">${h.itemCount} поз.</div>
+      </div>`).join('')}
+    </div>` : ''}
 
     <!-- Export -->
     <div class="wo-sec" style="padding-top:14px">Звіт</div>
@@ -1045,7 +1067,7 @@ function fullRender() {
 }
 function refreshList() {
   const el = document.getElementById('wo-list');
-  if (el) el.innerHTML = woList();
+  if (el) { el.innerHTML = woList(); setTimeout(initSwipe, 50); }
 }
 function refreshProdList() {
   const el = document.getElementById('wo-prod-list');
@@ -1247,8 +1269,32 @@ async function sendActToSyrve() {
   }
 
   if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
-  const msg = [...results, ...errors].join('\n');
-  alert(errors.length ? `Завершено з помилками:\n\n${msg}` : `Акти списання створено в Syrve!\n\n${msg}`);
+
+  if (errors.length === 0 && results.length > 0) {
+    // Зберегти в history і очистити поточний список
+    const now = new Date();
+    const histEntry = {
+      ts:        now.toISOString(),
+      date:      `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')} · ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
+      accounts:  results,
+      itemCount: todayItems.length,
+    };
+    _sentHistory.unshift(histEntry);
+    const histKey = `barops_wo_history_${vId}`;
+    try { localStorage.setItem(histKey, JSON.stringify(_sentHistory.slice(0, 20))); } catch {}
+
+    // Очистити список (залишаємо тільки не відправлені — ті що без prodId)
+    _writeoffs = _writeoffs.filter(w => !w.prodId || new Date(w.ts || 0) < today);
+    const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    raw[vId] = _writeoffs;
+    localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
+
+    fullRender();
+    setTimeout(initSwipe, 50);
+  } else {
+    const msg = [...results, ...errors].join('\n');
+    alert(errors.length ? `Завершено з помилками:\n\n${msg}` : `Акти списання створено в Syrve!\n\n${msg}`);
+  }
 }
 function exportReport(t) {
   const m = { pdf:'📄 PDF-звіт сформовано', csv:'📊 Excel готовий', tg:'✈️ Відправлено в Telegram' };
@@ -1284,6 +1330,74 @@ function removeReason(cat, idx) {
   if (REASONS[cat]) { REASONS[cat].splice(idx, 1); refreshReasons(); }
 }
 
+async function deleteWriteoff(id) {
+  const idx = _writeoffs.findIndex(w => w.id === id);
+  if (idx === -1) return;
+  _writeoffs.splice(idx, 1);
+  // Оновити localStorage
+  const vId = localStorage.getItem('barops_venueId') || '';
+  const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+  raw[vId] = _writeoffs;
+  localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
+  refreshList();
+  setTimeout(initSwipe, 50);
+  // Видалити з backend
+  try {
+    const token = localStorage.getItem('barops_token');
+    await fetch(`${API}/api/writeoffs/${id}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch (e) { console.warn('[DeleteWriteoff]', e.message); }
+}
+
+function initSwipe() {
+  let _activeSwiped = null;
+  document.querySelectorAll('.wo-swipe-wrap').forEach(wrap => {
+    const card = wrap.querySelector('.wo-card');
+    if (!card) return;
+    let startX = 0, startY = 0, tracking = false;
+    card.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = true;
+      card.style.transition = 'none';
+    }, { passive: true });
+    card.addEventListener('touchmove', e => {
+      if (!tracking) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (dy > 10 && Math.abs(dx) < dy) { tracking = false; return; }
+      if (dx < 0) {
+        card.style.transform = `translateX(${Math.max(dx, -76)}px)`;
+      }
+    }, { passive: true });
+    card.addEventListener('touchend', e => {
+      tracking = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      card.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
+      if (dx < -38) {
+        card.style.transform = 'translateX(-76px)';
+        if (_activeSwiped && _activeSwiped !== card) {
+          _activeSwiped.style.transform = 'translateX(0)';
+        }
+        _activeSwiped = card;
+      } else {
+        card.style.transform = 'translateX(0)';
+        if (_activeSwiped === card) _activeSwiped = null;
+      }
+    });
+  });
+  // Закрити свайп при натисканні поза карткою
+  document.addEventListener('touchstart', e => {
+    if (_activeSwiped && !_activeSwiped.contains(e.target)) {
+      _activeSwiped.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
+      _activeSwiped.style.transform = 'translateX(0)';
+      _activeSwiped = null;
+    }
+  }, { passive: true });
+}
+
 /* ════════════════════════
    PAGE MODULE EXPORT
 ════════════════════════ */
@@ -1304,6 +1418,7 @@ export default {
 
     // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
     const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
+    try { _sentHistory = JSON.parse(localStorage.getItem(`barops_wo_history_${vId}`) || '[]'); } catch { _sentHistory = []; }
     const stored = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     _writeoffs = stored[vId] || [];
 
@@ -1383,6 +1498,8 @@ export default {
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport, sendActToSyrve,
       addCustomReason, removeReason,
+      deleteWriteoff,
     };
+    setTimeout(initSwipe, 80);
   },
 };
