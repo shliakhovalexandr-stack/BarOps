@@ -577,7 +577,8 @@ function renderBartender() {
           <div>
             <div class="wo-custom-lbl">Причина списання</div>
             <textarea class="wo-textarea" id="wo-reason-custom"
-              placeholder="Опишіть деталі: де, коли, хто присутній…">${_selReason||''}</textarea>
+              placeholder="Опишіть деталі: де, коли, хто присутній…"
+              oninput="window.__wo.updateCustomReason(this.value)">${_selReason||''}</textarea>
           </div>
           ${summaryHTML()}
         </div>
@@ -1196,6 +1197,9 @@ function selectReason(r) {
     el.classList.toggle('sel', el.querySelector('.wo-reason-text')?.textContent === r);
   });
 }
+function updateCustomReason(v) {
+  _selReason = v.trim() || null;
+}
 
 function nextStep() {
   if (_formStep===4) { submitForm(); return; }
@@ -1582,7 +1586,7 @@ export default {
     window.__wo = {
       setCatFilter, openForm, closeForm, maybeClose,
       selectCat, searchProds, selectProd,
-      setVol, updateVol, setUnit, selectReason, selectAccount,
+      setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport, sendActToSyrve,
       addCustomReason, removeReason,
