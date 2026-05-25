@@ -343,7 +343,9 @@ ${CSS}
           style="width:100%;background:transparent;border:1.5px solid var(--purple);color:var(--purple);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:44px;border-radius:12px;margin-bottom:12px">
           Завантажити рахунки з Syrve
         </button>
-        <div id="wo-accounts-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <input type="text" id="wo-accounts-search" placeholder="Пошук рахунку..."
+          style="display:none;width:100%;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:10px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:8px">
+        <div id="wo-accounts-list" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
         <button type="button" id="btn-save-wo-accounts" class="ve-btn ve-btn-green"
           style="width:100%;margin-top:12px;height:44px;border-radius:12px;display:none">
           Зберегти вибір рахунків
@@ -829,6 +831,28 @@ async function initIikoSection(venueId) {
     (() => { try { return JSON.parse(localStorage.getItem(`barops_wo_accounts_${venueId}`) || '[]').map(a => a.id); } catch { return []; } })()
   );
 
+  function renderAccountsList(query) {
+    const wrap = document.getElementById('wo-accounts-list');
+    if (!wrap) return;
+    const q = (query || '').toLowerCase().trim();
+    const filtered = q ? _woAllAccounts.filter(a => a.name.toLowerCase().includes(q)) : _woAllAccounts;
+    wrap.innerHTML = filtered.length
+      ? filtered.map(a => `
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
+          <input type="checkbox" data-id="${a.id}" ${_woSelectedIds.has(a.id) ? 'checked' : ''}
+            style="width:16px;height:16px;accent-color:var(--purple)">
+          <span style="font-size:13px;color:var(--text0);font-family:var(--font-b)">${a.name}</span>
+        </label>`).join('')
+      : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:8px 4px">Нічого не знайдено</div>`;
+    // Відстежуємо зміни чекбоксів щоб зберегти стан при фільтрації
+    wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) _woSelectedIds.add(cb.dataset.id);
+        else _woSelectedIds.delete(cb.dataset.id);
+      });
+    });
+  }
+
   document.getElementById('btn-load-wo-accounts')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-load-wo-accounts');
     btn.disabled = true; btn.textContent = '⏳ Завантаження...';
@@ -839,15 +863,10 @@ async function initIikoSection(venueId) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Помилка');
       _woAllAccounts = d.accounts || [];
-      const wrap = document.getElementById('wo-accounts-list');
-      const saveBtn = document.getElementById('btn-save-wo-accounts');
-      wrap.innerHTML = _woAllAccounts.map(a => `
-        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
-          <input type="checkbox" data-id="${a.id}" ${_woSelectedIds.has(a.id) ? 'checked' : ''}
-            style="width:16px;height:16px;accent-color:var(--purple)">
-          <span style="font-size:13px;color:var(--text0);font-family:var(--font-b)">${a.name}</span>
-        </label>
-      `).join('');
+      const searchEl = document.getElementById('wo-accounts-search');
+      const saveBtn  = document.getElementById('btn-save-wo-accounts');
+      if (searchEl) { searchEl.style.display = 'block'; searchEl.value = ''; }
+      renderAccountsList('');
       if (saveBtn) saveBtn.style.display = 'block';
     } catch (err) {
       alert('Не вдалось завантажити рахунки: ' + err.message);
@@ -856,12 +875,18 @@ async function initIikoSection(venueId) {
     }
   });
 
+  document.getElementById('wo-accounts-search')?.addEventListener('input', e => {
+    renderAccountsList(e.target.value);
+  });
+
   document.getElementById('btn-save-wo-accounts')?.addEventListener('click', async () => {
     const checks = document.querySelectorAll('#wo-accounts-list input[type=checkbox]');
-    const selected = _woAllAccounts.filter(a => {
-      const cb = document.querySelector(`#wo-accounts-list input[data-id="${a.id}"]`);
-      return cb?.checked;
+    // Синхронізуємо поточні чекбокси в DOM до _woSelectedIds
+    document.querySelectorAll('#wo-accounts-list input[type=checkbox]').forEach(cb => {
+      if (cb.checked) _woSelectedIds.add(cb.dataset.id);
+      else _woSelectedIds.delete(cb.dataset.id);
     });
+    const selected = _woAllAccounts.filter(a => _woSelectedIds.has(a.id));
     try {
       const r = await fetch(`${API}/api/pos/writeoff-accounts/${venueId}`, {
         method: 'PATCH',
@@ -893,6 +918,14 @@ async function initIikoSection(venueId) {
       if (d.savedId) _savedConceptionId = d.savedId;
       const wrap = document.getElementById('wo-conceptions-list');
       const saveBtn = document.getElementById('btn-save-conception');
+      if (!_allConceptions.length) {
+        const attemptsInfo = (d.attempts || []).map(a => `${a.path} → ${a.status}`).join('\n');
+        wrap.innerHTML = `<div style="font-size:11px;color:var(--amber);font-family:var(--font-b);line-height:1.6">
+          Концепції не знайдено в Syrve.<br>Спробовані шляхи:<br><code style="font-size:10px">${attemptsInfo.replace(/\n/g,'<br>')}</code>
+        </div>`;
+        if (saveBtn) saveBtn.style.display = 'none';
+        return;
+      }
       wrap.innerHTML = _allConceptions.map(c => `
         <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
           <input type="radio" name="wo-conception" data-id="${c.id}" ${_savedConceptionId === c.id ? 'checked' : ''}
