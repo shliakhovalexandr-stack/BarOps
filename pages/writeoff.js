@@ -39,6 +39,7 @@ let _selProd    = null;
 let _selVol     = null;
 let _selUnit    = 'l';
 let _selReason  = null;
+let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
 let _mgrFilter  = 'all';
@@ -529,8 +530,9 @@ function renderBartender() {
           </div>
         </div>
 
-        <!-- Step 4: Reason -->
+        <!-- Step 4: Account + Reason -->
         <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
+          ${accountPickerHTML()}
           <div>
             <div class="wo-custom-lbl">Причина списання</div>
             <textarea class="wo-textarea" id="wo-reason-custom"
@@ -604,6 +606,34 @@ function reasonListHTML() {
     <div class="wo-reason-text">${r}</div>
   </div>`).join('');
 }
+
+function getWoAccounts() {
+  const vId = localStorage.getItem('barops_venueId') || '';
+  try { return JSON.parse(localStorage.getItem(`barops_wo_accounts_${vId}`) || '[]'); } catch { return []; }
+}
+function autoSelectAccount() {
+  const accounts = getWoAccounts();
+  if (accounts.length === 1) _selAccount = accounts[0];
+}
+function accountPickerHTML() {
+  const accounts = getWoAccounts();
+  if (!accounts.length) return '';
+  return `
+    <div>
+      <div class="wo-custom-lbl">На рахунок</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${accounts.map(a => `
+          <div class="wo-reason-item ${_selAccount?.id === a.id ? 'sel' : ''}"
+               onclick="window.__wo.selectAccount('${a.id}', '${a.name.replace(/'/g,"\\'")}')">
+            <div class="wo-reason-dot" style="background:var(--purple)"></div>
+            <div class="wo-reason-text">${a.name}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+function selectAccount(id, name) { _selAccount = { id, name }; fullRender(); }
 
 function summaryHTML() {
   const vol = _selVol || 0;
@@ -1028,7 +1058,7 @@ function refreshProdList() {
 function setCatFilter(cat) { _catFilter = cat; refreshList(); fullRender(); }
 
 /* form */
-function openForm()  { _formOpen=true; _formStep=1; _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _prodSearch=''; fullRender(); }
+function openForm()  { _formOpen=true; _formStep=1; _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch=''; autoSelectAccount(); fullRender(); }
 function closeForm() { _formOpen=false; fullRender(); }
 function maybeClose(e) { if (e.target===document.getElementById('wo-form-overlay')) closeForm(); }
 
@@ -1112,8 +1142,10 @@ async function submitForm() {
     vol:     `−${vol}${uLbl}`,
     volNum:  vol,
     unitKey: unit,
-    valColor: CAT[_selCat]?.color || 'var(--text0)',
-    reason:  _selReason || '',
+    valColor:    CAT[_selCat]?.color || 'var(--text0)',
+    reason:      _selReason || '',
+    accountId:   _selAccount?.id   || null,
+    accountName: _selAccount?.name || null,
     time:    hhmm,
     dateStr: `${dd} · ${hhmm}`,
     ts:      now.toISOString(),
@@ -1164,59 +1196,59 @@ async function sendActToSyrve() {
   const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
   if (!todayItems.length) { alert('Немає списань з productId за сьогодні'); return; }
 
-  // Вибір рахунку з дозволених (збережених менеджером)
-  const savedRaw = localStorage.getItem(`barops_wo_accounts_${vId}`);
-  const allowedAccounts = savedRaw ? JSON.parse(savedRaw) : [];
-  let accountId = null;
-  if (allowedAccounts.length === 1) {
-    accountId = allowedAccounts[0].id;
-  } else if (allowedAccounts.length > 1) {
-    const names = allowedAccounts.map((a, i) => `${i + 1}. ${a.name}`).join('\n');
-    const pick = prompt(`Оберіть рахунок для акту списання:\n\n${names}\n\nВведіть номер:`);
-    const idx = parseInt(pick, 10) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= allowedAccounts.length) { alert('Скасовано або невірний номер'); return; }
-    accountId = allowedAccounts[idx].id;
-  }
-  // Якщо accounts не налаштовано — backend обере перший автоматично
-
-  const grouped = {};
+  // Групуємо по рахунку (accountId) — кожна група = окремий акт
+  const byAccount = {};
   for (const w of todayItems) {
-    if (!grouped[w.prodId]) {
-      grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
-    }
-    grouped[w.prodId].amount += w.volNum || 0;
+    const key = w.accountId || '__auto__';
+    if (!byAccount[key]) byAccount[key] = { accountId: w.accountId || null, accountName: w.accountName || 'авто', items: [] };
+    byAccount[key].items.push(w);
   }
-  const items = Object.values(grouped);
 
-  const summary = items.map(i => `• ${i.productName}: ${i.amount.toFixed(2)} ${unitLabel(i.unitKey)}`).join('\n');
-  const accountLabel = accountId ? allowedAccounts.find(a => a.id === accountId)?.name || accountId : 'авто';
-  const confirmed = confirm(
-    `Надіслати акт списання до Syrve?\n\nРахунок: ${accountLabel}\n\n${summary}\n\nПозицій: ${items.length}`
-  );
-  if (!confirmed) return;
+  const groups = Object.values(byAccount);
+  const summary = groups.map(g => {
+    const lines = Object.values(
+      g.items.reduce((acc, w) => {
+        if (!acc[w.prodId]) acc[w.prodId] = { name: w.prod, amount: 0, unitKey: w.unitKey || 'l' };
+        acc[w.prodId].amount += w.volNum || 0;
+        return acc;
+      }, {})
+    ).map(i => `  • ${i.name}: ${i.amount.toFixed(2)} ${unitLabel(i.unitKey)}`).join('\n');
+    return `Рахунок: ${g.accountName}\n${lines}`;
+  }).join('\n\n');
+
+  if (!confirm(`Надіслати ${groups.length > 1 ? groups.length + ' акти' : 'акт'} списання до Syrve?\n\n${summary}`)) return;
 
   const btn = document.getElementById('wo-syrve-btn');
   if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
 
-  try {
-    const body = {
-      items,
-      comment: `BarOps · Списання ${new Date().toLocaleDateString('uk-UA')} · ${items.length} позицій`,
-    };
-    if (accountId) body.accountId = accountId;
-    const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(body),
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || (data.details ? JSON.stringify(data.details) : 'Помилка сервера'));
-    alert(`Акт списання створено в Syrve!\nРахунок: ${accountLabel}\nСтатус: непроведений\nПозицій: ${data.itemCount}`);
-  } catch (err) {
-    alert(`Помилка при відправці до Syrve:\n${err.message}`);
-  } finally {
-    if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+  const results = [];
+  const errors  = [];
+  for (const g of groups) {
+    const grouped = {};
+    for (const w of g.items) {
+      if (!grouped[w.prodId]) grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
+      grouped[w.prodId].amount += w.volNum || 0;
+    }
+    const items = Object.values(grouped);
+    try {
+      const body = { items, comment: `BarOps · ${g.accountName} · ${new Date().toLocaleDateString('uk-UA')}` };
+      if (g.accountId) body.accountId = g.accountId;
+      const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || JSON.stringify(data.details));
+      results.push(`✓ ${g.accountName}: ${data.itemCount} позицій`);
+    } catch (err) {
+      errors.push(`✗ ${g.accountName}: ${err.message}`);
+    }
   }
+
+  if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+  const msg = [...results, ...errors].join('\n');
+  alert(errors.length ? `Завершено з помилками:\n\n${msg}` : `Акти списання створено в Syrve!\n\n${msg}`);
 }
 function exportReport(t) {
   const m = { pdf:'📄 PDF-звіт сформовано', csv:'📊 Excel готовий', tg:'✈️ Відправлено в Telegram' };
@@ -1304,7 +1336,7 @@ export default {
     window.__wo = {
       setCatFilter, openForm, closeForm, maybeClose,
       selectCat, searchProds, selectProd,
-      setVol, updateVol, setUnit, selectReason,
+      setVol, updateVol, setUnit, selectReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport, sendActToSyrve,
       addCustomReason, removeReason,
