@@ -719,21 +719,6 @@ function renderManager() {
     </div>`;
   }).join('');
 
-  const LOG_ITEMS = [..._writeoffs].reverse().map(w => ({
-    id: w.id,
-    dot: CAT[w.cat]?.color || 'var(--text2)',
-    title: `${w.prod} · ${CAT[w.cat]?.label || w.cat}`,
-    meta: w.reason || '—',
-    qty: w.vol || '—',
-    qColor: CAT[w.cat]?.color || 'var(--text2)',
-    time: w.dateStr || '',
-  }));
-
-  const logVisible = LOG_ITEMS.filter(l =>
-    _mgrFilter === 'all' ||
-    (l.title.toLowerCase().includes(_mgrFilter === 'biy' ? 'бій' : _mgrFilter === 'psuv' ? 'псування' : _mgrFilter === 'deg' ? 'дегустація' : 'інше'))
-  );
-
   return `
   <div class="wo-topbar" style="flex-shrink:0">
     <div class="wo-back" onclick="window.__barops.navigate('dashboard')">
@@ -796,22 +781,36 @@ function renderManager() {
       return rows ? `<div class="wo-sec">Розбивка за категоріями</div><div class="wo-cat-breakdown">${rows}</div>` : '';
     })()}
 
-    <!-- Top losers -->
+    <!-- Today unsent -->
     ${(() => {
-      if (!_writeoffs.length) return '';
-      const map = {};
-      for (const w of _writeoffs) {
-        if (!map[w.prod]) map[w.prod] = { prod: w.prod, count: 0, vol: 0 };
-        map[w.prod].count++;
-        map[w.prod].vol += w.volNum || 0;
-      }
-      const top = Object.values(map).sort((a,b)=>b.count-a.count).slice(0,3);
-      const rows = top.map((t,i) => `<div class="wo-loser-row" ${i>0?'style="border-top:0.5px solid var(--border)"':''}>
-        <div class="wo-loser-rank">#${i+1}</div>
-        <div style="flex:1;min-width:0"><div class="wo-loser-name">${t.prod}</div><div class="wo-loser-meta">${t.count} записів</div></div>
-        <div class="wo-loser-val" style="color:var(--red)">−${t.vol.toFixed(2)}л</div>
-      </div>`).join('');
-      return `<div class="wo-sec">Топ позицій</div><div class="wo-toplosers">${rows}</div>`;
+      const allToday = _writeoffs.filter(w => new Date(w.ts || 0) >= today);
+      if (!allToday.length) return `
+        <div class="wo-sec">Списання сьогодні</div>
+        <div style="margin:0 14px 8px;padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
+          <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Списань за сьогодні немає</div>
+        </div>`;
+      return `
+        <div class="wo-sec">Списання сьогодні <span style="color:var(--text3);font-weight:400;font-size:10px;letter-spacing:0;text-transform:none">(не відправлені в Syrve)</span></div>
+        <div class="wo-list" style="margin-bottom:8px">
+          ${allToday.map(w => `
+          <div class="wo-swipe-wrap" data-id="${w.id}">
+            <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <span class="wo-swipe-del-lbl">Видалити</span>
+            </div>
+            <div class="wo-card" data-id="${w.id}" style="gap:10px">
+              <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
+                <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${CAT[w.cat]?.label||''} · ${w.reason||'Без причини'}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-family:var(--font-h);font-size:15px;font-weight:700;color:${CAT[w.cat]?.color||'var(--text0)'}">${w.vol||'—'}</div>
+                <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${w.time||''}</div>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>`;
     })()}
 
     <!-- Add (manager can too) -->
@@ -876,61 +875,57 @@ function renderManager() {
       </div>
     </div>
 
-    <!-- Custom reasons settings -->
-    <div class="wo-sec" style="padding-top:10px">
-      Налаштування причин списання
-      <button class="wo-sec-link" style="color:var(--green)" onclick="window.__wo.addCustomReason()">+ Додати</button>
-    </div>
-    <div id="wo-reasons-wrap" style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden">
-      ${Object.entries(REASONS).map(([cat, reasons]) => `
-      <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
-        <div style="font-size:11px;color:${CAT[cat].color};font-family:var(--font-b);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-          ${CAT[cat].label}
-        </div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          ${reasons.map((r,i) => `
-          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:8px">
-            <span style="flex:1;font-size:12px;color:var(--text1);font-family:var(--font-b)">${r}</span>
-            <div onclick="window.__wo.removeReason('${cat}',${i})"
-              style="width:20px;height:20px;border-radius:6px;background:var(--red-bg);border:1px solid var(--red-border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
-            </div>
-          </div>`).join('')}
-        </div>
-      </div>`).join('')}
-    </div>
-    <div style="padding:0 14px 6px">
-      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.5">
-        Бармен завжди може ввести причину вручну — це поле завжди доступне
-      </div>
-    </div>
-
-    <!-- Journal -->
-    <div class="wo-sec" style="padding-top:10px">Журнал</div>
-    <div class="wo-filter-row">
-      ${[['all','Всі'],['biy','💥 Бій'],['psuv','🍂 Псування'],['deg','🍸 Дегустація'],['insh','📋 Інше']]
-        .map(([f,l]) => `<div class="wo-fr-pill ${_mgrFilter===f?'act':''}" onclick="window.__wo.setMgrFilter('${f}')">${l}</div>`).join('')}
-    </div>
-    <div class="wo-list" id="wo-list">
-      ${logVisible.map(l => `
-      <div class="wo-swipe-wrap" data-id="${l.id}">
-        <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${l.id}')">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <span class="wo-swipe-del-lbl">Видалити</span>
-        </div>
-        <div class="wo-card" data-cat="${l.id}" data-id="${l.id}"
-             style="padding:10px 13px;gap:10px">
-          <div class="wo-log-dot" style="background:${l.dot};width:8px;height:8px;border-radius:50%;flex-shrink:0"></div>
-          <div style="flex:1;min-width:0">
-            <div class="wo-log-title">${l.title}</div>
-            <div class="wo-log-meta">${l.meta}</div>
-          </div>
+    <!-- History grouped by date -->
+    <div class="wo-sec" style="padding-top:10px">Історія списань</div>
+    <div id="wo-list" style="padding:0 14px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      ${(() => {
+        const MONTHS = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+        const yesterKey = (() => { const y = new Date(now); y.setDate(y.getDate()-1); return `${y.getFullYear()}-${y.getMonth()}-${y.getDate()}`; })();
+        const groups = {};
+        const sorted = [..._writeoffs].sort((a,b) => new Date(b.ts||0) - new Date(a.ts||0));
+        for (const w of sorted) {
+          const d = new Date(w.ts || 0);
+          const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          if (!groups[key]) {
+            let label;
+            if (key === todayKey) label = 'Сьогодні';
+            else if (key === yesterKey) label = 'Вчора';
+            else label = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+            groups[key] = { label, items: [] };
+          }
+          groups[key].items.push(w);
+        }
+        if (!Object.keys(groups).length) return `
+          <div style="padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
+            <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Списань немає</div>
+          </div>`;
+        return Object.entries(groups).map(([, g]) => `
           <div>
-            <div class="wo-log-qty" style="color:${l.qColor}">${l.qty}</div>
-            <div class="wo-log-time">${l.time}</div>
-          </div>
-        </div>
-      </div>`).join('')}
+            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;padding-left:2px">${g.label}</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              ${g.items.map(w => `
+              <div class="wo-swipe-wrap" data-id="${w.id}">
+                <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  <span class="wo-swipe-del-lbl">Видалити</span>
+                </div>
+                <div class="wo-card" data-id="${w.id}" style="gap:10px">
+                  <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
+                    <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${CAT[w.cat]?.label||''} · ${w.reason||'Без причини'}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    <div style="font-family:var(--font-h);font-size:15px;font-weight:700;color:${CAT[w.cat]?.color||'var(--text0)'}">${w.vol||'—'}</div>
+                    <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${w.time||''}</div>
+                  </div>
+                </div>
+              </div>`).join('')}
+            </div>
+          </div>`).join('');
+      })()}
     </div>
 
     <!-- Form overlay -->
