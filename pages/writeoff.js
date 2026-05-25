@@ -1330,8 +1330,7 @@ async function sendActToSyrve() {
     const items = Object.values(grouped);
     try {
       const reasons = [...new Set(g.items.filter(w => w.reason).map(w => w.reason))].join('; ');
-      const comment = `BarOps · ${g.accountName} · ${new Date().toLocaleDateString('uk-UA')}${reasons ? ' · ' + reasons : ''}`;
-      const body = { items, comment };
+      const body = { items, comment: reasons || undefined };
       if (g.accountId) body.accountId = g.accountId;
       const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
         method: 'POST',
