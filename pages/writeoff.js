@@ -938,31 +938,48 @@ function renderManager() {
         </div>
         <div class="wo-scroll2" id="wo-scroll2">
 
-          <!-- Step 1: Category -->
+          <!-- Step 1: Account (if configured) or Category -->
           <div class="wo-fstep ${_formStep===1?'act':''}" id="wfstep1">
-            <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть причину списання</div>
-            <div class="wo-cat-grid">
-              <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" id="wcat-biy" onclick="window.__wo.selectCat('biy')">
-                <div class="wo-cat-icon" style="background:var(--red-bg)">💥</div>
-                <div class="wo-cat-name">Бій</div>
-                <div class="wo-cat-desc">Розбита тара, механічне пошкодження</div>
-              </div>
-              <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" id="wcat-psuv" onclick="window.__wo.selectCat('psuv')">
-                <div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div>
-                <div class="wo-cat-name">Псування</div>
-                <div class="wo-cat-desc">Прострочення, зміна якості</div>
-              </div>
-              <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" id="wcat-deg" onclick="window.__wo.selectCat('deg')">
-                <div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div>
-                <div class="wo-cat-name">Дегустація</div>
-                <div class="wo-cat-desc">Персонал, гості, презентація</div>
-              </div>
-              <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" id="wcat-insh" onclick="window.__wo.selectCat('insh')">
-                <div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div>
-                <div class="wo-cat-name">Інше</div>
-                <div class="wo-cat-desc">Вказати вручну</div>
-              </div>
-            </div>
+            ${(() => {
+              const accounts = getWoAccounts();
+              if (accounts.length) {
+                return `
+                  <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть рахунок списання</div>
+                  <div class="wo-reason-list">
+                    ${accounts.map(a => `
+                    <div class="wo-reason-item ${_selAccount?.id===a.id?'sel':''}"
+                         onclick="window.__wo.selectAccount('${a.id}','${a.name.replace(/'/g,"\\'")}')">
+                      <div class="wo-reason-dot" style="background:var(--purple)"></div>
+                      <div class="wo-reason-text">${a.name}</div>
+                      ${_selAccount?.id===a.id?`<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+                    </div>`).join('')}
+                  </div>`;
+              }
+              return `
+                <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть причину списання</div>
+                <div class="wo-cat-grid">
+                  <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" id="wcat-biy" onclick="window.__wo.selectCat('biy')">
+                    <div class="wo-cat-icon" style="background:var(--red-bg)">💥</div>
+                    <div class="wo-cat-name">Бій</div>
+                    <div class="wo-cat-desc">Розбита тара, механічне пошкодження</div>
+                  </div>
+                  <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" id="wcat-psuv" onclick="window.__wo.selectCat('psuv')">
+                    <div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div>
+                    <div class="wo-cat-name">Псування</div>
+                    <div class="wo-cat-desc">Прострочення, зміна якості</div>
+                  </div>
+                  <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" id="wcat-deg" onclick="window.__wo.selectCat('deg')">
+                    <div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div>
+                    <div class="wo-cat-name">Дегустація</div>
+                    <div class="wo-cat-desc">Персонал, гості, презентація</div>
+                  </div>
+                  <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" id="wcat-insh" onclick="window.__wo.selectCat('insh')">
+                    <div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div>
+                    <div class="wo-cat-name">Інше</div>
+                    <div class="wo-cat-desc">Вказати вручну</div>
+                  </div>
+                </div>`;
+            })()}
           </div>
 
           <!-- Step 2: Product -->
