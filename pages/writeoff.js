@@ -1507,7 +1507,7 @@ async function deleteWriteoff(id) {
   const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
   raw[vId] = _writeoffs;
   localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
-  refreshList();
+  fullRender();
   setTimeout(initSwipe, 50);
   // Видалити з backend
   try {
