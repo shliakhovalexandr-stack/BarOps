@@ -646,7 +646,9 @@ function reasonListHTML() {
 }
 
 function getWoAccounts() {
-  const vId = localStorage.getItem('barops_venueId') || '';
+  const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
+  console.log('[WO] getWoAccounts vId=', vId, 'key=', `barops_wo_accounts_${vId}`, 'raw=', localStorage.getItem(`barops_wo_accounts_${vId}`));
+  if (!vId) return [];
   try { return JSON.parse(localStorage.getItem(`barops_wo_accounts_${vId}`) || '[]'); } catch { return []; }
 }
 function autoSelectAccount() {
