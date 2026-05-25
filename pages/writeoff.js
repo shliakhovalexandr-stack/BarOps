@@ -1246,14 +1246,21 @@ async function submitForm() {
   raw[vId].push(entry);
   localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
 
-  // Відправляємо на backend
+  // Відправляємо на backend і зберігаємо реальний ID
   try {
     const { writeoffsAPI } = await import('../shared/api.js');
-    await writeoffsAPI.create({
+    const saved = await writeoffsAPI.create({
       items: [{ productName: entry.prod, productId: entry.prodId, qty: vol, unit: uLbl }],
       category: CAT[finalCat]?.label || finalCat || 'Інше',
       reason:   entry.reason || null,
     });
+    if (saved?.data?.id) {
+      entry.id = saved.data.id;
+      // Оновлюємо ID в localStorage
+      const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+      const idx = (r2[vId] || []).findIndex(w => w.ts === entry.ts && w.prod === entry.prod);
+      if (idx !== -1) { r2[vId][idx].id = entry.id; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
+    }
   } catch (err) {
     console.warn('[Writeoff] Backend недоступний:', err.message);
   }
@@ -1347,7 +1354,17 @@ async function sendActToSyrve() {
     const histKey = `barops_wo_history_${vId}`;
     try { localStorage.setItem(histKey, JSON.stringify(_sentHistory.slice(0, 20))); } catch {}
 
-    // Очистити список (залишаємо тільки не відправлені — ті що без prodId)
+    // Видалити відправлені з бекенду
+    for (const w of todayItems) {
+      try {
+        await fetch(`${API}/api/writeoffs/${w.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (e) { /* ігноруємо помилки видалення */ }
+    }
+
+    // Очистити список в пам'яті та localStorage
     _writeoffs = _writeoffs.filter(w => !w.prodId || new Date(w.ts || 0) < today);
     const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     raw[vId] = _writeoffs;
