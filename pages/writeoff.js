@@ -41,6 +41,7 @@ let _selUnit    = 'l';
 let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
 let _sentHistory = []; // [{ts, date, accounts, itemCount}] — відправлені акти Syrve
+let _swipeListenerAdded = false;
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
 let _mgrFilter  = 'all';
@@ -439,31 +440,48 @@ function renderBartender() {
 
       <div class="wo-scroll2" id="wo-scroll2">
 
-        <!-- Step 1: Category -->
+        <!-- Step 1: Account (if configured) or Category -->
         <div class="wo-fstep ${_formStep===1?'act':''}" id="wfstep1">
-          <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть причину списання</div>
-          <div class="wo-cat-grid">
-            <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" id="wcat-biy" onclick="window.__wo.selectCat('biy')">
-              <div class="wo-cat-icon" style="background:var(--red-bg)">💥</div>
-              <div class="wo-cat-name">Бій</div>
-              <div class="wo-cat-desc">Розбита тара, механічне пошкодження</div>
-            </div>
-            <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" id="wcat-psuv" onclick="window.__wo.selectCat('psuv')">
-              <div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div>
-              <div class="wo-cat-name">Псування</div>
-              <div class="wo-cat-desc">Прострочення, зміна якості</div>
-            </div>
-            <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" id="wcat-deg" onclick="window.__wo.selectCat('deg')">
-              <div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div>
-              <div class="wo-cat-name">Дегустація</div>
-              <div class="wo-cat-desc">Персонал, гості, презентація</div>
-            </div>
-            <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" id="wcat-insh" onclick="window.__wo.selectCat('insh')">
-              <div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div>
-              <div class="wo-cat-name">Інше</div>
-              <div class="wo-cat-desc">Вказати вручну</div>
-            </div>
-          </div>
+          ${(() => {
+            const accounts = getWoAccounts();
+            if (accounts.length) {
+              return `
+                <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть рахунок списання</div>
+                <div class="wo-reason-list">
+                  ${accounts.map(a => `
+                  <div class="wo-reason-item ${_selAccount?.id===a.id?'sel':''}"
+                       onclick="window.__wo.selectAccount('${a.id}','${a.name.replace(/'/g,"\\'")}')">
+                    <div class="wo-reason-dot" style="background:var(--purple)"></div>
+                    <div class="wo-reason-text">${a.name}</div>
+                    ${_selAccount?.id===a.id?`<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+                  </div>`).join('')}
+                </div>`;
+            }
+            return `
+              <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть причину списання</div>
+              <div class="wo-cat-grid">
+                <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" onclick="window.__wo.selectCat('biy')">
+                  <div class="wo-cat-icon" style="background:var(--red-bg)">💥</div>
+                  <div class="wo-cat-name">Бій</div>
+                  <div class="wo-cat-desc">Розбита тара, механічне пошкодження</div>
+                </div>
+                <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" onclick="window.__wo.selectCat('psuv')">
+                  <div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div>
+                  <div class="wo-cat-name">Псування</div>
+                  <div class="wo-cat-desc">Прострочення, зміна якості</div>
+                </div>
+                <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" onclick="window.__wo.selectCat('deg')">
+                  <div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div>
+                  <div class="wo-cat-name">Дегустація</div>
+                  <div class="wo-cat-desc">Персонал, гості, презентація</div>
+                </div>
+                <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" onclick="window.__wo.selectCat('insh')">
+                  <div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div>
+                  <div class="wo-cat-name">Інше</div>
+                  <div class="wo-cat-desc">Вказати вручну</div>
+                </div>
+              </div>`;
+          })()}
         </div>
 
         <!-- Step 2: Product -->
@@ -540,9 +558,19 @@ function renderBartender() {
           </div>
         </div>
 
-        <!-- Step 4: Account + Reason -->
+        <!-- Step 4: Category pills (if accounts mode) + Reason -->
         <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
-          ${accountPickerHTML()}
+          ${getWoAccounts().length ? `
+          <div>
+            <div class="wo-custom-lbl">Тип списання</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${Object.entries(CAT).map(([k,v]) => `
+              <div onclick="window.__wo.selectCat('${k}')"
+                style="padding:7px 14px;border-radius:20px;border:0.5px solid ${_selCat===k?v.color:'var(--border)'};background:${_selCat===k?v.bg:'transparent'};color:${_selCat===k?v.color:'var(--text2)'};font-size:12px;cursor:pointer;font-family:var(--font-b);transition:all .15s">
+                ${v.label}
+              </div>`).join('')}
+            </div>
+          </div>` : ''}
           <div>
             <div class="wo-custom-lbl">Причина списання</div>
             <textarea class="wo-textarea" id="wo-reason-custom"
@@ -560,7 +588,7 @@ function renderBartender() {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <button class="wo-fnext" id="wo-fnext" onclick="window.__wo.nextStep()"
-          ${(_formStep===1&&!_selCat)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol)?'disabled style="opacity:.35"':''}>
+          ${((_formStep===1&&(getWoAccounts().length?!_selAccount:!_selCat))||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol))?'disabled style="opacity:.35"':''}>
           ${_formStep===4
             ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Зафіксувати списання`
             : `Далі <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 11l6-4-6-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
@@ -643,7 +671,11 @@ function accountPickerHTML() {
     </div>
   `;
 }
-function selectAccount(id, name) { _selAccount = { id, name }; fullRender(); }
+function selectAccount(id, name) {
+  _selAccount = { id, name };
+  if (_formStep === 1) { setTimeout(() => { _formStep = 2; fullRender(); }, 180); }
+  else fullRender();
+}
 
 function summaryHTML() {
   const vol = _selVol || 0;
@@ -1024,7 +1056,7 @@ function renderManager() {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <button class="wo-fnext" id="wo-fnext" onclick="window.__wo.nextStep()"
-            ${(_formStep===1&&!_selCat)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol)?'disabled style="opacity:.35"':''}>
+            ${((_formStep===1&&(getWoAccounts().length?!_selAccount:!_selCat))||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol))?'disabled style="opacity:.35"':''}>
             ${_formStep===4
               ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Зафіксувати списання`
               : `Далі <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 11l6-4-6-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
@@ -1067,7 +1099,7 @@ function fullRender() {
 }
 function refreshList() {
   const el = document.getElementById('wo-list');
-  if (el) { el.innerHTML = woList(); setTimeout(initSwipe, 50); }
+  if (el) el.innerHTML = woList();
 }
 function refreshProdList() {
   const el = document.getElementById('wo-prod-list');
@@ -1125,7 +1157,8 @@ function setUnit(u) {
 function updateNextBtn() {
   const btn = document.getElementById('wo-fnext');
   if (!btn) return;
-  const disabled = (_formStep===1&&!_selCat)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol);
+  const step1invalid = getWoAccounts().length ? !_selAccount : !_selCat;
+  const disabled = (_formStep===1&&step1invalid)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol);
   btn.disabled = disabled;
   btn.style.opacity = disabled ? '.35' : '1';
 }
@@ -1141,7 +1174,8 @@ function selectReason(r) {
 
 function nextStep() {
   if (_formStep===4) { submitForm(); return; }
-  if ((_formStep===1&&!_selCat)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol)) return;
+  const step1invalid = getWoAccounts().length ? !_selAccount : !_selCat;
+  if ((_formStep===1&&step1invalid)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol)) return;
   _formStep++;
   fullRender();
 }
@@ -1155,16 +1189,17 @@ async function submitForm() {
   const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const dd   = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}`;
 
+  const finalCat = _selCat || 'insh';
   const entry = {
     id:      Date.now().toString(36),
-    cat:     _selCat,
+    cat:     finalCat,
     prod:    _selProd?.name || 'Товар',
     prodId:  _selProd?.id   || null,
-    meta:    `${CAT[_selCat]?.label||''} · ${_selReason||'Без причини'}`,
+    meta:    `${CAT[finalCat]?.label||''} · ${_selReason||'Без причини'}`,
     vol:     `−${vol}${uLbl}`,
     volNum:  vol,
     unitKey: unit,
-    valColor:    CAT[_selCat]?.color || 'var(--text0)',
+    valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
     accountId:   _selAccount?.id   || null,
     accountName: _selAccount?.name || null,
@@ -1187,7 +1222,7 @@ async function submitForm() {
     const { writeoffsAPI } = await import('../shared/api.js');
     await writeoffsAPI.create({
       items: [{ productName: entry.prod, productId: entry.prodId, qty: vol, unit: uLbl }],
-      category: CAT[_selCat]?.label || _selCat || 'Інше',
+      category: CAT[finalCat]?.label || finalCat || 'Інше',
       reason:   entry.reason || null,
     });
   } catch (err) {
@@ -1198,8 +1233,8 @@ async function submitForm() {
   _succOpen = true;
   const subEl  = document.getElementById('wo-succ-sub');
   const pillEl = document.getElementById('wo-succ-pill');
-  if (subEl)  subEl.textContent  = `${entry.prod} · ${CAT[_selCat]?.label||''} · записано в журнал`;
-  if (pillEl) pillEl.textContent = `${entry.prod} · −${vol}${uLbl} · ${CAT[_selCat]?.label||''}`;
+  if (subEl)  subEl.textContent  = `${entry.prod} · ${CAT[finalCat]?.label||''} · записано в журнал`;
+  if (pillEl) pillEl.textContent = `${entry.prod} · −${vol}${uLbl} · ${CAT[finalCat]?.label||''}`;
   fullRender();
 }
 function closeSuccess()     { _succOpen=false; openForm(); }
@@ -1290,7 +1325,7 @@ async function sendActToSyrve() {
     localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
 
     fullRender();
-    setTimeout(initSwipe, 50);
+    initSwipe();
   } else {
     const msg = [...results, ...errors].join('\n');
     alert(errors.length ? `Завершено з помилками:\n\n${msg}` : `Акти списання створено в Syrve!\n\n${msg}`);
@@ -1330,6 +1365,44 @@ function removeReason(cat, idx) {
   if (REASONS[cat]) { REASONS[cat].splice(idx, 1); refreshReasons(); }
 }
 
+function initSwipe() {
+  if (_swipeListenerAdded) return;
+  _swipeListenerAdded = true;
+  let sx = 0, sy = 0, activeCard = null;
+  document.addEventListener('touchstart', e => {
+    const wrap = e.target.closest('.wo-swipe-wrap');
+    const card = wrap?.querySelector('.wo-card');
+    if (activeCard && activeCard !== card) {
+      activeCard.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
+      activeCard.style.transform = 'translateX(0)';
+      activeCard = null;
+    }
+    if (!card) return;
+    activeCard = card;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    card.style.transition = 'none';
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!activeCard) return;
+    const dx = e.touches[0].clientX - sx;
+    const dy = Math.abs(e.touches[0].clientY - sy);
+    if (dy > 12 && dy > Math.abs(dx)) { activeCard = null; return; }
+    if (dx < 0) activeCard.style.transform = `translateX(${Math.max(dx, -76)}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!activeCard) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    activeCard.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
+    if (dx < -38) {
+      activeCard.style.transform = 'translateX(-76px)';
+    } else {
+      activeCard.style.transform = 'translateX(0)';
+      activeCard = null;
+    }
+  });
+}
+
 async function deleteWriteoff(id) {
   const idx = _writeoffs.findIndex(w => w.id === id);
   if (idx === -1) return;
@@ -1351,52 +1424,6 @@ async function deleteWriteoff(id) {
   } catch (e) { console.warn('[DeleteWriteoff]', e.message); }
 }
 
-function initSwipe() {
-  let _activeSwiped = null;
-  document.querySelectorAll('.wo-swipe-wrap').forEach(wrap => {
-    const card = wrap.querySelector('.wo-card');
-    if (!card) return;
-    let startX = 0, startY = 0, tracking = false;
-    card.addEventListener('touchstart', e => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      tracking = true;
-      card.style.transition = 'none';
-    }, { passive: true });
-    card.addEventListener('touchmove', e => {
-      if (!tracking) return;
-      const dx = e.touches[0].clientX - startX;
-      const dy = Math.abs(e.touches[0].clientY - startY);
-      if (dy > 10 && Math.abs(dx) < dy) { tracking = false; return; }
-      if (dx < 0) {
-        card.style.transform = `translateX(${Math.max(dx, -76)}px)`;
-      }
-    }, { passive: true });
-    card.addEventListener('touchend', e => {
-      tracking = false;
-      const dx = e.changedTouches[0].clientX - startX;
-      card.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
-      if (dx < -38) {
-        card.style.transform = 'translateX(-76px)';
-        if (_activeSwiped && _activeSwiped !== card) {
-          _activeSwiped.style.transform = 'translateX(0)';
-        }
-        _activeSwiped = card;
-      } else {
-        card.style.transform = 'translateX(0)';
-        if (_activeSwiped === card) _activeSwiped = null;
-      }
-    });
-  });
-  // Закрити свайп при натисканні поза карткою
-  document.addEventListener('touchstart', e => {
-    if (_activeSwiped && !_activeSwiped.contains(e.target)) {
-      _activeSwiped.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
-      _activeSwiped.style.transform = 'translateX(0)';
-      _activeSwiped = null;
-    }
-  }, { passive: true });
-}
 
 /* ════════════════════════
    PAGE MODULE EXPORT
@@ -1500,6 +1527,6 @@ export default {
       addCustomReason, removeReason,
       deleteWriteoff,
     };
-    setTimeout(initSwipe, 80);
+    initSwipe();
   },
 };
