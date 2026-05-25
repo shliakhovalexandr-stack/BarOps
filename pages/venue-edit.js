@@ -919,11 +919,38 @@ async function initIikoSection(venueId) {
       const wrap = document.getElementById('wo-conceptions-list');
       const saveBtn = document.getElementById('btn-save-conception');
       if (!_allConceptions.length) {
-        const attemptsInfo = (d.attempts || []).map(a => `${a.path} → ${a.status}`).join('\n');
-        wrap.innerHTML = `<div style="font-size:11px;color:var(--amber);font-family:var(--font-b);line-height:1.6">
-          Концепції не знайдено в Syrve.<br>Спробовані шляхи:<br><code style="font-size:10px">${attemptsInfo.replace(/\n/g,'<br>')}</code>
-        </div>`;
+        wrap.innerHTML = `
+          <div style="font-size:12px;color:var(--amber);font-family:var(--font-b);margin-bottom:10px">
+            Автоматично не знайдено. Введіть ID концепції вручну (з Syrve Office → Адміністрування → Концепції):
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="wo-conception-manual" type="text"
+              placeholder="напр. 123e4567-e89b-12d3-a456-426614174000"
+              value="${_savedConceptionId || ''}"
+              style="flex:1;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:10px;padding:0 12px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none"/>
+            <button id="btn-save-conception-manual"
+              style="padding:0 14px;height:40px;border-radius:10px;border:0.5px solid var(--amber-border);background:var(--amber-bg);color:var(--amber);font-size:12px;font-family:var(--font-b);cursor:pointer;white-space:nowrap">
+              Зберегти
+            </button>
+          </div>`;
         if (saveBtn) saveBtn.style.display = 'none';
+        document.getElementById('btn-save-conception-manual')?.addEventListener('click', async () => {
+          const id = (document.getElementById('wo-conception-manual')?.value || '').trim() || null;
+          try {
+            const r = await fetch(`${API}/api/pos/writeoff-conception/${venueId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+              body: JSON.stringify({ conceptionId: id }),
+            });
+            if (!r.ok) throw new Error((await r.json()).error);
+            _savedConceptionId = id;
+            if (id) localStorage.setItem(`barops_wo_conception_${venueId}`, id);
+            else localStorage.removeItem(`barops_wo_conception_${venueId}`);
+            showToast(id ? 'Концепцію збережено' : 'Концепцію скинуто');
+          } catch (err) {
+            alert('Помилка: ' + err.message);
+          }
+        });
         return;
       }
       wrap.innerHTML = _allConceptions.map(c => `
