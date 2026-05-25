@@ -717,6 +717,7 @@ function renderManager() {
   }).join('');
 
   const LOG_ITEMS = [..._writeoffs].reverse().map(w => ({
+    id: w.id,
     dot: CAT[w.cat]?.color || 'var(--text2)',
     title: `${w.prod} · ${CAT[w.cat]?.label || w.cat}`,
     meta: w.reason || '—',
@@ -907,17 +908,24 @@ function renderManager() {
       ${[['all','Всі'],['biy','💥 Бій'],['psuv','🍂 Псування'],['deg','🍸 Дегустація'],['insh','📋 Інше']]
         .map(([f,l]) => `<div class="wo-fr-pill ${_mgrFilter===f?'act':''}" onclick="window.__wo.setMgrFilter('${f}')">${l}</div>`).join('')}
     </div>
-    <div class="wo-log">
+    <div class="wo-list" id="wo-list">
       ${logVisible.map(l => `
-      <div class="wo-log-item">
-        <div class="wo-log-dot" style="background:${l.dot}"></div>
-        <div style="flex:1;min-width:0">
-          <div class="wo-log-title">${l.title}</div>
-          <div class="wo-log-meta">${l.meta}</div>
+      <div class="wo-swipe-wrap" data-id="${l.id}">
+        <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${l.id}')">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span class="wo-swipe-del-lbl">Видалити</span>
         </div>
-        <div>
-          <div class="wo-log-qty" style="color:${l.qColor}">${l.qty}</div>
-          <div class="wo-log-time">${l.time}</div>
+        <div class="wo-card" data-cat="${l.id}" data-id="${l.id}"
+             style="padding:10px 13px;gap:10px">
+          <div class="wo-log-dot" style="background:${l.dot};width:8px;height:8px;border-radius:50%;flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div class="wo-log-title">${l.title}</div>
+            <div class="wo-log-meta">${l.meta}</div>
+          </div>
+          <div>
+            <div class="wo-log-qty" style="color:${l.qColor}">${l.qty}</div>
+            <div class="wo-log-time">${l.time}</div>
+          </div>
         </div>
       </div>`).join('')}
     </div>
