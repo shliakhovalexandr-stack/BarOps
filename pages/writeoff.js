@@ -812,7 +812,7 @@ function renderManager() {
               <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
               <div style="flex:1;min-width:0">
                 <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
-                <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${CAT[w.cat]?.label||''} · ${w.reason||'Без причини'}</div>
+                <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${w.reason ? `${CAT[w.cat]?.label||''} · ${w.reason}` : (CAT[w.cat]?.label||'')}</div>
               </div>
               <div style="text-align:right;flex-shrink:0">
                 <div style="font-family:var(--font-h);font-size:15px;font-weight:700;color:${CAT[w.cat]?.color||'var(--text0)'}">${w.vol||'—'}</div>
@@ -1225,7 +1225,7 @@ async function submitForm() {
     cat:     finalCat,
     prod:    _selProd?.name || 'Товар',
     prodId:  _selProd?.id   || null,
-    meta:    `${CAT[finalCat]?.label||''} · ${_selReason||'Без причини'}`,
+    meta:    _selReason ? `${CAT[finalCat]?.label||''} · ${_selReason}` : (CAT[finalCat]?.label||''),
     vol:     `−${vol}${uLbl}`,
     volNum:  vol,
     unitKey: unit,
@@ -1325,7 +1325,9 @@ async function sendActToSyrve() {
     }
     const items = Object.values(grouped);
     try {
-      const body = { items, comment: `BarOps · ${g.accountName} · ${new Date().toLocaleDateString('uk-UA')}` };
+      const reasons = [...new Set(g.items.filter(w => w.reason).map(w => w.reason))].join('; ');
+      const comment = `BarOps · ${g.accountName} · ${new Date().toLocaleDateString('uk-UA')}${reasons ? ' · ' + reasons : ''}`;
+      const body = { items, comment };
       if (g.accountId) body.accountId = g.accountId;
       const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
         method: 'POST',
@@ -1565,7 +1567,7 @@ export default {
             cat:         catKey,
             prod:        item.productName || 'Товар',
             prodId:      item.productId || null,
-            meta:        `${CAT[catKey]?.label||''} · ${w.reason||'Без причини'}`,
+            meta:        w.reason ? `${CAT[catKey]?.label||''} · ${w.reason}` : (CAT[catKey]?.label||''),
             vol:         `−${qty}${uLbl}`,
             volNum:      qty,
             unitKey:     uKey,
