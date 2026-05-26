@@ -424,17 +424,28 @@ function mgrOrdersHTML() {
         </div>
         <div class="ord-req-badge ${isDone ? 'done' : 'pending'}">${isDone ? 'Виконано' : 'Очікує'}</div>
       </div>
-      ${(o.suppliers || []).map(s => `
+      ${(o.suppliers || []).map((s, si) => {
+        const items = (s.items || []).filter(i => (i.qty || 0) > 0);
+        const copyId = `copy-${o.id}-${si}`;
+        return `
         <div class="ord-req-supp">
-          <div class="ord-req-sname">${s.supplierName || 'Постачальник'}</div>
-          ${(s.items || []).filter(i => (i.qty || 0) > 0).map(i => `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div class="ord-req-sname" style="margin-bottom:0">${s.supplierName || 'Постачальник'}</div>
+            <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
+              style="height:24px;padding:0 10px;border-radius:7px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--font-b);cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:4px">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Копіювати
+            </button>
+          </div>
+          ${items.map(i => `
             <div class="ord-req-item">
               <span class="ord-req-iname">${i.productName}</span>
               <span class="ord-req-iqty">${i.qty} ${i.unit || 'од.'}</span>
             </div>
             ${i.comment ? `<div class="ord-req-icomment">${i.comment}</div>` : ''}
           `).join('')}
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
       ${!isDone ? `<button class="ord-req-done-btn" onclick="window.__ord.markOrderDone('${o.id}')">✓ Позначити виконаним</button>` : ''}
     </div>`;
   }
@@ -811,6 +822,35 @@ async function loadOrders() {
   fullRender();
 }
 
+async function copySupplier(orderId, suppIdx, btnId) {
+  const order = _orders.find(o => o.id === orderId);
+  if (!order) return;
+  const s = (order.suppliers || [])[suppIdx];
+  if (!s) return;
+  const items = (s.items || []).filter(i => (i.qty || 0) > 0);
+  if (!items.length) return;
+
+  const lines = items.map(i => {
+    const comment = i.comment ? ` (${i.comment})` : '';
+    return `- ${i.productName}${comment} — ${i.qty} ${i.unit || 'од.'}`;
+  });
+  const text = `${s.supplierName}:\n${lines.join('\n')}`;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✓ Скопійовано';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green-border)';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+    }
+  } catch {
+    prompt('Скопіюйте вручну:', text);
+  }
+}
+
 async function markOrderDone(id) {
   try {
     await fetch(`${API}/api/orders/${id}`, {
@@ -1008,7 +1048,7 @@ export default {
   },
   init() {
     window.__ord = {
-      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, loadOrders, markOrderDone,
+      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, loadOrders, markOrderDone, copySupplier,
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
