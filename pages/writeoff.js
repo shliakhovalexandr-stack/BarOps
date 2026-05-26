@@ -1599,8 +1599,29 @@ export default {
       });
       if (accRes.ok) {
         const accData = await accRes.json();
-        const accounts = accData.accounts || [];
-        localStorage.setItem(`barops_wo_accounts_${vId}`, JSON.stringify(accounts));
+        let accounts = accData.accounts || [];
+        if (accounts.length > 0) {
+          // Адмін зберіг рахунки в налаштуваннях — використовуємо їх
+          localStorage.setItem(`barops_wo_accounts_${vId}`, JSON.stringify(accounts));
+        } else {
+          // Адмін не зберіг рахунки — спробуємо підвантажити напряму з Syrve
+          // Але тільки якщо в localStorage ще нічого немає (щоб не спамити Syrve API)
+          const cached = getWoAccounts();
+          if (cached.length === 0) {
+            try {
+              const syrveRes = await fetch(`${API}/api/pos/syrve-accounts/${vId}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+              });
+              if (syrveRes.ok) {
+                const syrveData = await syrveRes.json();
+                accounts = syrveData.accounts || [];
+                if (accounts.length > 0) {
+                  localStorage.setItem(`barops_wo_accounts_${vId}`, JSON.stringify(accounts));
+                }
+              }
+            } catch {}
+          }
+        }
       }
     } catch (e) {
       console.warn('[Writeoff] Рахунки не завантажились:', e.message);
