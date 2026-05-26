@@ -17,6 +17,7 @@ let _stats           = null; // дані з /api/stats
 let _loading         = true;
 let _venueSheetOpen  = false;
 let _notifOpen       = false;
+let _pendingOrders   = [];   // заявки на закупку (для адмін/менеджер)
 
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
@@ -329,6 +330,23 @@ ${CSS}
       <span class="d-notif-ttl">Сповіщення</span>
       <button class="d-notif-clr" onclick="window.__dash.closeNotif()">Закрити</button>
     </div>
+    ${_pendingOrders.length ? _pendingOrders.map(o => {
+      const t = new Date(o.createdAt);
+      const timeStr = t.toLocaleDateString('uk-UA',{day:'numeric',month:'short'}) + ' ' +
+                      t.toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'});
+      const totalItems = (o.suppliers||[]).reduce((a,s)=>a+(s.items||[]).filter(i=>i.qty>0).length,0);
+      return `
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer"
+         onclick="window.__barops.navigate('ordering');window.__dash.closeNotif()">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0;margin-top:4px"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text1);font-family:var(--font-b)">Нова заявка на закупку</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">${o.submittedBy} · ${totalItems} поз. · ${timeStr}</div>
+        </div>
+      </div>
+    </div>`;
+    }).join('') : ''}
     ${s?.critical?.length ? s.critical.map(p => `
     <div style="padding:10px 16px;border-bottom:1px solid var(--border)">
       <div style="display:flex;gap:8px;align-items:flex-start">
@@ -338,8 +356,9 @@ ${CSS}
           <div style="font-size:10px;color:var(--text2);margin-top:2px">${p.currentStock} ${p.unit} · мінімум ${p.reorderPoint} ${p.unit}</div>
         </div>
       </div>
-    </div>`).join('') : `
-    <div style="padding:20px 16px;text-align:center;color:var(--text2);font-size:13px;font-family:var(--font-b)">Немає сповіщень</div>`}
+    </div>`).join('') : ''}
+    ${!_pendingOrders.length && !s?.critical?.length ? `
+    <div style="padding:20px 16px;text-align:center;color:var(--text2);font-size:13px;font-family:var(--font-b)">Немає сповіщень</div>` : ''}
   </div>
 
   <div class="d-scroll">
@@ -381,7 +400,7 @@ ${CSS}
               stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M10.7 15a2 2 0 01-3.4 0" stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round"/>
           </svg>
-          ${s?.critical?.length ? '<div class="d-notif-badge"></div>' : ''}
+          ${(s?.critical?.length || _pendingOrders.length) ? '<div class="d-notif-badge"></div>' : ''}
         </div>
       </div>
       <div class="d-shift-row">
@@ -608,6 +627,7 @@ export default {
   render() {
     _notifOpen      = false;
     _venueSheetOpen = false;
+    _pendingOrders  = [];
     return buildHTML();
   },
   async init() {
@@ -636,5 +656,22 @@ export default {
     // Завантажуємо заклади і статистику
     await loadVenues();
     await loadStats();
+    if (state.role === 'admin' || state.role === 'manager') loadPendingOrders();
   },
 };
+
+async function loadPendingOrders() {
+  const venueId = _activeVenueId || state.venueId || localStorage.getItem('barops_venueId');
+  const tok     = localStorage.getItem('barops_token');
+  if (!venueId || !tok) return;
+  try {
+    const res  = await fetch(`${API}/api/orders?venueId=${venueId}`, {
+      headers: { Authorization: `Bearer ${tok}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      _pendingOrders = (data.data || []).filter(o => o.status === 'pending');
+      fullRender();
+    }
+  } catch { /* silent */ }
+}
