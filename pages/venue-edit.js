@@ -772,8 +772,11 @@ async function initIikoSection(venueId) {
     const { url, apiKey, login, password } = getSyrveFormData();
     const deptId = (document.getElementById('iiko-department-id')?.value || '').trim();
 
-    if (!login || !password) {
-      showToast('Введіть логін і пароль', 'error');
+    // Для cloud (apiKey) — достатньо apiKey; для self-hosted — потрібен login+password
+    const hasCloudKey = !!apiKey;
+    const hasSelfHosted = !!(login && password);
+    if (!hasCloudKey && !hasSelfHosted) {
+      showToast('Введіть API ключ (cloud) або логін і пароль (self-hosted)', 'error');
       btn.disabled = false; btn.innerHTML = '💾 Зберегти'; return;
     }
 

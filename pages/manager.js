@@ -511,7 +511,7 @@ function sectionSettings() {
           ${posInfo.connected ? '● Підключено · Синхронізація активна' : '○ Не підключено'}
         </div>
       </div>
-      <button onclick="window.__barops.navigate('venue-edit')"
+      <button onclick="window.__barops.editVenue('${state.venueId || localStorage.getItem('barops_venueId')}', '${state.venue || ''}')"
         style="height:30px;padding:0 12px;border-radius:8px;border:0.5px solid var(--border);background:var(--bg3);font-size:11px;color:var(--text1);cursor:pointer;font-family:var(--font-b);white-space:nowrap">
         ${posInfo.connected ? 'Налаштування' : 'Підключити'}
       </button>
