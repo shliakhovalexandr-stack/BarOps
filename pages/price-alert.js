@@ -579,6 +579,7 @@ function buildHTML() {
   return `${CSS}<div class="pa-wrap">${body}</div>`;
 }
 function fullRender() {
+  if (state.route !== 'price-alert') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
 }

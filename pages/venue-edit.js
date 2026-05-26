@@ -514,6 +514,7 @@ ${CSS}
 }
 
 function render() {
+  if (state.route !== 'venue-edit') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
   setupListeners();

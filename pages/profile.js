@@ -126,6 +126,7 @@ async function loadData() {
 }
 
 function updateView() {
+  if (state.route !== 'profile') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
 }

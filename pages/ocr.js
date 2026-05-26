@@ -4,7 +4,7 @@
    OCR буде додано пізніше після оновлення назв товарів у Syrve
    ============================================================ */
 
-import { navigate } from '../shared/app.js';
+import { navigate, state } from '../shared/app.js';
 
 /* ════════════════════════
    MODULE STATE
@@ -321,6 +321,7 @@ function buildHTML() {
 }
 
 function rerender() {
+  if (state.route !== 'ocr') return;
   const view = document.getElementById('app-view');
   if (view) view.innerHTML = buildHTML();
 }

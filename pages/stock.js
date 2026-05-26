@@ -353,6 +353,7 @@ ${CSS}
 }
 
 function fullRender() {
+  if (state.route !== 'stock') return;
   const savedScroll = document.querySelector('.stk-scroll')?.scrollTop || 0;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();

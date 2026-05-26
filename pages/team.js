@@ -468,6 +468,7 @@ ${CSS}
 }
 
 function fullRender() {
+  if (state.route !== 'team') return;
   // Зберігаємо значення полів форми перед перемальовкою
   const savedName  = document.getElementById('add-name')?.value  || '';
   const savedPhone = document.getElementById('add-phone')?.value || '';

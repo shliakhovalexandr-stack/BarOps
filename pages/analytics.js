@@ -725,6 +725,7 @@ function setupSwipe() {
 }
 
 function render() {
+  if (state.route !== 'analytics') return;
   const savedScroll = document.querySelector('.an-scroll')?.scrollTop || 0;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();

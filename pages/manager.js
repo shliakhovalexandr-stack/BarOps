@@ -605,6 +605,7 @@ ${CSS}
 }
 
 function fullRender() {
+  if (state.route !== 'manager') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
 }

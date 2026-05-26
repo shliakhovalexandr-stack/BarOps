@@ -577,6 +577,7 @@ function buildHTML() {
   return `${CSS}<div class="sl-wrap">${body}</div>`;
 }
 function fullRender() {
+  if (state.route !== 'shift-log') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
 }

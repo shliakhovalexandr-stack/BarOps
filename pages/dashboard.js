@@ -577,11 +577,13 @@ ${CSS}
    PAGE MODULE
 ════════════════════════ */
 function fullRender() {
+  if (state.route !== 'dashboard') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
 }
 
 function partialRender() {
+  if (state.route !== 'dashboard') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
 }
