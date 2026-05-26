@@ -841,12 +841,18 @@ async function initIikoSection(venueId) {
     const btn = document.getElementById('btn-load-wo-accounts');
     btn.disabled = true; btn.textContent = '⏳ Завантаження...';
     try {
-      const r = await fetch(`${API}/api/pos/syrve-accounts/${venueId}`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Помилка');
-      _woAllAccounts = d.accounts || [];
+      // Паралельно завантажуємо всі рахунки Syrve + збережені адміном
+      const [syrveRes, savedRes] = await Promise.all([
+        fetch(`${API}/api/pos/syrve-accounts/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } }),
+        fetch(`${API}/api/pos/saved-accounts/${venueId}`,  { headers: { Authorization: `Bearer ${authToken}` } }),
+      ]);
+      const syrveD = await syrveRes.json();
+      const savedD = savedRes.ok ? await savedRes.json() : { accounts: [] };
+      if (!syrveRes.ok) throw new Error(syrveD.error || 'Помилка');
+      _woAllAccounts = syrveD.accounts || [];
+      // Скидаємо вибір до тільки збережених в БД (не з localStorage щоб уникнути забруднення)
+      const savedIds = (savedD.accounts || []).map(a => a.id);
+      _woSelectedIds = new Set(savedIds);
       const searchEl = document.getElementById('wo-accounts-search');
       const saveBtn  = document.getElementById('btn-save-wo-accounts');
       if (searchEl) { searchEl.style.display = 'block'; searchEl.value = ''; }
