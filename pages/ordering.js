@@ -15,6 +15,9 @@ let _balanceItems = [];   // { id, name, amount, unit, category } — з Syrve
 let _barQtys      = {};   // productId → qty для заявки бармена
 let _barComments  = {};   // productId → comment string
 let _openComments = new Set(); // productId для яких розгорнуто поле коментаря
+
+let _orders        = [];   // менеджерський список заявок
+let _ordersLoading = false;
 let _venueId      = null;
 let _token        = null;
 let _loading      = true;
@@ -168,6 +171,23 @@ const CSS = `<style id="ord-css">
 .ord-sheet-search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 12px;height:40px;margin-bottom:12px}
 .ord-sheet-search-inp{flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--text0);font-family:var(--font-b)}
 .ord-sheet-search-inp::placeholder{color:var(--text3)}
+/* order cards */
+.ord-req-card{margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.ord-req-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:0.5px solid var(--border)}
+.ord-req-who{flex:1;min-width:0}
+.ord-req-name{font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
+.ord-req-time{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.ord-req-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-family:var(--font-b);font-weight:600;flex-shrink:0}
+.ord-req-badge.pending{background:rgba(234,179,8,.15);color:#eab308}
+.ord-req-badge.done{background:var(--green-bg);color:var(--green)}
+.ord-req-supp{padding:8px 14px;border-bottom:0.5px solid var(--border)}
+.ord-req-supp:last-child{border-bottom:none}
+.ord-req-sname{font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.ord-req-item{display:flex;align-items:baseline;gap:6px;padding:2px 0;font-family:var(--font-b)}
+.ord-req-iname{font-size:12px;color:var(--text1);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-req-iqty{font-size:13px;font-weight:700;color:var(--teal);flex-shrink:0}
+.ord-req-icomment{font-size:11px;color:var(--text2);margin-top:1px;font-style:italic}
+.ord-req-done-btn{display:block;width:calc(100% - 28px);margin:10px 14px 12px;height:40px;border-radius:12px;background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);font-size:13px;font-family:var(--font-b);font-weight:600;cursor:pointer}
 </style>`;
 
 /* ════════════════════════
@@ -352,14 +372,62 @@ function renderBartender() {
 }
 
 /* ════════════════════════
-   MANAGER: orders tab (placeholder)
+   MANAGER: orders tab
 ════════════════════════ */
 function mgrOrdersHTML() {
-  return `<div class="ord-empty" style="margin-top:4px">
-    <div class="ord-empty-icon">📋</div>
-    <div class="ord-empty-title">Поданих заявок ще немає</div>
-    <div class="ord-empty-sub">Як бармен подасть заявку — вона з'явиться тут для перегляду та затвердження</div>
-  </div>`;
+  if (_ordersLoading) return `<div style="padding:30px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px">Завантаження…</div>`;
+
+  const active = _orders.filter(o => o.status !== 'done' && o.status !== 'cancelled');
+  const done   = _orders.filter(o => o.status === 'done');
+
+  if (!_orders.length) return `
+    <div class="ord-empty" style="margin-top:4px">
+      <div class="ord-empty-icon">📋</div>
+      <div class="ord-empty-title">Поданих заявок ще немає</div>
+      <div class="ord-empty-sub">Як бармен подасть заявку — вона з'явиться тут</div>
+    </div>
+    <div style="margin:0 14px">
+      <button onclick="window.__ord.loadOrders()" style="width:100%;height:40px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button>
+    </div>`;
+
+  function orderCard(o) {
+    const t = new Date(o.createdAt);
+    const timeStr = t.toLocaleDateString('uk-UA', { day:'numeric', month:'short' }) + ' · ' +
+                    t.toLocaleTimeString('uk-UA', { hour:'2-digit', minute:'2-digit' });
+    const isDone = o.status === 'done';
+    return `
+    <div class="ord-req-card">
+      <div class="ord-req-hdr">
+        <div class="ord-req-who">
+          <div class="ord-req-name">${o.submittedBy || '—'}</div>
+          <div class="ord-req-time">${timeStr}</div>
+        </div>
+        <div class="ord-req-badge ${isDone ? 'done' : 'pending'}">${isDone ? 'Виконано' : 'Очікує'}</div>
+      </div>
+      ${(o.suppliers || []).map(s => `
+        <div class="ord-req-supp">
+          <div class="ord-req-sname">${s.supplierName || 'Постачальник'}</div>
+          ${(s.items || []).filter(i => (i.qty || 0) > 0).map(i => `
+            <div class="ord-req-item">
+              <span class="ord-req-iname">${i.productName}</span>
+              <span class="ord-req-iqty">${i.qty} ${i.unit || 'од.'}</span>
+            </div>
+            ${i.comment ? `<div class="ord-req-icomment">${i.comment}</div>` : ''}
+          `).join('')}
+        </div>`).join('')}
+      ${!isDone ? `<button class="ord-req-done-btn" onclick="window.__ord.markOrderDone('${o.id}')">✓ Позначити виконаним</button>` : ''}
+    </div>`;
+  }
+
+  return `
+    <div style="margin:4px 14px 8px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em">Нові заявки (${active.length})</div>
+      <button onclick="window.__ord.loadOrders()" style="height:28px;padding:0 12px;border-radius:8px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:11px;font-family:var(--font-b);cursor:pointer">Оновити</button>
+    </div>
+    ${active.length ? active.map(orderCard).join('') : `<div style="padding:14px 14px 0;font-size:12px;color:var(--text2);font-family:var(--font-b)">Нових заявок немає</div>`}
+    ${done.length ? `
+      <div style="margin:14px 14px 8px;font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em">Виконані (${done.length})</div>
+      ${done.slice(0, 5).map(orderCard).join('')}` : ''}`;
 }
 
 /* ════════════════════════
@@ -651,8 +719,66 @@ function setComment(productId, value) {
   if (btn) btn.classList.toggle('has-note', !!value.trim());
 }
 
-function submitOrder()  { _submitted = true;  fullRender(); }
-function resetOrder()   { _submitted = false; fullRender(); }
+async function submitOrder() {
+  // Збираємо дані по постачальниках
+  const suppliers = _suppliers.map(s => {
+    const items = (s.supplierProducts || [])
+      .map(sp => ({
+        productId:   sp.productId,
+        productName: sp.productName,
+        qty:         _barQtys[sp.productId] || 0,
+        unit:        (_balanceItems.find(b => b.id === sp.productId)?.unit) || 'од.',
+        comment:     _barComments[sp.productId] || '',
+      }))
+      .filter(i => i.qty > 0);
+    return { supplierId: s.id, supplierName: s.name, items };
+  }).filter(s => s.items.length > 0);
+
+  if (!suppliers.length) return;
+
+  try {
+    const res = await fetch(`${API}/api/orders`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body:    JSON.stringify({ venueId: _venueId, suppliers }),
+    });
+    const data = await res.json();
+    if (!data.success) { alert(data.error || 'Помилка'); return; }
+    _submitted = true;
+    fullRender();
+  } catch (e) {
+    alert('Мережева помилка: ' + e.message);
+  }
+}
+
+function resetOrder() { _submitted = false; fullRender(); }
+
+async function loadOrders() {
+  _ordersLoading = true;
+  fullRender();
+  try {
+    const res  = await fetch(`${API}/api/orders?venueId=${_venueId}`, {
+      headers: { Authorization: `Bearer ${_token}` },
+    });
+    const data = await res.json();
+    if (data.success) _orders = data.data || [];
+  } catch (e) { /* silent */ }
+  _ordersLoading = false;
+  fullRender();
+}
+
+async function markOrderDone(id) {
+  try {
+    await fetch(`${API}/api/orders/${id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body:    JSON.stringify({ status: 'done' }),
+    });
+    const o = _orders.find(x => x.id === id);
+    if (o) o.status = 'done';
+    fullRender();
+  } catch (e) { alert('Помилка: ' + e.message); }
+}
 
 /* ════════════════════════
    MANAGER ACTIONS
@@ -825,6 +951,8 @@ export default {
     _openComments  = new Set();
     _submitted     = false;
     _mgrTab        = 'orders';
+    _orders        = [];
+    _ordersLoading = false;
     _suppSheet     = null;
     _prodPickerSupp = null;
     _prodSearch    = '';
@@ -835,7 +963,7 @@ export default {
   },
   init() {
     window.__ord = {
-      toggleSupp, changeQty, setQty, toggleComment, setComment, submitOrder, resetOrder,
+      toggleSupp, changeQty, setQty, toggleComment, setComment, submitOrder, resetOrder, loadOrders, markOrderDone,
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
@@ -844,5 +972,6 @@ export default {
     _token   = localStorage.getItem('barops_token');
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
     loadData();
+    if (state.role === 'admin' || state.role === 'manager') loadOrders();
   },
 };
