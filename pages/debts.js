@@ -17,6 +17,7 @@ let _venues   = [];
 let _loading  = false;
 let _saving   = false;
 let _formOpen = false;
+const _expanded = new Set(); // ids розгорнутих повернутих карток
 let _form     = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
 let _products        = [];
 let _productsLoaded  = false;
@@ -51,7 +52,11 @@ const CSS = `<style id="dbt-css">
 .dbt-add-btn:active{filter:brightness(.9)}
 .dbt-list{padding:14px 20px 0}
 .dbt-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px}
-.dbt-card.returned{opacity:.55}
+.dbt-card.returned{opacity:.45}
+.dbt-card.returned.collapsed{padding:9px 14px;cursor:pointer}
+.dbt-card.returned.collapsed:active{background:var(--bg2)}
+.dbt-card-collapse-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dbt-card-expand{font-size:10px;color:var(--text3);font-family:var(--font-b);flex-shrink:0}
 .dbt-card-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
 .dbt-card-item{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
 .dbt-card-badge{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;flex-shrink:0}
@@ -222,6 +227,12 @@ async function loadDebts() {
   _loading = false; redraw();
 }
 
+function toggleCard(id) {
+  if (_expanded.has(id)) _expanded.delete(id);
+  else _expanded.add(id);
+  redraw();
+}
+
 async function markReturned(id) {
   try {
     await apiFetch(`/api/debts/${id}/return`, { method: 'POST' });
@@ -260,11 +271,31 @@ function debtCard(d) {
   const done = d.returned;
   const badge = done ? 'done' : d.type;
   const badgeTxt = done ? 'Повернуто' : d.type === 'sale' ? 'Продаж' : 'Борг';
+
+  if (done && !_expanded.has(d.id)) {
+    return `
+  <div class="dbt-card returned collapsed" onclick="window.__dbt.toggleCard('${d.id}')">
+    <div class="dbt-card-collapse-row">
+      <div class="dbt-card-item" style="font-size:13px">${d.item}</div>
+      <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
+        <div class="dbt-card-badge done">${badgeTxt}</div>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 5l3 3 3-3" stroke="var(--text3)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+    <div class="dbt-card-returned" style="margin-top:4px;padding-top:4px">✓ ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+d.returnedByName:''}</div>
+  </div>`;
+  }
+
   return `
   <div class="dbt-card${done?' returned':''}">
     <div class="dbt-card-row1">
       <div class="dbt-card-item">${d.item}</div>
-      <div class="dbt-card-badge ${badge}">${badgeTxt}</div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <div class="dbt-card-badge ${badge}">${badgeTxt}</div>
+        ${done?`<div onclick="event.stopPropagation();window.__dbt.toggleCard('${d.id}')" style="cursor:pointer;padding:2px">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 7l3-3 3 3" stroke="var(--text3)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`:''}
+      </div>
     </div>
     <div class="dbt-card-venues"><b>${d.fromVenueName||d.fromVenueId}</b><span style="color:var(--text3)"> → </span><b>${d.toVenueName||d.toVenueId}</b></div>
     <div class="dbt-card-meta">
@@ -440,6 +471,7 @@ export default {
       },
       save:         saveForm,
       markReturned: markReturned,
+      toggleCard:   toggleCard,
     };
 
     loadVenues().then(() => redrawSheet());
