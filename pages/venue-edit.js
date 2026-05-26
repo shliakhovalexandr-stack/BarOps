@@ -50,7 +50,21 @@ const CSS = `<style id="ve-css">
 .ve-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);color:var(--text0);padding:12px 24px;border-radius:12px;font-family:var(--font-b);font-size:14px;border:0.5px solid var(--border);z-index:1000;opacity:0;transition:all .3s ease;pointer-events:none;white-space:nowrap}
 .ve-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .ve-toast.error{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+.ve-input--saved{border-color:rgba(34,197,94,.5)!important;background:rgba(34,197,94,.04)!important}
+.ve-saved-badge{font-size:10px;color:var(--green,#22c55e);font-family:var(--font-b);margin:-10px 0 12px 2px;display:flex;align-items:center;gap:4px;opacity:.85}
 </style>`;
+
+function markSaved(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.dataset.savedMarked) return;
+  el.dataset.savedMarked = '1';
+  el.classList.add('ve-input--saved');
+  const badge = document.createElement('div');
+  badge.className = 've-saved-badge';
+  badge.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4.5" stroke="#22c55e" stroke-opacity=".5"/><path d="M3 5l1.2 1.3L7 3.5" stroke="#22c55e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Збережено`;
+  el.insertAdjacentElement('afterend', badge);
+}
 
 function extractTopicId(url) {
   if (!url) return null;
@@ -691,10 +705,11 @@ async function initIikoSection(venueId) {
     const apiKeyEl = document.getElementById('iiko-api-key');
     const loginEl  = document.getElementById('iiko-login');
     const deptEl   = document.getElementById('iiko-department-id');
-    if (urlEl   && settings.posUrl)            urlEl.value   = settings.posUrl;
-    if (loginEl && settings.posLogin)          loginEl.value = settings.posLogin;
-    if (deptEl  && settings.syrveDepartmentId) deptEl.value  = settings.syrveDepartmentId;
-    if (apiKeyEl && settings.posApiKey)        apiKeyEl.placeholder = '••••••••  (збережено — залиш порожнім щоб не змінювати)';
+    if (urlEl   && settings.posUrl)            { urlEl.value   = settings.posUrl;           markSaved('iiko-cloud-url'); }
+    if (loginEl && settings.posLogin)          { loginEl.value = settings.posLogin;          markSaved('iiko-login'); }
+    if (deptEl  && settings.syrveDepartmentId) { deptEl.value  = settings.syrveDepartmentId; markSaved('iiko-department-id'); }
+    if (apiKeyEl && settings.posApiKey)        { apiKeyEl.placeholder = '••••••••  (збережено — залиш порожнім щоб не змінювати)'; markSaved('iiko-api-key'); }
+    if (settings.posPassword)                  markSaved('iiko-password');
     // Пароль і API key не підставляємо з міркувань безпеки
 
     // Статус badge
