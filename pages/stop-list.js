@@ -317,10 +317,28 @@ function buildDiagHtml(d) {
     </div>`);
   }
 
-  // Raw preview
+  // stop_lists/check results
+  const checks = d.stopListsCheck || [];
+  if (checks.length > 0) {
+    for (const c of checks) {
+      const cnt    = c.itemCount;
+      const hasItems = typeof cnt === 'number' && cnt > 0;
+      const rowCls = c.error ? 'fail' : hasItems ? 'ok' : 'warn';
+      rows.push(`<div class="sl-diag-row ${rowCls}">
+        <div class="sl-diag-dot ${rowCls}"></div>
+        <div style="width:100%">
+          <div class="sl-diag-label">stop_lists/check (org: ${c.organizationId?.slice(0,8)}…)</div>
+          <div class="sl-diag-val">${c.error ? c.error : `HTTP ${c.status} · ${cnt !== null ? cnt + ' позицій' : 'itemCount невідомий'}`}</div>
+          ${c.rawPreview ? `<pre style="margin-top:6px;font-size:10px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4">${c.rawPreview.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>` : ''}
+        </div>
+      </div>`);
+    }
+  }
+
+  // Raw preview /stop_lists
   if (sl.rawPreview) {
     rows.push(`<div style="margin-top:4px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Сира відповідь (перші 800 символів)</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">stop_lists — сира відповідь</div>
       <pre style="font-size:10px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:10px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.5">${sl.rawPreview.slice(0, 800).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
     </div>`);
   }
