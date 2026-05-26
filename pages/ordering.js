@@ -13,6 +13,8 @@ const API = 'https://barops-backend-production.up.railway.app';
 let _suppliers    = [];   // { id, name, contact, orderDays, supplierProducts:[{id,productId,productName}] }
 let _balanceItems = [];   // { id, name, amount, unit, category } — з Syrve
 let _barQtys      = {};   // productId → qty для заявки бармена
+let _barComments  = {};   // productId → comment string
+let _openComments = new Set(); // productId для яких розгорнуто поле коментаря
 let _venueId      = null;
 let _token        = null;
 let _loading      = true;
@@ -68,8 +70,9 @@ const CSS = `<style id="ord-css">
 
 /* product rows inside supplier */
 .ord-supp-items{background:var(--bg2);border:0.5px solid var(--border);border-top:none;border-radius:0 0 16px 16px;overflow:hidden}
-.ord-prod-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);transition:background .12s}
-.ord-prod-row:last-child{border-bottom:none}
+.ord-prod-wrap{border-bottom:1px solid var(--border)}
+.ord-prod-wrap:last-child{border-bottom:none}
+.ord-prod-row{display:flex;align-items:center;gap:10px;padding:11px 14px;transition:background .12s}
 .ord-pbar{width:3px;height:38px;border-radius:2px;flex-shrink:0}
 .ord-pemoji{width:32px;height:32px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .ord-pname{font-size:12px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -80,6 +83,15 @@ const CSS = `<style id="ord-css">
 .ord-qbtn:active{background:var(--bg4)}
 .ord-qbtn.plus{background:var(--green);color:#000;border-color:var(--green)}
 .ord-qdisp{min-width:36px;height:28px;display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);padding:0 4px}
+.ord-qinput{width:44px;height:28px;background:rgba(255,255,255,.08);border:0.5px solid var(--border);border-radius:7px;text-align:center;font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);outline:none;-moz-appearance:textfield;padding:0}
+.ord-qinput::-webkit-inner-spin-button,.ord-qinput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ord-qinput:focus{border-color:var(--green)}
+/* comment */
+.ord-note-btn{width:26px;height:26px;border-radius:7px;background:transparent;border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-left:2px;font-size:12px;color:var(--text2);transition:all .12s}
+.ord-note-btn:active,.ord-note-btn.has-note{background:rgba(167,139,250,.12);border-color:var(--purple);color:var(--purple)}
+.ord-note-row{padding:4px 12px 8px 48px}
+.ord-note-input{width:100%;height:32px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box}
+.ord-note-input:focus{border-color:var(--purple)}
 .ord-qunit{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-left:2px}
 
 /* actions bar */
@@ -246,20 +258,39 @@ function barSuppliersHTML() {
       if (prods.length === 0) {
         inner = `<div class="ord-supp-items"><div style="padding:14px 16px;font-size:12px;color:var(--text2);font-family:var(--font-b)">Товари не призначені</div></div>`;
       } else {
-        inner = `<div class="ord-supp-items">` + prods.map(p => `
-          <div class="ord-prod-row">
-            <div class="ord-pbar" style="background:${p.col}"></div>
-            <div class="ord-pemoji">📦</div>
-            <div style="flex:1;min-width:0">
-              <div class="ord-pname">${p.name}</div>
-              <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
+        inner = `<div class="ord-supp-items">` + prods.map(p => {
+          const noteOpen = _openComments.has(p.productId) || !!_barComments[p.productId];
+          const hasNote  = !!_barComments[p.productId];
+          return `
+          <div class="ord-prod-wrap">
+            <div class="ord-prod-row">
+              <div class="ord-pbar" style="background:${p.col}"></div>
+              <div class="ord-pemoji">📦</div>
+              <div style="flex:1;min-width:0">
+                <div class="ord-pname">${p.name}</div>
+                <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
+              </div>
+              <div class="ord-qty">
+                <div class="ord-qbtn" onclick="window.__ord.changeQty('${p.productId}',-1)">−</div>
+                <input class="ord-qinput" id="bq-${p.productId}" type="number" min="0" inputmode="numeric"
+                  value="${p.qty}"
+                  onchange="window.__ord.setQty('${p.productId}',this.value)"
+                  onfocus="this.select()"
+                  ${_submitted ? 'disabled' : ''}>
+                <div class="ord-qbtn plus" onclick="window.__ord.changeQty('${p.productId}',1)">+</div>
+              </div>
+              <div class="ord-note-btn ${hasNote ? 'has-note' : ''}" onclick="window.__ord.toggleComment('${p.productId}')" title="Коментар">
+                ✏️
+              </div>
             </div>
-            <div class="ord-qty">
-              <div class="ord-qbtn" onclick="window.__ord.changeQty('${p.productId}',-1)">−</div>
-              <div class="ord-qdisp" id="bq-${p.productId}">${p.qty}<span class="ord-qunit">од.</span></div>
-              <div class="ord-qbtn plus" onclick="window.__ord.changeQty('${p.productId}',1)">+</div>
-            </div>
-          </div>`).join('') + `</div>`;
+            ${noteOpen ? `<div class="ord-note-row">
+              <input class="ord-note-input" type="text" placeholder="Коментар (напр. смак, сорт...)"
+                value="${(_barComments[p.productId] || '').replace(/"/g,'&quot;')}"
+                oninput="window.__ord.setComment('${p.productId}',this.value)"
+                id="bc-${p.productId}">
+            </div>` : ''}
+          </div>`;
+        }).join('') + `</div>`;
       }
     }
 
@@ -593,8 +624,31 @@ function changeQty(productId, delta) {
   if (_submitted) return;
   _barQtys[productId] = Math.max(0, (_barQtys[productId] || 0) + delta);
   const el = document.getElementById(`bq-${productId}`);
-  if (el) el.innerHTML = _barQtys[productId] + `<span class="ord-qunit">од.</span>`;
+  if (el) el.value = _barQtys[productId];
   else partialRefreshSupps();
+}
+
+function setQty(productId, value) {
+  if (_submitted) return;
+  const n = Math.max(0, parseInt(value, 10) || 0);
+  _barQtys[productId] = n;
+  const el = document.getElementById(`bq-${productId}`);
+  if (el) el.value = n;
+}
+
+function toggleComment(productId) {
+  if (_openComments.has(productId)) {
+    _openComments.delete(productId);
+  } else {
+    _openComments.add(productId);
+  }
+  partialRefreshSupps();
+}
+
+function setComment(productId, value) {
+  _barComments[productId] = value.trim() ? value : '';
+  const btn = document.querySelector(`.ord-note-btn[onclick*="${productId}"]`);
+  if (btn) btn.classList.toggle('has-note', !!value.trim());
 }
 
 function submitOrder()  { _submitted = true;  fullRender(); }
@@ -767,6 +821,8 @@ async function removeProduct(spId) {
 export default {
   render() {
     _barQtys       = {};
+    _barComments   = {};
+    _openComments  = new Set();
     _submitted     = false;
     _mgrTab        = 'orders';
     _suppSheet     = null;
@@ -779,7 +835,7 @@ export default {
   },
   init() {
     window.__ord = {
-      toggleSupp, changeQty, submitOrder, resetOrder,
+      toggleSupp, changeQty, setQty, toggleComment, setComment, submitOrder, resetOrder,
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,

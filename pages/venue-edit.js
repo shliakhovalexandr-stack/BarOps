@@ -352,22 +352,6 @@ ${CSS}
         </button>
       </div>
 
-      <!-- Концепція для актів списання -->
-      <div class="ve-sec">Концепція (акт списання)</div>
-      <div class="ve-card">
-        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:12px">
-          Оберіть концепцію Syrve, яка буде автоматично вказана в кожному акті списання (наприклад «Ресторан»).
-        </div>
-        <button type="button" id="btn-load-conceptions" class="ve-btn"
-          style="width:100%;background:transparent;border:1.5px solid var(--amber);color:var(--amber);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:44px;border-radius:12px;margin-bottom:12px">
-          Завантажити концепції з Syrve
-        </button>
-        <div id="wo-conceptions-list" style="display:flex;flex-direction:column;gap:6px"></div>
-        <button type="button" id="btn-save-conception" class="ve-btn ve-btn-green"
-          style="width:100%;margin-top:12px;height:44px;border-radius:12px;display:none">
-          Зберегти концепцію
-        </button>
-      </div>
       ` : _draft.posType === 'poster' ? `
       <div class="ve-sec">🍃 Poster інтеграція</div>
       <div class="ve-card">
@@ -896,93 +880,6 @@ async function initIikoSection(venueId) {
       if (!r.ok) throw new Error((await r.json()).error);
       localStorage.setItem(`barops_wo_accounts_${venueId}`, JSON.stringify(selected));
       showToast(`Збережено ${selected.length} рахунків`);
-    } catch (err) {
-      alert('Помилка збереження: ' + err.message);
-    }
-  });
-
-  // ── Концепції для актів списання ──
-  let _allConceptions = [];
-  let _savedConceptionId = localStorage.getItem(`barops_wo_conception_${venueId}`) || null;
-
-  document.getElementById('btn-load-conceptions')?.addEventListener('click', async () => {
-    const btn = document.getElementById('btn-load-conceptions');
-    btn.disabled = true; btn.textContent = '⏳ Завантаження...';
-    try {
-      const r = await fetch(`${API}/api/pos/syrve-conceptions/${venueId}`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Помилка');
-      _allConceptions = d.conceptions || [];
-      if (d.savedId) _savedConceptionId = d.savedId;
-      const wrap = document.getElementById('wo-conceptions-list');
-      const saveBtn = document.getElementById('btn-save-conception');
-      if (!_allConceptions.length) {
-        wrap.innerHTML = `
-          <div style="font-size:12px;color:var(--amber);font-family:var(--font-b);margin-bottom:10px">
-            Автоматично не знайдено. Введіть ID концепції вручну (з Syrve Office → Адміністрування → Концепції):
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input id="wo-conception-manual" type="text"
-              placeholder="напр. 123e4567-e89b-12d3-a456-426614174000"
-              value="${_savedConceptionId || ''}"
-              style="flex:1;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:10px;padding:0 12px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none"/>
-            <button id="btn-save-conception-manual"
-              style="padding:0 14px;height:40px;border-radius:10px;border:0.5px solid var(--amber-border);background:var(--amber-bg);color:var(--amber);font-size:12px;font-family:var(--font-b);cursor:pointer;white-space:nowrap">
-              Зберегти
-            </button>
-          </div>`;
-        if (saveBtn) saveBtn.style.display = 'none';
-        document.getElementById('btn-save-conception-manual')?.addEventListener('click', async () => {
-          const id = (document.getElementById('wo-conception-manual')?.value || '').trim() || null;
-          try {
-            const r = await fetch(`${API}/api/pos/writeoff-conception/${venueId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-              body: JSON.stringify({ conceptionId: id }),
-            });
-            if (!r.ok) throw new Error((await r.json()).error);
-            _savedConceptionId = id;
-            if (id) localStorage.setItem(`barops_wo_conception_${venueId}`, id);
-            else localStorage.removeItem(`barops_wo_conception_${venueId}`);
-            showToast(id ? 'Концепцію збережено' : 'Концепцію скинуто');
-          } catch (err) {
-            alert('Помилка: ' + err.message);
-          }
-        });
-        return;
-      }
-      wrap.innerHTML = _allConceptions.map(c => `
-        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
-          <input type="radio" name="wo-conception" data-id="${c.id}" ${_savedConceptionId === c.id ? 'checked' : ''}
-            style="width:16px;height:16px;accent-color:var(--amber)">
-          <span style="font-size:13px;color:var(--text0);font-family:var(--font-b)">${c.name}</span>
-        </label>
-      `).join('');
-      if (saveBtn) saveBtn.style.display = 'block';
-    } catch (err) {
-      alert('Не вдалось завантажити концепції: ' + err.message);
-    } finally {
-      btn.disabled = false; btn.textContent = 'Завантажити концепції з Syrve';
-    }
-  });
-
-  document.getElementById('btn-save-conception')?.addEventListener('click', async () => {
-    const checked = document.querySelector('#wo-conceptions-list input[name="wo-conception"]:checked');
-    const conceptionId = checked?.dataset?.id || null;
-    const conception = _allConceptions.find(c => c.id === conceptionId);
-    try {
-      const r = await fetch(`${API}/api/pos/writeoff-conception/${venueId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ conceptionId }),
-      });
-      if (!r.ok) throw new Error((await r.json()).error);
-      _savedConceptionId = conceptionId;
-      if (conceptionId) localStorage.setItem(`barops_wo_conception_${venueId}`, conceptionId);
-      else localStorage.removeItem(`barops_wo_conception_${venueId}`);
-      showToast(conception ? `Концепцію "${conception.name}" збережено` : 'Концепцію скинуто');
     } catch (err) {
       alert('Помилка збереження: ' + err.message);
     }
