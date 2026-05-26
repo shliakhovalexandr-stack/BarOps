@@ -52,6 +52,10 @@ const CSS = `<style id="ve-css">
 .ve-toast.error{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
 .ve-input--saved{border-color:rgba(34,197,94,.5)!important;background:rgba(34,197,94,.04)!important}
 .ve-saved-badge{font-size:10px;color:var(--green,#22c55e);font-family:var(--font-b);margin:-10px 0 12px 2px;display:flex;align-items:center;gap:4px;opacity:.85}
+.ve-tg-item{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);cursor:pointer;display:flex;flex-direction:column;gap:3px;transition:background .15s}
+.ve-tg-item:active{background:rgba(255,255,255,.1)}
+.ve-tg-name{font-size:13px;color:var(--text0);font-family:var(--font-b)}
+.ve-tg-id{font-size:10px;color:var(--text3);font-family:monospace;word-break:break-all}
 </style>`;
 
 function markSaved(id) {
@@ -324,10 +328,16 @@ ${CSS}
           <input class="ve-input" id="iiko-password" type="password" placeholder="••••••">
           <div class="ve-hint">Пароль співробітника Syrve</div>
         </div>
-        <div class="ve-field" style="margin-bottom:12px">
+        <div class="ve-field" style="margin-bottom:4px">
           <label class="ve-label">ID ДЕПАРТАМЕНТУ (необов'язково)</label>
-          <input class="ve-input" id="iiko-department-id" type="text" value="${escapeHtml(_draft.syrveDepartmentId)}" placeholder="UUID департаменту Syrve">
-          <div class="ve-hint">Якщо вказати — залишки та стоп-лист фільтруватимуться по складах цього департаменту</div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <input class="ve-input" id="iiko-department-id" type="text" value="${escapeHtml(_draft.syrveDepartmentId)}" placeholder="UUID департаменту Syrve" style="margin-bottom:0;flex:1">
+            <button type="button" id="btn-load-tg" style="flex-shrink:0;height:48px;padding:0 14px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-h);white-space:nowrap">
+              Знайти
+            </button>
+          </div>
+          <div class="ve-hint" style="margin-top:6px">Якщо вказати — залишки та стоп-лист фільтруватимуться по складах цього департаменту</div>
+          <div id="tg-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none"></div>
         </div>
 
         <!-- Кнопки -->
@@ -880,6 +890,47 @@ async function initIikoSection(venueId) {
       alert('Не вдалось завантажити рахунки: ' + err.message);
     } finally {
       btn.disabled = false; btn.textContent = 'Завантажити рахунки з Syrve';
+    }
+  });
+
+  document.getElementById('btn-load-tg')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-load-tg');
+    const listEl = document.getElementById('tg-list');
+    btn.disabled = true; btn.textContent = '⏳';
+    if (listEl) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
+    try {
+      const r = await fetch(`${API}/api/pos/terminal-groups/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Помилка');
+      const groups = d.groups || [];
+      if (!groups.length) {
+        if (listEl) {
+          listEl.style.display = 'flex';
+          listEl.innerHTML = `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Термінальні групи не знайдено. Перевірте URL та логін.</div>`;
+        }
+        return;
+      }
+      if (listEl) {
+        listEl.innerHTML = groups.map(g => `
+          <div class="ve-tg-item" data-id="${g.id}">
+            <span class="ve-tg-name">${g.name}</span>
+            <span class="ve-tg-id">${g.id}</span>
+          </div>`).join('');
+        listEl.style.display = 'flex';
+        listEl.querySelectorAll('.ve-tg-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const deptEl = document.getElementById('iiko-department-id');
+            if (deptEl) { deptEl.value = item.dataset.id; deptEl.dispatchEvent(new Event('input')); }
+            listEl.querySelectorAll('.ve-tg-item').forEach(el => el.style.background = '');
+            item.style.background = 'rgba(168,85,247,.15)';
+            item.style.borderColor = 'rgba(168,85,247,.5)';
+          });
+        });
+      }
+    } catch (err) {
+      alert('Не вдалось завантажити групи: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Знайти';
     }
   });
 
