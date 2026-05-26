@@ -226,7 +226,8 @@ function renderDrawer() {
       ${DRAWER_NAV.map(item => {
         const isActive = state.route === item.route;
         return `
-        <div onclick="window.__barops.navigate('${item.route}');window.__barops.closeDrawer()"
+        <div data-drawer-route="${item.route}"
+          onclick="window.__barops.navigate('${item.route}');window.__barops.closeDrawer()"
           style="display:flex;align-items:center;gap:12px;padding:12px 20px;cursor:pointer;
                  background:${isActive?'rgba(168,139,255,.10)':'transparent'};
                  border-right:${isActive?'3px solid var(--green)':'3px solid transparent'};
@@ -559,16 +560,21 @@ export async function navigate(route, opts = {}) {
       tabBarEl.style.display = 'none';
     } else {
       tabBarEl.style.display = 'flex';
-      renderTabBar();
+      updateTabBarActive();
     }
   }
 
-  // Drawer (менеджер)
+  // Drawer (менеджер) — тільки якщо відкритий, щоб не руйнувати DOM під активним дотиком
   const drawerWrap = document.getElementById('app-drawer-wrap');
   if (drawerWrap) {
+    const wasOpen = _drawerOpen;
     _drawerOpen = false;
-    if ((state.role === 'admin' || state.role === 'manager') && !noTabBar.includes(route)) renderDrawer();
-    else drawerWrap.innerHTML = '';
+    if ((state.role === 'admin' || state.role === 'manager') && !noTabBar.includes(route)) {
+      if (wasOpen) renderDrawer();
+      else updateDrawerActive();
+    } else {
+      drawerWrap.innerHTML = '';
+    }
   }
 }
 
@@ -580,6 +586,42 @@ export function goBack() {
 /* ══════════════════════════════════════
    6. TAB BAR RENDERER
    ══════════════════════════════════════ */
+
+// Оновлює тільки активний стан без заміни DOM — запобігає втраті touch-події
+function updateTabBarActive() {
+  const el = document.getElementById('app-tab-bar');
+  if (!el || !el.children.length) { renderTabBar(); return; }
+  const tabs = state.role === 'admin' || state.role === 'manager' ? TAB_BAR_MANAGER
+             : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT : TAB_BAR_BARTENDER;
+  if (el.children.length !== tabs.length) { renderTabBar(); return; }
+  [...el.children].forEach((btn, i) => {
+    if (!tabs[i]) return;
+    const isActive = state.route === tabs[i].route;
+    const color = isActive ? 'var(--green)' : 'var(--text2)';
+    btn.classList.toggle('tab-bar__item--active', isActive);
+    btn.style.setProperty('--tab-color', color);
+    const icon  = btn.querySelector('.tab-bar__icon');
+    const label = btn.querySelector('.tab-bar__label');
+    if (icon)  icon.style.color  = color;
+    if (label) label.style.color = color;
+  });
+}
+
+// Оновлює активний пункт drawer без заміни DOM
+function updateDrawerActive() {
+  const el = document.getElementById('app-drawer-wrap');
+  if (!el) return;
+  el.querySelectorAll('[data-drawer-route]').forEach(item => {
+    const isActive = state.route === item.dataset.drawerRoute;
+    item.style.background      = isActive ? 'rgba(168,139,255,.10)' : 'transparent';
+    item.style.borderRight     = isActive ? '3px solid var(--green)' : '3px solid transparent';
+    const svg   = item.querySelector('svg');
+    const span  = item.querySelector('span');
+    if (svg)  svg.style.color   = isActive ? 'var(--green)' : 'var(--text2)';
+    if (span) { span.style.color = isActive ? 'var(--green)' : 'var(--text1)'; span.style.fontWeight = isActive ? '600' : '400'; }
+  });
+}
+
 function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
