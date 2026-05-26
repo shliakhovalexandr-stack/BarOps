@@ -73,6 +73,9 @@ const QUICK_MANAGER = [
 
 const QUICK_ADMIN = [
   ...QUICK_MANAGER,
+  { route:'ocr',      badge:null, label:'Накладна',        hint:'Сканування товарних накладних', color:'var(--green-bg)', iconColor:'var(--green)',
+    svg:`<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+         <path d="M6 6h7M6 9h7M6 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   { route:'schedule', badge:null, label:'Графіки',         hint:'Розклад змін по підрозділах',  color:'var(--teal-bg)',   iconColor:'var(--teal)',
     svg:`<rect x="2" y="3" width="14" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
          <path d="M2 7h14" stroke="currentColor" stroke-width="1.3"/>
