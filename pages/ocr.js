@@ -1227,7 +1227,7 @@ export default {
 
   init() {
     window.__ocr = {
-      goStep, handleFile, toggleFlash, confirmInvoice, selectInv,
+      goStep, handleFile, toggleFlash, confirmInvoice,
       toggleSuppEdit, closeSuppEdit, saveSuppEdit,
       setFilter, toggleEdit, cancelItem, saveItem,
       deleteItem, recalcTotal, addItem, toggleEditAll,
