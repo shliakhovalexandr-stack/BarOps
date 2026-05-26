@@ -268,9 +268,12 @@ async function saveForm() {
    CARD HTML
 ════════════════════════════════════════ */
 function debtCard(d) {
-  const done = d.returned;
-  const badge = done ? 'done' : d.type;
-  const badgeTxt = done ? 'Повернуто' : d.type === 'sale' ? 'Продаж' : 'Борг';
+  const done     = d.returned;
+  const isSale   = d.type === 'sale';
+  const badge    = done ? 'done' : d.type;
+  const badgeTxt = done ? (isSale ? 'Продано' : 'Повернуто') : (isSale ? 'Продаж' : 'Борг');
+  const doneLabel = isSale ? 'Продано' : 'Повернуто';
+  const btnLabel  = isSale ? '✓ Продано' : '✓ Позначити як повернуто';
 
   if (done && !_expanded.has(d.id)) {
     return `
@@ -304,8 +307,8 @@ function debtCard(d) {
     </div>
     ${d.userName?`<div class="dbt-card-date" style="margin-top:2px">Вніс: ${d.userName}</div>`:''}
     ${d.note?`<div class="dbt-card-note">${d.note}</div>`:''}
-    ${done?`<div class="dbt-card-returned">✓ Повернуто ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+d.returnedByName:''}</div>`:''}
-    ${!done?`<button class="dbt-return-btn" onclick="window.__dbt.markReturned('${d.id}')">✓ Позначити як повернуто</button>`:''}
+    ${done?`<div class="dbt-card-returned">✓ ${doneLabel} ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+d.returnedByName:''}</div>`:''}
+    ${!done?`<button class="dbt-return-btn" onclick="window.__dbt.markReturned('${d.id}')">${btnLabel}</button>`:''}
   </div>`;
 }
 
@@ -322,7 +325,7 @@ function redraw() {
   el.innerHTML = `
     <div class="dbt-summary">
       <div class="dbt-stat"><div class="dbt-stat-val red">${active}</div><div class="dbt-stat-lbl">${_tab==='debt'?'Активних боргів':'Активних продажів'}</div></div>
-      <div class="dbt-stat"><div class="dbt-stat-val green">${done}</div><div class="dbt-stat-lbl">Повернуто / закрито</div></div>
+      <div class="dbt-stat"><div class="dbt-stat-val green">${done}</div><div class="dbt-stat-lbl">${_tab==='sale'?'Продано / закрито':'Повернуто / закрито'}</div></div>
     </div>
     <button class="dbt-add-btn" onclick="window.__dbt.openForm()">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>
