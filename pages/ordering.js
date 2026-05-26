@@ -17,8 +17,9 @@ let _barComments  = {};   // productId → comment string
 let _barUnits     = {};   // productId → обрана одиниця (Ящ/пл/л/шт/кг)
 let _openCards    = new Set(); // productId для яких розгорнуто картку
 
-let _orders        = [];   // менеджерський список заявок
-let _ordersLoading = false;
+let _orders           = [];   // менеджерський список заявок
+let _ordersLoading    = false;
+let _expandedOrders   = new Set(); // id виконаних заявок які розгорнуті
 let _venueId      = null;
 let _token        = null;
 let _loading      = true;
@@ -410,11 +411,35 @@ function mgrOrdersHTML() {
       <button onclick="window.__ord.loadOrders()" style="width:100%;height:40px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button>
     </div>`;
 
-  function orderCard(o) {
+  function suppliersHTML(o) {
+    return (o.suppliers || []).map((s, si) => {
+      const items  = (s.items || []).filter(i => (i.qty || 0) > 0);
+      const copyId = `copy-${o.id}-${si}`;
+      return `
+      <div class="ord-req-supp">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="ord-req-sname" style="margin-bottom:0">${s.supplierName || 'Постачальник'}</div>
+          <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
+            style="height:24px;padding:0 10px;border-radius:7px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--font-b);cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:4px">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Копіювати
+          </button>
+        </div>
+        ${items.map(i => `
+          <div class="ord-req-item">
+            <span class="ord-req-iname">${i.productName}</span>
+            <span class="ord-req-iqty">${i.qty} ${i.unit || 'од.'}</span>
+          </div>
+          ${i.comment ? `<div class="ord-req-icomment">${i.comment}</div>` : ''}
+        `).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  function activeCard(o) {
     const t = new Date(o.createdAt);
     const timeStr = t.toLocaleDateString('uk-UA', { day:'numeric', month:'short' }) + ' · ' +
                     t.toLocaleTimeString('uk-UA', { hour:'2-digit', minute:'2-digit' });
-    const isDone = o.status === 'done';
     return `
     <div class="ord-req-card">
       <div class="ord-req-hdr">
@@ -422,31 +447,34 @@ function mgrOrdersHTML() {
           <div class="ord-req-name">${o.submittedBy || '—'}</div>
           <div class="ord-req-time">${timeStr}</div>
         </div>
-        <div class="ord-req-badge ${isDone ? 'done' : 'pending'}">${isDone ? 'Виконано' : 'Очікує'}</div>
+        <div class="ord-req-badge pending">Очікує</div>
       </div>
-      ${(o.suppliers || []).map((s, si) => {
-        const items = (s.items || []).filter(i => (i.qty || 0) > 0);
-        const copyId = `copy-${o.id}-${si}`;
-        return `
-        <div class="ord-req-supp">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <div class="ord-req-sname" style="margin-bottom:0">${s.supplierName || 'Постачальник'}</div>
-            <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
-              style="height:24px;padding:0 10px;border-radius:7px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--font-b);cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:4px">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              Копіювати
-            </button>
+      ${suppliersHTML(o)}
+      <button class="ord-req-done-btn" onclick="window.__ord.markOrderDone('${o.id}')">✓ Позначити виконаним</button>
+    </div>`;
+  }
+
+  function doneCard(o) {
+    const t = new Date(o.createdAt);
+    const timeStr = t.toLocaleDateString('uk-UA', { day:'numeric', month:'short' }) + ' · ' +
+                    t.toLocaleTimeString('uk-UA', { hour:'2-digit', minute:'2-digit' });
+    const isExpanded = _expandedOrders.has(o.id);
+    const totalItems = (o.suppliers||[]).reduce((a,s)=>a+(s.items||[]).filter(i=>i.qty>0).length, 0);
+    return `
+    <div class="ord-req-card" style="opacity:.75">
+      <div class="ord-req-hdr" style="cursor:pointer" onclick="window.__ord.toggleDoneOrder('${o.id}')">
+        <div class="ord-req-who">
+          <div class="ord-req-name" style="font-size:12px">${o.submittedBy || '—'} · ${totalItems} поз.</div>
+          <div class="ord-req-time">${timeStr}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="ord-req-badge done">Виконано</div>
+          <div style="color:var(--text2);transition:transform .2s;transform:${isExpanded?'rotate(180deg)':'none'}">
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          ${items.map(i => `
-            <div class="ord-req-item">
-              <span class="ord-req-iname">${i.productName}</span>
-              <span class="ord-req-iqty">${i.qty} ${i.unit || 'од.'}</span>
-            </div>
-            ${i.comment ? `<div class="ord-req-icomment">${i.comment}</div>` : ''}
-          `).join('')}
-        </div>`;
-      }).join('')}
-      ${!isDone ? `<button class="ord-req-done-btn" onclick="window.__ord.markOrderDone('${o.id}')">✓ Позначити виконаним</button>` : ''}
+        </div>
+      </div>
+      ${isExpanded ? suppliersHTML(o) : ''}
     </div>`;
   }
 
@@ -455,10 +483,10 @@ function mgrOrdersHTML() {
       <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em">Нові заявки (${active.length})</div>
       <button onclick="window.__ord.loadOrders()" style="height:28px;padding:0 12px;border-radius:8px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:11px;font-family:var(--font-b);cursor:pointer">Оновити</button>
     </div>
-    ${active.length ? active.map(orderCard).join('') : `<div style="padding:14px 14px 0;font-size:12px;color:var(--text2);font-family:var(--font-b)">Нових заявок немає</div>`}
+    ${active.length ? active.map(activeCard).join('') : `<div style="padding:14px 14px 0;font-size:12px;color:var(--text2);font-family:var(--font-b)">Нових заявок немає</div>`}
     ${done.length ? `
       <div style="margin:14px 14px 8px;font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em">Виконані (${done.length})</div>
-      ${done.slice(0, 5).map(orderCard).join('')}` : ''}`;
+      ${done.slice(0, 10).map(doneCard).join('')}` : ''}`;
 }
 
 /* ════════════════════════
@@ -851,6 +879,12 @@ async function copySupplier(orderId, suppIdx, btnId) {
   }
 }
 
+function toggleDoneOrder(id) {
+  if (_expandedOrders.has(id)) _expandedOrders.delete(id);
+  else _expandedOrders.add(id);
+  fullRender();
+}
+
 async function markOrderDone(id) {
   try {
     await fetch(`${API}/api/orders/${id}`, {
@@ -1036,8 +1070,9 @@ export default {
     _openCards     = new Set();
     _submitted     = false;
     _mgrTab        = 'orders';
-    _orders        = [];
-    _ordersLoading = false;
+    _orders          = [];
+    _ordersLoading   = false;
+    _expandedOrders  = new Set();
     _suppSheet     = null;
     _prodPickerSupp = null;
     _prodSearch    = '';
@@ -1048,7 +1083,7 @@ export default {
   },
   init() {
     window.__ord = {
-      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, loadOrders, markOrderDone, copySupplier,
+      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
