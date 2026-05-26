@@ -660,7 +660,6 @@ function reasonListHTML() {
 
 function getWoAccounts() {
   const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
-  console.log('[WO] getWoAccounts vId=', vId, 'key=', `barops_wo_accounts_${vId}`, 'raw=', localStorage.getItem(`barops_wo_accounts_${vId}`));
   if (!vId) return [];
   try { return JSON.parse(localStorage.getItem(`barops_wo_accounts_${vId}`) || '[]'); } catch { return []; }
 }
@@ -1590,6 +1589,21 @@ export default {
       }
     } catch (e) {
       console.warn('[Writeoff] Не вдалось завантажити з backend, використовуємо localStorage:', e.message);
+    }
+
+    // Завантажуємо рахунки списань з бекенду (доступно всім ролям)
+    try {
+      const token = localStorage.getItem('barops_token');
+      const accRes = await fetch(`${API}/api/pos/saved-accounts/${vId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (accRes.ok) {
+        const accData = await accRes.json();
+        const accounts = accData.accounts || [];
+        localStorage.setItem(`barops_wo_accounts_${vId}`, JSON.stringify(accounts));
+      }
+    } catch (e) {
+      console.warn('[Writeoff] Рахунки не завантажились:', e.message);
     }
 
     // Завантажуємо товари з POS balance API
