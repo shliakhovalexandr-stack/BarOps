@@ -317,18 +317,35 @@ function buildDiagHtml(d) {
     </div>`);
   }
 
+  // Terminal groups
+  const tg = d.terminalGroups;
+  if (tg) {
+    const hasGroups = tg.items && tg.items.length > 0;
+    rows.push(`<div class="sl-diag-row ${hasGroups ? 'ok' : 'fail'}">
+      <div class="sl-diag-dot ${hasGroups ? 'ok' : 'fail'}"></div>
+      <div style="width:100%">
+        <div class="sl-diag-label">Термінальні групи (terminal_groups) · ${tg.items?.length ?? 0}</div>
+        ${hasGroups
+          ? `<div class="sl-diag-tg">${tg.items.map(t => `<div class="sl-diag-tg-row"><span class="sl-diag-tg-id">${t.name}</span><span class="sl-diag-tg-cnt" style="font-size:9px;opacity:.6">${t.id}</span></div>`).join('')}</div>
+             <div class="sl-diag-val" style="margin-top:6px;color:var(--amber)">Вкажи один з цих ID у полі <strong>Syrve Department ID</strong> закладу</div>`
+          : `<div class="sl-diag-val">Syrve не повертає жодної термінальної групи для цієї організації.<br>Стоп-ліст через API неможливий без Terminal Group.</div>
+             <pre style="margin-top:6px;font-size:10px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4">${(tg.rawPreview||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>`}
+      </div>
+    </div>`);
+  }
+
   // stop_lists/check results
   const checks = d.stopListsCheck || [];
   if (checks.length > 0) {
     for (const c of checks) {
-      const cnt    = c.itemCount;
+      const cnt      = c.itemCount;
       const hasItems = typeof cnt === 'number' && cnt > 0;
-      const rowCls = c.error ? 'fail' : hasItems ? 'ok' : 'warn';
+      const rowCls   = c.error ? 'fail' : hasItems ? 'ok' : 'warn';
       rows.push(`<div class="sl-diag-row ${rowCls}">
         <div class="sl-diag-dot ${rowCls}"></div>
         <div style="width:100%">
-          <div class="sl-diag-label">stop_lists/check (org: ${c.organizationId?.slice(0,8)}…)</div>
-          <div class="sl-diag-val">${c.error ? c.error : `HTTP ${c.status} · ${cnt !== null ? cnt + ' позицій' : 'itemCount невідомий'}`}</div>
+          <div class="sl-diag-label">stop_lists/check${c.terminalGroupName ? ' · ' + c.terminalGroupName : ''}</div>
+          <div class="sl-diag-val">${c.error ? c.error : `HTTP ${c.status} · ${cnt !== null ? cnt + ' позицій' : 'невідомий формат'}`}</div>
           ${c.rawPreview ? `<pre style="margin-top:6px;font-size:10px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4">${c.rawPreview.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>` : ''}
         </div>
       </div>`);
