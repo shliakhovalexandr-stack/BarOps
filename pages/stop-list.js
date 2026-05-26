@@ -361,6 +361,55 @@ function buildDiagHtml(d) {
     </div>`);
   }
 
+  // Self-hosted server section
+  if (d.selfhosted) {
+    const sh = d.selfhosted;
+    rows.push(`<div style="margin-top:16px;padding-top:12px;border-top:0.5px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--purple,#a855f7);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">SELF-HOSTED: ${sh.base}</div>
+    </div>`);
+    if (sh.error) {
+      rows.push(`<div class="sl-diag-row fail"><div class="sl-diag-dot fail"></div><div><div class="sl-diag-label">Помилка</div><div class="sl-diag-val">${sh.error}</div></div></div>`);
+    } else if (sh.auth) {
+      const authOk = sh.auth.hasToken;
+      rows.push(`<div class="sl-diag-row ${authOk ? 'ok' : 'fail'}">
+        <div class="sl-diag-dot ${authOk ? 'ok' : 'fail'}"></div>
+        <div><div class="sl-diag-label">Self-hosted авторизація (/api/1/access_token + password)</div>
+        <div class="sl-diag-val">HTTP ${sh.auth.status} · ${authOk ? 'Токен отримано' : 'Помилка авторизації'}</div></div>
+      </div>`);
+      if (authOk) {
+        if (sh.stopLists) {
+          const shGroups = sh.stopLists.groups || [];
+          const hasShItems = shGroups.some(g => g.itemCount > 0);
+          rows.push(`<div class="sl-diag-row ${hasShItems ? 'ok' : 'warn'}">
+            <div class="sl-diag-dot ${hasShItems ? 'ok' : 'warn'}"></div>
+            <div style="width:100%">
+              <div class="sl-diag-label">Self-hosted stop_lists</div>
+              <div class="sl-diag-val">${hasShItems ? shGroups.map(g => `${g.terminalGroupId}: ${g.itemCount} позицій`).join(', ') : 'Порожньо'}</div>
+              ${sh.stopLists.rawPreview ? `<pre style="margin-top:6px;font-size:9px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4">${sh.stopLists.rawPreview.slice(0,400).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>` : ''}
+            </div>
+          </div>`);
+        }
+        if (sh.checks && sh.checks.length > 0) {
+          for (const c of sh.checks) {
+            const cnt = c.rejectedCount ?? null;
+            const hasStop = cnt !== null && cnt > 0;
+            rows.push(`<div class="sl-diag-row ${hasStop ? 'ok' : 'warn'}">
+              <div class="sl-diag-dot ${hasStop ? 'ok' : 'warn'}"></div>
+              <div style="width:100%">
+                <div class="sl-diag-label">Self-hosted stop_lists/check · ${c.terminalGroupName || c.terminalGroupId}</div>
+                <div class="sl-diag-val">${c.error || `HTTP ${c.status} · ${cnt !== null ? cnt + ' страв у стопі' : 'невідомий формат'}`}</div>
+                ${c.rawPreview ? `<pre style="margin-top:6px;font-size:9px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4">${c.rawPreview.slice(0,300).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>` : ''}
+              </div>
+            </div>`);
+          }
+        }
+        if (sh.nomenclatureCount !== undefined) {
+          rows.push(`<div class="sl-diag-row"><div class="sl-diag-dot info"></div><div><div class="sl-diag-label">Self-hosted номенклатура</div><div class="sl-diag-val">${sh.nomenclatureCount} позицій передано до stop_lists/check</div></div></div>`);
+        }
+      }
+    }
+  }
+
   return rows.join('');
 }
 
