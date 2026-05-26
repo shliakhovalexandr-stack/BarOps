@@ -11,6 +11,10 @@ let _step       = 'idle';
 let _photoFile  = null;
 let _photoUrl   = null;
 let _errorMsg   = '';
+let _excTgChatId  = '';
+let _excTgTopicId = '';
+let _excTgSaving  = false;
+let _excTgSaved   = false;
 
 const CSS = `<style id="exc-css">
 .exc-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
@@ -53,6 +57,20 @@ const CSS = `<style id="exc-css">
 .exc-done-again:active{background:rgba(255,255,255,.08)}
 .exc-error{margin:0 0 12px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:14px;padding:12px 14px;font-size:12px;color:var(--red);line-height:1.5;text-align:center}
 .exc-file-input{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
+.exc-tg-panel{margin:0 0 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.exc-tg-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;border-bottom:0.5px solid var(--border)}
+.exc-tg-head-lbl{font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
+.exc-tg-head-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
+.exc-tg-body{padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+.exc-tg-grp{display:flex;flex-direction:column;gap:4px}
+.exc-tg-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase}
+.exc-tg-inp{height:40px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .18s;width:100%}
+.exc-tg-inp:focus{border-color:var(--green)}
+.exc-tg-hint{font-size:10px;color:var(--text2);font-family:var(--font-b);line-height:1.4}
+.exc-tg-save-row{display:flex;justify-content:flex-end}
+.exc-tg-save{height:36px;padding:0 16px;background:var(--green);border:none;border-radius:9px;font-size:12px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-b);transition:all .15s}
+.exc-tg-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
+.exc-tg-save:active{opacity:.8}
 </style>`;
 
 function getToken() {
@@ -86,8 +104,43 @@ function fmtTime() {
   });
 }
 
+function exciseTgPanel() {
+  return `
+  <div class="exc-tg-panel" id="exc-tg-panel">
+    <div class="exc-tg-head" onclick="document.getElementById('exc-tg-body').style.display=document.getElementById('exc-tg-body').style.display==='none'?'flex':'none'">
+      <div>
+        <div class="exc-tg-head-lbl">⚙️ Telegram для акцизних марок</div>
+        <div class="exc-tg-head-sub">Налаштування чату для адміністратора</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div id="exc-tg-body" class="exc-tg-body" style="display:none">
+      <div class="exc-tg-grp">
+        <div class="exc-tg-lbl">Chat ID</div>
+        <input class="exc-tg-inp" id="exc-tg-chat" type="text" placeholder="-100xxxxxxxxxx"
+          value="${_excTgChatId}" oninput="window.__excise.tgChanged()">
+        <div class="exc-tg-hint">Залиш порожнім — буде використовуватись глобальний чат бота</div>
+      </div>
+      <div class="exc-tg-grp">
+        <div class="exc-tg-lbl">Topic ID (message_thread_id)</div>
+        <input class="exc-tg-inp" id="exc-tg-topic" type="text" placeholder="123"
+          value="${_excTgTopicId}" oninput="window.__excise.tgChanged()">
+        <div class="exc-tg-hint">ID топіку в групі для акцизних марок</div>
+      </div>
+      <div class="exc-tg-save-row">
+        <button class="exc-tg-save ${_excTgSaved?'saved':''}" id="exc-tg-save-btn"
+          onclick="window.__excise.saveTg()">
+          ${_excTgSaved ? '✓ Збережено' : 'Зберегти'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function render() {
   const { name, venueName } = getUserInfo();
+  const role    = state.role || '';
+  const isAdmin = role === 'admin' || role === 'manager';
 
   if (_step === 'sending') {
     return `${CSS}
@@ -175,6 +228,8 @@ function render() {
             Галерея
           </button>
         </div>
+
+        ${isAdmin ? exciseTgPanel() : ''}
         ` : ''}
 
         ${hasPhoto ? `
@@ -308,6 +363,59 @@ async function send() {
   }
 }
 
+async function loadExciseTgSettings() {
+  try {
+    const venueId = localStorage.getItem('barops_venueId') || '';
+    if (!venueId) return;
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/venues`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    const venue = (d.venues || []).find(v => v.id === venueId);
+    if (venue) {
+      _excTgChatId  = venue.telegramExciseChatId  || '';
+      _excTgTopicId = venue.telegramExciseTopicId || '';
+      rerender();
+    }
+  } catch {}
+}
+
+async function saveExciseTg() {
+  if (_excTgSaving) return;
+  _excTgSaving = true;
+  const btn = document.getElementById('exc-tg-save-btn');
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  try {
+    const venueId   = localStorage.getItem('barops_venueId') || '';
+    const chatInput  = document.getElementById('exc-tg-chat');
+    const topicInput = document.getElementById('exc-tg-topic');
+    _excTgChatId  = chatInput?.value.trim()  || '';
+    _excTgTopicId = topicInput?.value.trim() || '';
+
+    const res = await fetch(`${API_URL}/api/venues/${venueId}/telegram`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body:    JSON.stringify({
+        telegramExciseChatId:  _excTgChatId  || null,
+        telegramExciseTopicId: _excTgTopicId || null,
+      }),
+    });
+    const d = await res.json();
+    if (d.success) {
+      _excTgSaved = true;
+      if (btn) { btn.textContent = '✓ Збережено'; btn.classList.add('saved'); btn.disabled = false; }
+    } else {
+      if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+    }
+  } catch {
+    if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+  }
+  _excTgSaving = false;
+}
+
 export default {
   render(params) {
     _step      = 'idle';
@@ -315,13 +423,24 @@ export default {
     if (_photoUrl) URL.revokeObjectURL(_photoUrl);
     _photoUrl  = null;
     _errorMsg  = '';
+    _excTgSaved = false;
 
-    // Ініціалізуємо глобальний об'єкт
-    window.__excise = { goBack, reset, openCamera, openGallery, handleFile, send };
+    window.__excise = {
+      goBack, reset, openCamera, openGallery, handleFile, send,
+      tgChanged: () => {
+        _excTgSaved = false;
+        const btn = document.getElementById('exc-tg-save-btn');
+        if (btn) { btn.textContent = 'Зберегти'; btn.classList.remove('saved'); }
+      },
+      saveTg: saveExciseTg,
+    };
+
+    const role = state.role || '';
+    if (role === 'admin' || role === 'manager') {
+      loadExciseTgSettings();
+    }
 
     return render();
   },
-  init(params) {
-    // Глобальний об'єкт вже встановлено в render
-  },
+  init(params) {},
 };

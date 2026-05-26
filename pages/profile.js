@@ -22,6 +22,8 @@ let _team    = null;
 let _plan    = null;
 let _loading = true;
 let _posSettings = null;
+let _tgSaving    = false;
+let _tgSaved     = false;
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
@@ -72,6 +74,15 @@ const CSS = `<style id="prof-css">
 .prof-plan--trial{background:var(--amber-bg);border:1px solid var(--amber-border)}
 .prof-plan--active{background:var(--green-bg);border:1px solid var(--green-border)}
 .prof-plan--expired{background:var(--red-bg);border:1px solid var(--red-border)}
+/* tg input row */
+.prof-tg-row{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:0.5px solid var(--border)}
+.prof-tg-row:last-child{border-bottom:none}
+.prof-tg-prefix{font-size:15px;color:var(--text2);flex-shrink:0;font-family:var(--font-b)}
+.prof-tg-inp{flex:1;height:36px;background:var(--bg3);border:0.5px solid var(--border);border-radius:9px;padding:0 10px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .18s}
+.prof-tg-inp:focus{border-color:var(--green)}
+.prof-tg-save{height:36px;padding:0 14px;background:var(--green);border:none;border-radius:9px;font-size:12px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-b);transition:all .15s;flex-shrink:0}
+.prof-tg-save:active{opacity:.8}
+.prof-tg-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
 /* skel */
 .prof-skel{background:var(--glass-bg);border-radius:12px;animation:pSkel 1.2s ease-in-out infinite}
 @keyframes pSkel{0%,100%{opacity:.5}50%{opacity:1}}
@@ -301,6 +312,31 @@ ${CSS}
     <!-- POS-інтеграція -->
     ${isMgr ? posIntegrationBlock() : ''}
 
+    <!-- Telegram -->
+    <div class="prof-sec">Telegram</div>
+    <div class="prof-info-card">
+      <div class="prof-tg-row">
+        <div style="flex:1;min-width:0">
+          <div class="prof-info-lbl">Ваш @username в Telegram</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--font-b);line-height:1.4">
+            Бот буде тегати вас коли надсилає фото накладних або акцизних марок
+          </div>
+        </div>
+      </div>
+      <div class="prof-tg-row">
+        <span class="prof-tg-prefix">@</span>
+        <input class="prof-tg-inp" id="prof-tg-username"
+          type="text" placeholder="your_telegram"
+          value="${(_profile?.telegramUsername || '').replace(/^@/,'')}"
+          oninput="window.__profTgChanged()"
+        >
+        <button class="prof-tg-save ${_tgSaved?'saved':''}" id="prof-tg-save-btn"
+          onclick="window.__profSaveTg()">
+          ${_tgSaved ? '✓ Збережено' : 'Зберегти'}
+        </button>
+      </div>
+    </div>
+
     <!-- Сповіщення -->
     <div class="prof-sec">Сповіщення</div>
     <div class="prof-settings">
@@ -360,14 +396,50 @@ function posIntegrationBlock() {
   </div>`;
 }
 
+window.__profTgChanged = function() {
+  _tgSaved = false;
+  const btn = document.getElementById('prof-tg-save-btn');
+  if (btn) { btn.textContent = 'Зберегти'; btn.classList.remove('saved'); }
+};
+
+window.__profSaveTg = async function() {
+  if (_tgSaving) return;
+  const input = document.getElementById('prof-tg-username');
+  const val   = (input?.value || '').trim().replace(/^@/, '');
+  const btn   = document.getElementById('prof-tg-save-btn');
+
+  _tgSaving = true;
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  try {
+    const res = await fetch(`${API}/api/auth/me`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body:    JSON.stringify({ telegramUsername: val }),
+    });
+    const d = await res.json();
+    if (d.success) {
+      _tgSaved = true;
+      if (_profile) _profile.telegramUsername = d.telegramUsername;
+      if (btn) { btn.textContent = '✓ Збережено'; btn.classList.add('saved'); btn.disabled = false; }
+    } else {
+      if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+    }
+  } catch {
+    if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+  }
+  _tgSaving = false;
+};
+
 export default {
   render() {
-    _loading = true;
-    _profile = null;
-    _stats   = null;
-    _plan    = null;
-    _team    = null;
+    _loading     = true;
+    _profile     = null;
+    _stats       = null;
+    _plan        = null;
+    _team        = null;
     _posSettings = null;
+    _tgSaved     = false;
     loadData();
     return buildHTML();
   },

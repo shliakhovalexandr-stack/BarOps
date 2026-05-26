@@ -79,6 +79,11 @@ let _filter   = 'all';
 let _editId   = null;   // відкрита картка редагування
 let _editAll  = false;
 let _procTimers = [];
+let _ocrTgChatId  = '';
+let _ocrTgTopicId = '';
+let _ocrTgSaving  = false;
+let _ocrTgSaved   = false;
+let _lastPhotoFile = null; // зберігаємо файл для надсилання в TG
 
 /* ════════════════════════
    CSS
@@ -353,6 +358,21 @@ const CSS = `<style id="ocr-css">
   background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;
   padding:5px 13px;font-size:12px;color:var(--text1);font-family:var(--font-b);
 }
+/* ocr tg settings panel */
+.ocr-tg-panel{margin:0 20px 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.ocr-tg-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer;border-bottom:0.5px solid var(--border)}
+.ocr-tg-head-lbl{font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
+.ocr-tg-head-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
+.ocr-tg-body{padding:12px 14px;display:flex;flex-direction:column;gap:9px;display:none}
+.ocr-tg-grp{display:flex;flex-direction:column;gap:4px}
+.ocr-tg-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase}
+.ocr-tg-inp{height:40px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .18s;width:100%}
+.ocr-tg-inp:focus{border-color:var(--green)}
+.ocr-tg-hint{font-size:10px;color:var(--text2);font-family:var(--font-b);line-height:1.4}
+.ocr-tg-save-row{display:flex;justify-content:flex-end}
+.ocr-tg-save{height:36px;padding:0 16px;background:var(--green);border:none;border-radius:9px;font-size:12px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-b);transition:all .15s}
+.ocr-tg-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
+.ocr-tg-save:active{opacity:.8}
 </style>`;
 
 /* ════════════════════════
@@ -392,6 +412,41 @@ function stepIndicator() {
         <span class="ocr-snum">${_step > s.n ? '✓' : s.n}</span>
         ${s.label}
       </button>`).join('')}
+  </div>`;
+}
+
+function ocrTgPanel() {
+  const role = (localStorage.getItem('barops_role') || '').toLowerCase();
+  if (role !== 'admin' && role !== 'manager') return '';
+  return `
+  <div class="ocr-tg-panel" id="ocr-tg-panel">
+    <div class="ocr-tg-head" onclick="(function(){var b=document.getElementById('ocr-tg-bdy');b.style.display=b.style.display!=='flex'?'flex':'none'})()">
+      <div>
+        <div class="ocr-tg-head-lbl">⚙️ Telegram для накладних</div>
+        <div class="ocr-tg-head-sub">Налаштування чату для адміністратора</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div id="ocr-tg-bdy" class="ocr-tg-body">
+      <div class="ocr-tg-grp">
+        <div class="ocr-tg-lbl">Chat ID</div>
+        <input class="ocr-tg-inp" id="ocr-tg-chat" type="text" placeholder="-100xxxxxxxxxx"
+          value="${_ocrTgChatId}" oninput="window.__ocr.tgChanged()">
+        <div class="ocr-tg-hint">Залиш порожнім — буде використовуватись глобальний чат бота</div>
+      </div>
+      <div class="ocr-tg-grp">
+        <div class="ocr-tg-lbl">Topic ID (message_thread_id)</div>
+        <input class="ocr-tg-inp" id="ocr-tg-topic" type="text" placeholder="123"
+          value="${_ocrTgTopicId}" oninput="window.__ocr.tgChanged()">
+        <div class="ocr-tg-hint">ID топіку для накладних</div>
+      </div>
+      <div class="ocr-tg-save-row">
+        <button class="ocr-tg-save ${_ocrTgSaved?'saved':''}" id="ocr-tg-save-btn"
+          onclick="window.__ocr.saveTg()">
+          ${_ocrTgSaved ? '✓ Збережено' : 'Зберегти'}
+        </button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -471,6 +526,8 @@ function renderStep1() {
         ${t}
       </div>`).join('')}
     </div>
+
+    ${ocrTgPanel()}
   </div>`;
 }
 
@@ -832,6 +889,7 @@ async function handleFile(input) {
   // Скидаємо input щоб можна було вибрати той самий файл знову
   input.value = '';
 
+  _lastPhotoFile = file;
   const base64 = await fileToBase64(file);
   const mediaType = file.type || 'image/jpeg';
 
@@ -865,6 +923,84 @@ function fileToBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+async function sendOcrPhotoToTelegram(file) {
+  try {
+    const token   = localStorage.getItem('barops_token') || '';
+    const venueId = localStorage.getItem('barops_venueId') || '';
+    const venueName = localStorage.getItem('barops_venue') || '';
+    if (!token) return;
+
+    const API_URL = 'https://barops-backend-production.up.railway.app';
+    const formData = new FormData();
+    formData.append('photo',     file);
+    formData.append('venueName', venueName);
+
+    const res = await fetch(`${API_URL}/api/ocr/notify`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body:    formData,
+    });
+    const d = await res.json();
+    console.log('[OCR Notify]', d);
+  } catch (err) {
+    console.warn('[OCR Notify] failed:', err.message);
+  }
+}
+
+async function loadOcrTgSettings() {
+  try {
+    const token   = localStorage.getItem('barops_token') || '';
+    const venueId = localStorage.getItem('barops_venueId') || '';
+    if (!token || !venueId) return;
+
+    const API_URL = 'https://barops-backend-production.up.railway.app';
+    const res = await fetch(`${API_URL}/api/venues`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    const venue = (d.venues || []).find(v => v.id === venueId);
+    if (venue) {
+      _ocrTgChatId  = venue.telegramOcrChatId  || '';
+      _ocrTgTopicId = venue.telegramOcrTopicId || '';
+    }
+  } catch {}
+}
+
+async function saveOcrTg() {
+  if (_ocrTgSaving) return;
+  _ocrTgSaving = true;
+  const btn = document.getElementById('ocr-tg-save-btn');
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  try {
+    const token   = localStorage.getItem('barops_token') || '';
+    const venueId = localStorage.getItem('barops_venueId') || '';
+    _ocrTgChatId  = document.getElementById('ocr-tg-chat')?.value.trim()  || '';
+    _ocrTgTopicId = document.getElementById('ocr-tg-topic')?.value.trim() || '';
+
+    const API_URL = 'https://barops-backend-production.up.railway.app';
+    const res = await fetch(`${API_URL}/api/venues/${venueId}/telegram`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({
+        telegramOcrChatId:  _ocrTgChatId  || null,
+        telegramOcrTopicId: _ocrTgTopicId || null,
+      }),
+    });
+    const d = await res.json();
+    if (d.success) {
+      _ocrTgSaved = true;
+      if (btn) { btn.textContent = '✓ Збережено'; btn.classList.add('saved'); btn.disabled = false; }
+    } else {
+      if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+    }
+  } catch {
+    if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+  }
+  _ocrTgSaving = false;
 }
 
 async function startRealOCR(base64, mediaType) {
@@ -917,6 +1053,11 @@ async function startRealOCR(base64, mediaType) {
     };
 
     set('ocr-dot-items','ocr-pdot-done','ocr-ps-items',`✓ ${_inv.items.length} позицій`);
+
+    // Надсилаємо фото в Telegram (fire and forget)
+    if (_lastPhotoFile) {
+      sendOcrPhotoToTelegram(_lastPhotoFile).catch(() => {});
+    }
 
     setTimeout(() => {
       set('ocr-dot-match','ocr-pdot-done','ocr-ps-match',`✓ ${_inv.items.length}/${_inv.items.length}`);
@@ -1065,7 +1206,6 @@ function refreshStep3() {
 ════════════════════════ */
 export default {
   render() {
-    // init / reset state
     _inv      = deepClone(INVOICES[0]);
     _step     = 1;
     _filter   = 'all';
@@ -1073,7 +1213,15 @@ export default {
     _editAll  = false;
     _procTimers.forEach(t => clearTimeout(t));
     _procTimers = [];
-    _newCounter = 100;
+    _newCounter   = 100;
+    _lastPhotoFile = null;
+    _ocrTgSaved   = false;
+
+    const role = (localStorage.getItem('barops_role') || '').toLowerCase();
+    if (role === 'admin' || role === 'manager') {
+      loadOcrTgSettings();
+    }
+
     return buildHTML();
   },
 
@@ -1083,6 +1231,12 @@ export default {
       toggleSuppEdit, closeSuppEdit, saveSuppEdit,
       setFilter, toggleEdit, cancelItem, saveItem,
       deleteItem, recalcTotal, addItem, toggleEditAll,
+      tgChanged: () => {
+        _ocrTgSaved = false;
+        const btn = document.getElementById('ocr-tg-save-btn');
+        if (btn) { btn.textContent = 'Зберегти'; btn.classList.remove('saved'); }
+      },
+      saveTg: saveOcrTg,
     };
   },
 };
