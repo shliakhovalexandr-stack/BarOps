@@ -615,7 +615,7 @@ function itemsList() {
       :                                    'var(--green)';
 
     const priceSub = item.status==='warn'
-      ? `<div class="ocr-ipsub" style="color:var(--amber)">↑ +${Math.round((item.unitPrice/item.prevPrice-1)*100)}% (було ${fmt(item.prevPrice)} ₴)</div>`
+      ? `<div class="ocr-ipsub" style="color:var(--amber)">↑ +${Math.round((item.unitPrice/item.prevPrice-1)*100)}% (було ${Number(item.prevPrice).toFixed(2)} ₴)</div>`
       : item.status==='new'
       ? `<div class="ocr-ipsub" style="color:var(--purple)">Новий товар</div>`
       : !item.matched
