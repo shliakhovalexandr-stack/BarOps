@@ -14,7 +14,8 @@ let _suppliers    = [];   // { id, name, contact, orderDays, supplierProducts:[{
 let _balanceItems = [];   // { id, name, amount, unit, category } — з Syrve
 let _barQtys      = {};   // productId → qty для заявки бармена
 let _barComments  = {};   // productId → comment string
-let _openComments = new Set(); // productId для яких розгорнуто поле коментаря
+let _barUnits     = {};   // productId → обрана одиниця (Ящ/пл/л/шт/кг)
+let _openCards    = new Set(); // productId для яких розгорнуто картку
 
 let _orders        = [];   // менеджерський список заявок
 let _ordersLoading = false;
@@ -86,15 +87,25 @@ const CSS = `<style id="ord-css">
 .ord-qbtn:active{background:var(--bg4)}
 .ord-qbtn.plus{background:var(--green);color:#000;border-color:var(--green)}
 .ord-qdisp{min-width:36px;height:28px;display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);padding:0 4px}
-.ord-qinput{width:44px;height:28px;background:rgba(255,255,255,.08);border:0.5px solid var(--border);border-radius:7px;text-align:center;font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);outline:none;-moz-appearance:textfield;padding:0}
+.ord-qinput{width:52px;height:36px;background:rgba(255,255,255,.08);border:0.5px solid var(--border);border-radius:9px;text-align:center;font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);outline:none;-moz-appearance:textfield;padding:0}
 .ord-qinput::-webkit-inner-spin-button,.ord-qinput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .ord-qinput:focus{border-color:var(--green)}
-/* comment */
-.ord-note-btn{width:26px;height:26px;border-radius:7px;background:transparent;border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-left:2px;font-size:12px;color:var(--text2);transition:all .12s}
-.ord-note-btn:active,.ord-note-btn.has-note{background:rgba(167,139,250,.12);border-color:var(--purple);color:var(--purple)}
-.ord-note-row{padding:4px 12px 8px 48px}
-.ord-note-input{width:100%;height:32px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box}
+/* expandable product card */
+.ord-prod-row{cursor:pointer;user-select:none}
+.ord-qty-badge{padding:3px 10px;border-radius:20px;background:rgba(74,222,128,.12);border:1px solid var(--green-border);color:var(--green);font-size:12px;font-family:var(--font-h);font-weight:700;flex-shrink:0;white-space:nowrap}
+.ord-chev{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s}
+.ord-chev.open{transform:rotate(180deg)}
+.ord-prod-card-body{padding:12px 14px 14px;background:rgba(255,255,255,.03);border-top:0.5px solid var(--border)}
+.ord-unit-pills{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.ord-unit-pill{height:32px;padding:0 14px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg3);font-size:13px;font-family:var(--font-b);color:var(--text1);cursor:pointer;display:flex;align-items:center;transition:all .15s}
+.ord-unit-pill.sel{background:rgba(167,139,250,.18);border-color:var(--purple);color:var(--purple);font-weight:600}
+.ord-card-stepper{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ord-qbtn-lg{width:36px;height:36px;border-radius:10px;background:var(--bg3);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;color:var(--text0);transition:background .12s;flex-shrink:0}
+.ord-qbtn-lg:active{background:var(--bg4)}
+.ord-qbtn-lg.plus{background:var(--green);color:#000;border-color:var(--green)}
+.ord-note-input{width:100%;height:34px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;padding:0 10px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box}
 .ord-note-input:focus{border-color:var(--purple)}
+.ord-note-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
 .ord-qunit{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-left:2px}
 
 /* actions bar */
@@ -279,35 +290,44 @@ function barSuppliersHTML() {
         inner = `<div class="ord-supp-items"><div style="padding:14px 16px;font-size:12px;color:var(--text2);font-family:var(--font-b)">Товари не призначені</div></div>`;
       } else {
         inner = `<div class="ord-supp-items">` + prods.map(p => {
-          const noteOpen = _openComments.has(p.productId) || !!_barComments[p.productId];
-          const hasNote  = !!_barComments[p.productId];
+          const isOpen = _openCards.has(p.productId);
+          const unit   = _barUnits[p.productId] || '';
+          const UNITS  = ['Ящ','пл','л','шт','кг'];
           return `
           <div class="ord-prod-wrap">
-            <div class="ord-prod-row">
+            <div class="ord-prod-row" onclick="window.__ord.toggleProdCard('${p.productId}')">
               <div class="ord-pbar" style="background:${p.col}"></div>
               <div class="ord-pemoji">📦</div>
               <div style="flex:1;min-width:0">
                 <div class="ord-pname">${p.name}</div>
                 <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
               </div>
-              <div class="ord-qty">
-                <div class="ord-qbtn" onclick="window.__ord.changeQty('${p.productId}',-1)">−</div>
-                <input class="ord-qinput" id="bq-${p.productId}" type="number" min="0" inputmode="numeric"
-                  value="${p.qty}"
-                  onchange="window.__ord.setQty('${p.productId}',this.value)"
-                  onfocus="this.select()"
-                  ${_submitted ? 'disabled' : ''}>
-                <div class="ord-qbtn plus" onclick="window.__ord.changeQty('${p.productId}',1)">+</div>
-              </div>
-              <div class="ord-note-btn ${hasNote ? 'has-note' : ''}" onclick="window.__ord.toggleComment('${p.productId}')" title="Коментар">
-                ✏️
+              ${p.qty > 0 ? `<div class="ord-qty-badge">${p.qty} ${unit || 'од.'}</div>` : ''}
+              <div class="ord-chev ${isOpen ? 'open' : ''}">
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="var(--text2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
             </div>
-            ${noteOpen ? `<div class="ord-note-row">
-              <input class="ord-note-input" type="text" placeholder="Коментар (напр. смак, сорт...)"
-                value="${(_barComments[p.productId] || '').replace(/"/g,'&quot;')}"
-                oninput="window.__ord.setComment('${p.productId}',this.value)"
-                id="bc-${p.productId}">
+            ${isOpen ? `
+            <div class="ord-prod-card-body">
+              <div class="ord-unit-pills">
+                ${UNITS.map(u => `<div class="ord-unit-pill ${unit===u?'sel':''}" onclick="event.stopPropagation();window.__ord.setUnit('${p.productId}','${u}')">${u}</div>`).join('')}
+              </div>
+              <div class="ord-card-stepper">
+                <div class="ord-qbtn-lg" onclick="event.stopPropagation();window.__ord.changeQty('${p.productId}',-1)">−</div>
+                <input class="ord-qinput" id="bq-${p.productId}" type="number" min="0" inputmode="numeric"
+                  value="${p.qty}"
+                  onchange="event.stopPropagation();window.__ord.setQty('${p.productId}',this.value)"
+                  onclick="event.stopPropagation()"
+                  onfocus="this.select()"
+                  ${_submitted ? 'disabled' : ''}>
+                <div class="ord-qbtn-lg plus" onclick="event.stopPropagation();window.__ord.changeQty('${p.productId}',1)">+</div>
+                ${unit ? `<div style="font-size:14px;color:var(--purple);font-family:var(--font-b);font-weight:600;margin-left:2px">${unit}</div>` : ''}
+              </div>
+              <div class="ord-note-lbl">Коментар</div>
+              <input class="ord-note-input" type="text" placeholder="Напр. смак, сорт, бренд..."
+                value="${(_barComments[p.productId]||'').replace(/"/g,'&quot;')}"
+                oninput="event.stopPropagation();window.__ord.setComment('${p.productId}',this.value)"
+                onclick="event.stopPropagation()">
             </div>` : ''}
           </div>`;
         }).join('') + `</div>`;
@@ -688,12 +708,47 @@ function toggleSupp(id) {
   else fullRender();
 }
 
+function toggleProdCard(productId) {
+  if (_submitted) return;
+  if (_openCards.has(productId)) {
+    _openCards.delete(productId);
+  } else {
+    _openCards.add(productId);
+  }
+  partialRefreshSupps();
+}
+
+function setUnit(productId, unit) {
+  _barUnits[productId] = unit;
+  // Оновлюємо пілюлі без повного ре-рендеру
+  const wrap = document.querySelector(`.ord-prod-wrap [onclick*="toggleProdCard('${productId}')"]`)
+               ?.closest('.ord-prod-wrap');
+  if (wrap) {
+    wrap.querySelectorAll('.ord-unit-pill').forEach(el => {
+      el.classList.toggle('sel', el.textContent.trim() === unit);
+    });
+    // Оновлюємо бейдж у compact рядку
+    const badge = wrap.querySelector('.ord-qty-badge');
+    if (badge) badge.textContent = `${_barQtys[productId] || 0} ${unit}`;
+    // Оновлюємо підпис одиниці біля степера
+    const unitLabel = wrap.querySelector('.ord-card-stepper > div:last-child');
+    if (unitLabel && !unitLabel.classList.contains('ord-qbtn-lg')) {
+      unitLabel.textContent = unit;
+    }
+  } else {
+    partialRefreshSupps();
+  }
+}
+
 function changeQty(productId, delta) {
   if (_submitted) return;
   _barQtys[productId] = Math.max(0, (_barQtys[productId] || 0) + delta);
   const el = document.getElementById(`bq-${productId}`);
   if (el) el.value = _barQtys[productId];
-  else partialRefreshSupps();
+  // Оновлюємо бейдж
+  const badge = document.querySelector(`.ord-prod-wrap [onclick*="toggleProdCard('${productId}')"] .ord-qty-badge`);
+  if (badge) badge.textContent = `${_barQtys[productId]} ${_barUnits[productId] || 'од.'}`;
+  else if (!el) partialRefreshSupps();
 }
 
 function setQty(productId, value) {
@@ -704,19 +759,8 @@ function setQty(productId, value) {
   if (el) el.value = n;
 }
 
-function toggleComment(productId) {
-  if (_openComments.has(productId)) {
-    _openComments.delete(productId);
-  } else {
-    _openComments.add(productId);
-  }
-  partialRefreshSupps();
-}
-
 function setComment(productId, value) {
   _barComments[productId] = value.trim() ? value : '';
-  const btn = document.querySelector(`.ord-note-btn[onclick*="${productId}"]`);
-  if (btn) btn.classList.toggle('has-note', !!value.trim());
 }
 
 async function submitOrder() {
@@ -727,7 +771,7 @@ async function submitOrder() {
         productId:   sp.productId,
         productName: sp.productName,
         qty:         _barQtys[sp.productId] || 0,
-        unit:        (_balanceItems.find(b => b.id === sp.productId)?.unit) || 'од.',
+        unit:        _barUnits[sp.productId] || (_balanceItems.find(b => b.id === sp.productId)?.unit) || 'од.',
         comment:     _barComments[sp.productId] || '',
       }))
       .filter(i => i.qty > 0);
@@ -948,7 +992,8 @@ export default {
   render() {
     _barQtys       = {};
     _barComments   = {};
-    _openComments  = new Set();
+    _barUnits      = {};
+    _openCards     = new Set();
     _submitted     = false;
     _mgrTab        = 'orders';
     _orders        = [];
@@ -963,7 +1008,7 @@ export default {
   },
   init() {
     window.__ord = {
-      toggleSupp, changeQty, setQty, toggleComment, setComment, submitOrder, resetOrder, loadOrders, markOrderDone,
+      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, loadOrders, markOrderDone,
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
