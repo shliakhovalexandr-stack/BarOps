@@ -345,8 +345,9 @@ function buildDiagHtml(d) {
         <div class="sl-diag-dot ${rowCls}"></div>
         <div style="width:100%">
           <div class="sl-diag-label">stop_lists/check${c.terminalGroupName ? ' · ' + c.terminalGroupName : ''}</div>
-          <div class="sl-diag-val">${c.error ? c.error : `HTTP ${c.status} · ${cnt !== null ? cnt + ' позицій' : 'невідомий формат'}`}</div>
-          ${c.rawPreview ? `<pre style="margin-top:6px;font-size:10px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4">${c.rawPreview.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>` : ''}
+          <div class="sl-diag-val">${c.error ? c.error : `HTTP ${c.status} · ${cnt !== null ? cnt + ' страв у стопі' : 'невідомий формат'}`}</div>
+          ${hasItems && c.items?.length ? `<div class="sl-diag-tg" style="margin-top:6px">${c.items.map(i => `<div class="sl-diag-tg-row"><span class="sl-diag-tg-id" style="font-size:10px;opacity:.7">${i.productId?.slice(0,8)}…</span><span class="sl-diag-tg-cnt">balance: ${i.balance ?? 'стоп'}</span></div>`).join('')}</div>` : ''}
+          ${!hasItems && c.rawPreview ? `<pre style="margin-top:6px;font-size:10px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4">${c.rawPreview.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>` : ''}
         </div>
       </div>`);
     }
