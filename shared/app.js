@@ -78,16 +78,16 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
-    route: 'ocr', label: 'Накладна', fab: true,
-    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M11 5v12M5 11h12" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    </svg>`,
-  },
-  {
     route: 'recipes', label: 'Рецепти',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <path d="M6 3h10l-2 6H8L6 3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
       <path d="M8 9v8M14 9v8M6 17h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'ocr', label: 'Накладна', fab: true,
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M11 5v12M5 11h12" stroke="white" stroke-width="2" stroke-linecap="round"/>
     </svg>`,
   },
   {
