@@ -121,6 +121,33 @@ const CSS = `<style id="sl-styles">
 .sl-qa-label{font-family:var(--font-h);font-size:12px;font-weight:600;color:var(--text0);letter-spacing:-.01em;line-height:1.3}
 .sl-qa.primary .sl-qa-label{color:#000}
 .sl-divider{height:0.5px;background:var(--border);margin:20px 20px 0}
+
+/* Diagnostic modal */
+.sl-diag-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;display:flex;align-items:flex-end}
+.sl-diag-sheet{background:var(--bg1);border-radius:20px 20px 0 0;width:100%;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;border-top:0.5px solid var(--border)}
+.sl-diag-header{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:0.5px solid var(--border)}
+.sl-diag-title{font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0)}
+.sl-diag-close{width:28px;height:28px;border-radius:8px;background:var(--bg2);border:none;color:var(--text1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sl-diag-scroll{overflow-y:auto;flex:1;padding:16px 20px 24px}
+.sl-diag-scroll::-webkit-scrollbar{width:0}
+.sl-diag-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding:10px 12px;background:var(--bg2);border-radius:10px;border:0.5px solid var(--border)}
+.sl-diag-row.ok{border-color:rgba(74,222,128,.25);background:rgba(74,222,128,.05)}
+.sl-diag-row.fail{border-color:rgba(251,113,133,.25);background:rgba(251,113,133,.05)}
+.sl-diag-row.warn{border-color:rgba(251,191,36,.22);background:rgba(251,191,36,.05)}
+.sl-diag-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.sl-diag-dot.ok{background:var(--green)}
+.sl-diag-dot.fail{background:var(--red)}
+.sl-diag-dot.warn{background:var(--amber)}
+.sl-diag-dot.info{background:var(--blue)}
+.sl-diag-label{font-size:12px;font-weight:700;color:var(--text0);font-family:var(--font-b);margin-bottom:2px}
+.sl-diag-val{font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5;word-break:break-all}
+.sl-diag-tg{margin-top:8px;background:var(--bg3);border-radius:8px;padding:8px 10px}
+.sl-diag-tg-row{display:flex;justify-content:space-between;font-size:11px;font-family:var(--font-b);padding:3px 0;border-bottom:0.5px solid var(--border)}
+.sl-diag-tg-row:last-child{border-bottom:none}
+.sl-diag-tg-id{color:var(--text1);font-weight:600}
+.sl-diag-tg-cnt{color:var(--text2)}
+.sl-diag-hint{margin-top:12px;padding:12px;background:rgba(168,139,255,.07);border:0.5px solid rgba(168,139,255,.25);border-radius:10px;font-size:11px;color:var(--text1);font-family:var(--font-b);line-height:1.6}
+.sl-diag-spin{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.08);border-top-color:#A88BFF;animation:slSpin .8s linear infinite;margin:30px auto;display:block}
 </style>`;
 
 /* ════════════════════════
@@ -198,6 +225,107 @@ function riskCard(item) {
       <span class="sl-risk-cat">${item.category || ''}</span>
     </div>
   </div>`;
+}
+
+/* ════════════════════════
+   DIAGNOSTIC HTML
+════════════════════════ */
+function buildDiagHtml(d) {
+  if (d.error) {
+    return `<div class="sl-diag-row fail">
+      <div class="sl-diag-dot fail"></div>
+      <div><div class="sl-diag-label">Помилка</div><div class="sl-diag-val">${d.error}</div></div>
+    </div>`;
+  }
+
+  const rows = [];
+
+  // API key source
+  rows.push(`<div class="sl-diag-row ok">
+    <div class="sl-diag-dot info"></div>
+    <div>
+      <div class="sl-diag-label">Джерело API ключа</div>
+      <div class="sl-diag-val">${d.apiKeySource || '—'}<br><span style="opacity:.7">${d.base || ''}</span></div>
+    </div>
+  </div>`);
+
+  // Auth
+  if (d.auth) {
+    const ok = d.auth.hasToken;
+    rows.push(`<div class="sl-diag-row ${ok ? 'ok' : 'fail'}">
+      <div class="sl-diag-dot ${ok ? 'ok' : 'fail'}"></div>
+      <div>
+        <div class="sl-diag-label">Авторизація (access_token)</div>
+        <div class="sl-diag-val">${ok ? 'Токен отримано' : 'Токен НЕ отримано'}${d.auth.error ? ' · ' + d.auth.error : ''}</div>
+      </div>
+    </div>`);
+  }
+
+  if (!d.auth?.hasToken) return rows.join('');
+
+  // Organizations
+  const orgs = d.organizations || [];
+  rows.push(`<div class="sl-diag-row ${orgs.length ? 'ok' : 'fail'}">
+    <div class="sl-diag-dot ${orgs.length ? 'ok' : 'fail'}"></div>
+    <div>
+      <div class="sl-diag-label">Організації (${orgs.length})</div>
+      <div class="sl-diag-val">${orgs.map(o => `${o.name}<br><span style="opacity:.5;font-size:10px">${o.id}</span>`).join('<br>') || 'Немає'}</div>
+    </div>
+  </div>`);
+
+  if (!orgs.length) return rows.join('');
+
+  // Stop lists — terminal groups
+  const sl   = d.stopLists || {};
+  const tgs  = sl.terminalGroups || [];
+  const totalItems = tgs.reduce((s, t) => s + (t.itemCount || 0), 0);
+
+  if (tgs.length === 0) {
+    rows.push(`<div class="sl-diag-row fail">
+      <div class="sl-diag-dot fail"></div>
+      <div>
+        <div class="sl-diag-label">Stop Lists: термінальні групи</div>
+        <div class="sl-diag-val">Не знайдено жодної термінальної групи у відповіді.<br>Можливо в Syrve ще не налаштовано Terminal Groups або stoplists порожні.</div>
+      </div>
+    </div>`);
+  } else {
+    const tgTable = `<div class="sl-diag-tg">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px">Термінальні групи у стоп-листі</div>
+      ${tgs.map(t => `<div class="sl-diag-tg-row">
+        <span class="sl-diag-tg-id">${t.terminalGroupId}</span>
+        <span class="sl-diag-tg-cnt">${t.itemCount} позицій</span>
+      </div>`).join('')}
+    </div>`;
+    rows.push(`<div class="sl-diag-row ${totalItems > 0 ? 'ok' : 'warn'}">
+      <div class="sl-diag-dot ${totalItems > 0 ? 'ok' : 'warn'}"></div>
+      <div style="width:100%">
+        <div class="sl-diag-label">Stop Lists: ${tgs.length} груп, ${totalItems} позицій</div>
+        ${tgTable}
+      </div>
+    </div>`);
+  }
+
+  // Hint
+  if (tgs.length > 0) {
+    rows.push(`<div class="sl-diag-hint">
+      Щоб фільтрувати стоп-лист по конкретному терміналу — вкажіть <strong>terminalGroupId</strong> у полі <strong>Syrve Department ID</strong> в налаштуваннях закладу.<br>
+      Якщо у закладі немає окремих терміналів — залиште поле порожнім: буде показано всі позиції з усіх груп.
+    </div>`);
+  } else {
+    rows.push(`<div class="sl-diag-hint">
+      Перевірте в Syrve: <strong>Ресторани → Термінальні групи</strong>. Якщо їх немає — стоп-лист порожній по API. Переконайтеся, що POS-термінал активний і пов'язаний з організацією.
+    </div>`);
+  }
+
+  // Raw preview
+  if (sl.rawPreview) {
+    rows.push(`<div style="margin-top:4px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Сира відповідь (перші 800 символів)</div>
+      <pre style="font-size:10px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:10px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.5">${sl.rawPreview.slice(0, 800).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+    </div>`);
+  }
+
+  return rows.join('');
 }
 
 /* ════════════════════════
@@ -318,6 +446,7 @@ function buildDataPage(critCount) {
 }
 
 function quickActionsSection() {
+  const isAdmin = state.role === 'admin';
   return `
   <div class="sl-section" style="padding-bottom:20px">
     <div class="sl-section-hdr">
@@ -361,6 +490,20 @@ function quickActionsSection() {
         <div class="sl-qa-label">Інвентаризація</div>
       </div>
     </div>
+    ${isAdmin ? `
+    <div style="margin-top:8px">
+      <div class="sl-qa" style="grid-column:1/-1" onclick="window.__stopList.diagnose()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="sl-qa-icon" style="background:rgba(168,139,255,.12);border:0.5px solid rgba(168,139,255,.25)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="#A88BFF" stroke-width="1.4"/>
+              <path d="M8 5v3.5M8 11v.5" stroke="#A88BFF" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="sl-qa-label" style="color:#A88BFF">Діагностика Syrve API</div>
+        </div>
+      </div>
+    </div>` : ''}
   </div>`;
 }
 
@@ -444,6 +587,40 @@ export function init() {
       toast.textContent = '✓ Стоп-лист відправлено команді';
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 2800);
+    },
+    async diagnose() {
+      const token   = localStorage.getItem('barops_token');
+      const venueId = state.venueId || localStorage.getItem('barops_venueId');
+      if (!venueId) return;
+
+      // Show modal with spinner
+      const overlay = document.createElement('div');
+      overlay.className = 'sl-diag-overlay';
+      overlay.id = 'sl-diag-overlay';
+      overlay.innerHTML = `
+        <div class="sl-diag-sheet">
+          <div class="sl-diag-header">
+            <div class="sl-diag-title">Діагностика Syrve API</div>
+            <button class="sl-diag-close" onclick="document.getElementById('sl-diag-overlay')?.remove()">✕</button>
+          </div>
+          <div class="sl-diag-scroll" id="sl-diag-content">
+            <div class="sl-diag-spin"></div>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      try {
+        const res  = await fetch(`${API}/api/pos/debug-cloud-stoplist/${venueId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const el   = document.getElementById('sl-diag-content');
+        if (!el) return;
+        el.innerHTML = buildDiagHtml(data);
+      } catch (err) {
+        const el = document.getElementById('sl-diag-content');
+        if (el) el.innerHTML = `<div class="sl-diag-row fail"><div class="sl-diag-dot fail"></div><div><div class="sl-diag-label">Помилка запиту</div><div class="sl-diag-val">${err.message}</div></div></div>`;
+      }
     },
   };
 
