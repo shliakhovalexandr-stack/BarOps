@@ -78,23 +78,10 @@ function getToken() {
 }
 
 function getUserInfo() {
-  try {
-    const token = getToken();
-    if (!token) return { name: 'Бармен', venueName: 'Заклад', telegramTopicId: null };
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return {
-      name:            payload.name      || 'Бармен',
-      venueName:       payload.venueName || payload.venue || 'Заклад',
-      // Спробуємо отримати telegramTopicId з різних джерел
-      telegramTopicId: payload.telegramTopicId || localStorage.getItem('barops_telegram_topic') || null,
-    };
-  } catch {
-    return { 
-      name: 'Бармен', 
-      venueName: 'Заклад', 
-      telegramTopicId: localStorage.getItem('barops_telegram_topic') || null 
-    };
-  }
+  return {
+    name:      localStorage.getItem('barops_user')  || 'Бармен',
+    venueName: localStorage.getItem('barops_venue') || 'Заклад',
+  };
 }
 
 function fmtTime() {
@@ -243,11 +230,6 @@ function render() {
             <span class="exc-info-icon">◉</span>
             <span class="exc-info-label">Бармен</span>
             <span class="exc-info-val">${name}</span>
-          </div>
-          <div class="exc-info-row">
-            <span class="exc-info-icon">◉</span>
-            <span class="exc-info-label">Заклад</span>
-            <span class="exc-info-val">${venueName}</span>
           </div>
           <div class="exc-info-row">
             <span class="exc-info-icon">◔</span>
