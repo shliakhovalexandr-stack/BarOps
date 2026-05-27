@@ -93,10 +93,10 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
-    route: 'writeoff', label: 'Списання',
+    route: 'journal', label: 'Журнал',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M5 17l2-2 7-7 2 2-7 7-2 2H5v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-      <path d="M12 6l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <rect x="4" y="3" width="14" height="16" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M8 8h6M8 12h6M8 16h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
     </svg>`,
   },
   {
