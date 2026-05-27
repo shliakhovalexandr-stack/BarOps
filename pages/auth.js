@@ -23,6 +23,7 @@ let _otpCode    = '';
 let _otpLoading = false;
 let _otpError   = '';
 
+
 const BOTTLE_SVG = `<svg width="44" height="76" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect x="18" y="1" width="16" height="9" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
   <line x1="21" y1="4.5" x2="33" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
@@ -100,6 +101,10 @@ const CSS = `<style id="auth-styles">
 .auth-trial-num{font-family:var(--font-h);font-size:48px;font-weight:800;color:var(--green);line-height:1}
 .auth-trial-lbl{font-size:13px;color:var(--green);font-family:var(--font-b);margin-top:4px}
 #setup-phone-inp::placeholder{color:var(--text3);-webkit-text-fill-color:var(--text3);font-weight:400;font-size:15px}
+.venue-pick-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.venue-pick-item{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:16px 18px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .12s,border-color .12s}
+.venue-pick-item:active{background:var(--bg3);border-color:var(--green)}
+.venue-pick-name{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0)}
 </style>`;
 
 /* ════════════════════════════════════════
