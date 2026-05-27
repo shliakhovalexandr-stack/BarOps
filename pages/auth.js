@@ -76,7 +76,7 @@ const CSS = `<style id="auth-styles">
 .auth-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;margin-top:16px}
 .auth-inp{width:100%;height:54px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;color:var(--text0);font-size:16px;font-family:var(--font-h);font-weight:500;padding:0 16px;box-sizing:border-box;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-text-fill-color:var(--text0)}
 .auth-inp:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
-.auth-inp::placeholder{color:var(--text3);font-size:14px;font-weight:400;font-family:var(--font-b)}
+.auth-inp::placeholder{color:var(--text3);-webkit-text-fill-color:var(--text3);font-size:14px;font-weight:400;font-family:var(--font-b)}
 .auth-phone-wrap{background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;display:flex;align-items:center;padding:0 14px;height:56px;margin-bottom:14px;transition:border-color .2s,box-shadow .2s}
 .auth-phone-wrap:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .auth-btn{width:100%;height:56px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);transition:all .18s}
@@ -220,7 +220,7 @@ function viewAdminLogin() {
         onkeydown="if(event.key==='Enter')document.getElementById('mgr-pass').focus()"/>
       <div class="auth-lbl">Пароль</div>
       <input class="auth-inp" id="mgr-pass" type="password"
-        placeholder="••••••••" value="${_mgr.password}"
+        placeholder="" value="${_mgr.password}"
         oninput="window.__auth.mgrField('password',this.value)"
         onkeydown="if(event.key==='Enter')window.__auth.doManagerLogin()"/>
       <div class="auth-error ${_mgrError?'show':''}" id="mgr-err">${_mgrError}</div>
