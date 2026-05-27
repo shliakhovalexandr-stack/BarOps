@@ -341,12 +341,8 @@ const CSS = `<style id="wo-css">
 /* ════════════════════════
    BARTENDER RENDER
 ════════════════════════ */
-function woList() {
-  return _writeoffs.length === 0
-    ? `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Списань за зміну немає.<br>Натисніть «Додати списання» нижче.</div>`
-    : [..._writeoffs].reverse()
-    .filter(w => _catFilter === 'all' || w.cat === _catFilter)
-    .map(w => `
+function woCardHTML(w) {
+  return `
     <div class="wo-swipe-wrap" data-id="${w.id}">
       <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3h4v2M7.5 8.5v5M10.5 8.5v5M4 5l1 10h8l1-10" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -361,10 +357,29 @@ function woList() {
         </div>
         <div class="wo-right">
           <div class="wo-vol" style="color:${w.valColor}">${w.vol}</div>
-          <div class="wo-time">${w.time}</div>
+          <div class="wo-time">${w.dateStr || w.time}</div>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+}
+
+function woList() {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const filtered = [..._writeoffs].reverse().filter(w => _catFilter === 'all' || w.cat === _catFilter);
+  const todayItems = filtered.filter(w => new Date(w.ts || 0) >= todayStart);
+  const prevItems  = filtered.filter(w => new Date(w.ts || 0) < todayStart);
+
+  if (!todayItems.length && !prevItems.length) {
+    return `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Списань за зміну немає.<br>Натисніть «Додати списання» нижче.</div>`;
+  }
+
+  let html = todayItems.map(woCardHTML).join('');
+
+  if (prevItems.length) {
+    html += `<div style="margin:16px 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text2);font-family:var(--font-mono)">Попередні зміни</div>`;
+    html += prevItems.map(woCardHTML).join('');
+  }
+  return html || `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
 }
 
 function renderBartender() {
@@ -411,10 +426,7 @@ function renderBartender() {
     </div>
 
     <!-- List -->
-    <div class="wo-sec">
-      Список за зміну
-      <button class="wo-sec-link">Звіт →</button>
-    </div>
+    <div class="wo-sec">Список за зміну</div>
     <div class="wo-list" id="wo-list">${woList()}</div>
 
     <!-- Add button -->
@@ -429,6 +441,26 @@ function renderBartender() {
         </div>
       </div>
     </div>
+
+    <!-- Syrve send -->
+    ${(() => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayWo = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
+      return `<div style="margin:12px 14px 0;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Акт списання</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${todayWo.length ? `${todayWo.length} поз. за сьогодні` : 'Немає списань з товаром за сьогодні'}</div>
+        </div>
+        <button id="wo-syrve-btn" onclick="window.__wo.sendActToSyrve()"
+          ${!todayWo.length ? 'disabled' : ''}
+          style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${todayWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${todayWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${todayWo.length ? 'pointer' : 'default'};white-space:nowrap">
+          Надіслати
+        </button>
+      </div>`;
+    })()}
 
     <div style="height:16px"></div>
   </div>
