@@ -81,10 +81,11 @@ const TAB_BAR_BARTENDER = [
     </svg>`,
   },
   {
-    route: 'recipes', label: 'Рецепти',
+    route: 'recipe-book', label: 'Рецепти',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M6 3h10l-2 6H8L6 3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
-      <path d="M8 9v8M14 9v8M6 17h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <rect x="4" y="2" width="11" height="15" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M7 6h5M7 9h5M7 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M15 6h2a1 1 0 011 1v10a1 1 0 01-1 1H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
     </svg>`,
   },
   {
@@ -165,10 +166,11 @@ const TAB_BAR_MANAGER = [
     </svg>`,
   },
   {
-    route: 'recipes', label: 'Фудкост',
+    route: 'recipe-book', label: 'Рецепти',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.4"/>
-      <path d="M11 8v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <rect x="4" y="2" width="11" height="15" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M7 6h5M7 9h5M7 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M15 6h2a1 1 0 011 1v10a1 1 0 01-1 1H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
     </svg>`,
   },
   {
@@ -189,7 +191,8 @@ const DRAWER_NAV = [
   { route:'ordering',   label:'Замовлення',     svg:`<rect x="3" y="2" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h5M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   { route:'ocr',        label:'Накладна',       svg:`<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h7M6 9h7M6 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   { route:'inventory',  label:'Інвентаризація', svg:`<rect x="2" y="3" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 12l2 2 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>` },
-  { route:'recipes',    label:'Фудкост',        svg:`<path d="M5 2v5a3 3 0 006 0V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
+  { route:'recipes',     label:'Фудкост',  svg:`<path d="M5 2v5a3 3 0 006 0V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 12v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
+  { route:'recipe-book', label:'Рецепти',  svg:`<rect x="2" y="1" width="10" height="14" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 5h4M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M12 4h2a1 1 0 011 1v9a1 1 0 01-1 1H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   { route:'analytics',  label:'Аналітика',      svg:`<path d="M2 13h3V8H2zM7 13h3V4H7zM12 13h3V9h-3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>` },
   { route:'stop-list',  label:'Stop List',      svg:`<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M6 9h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>` },
   { route:'writeoff',   label:'Списання',       svg:`<path d="M4 15l2-2 6-6 2 2-6 6-2 2H4v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 5l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
