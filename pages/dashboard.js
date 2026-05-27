@@ -31,8 +31,6 @@ const QUICK_BARTENDER = [
   { route:'debts',     badge:null, label:'Борги',     hint:'Відкриті рахунки та борги',  color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
-  { route:'stock',     badge:null, label:'Залишки',   hint:'Поточні залишки бару',       color:'var(--teal-bg)',   iconColor:'var(--teal)',
-    svg:`<path d="M2 14h4V7H2zM7 14h4V4H7zM13 14h4V9h-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
   { route:'stop-list', badge:null, label:'Стоп-ліст', hint:'Товари яких немає в наявності', color:'var(--red-bg)',    iconColor:'var(--red)',
     svg:`<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6 9h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` },
   { route:'inventory', badge:null, label:'Інвентар',  hint:'Перерахунок інвентарю',      color:'var(--purple-bg)', iconColor:'var(--purple)',
