@@ -100,6 +100,7 @@ const CSS = `<style id="stk-css">
 </style>`;
 
 let _editItem = null;
+let _loadingAttempt = 0;
 
 function showEditModal(item) {
   _editItem = item;
@@ -302,13 +303,19 @@ ${CSS}
   </div>
 
   ${!_isSyrve && _balanceError ? `
-  <div class="stk-note" style="background:var(--red-bg);border-color:var(--red-border)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--red)" stroke-width="1.2"/><path d="M7 4v3M7 9v.5" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
-    <span style="color:var(--red)">Помилка залишків: ${_balanceError}</span>
+  <div class="stk-note" style="background:var(--red-bg);border-color:var(--red-border);flex-direction:column;align-items:flex-start;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0"><circle cx="7" cy="7" r="5.5" stroke="var(--red)" stroke-width="1.2"/><path d="M7 4v3M7 9v.5" stroke="var(--red)" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <span style="color:var(--red)">${_balanceError}</span>
+    </div>
+    <button onclick="window.__stk.retryBalance()"
+      style="height:30px;padding:0 14px;border-radius:8px;background:var(--red);border:none;font-size:12px;font-family:var(--font-b);font-weight:600;color:#fff;cursor:pointer">
+      Спробувати ще раз
+    </button>
   </div>` : !_isSyrve ? `
   <div class="stk-note">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
-    ${_venueId ? 'Завантаження залишків з Syrve…' : 'Демо-дані. Після підключення Syrve тут будуть реальні залишки.'}
+    ${_venueId ? `Завантаження залишків з Syrve…${_loadingAttempt > 1 ? ` <span style="color:var(--text3)">(спроба ${_loadingAttempt}/3)</span>` : ''}` : 'Демо-дані. Після підключення Syrve тут будуть реальні залишки.'}
   </div>` : ''}
 
   <div class="stk-col-hdr">
@@ -539,6 +546,72 @@ function openTab(posId, tab) {
   if (item) { showEditModal(item); setTimeout(() => switchTab(tab), 50); }
 }
 
+function applyBalance(data) {
+  if (data?.success && data.stores?.length) {
+    STOCK.length = 0;
+    _availableStores = data.stores.map(s => ({ storeId: s.storeId, storeName: s.storeName }));
+    let id = 1;
+    for (const store of data.stores) {
+      for (const item of store.items) {
+        const defaultCat = item.category || store.storeName;
+        const customCat  = _categoryMap[item.id] || defaultCat;
+        STOCK.push({
+          id:           id++,
+          posId:        item.id,
+          storeId:      store.storeId,
+          group:        item.group || '',
+          emoji:        '',
+          name:         item.name,
+          cat:          customCat,
+          qty:          Math.round((Number(item.amount) || 0) * 100) / 100,
+          unit:         item.unit || 'л',
+          norm:         (_normsMap[item.id]?.desiredStock || _normsMap[item.id]?.reorderPoint || 0),
+          reorderPoint: (_normsMap[item.id]?.reorderPoint || 0),
+          status:       (Number(item.amount) || 0) < (_normsMap[item.id]?.reorderPoint || 0) ? 'low' : 'ok',
+        });
+      }
+    }
+    _isSyrve = true;
+    _balanceError = '';
+    CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
+    loadWarehouseFilter();
+  } else {
+    _balanceError = data?.error || data?.warning || 'Не вдалося завантажити залишки';
+    console.warn('[Stock] balance failed:', _balanceError);
+  }
+}
+
+async function fetchBalanceWithRetry(maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    _loadingAttempt = attempt;
+    if (attempt > 1) {
+      _balanceError = '';
+      fullRender();
+      await new Promise(r => setTimeout(r, 2500));
+      if (state.route !== 'stock') return null;
+    }
+    const data = await fetch(`${API}/api/pos/balance/${_venueId}`, {
+      headers: { 'Authorization': `Bearer ${_token}` },
+    }).then(r => r.json()).catch(e => ({ success: false, error: e.message }));
+    if (data?.success && data.stores?.length) return data;
+    console.warn(`[Stock] balance attempt ${attempt}/${maxAttempts}:`, data?.error || 'empty');
+  }
+  _loadingAttempt = 0;
+  return { success: false, error: 'Не вдалося завантажити після 3 спроб' };
+}
+
+async function retryBalance() {
+  _isSyrve = false;
+  _balanceError = '';
+  _loadingAttempt = 1;
+  STOCK.length = 0;
+  fullRender();
+  const data = await fetchBalanceWithRetry(3);
+  _loadingAttempt = 0;
+  applyBalance(data);
+  fullRender();
+}
+
 export default {
   render() {
     _filter = 'Всі'; _search = '';
@@ -550,7 +623,7 @@ export default {
     return buildHTML();
   },
   async init() {
-    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab, openGroupFilter, toggleGroup, clearGroups, openWarehouseFilter, toggleWarehouse, clearWarehouses, openCatFilter, toggleCat, clearCats, clearAllFilters, saveWarehouseFilter, loadWarehouseFilter, _updateFilterSheet };
+    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab, openGroupFilter, toggleGroup, clearGroups, openWarehouseFilter, toggleWarehouse, clearWarehouses, openCatFilter, toggleCat, clearCats, clearAllFilters, saveWarehouseFilter, loadWarehouseFilter, _updateFilterSheet, retryBalance };
     _venueId         = state.venueId || localStorage.getItem('barops_venueId');
     _token           = localStorage.getItem('barops_token');
     _balanceError    = '';
@@ -563,63 +636,29 @@ export default {
       return;
     }
 
-    // Завантажуємо mappings, баланс і норми паралельно
-    const [mappingsData, balanceData, normsData] = await Promise.all([
+    // Mappings і норми паралельно (без ретраю — швидкі DB запити)
+    const [mappingsData, normsData] = await Promise.all([
       fetch(`${API}/api/pos/category-mappings/${_venueId}`, {
         headers: { 'Authorization': `Bearer ${_token}` },
       }).then(r => r.json()).catch(() => ({ mappings: [] })),
-
-      fetch(`${API}/api/pos/balance/${_venueId}`, {
-        headers: { 'Authorization': `Bearer ${_token}` },
-      }).then(r => r.json()).catch(e => ({ success: false, error: e.message })),
 
       fetch(`${API}/api/pos/norms/${_venueId}`, {
         headers: { 'Authorization': `Bearer ${_token}` },
       }).then(r => r.json()).catch(() => ({ norms: [] })),
     ]);
 
-    // Категорії
     _categoryMap = {};
     for (const m of (mappingsData.mappings || []))
       _categoryMap[m.productId] = m.customCategory;
 
-    // Норми
     _normsMap = {};
     for (const n of (normsData.norms || []))
       _normsMap[n.productId] = { reorderPoint: n.reorderPoint, desiredStock: n.desiredStock };
 
-    // Баланс
-    if (balanceData.success && balanceData.stores?.length) {
-      STOCK.length = 0;
-      _availableStores = balanceData.stores.map(s => ({ storeId: s.storeId, storeName: s.storeName }));
-      let id = 1;
-      for (const store of balanceData.stores) {
-        for (const item of store.items) {
-          const defaultCat = item.category || store.storeName;
-          const customCat  = _categoryMap[item.id] || defaultCat;
-          STOCK.push({
-            id:           id++,
-            posId:        item.id,
-            storeId:      store.storeId,
-            group:        item.group || '',
-            emoji:        '',
-            name:         item.name,
-            cat:          customCat,
-            qty:          Math.round((Number(item.amount) || 0) * 100) / 100,
-            unit:         item.unit || 'л',
-            norm:         (_normsMap[item.id]?.desiredStock || _normsMap[item.id]?.reorderPoint || 0),
-            reorderPoint: (_normsMap[item.id]?.reorderPoint || 0),
-            status:       (Number(item.amount) || 0) < (_normsMap[item.id]?.reorderPoint || 0) ? 'low' : 'ok',
-          });
-        }
-      }
-      _isSyrve = true;
-      CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
-      loadWarehouseFilter();
-    } else {
-      _balanceError = balanceData.error || balanceData.warning || 'Порожня відповідь';
-      console.warn('[Stock] balance failed:', _balanceError);
-    }
+    // Баланс з авто-ретраєм (Railway cold start + Syrve latency)
+    const balanceData = await fetchBalanceWithRetry(3);
+    _loadingAttempt = 0;
+    applyBalance(balanceData);
 
     const v = document.getElementById('app-view');
     if (v) v.innerHTML = buildHTML();
