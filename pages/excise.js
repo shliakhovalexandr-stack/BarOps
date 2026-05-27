@@ -24,6 +24,10 @@ let _verifying  = false;
 let _verifyResult = null;        // { passed, failed, total, receiptsChecked } | null
 let _deletingIds  = new Set();
 
+let _pickerOpen  = false;
+let _pickerYear  = 0;
+let _pickerMonth = 0;            // 1-12
+
 let _cbShow    = false;          // settings panel visible
 let _cbLogin   = '';
 let _cbPin     = '';
@@ -234,16 +238,87 @@ function nextDay() {
 }
 
 function openDatePicker() {
-  const inp = document.getElementById('exc-date-inp');
-  if (!inp) return;
-  inp.value = _marksDate || todayKyiv();
-  inp.showPicker?.() || inp.click();
+  const d = _marksDate || todayKyiv();
+  const [y, m] = d.split('-').map(Number);
+  _pickerYear  = y;
+  _pickerMonth = m;
+  _pickerOpen  = true;
+  re();
 }
 
-function onDatePick(val) {
-  if (!val || val > todayKyiv()) return;
+function closePicker() {
+  _pickerOpen = false;
+  re();
+}
+
+function pickerPrevMonth() {
+  if (_pickerMonth === 1) { _pickerMonth = 12; _pickerYear--; }
+  else _pickerMonth--;
+  re();
+}
+
+function pickerNextMonth() {
+  const [ty, tm] = todayKyiv().split('-').map(Number);
+  if (_pickerYear === ty && _pickerMonth === tm) return;
+  if (_pickerMonth === 12) { _pickerMonth = 1; _pickerYear++; }
+  else _pickerMonth++;
+  re();
+}
+
+function pickerSelectDay(dateStr) {
+  _pickerOpen   = false;
   _verifyResult = null;
-  loadMarks(val);
+  loadMarks(dateStr);
+}
+
+function buildDatePicker() {
+  const today  = todayKyiv();
+  const [ty, tm, td] = today.split('-').map(Number);
+  const y = _pickerYear, m = _pickerMonth;
+
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const firstDow    = new Date(y, m - 1, 1).getDay(); // 0=Sun
+  const offset      = (firstDow + 6) % 7;             // Mon-first
+
+  const monthNames = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
+                      'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+
+  const selected = _marksDate || today;
+  const isCurrentMonth = y === ty && m === tm;
+
+  let cells = '';
+  for (let i = 0; i < offset; i++) cells += `<div class="exc-cal-cell empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isFuture   = ds > today;
+    const isSelected = ds === selected;
+    const isToday    = ds === today;
+    const cls = 'exc-cal-cell' +
+      (isFuture ? ' future' : isSelected ? ' selected' : isToday ? ' today' : '');
+    cells += `<div class="${cls}" ${isFuture ? '' : `onclick="window.__exc.pickerSelectDay('${ds}')"`}>${d}</div>`;
+  }
+
+  return `<div class="exc-picker-overlay" onclick="window.__exc.closePicker()">
+    <div class="exc-picker-sheet" onclick="event.stopPropagation()">
+      <div class="exc-picker-handle"></div>
+      <div class="exc-picker-header">
+        <button class="exc-nav-btn" onclick="window.__exc.pickerPrevMonth()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="exc-picker-month">${monthNames[m - 1]} ${y}</div>
+        <button class="exc-nav-btn" onclick="window.__exc.pickerNextMonth()" ${isCurrentMonth ? 'disabled' : ''}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+      <div class="exc-cal-week">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div>
+        <div style="color:var(--amber,#c98a00)">Сб</div>
+        <div style="color:var(--red,#e85555)">Нд</div>
+      </div>
+      <div class="exc-cal-grid">${cells}</div>
+      <button class="exc-cta-sec" onclick="window.__exc.closePicker()" style="margin-top:16px">Закрити</button>
+    </div>
+  </div>`;
 }
 
 // ── render ────────────────────────────────────────────────────
@@ -351,6 +426,21 @@ const CSS = `<style id="exc-css">
 .exc-cb-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
 
 .exc-file{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
+
+/* Custom date picker */
+.exc-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;display:flex;align-items:flex-end;justify-content:center}
+.exc-picker-sheet{background:var(--bg1);border-radius:22px 22px 0 0;padding:0 16px 32px;width:100%;max-width:480px;border:0.5px solid var(--border);border-bottom:none;max-height:85vh;overflow-y:auto}
+.exc-picker-handle{width:36px;height:4px;border-radius:2px;background:var(--border);margin:12px auto 16px}
+.exc-picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.exc-picker-month{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0)}
+.exc-cal-week{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;color:var(--text2);font-family:var(--font-b);font-weight:600;text-transform:uppercase;margin-bottom:6px;gap:2px}
+.exc-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.exc-cal-cell{height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-family:var(--font-b);color:var(--text0);cursor:pointer;transition:background .1s}
+.exc-cal-cell:not(.empty):not(.future):active{background:var(--bg3)}
+.exc-cal-cell.empty{cursor:default}
+.exc-cal-cell.future{color:var(--border);cursor:not-allowed}
+.exc-cal-cell.today{background:var(--bg3);font-weight:600}
+.exc-cal-cell.selected{background:var(--green)!important;color:#000!important;font-weight:700}
 .exc-date-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .exc-date-lbl{font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-h)}
 .exc-refresh-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2)}
@@ -390,7 +480,7 @@ function buildPage() {
 
   <input class="exc-file" id="exc-cam-inp" type="file" accept="image/*" capture="environment" onchange="window.__exc.handleFile(this)"/>
   <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>
-  <input class="exc-file" id="exc-date-inp" type="date" max="${todayKyiv()}" onchange="window.__exc.onDatePick(this.value)"/>
+  ${_pickerOpen ? buildDatePicker() : ''}
 </div>`;
 }
 
@@ -648,6 +738,7 @@ export default {
     _marks = []; _marksDate = todayKyiv();
     _verifying = false; _verifyResult = null;
     _deletingIds = new Set();
+    _pickerOpen = false;
     _cbShow = false; _cbSaved = false;
 
     return `${CSS}<div id="exc-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
@@ -668,12 +759,15 @@ export default {
       showManual:  () => { _scanStep = 'manual'; re(); },
       manualInput: (v) => { _manualCode = v; },
       doManualSave: doManualSave,
-      refreshMarks:   () => loadMarks(_marksDate),
-      prevDay:        prevDay,
-      nextDay:        nextDay,
-      openDatePicker: openDatePicker,
-      onDatePick:     onDatePick,
-      verify:         doVerify,
+      refreshMarks:     () => loadMarks(_marksDate),
+      prevDay:          prevDay,
+      nextDay:          nextDay,
+      openDatePicker:   openDatePicker,
+      closePicker:      closePicker,
+      pickerPrevMonth:  pickerPrevMonth,
+      pickerNextMonth:  pickerNextMonth,
+      pickerSelectDay:  pickerSelectDay,
+      verify:           doVerify,
       deleteMark:   doDeleteMark,
       toggleCb:     () => { _cbShow = !_cbShow; if (_cbShow) loadCbSettings(); re(); },
       cbInput:      () => {
