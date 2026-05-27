@@ -381,7 +381,7 @@ function renderBartender() {
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div style="flex:1">
-      <div class="ord-title">Закупка</div>
+      <div class="ord-title">Замовлення</div>
       <div class="ord-sub">${state.venue}</div>
     </div>
     ${totalItems > 0 ? `<div style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--teal)">${totalItems} поз.</div>` : ''}
