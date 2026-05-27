@@ -45,7 +45,13 @@ function fmtDate(d) {
   if (!d) return '';
   const [y, m, day] = d.split('-');
   const months = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
-  return `${parseInt(day)} ${months[parseInt(m) - 1]}`;
+  return `${parseInt(day)} ${months[parseInt(m) - 1]} ${y}`;
+}
+
+function shiftDate(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 function todayKyiv() {
@@ -213,6 +219,33 @@ function resetScan() {
   re();
 }
 
+function prevDay() {
+  if (_loadingMarks) return;
+  _verifyResult = null;
+  loadMarks(shiftDate(_marksDate || todayKyiv(), -1));
+}
+
+function nextDay() {
+  if (_loadingMarks) return;
+  const today = todayKyiv();
+  if (_marksDate >= today) return;
+  _verifyResult = null;
+  loadMarks(shiftDate(_marksDate, 1));
+}
+
+function openDatePicker() {
+  const inp = document.getElementById('exc-date-inp');
+  if (!inp) return;
+  inp.value = _marksDate || todayKyiv();
+  inp.showPicker?.() || inp.click();
+}
+
+function onDatePick(val) {
+  if (!val || val > todayKyiv()) return;
+  _verifyResult = null;
+  loadMarks(val);
+}
+
 // ── render ────────────────────────────────────────────────────
 function re() {
   if (state.route !== 'excise') return;
@@ -322,6 +355,9 @@ const CSS = `<style id="exc-css">
 .exc-date-lbl{font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-h)}
 .exc-refresh-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2)}
 .exc-refresh-btn:active{background:var(--bg3)}
+.exc-nav-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text1);font-size:14px;font-weight:600;flex-shrink:0}
+.exc-nav-btn:active{background:var(--bg3)}
+.exc-nav-btn:disabled{opacity:.35;cursor:not-allowed}
 .exc-empty{padding:40px 20px;text-align:center;font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.7}
 </style>`;
 
@@ -354,6 +390,7 @@ function buildPage() {
 
   <input class="exc-file" id="exc-cam-inp" type="file" accept="image/*" capture="environment" onchange="window.__exc.handleFile(this)"/>
   <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>
+  <input class="exc-file" id="exc-date-inp" type="date" max="${todayKyiv()}" onchange="window.__exc.onDatePick(this.value)"/>
 </div>`;
 }
 
@@ -525,7 +562,18 @@ function buildListTab() {
 
   return `<div class="exc-scroll">
     <div class="exc-date-row">
-      <div class="exc-date-lbl">${dateLabel}, ${fmtDate(_marksDate || today)}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="exc-nav-btn" onclick="window.__exc.prevDay()" ${_loadingMarks ? 'disabled' : ''}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="exc-date-lbl" onclick="window.__exc.openDatePicker()" style="cursor:pointer;display:flex;align-items:center;gap:5px">
+          ${isToday ? 'Сьогодні' : fmtDate(_marksDate)}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        <button class="exc-nav-btn" onclick="window.__exc.nextDay()" ${(isToday || _loadingMarks) ? 'disabled' : ''}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
       <button class="exc-refresh-btn" onclick="window.__exc.refreshMarks()" ${_loadingMarks ? 'disabled' : ''}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="${_loadingMarks ? 'animation:excSpin .7s linear infinite' : ''}"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
       </button>
@@ -620,8 +668,12 @@ export default {
       showManual:  () => { _scanStep = 'manual'; re(); },
       manualInput: (v) => { _manualCode = v; },
       doManualSave: doManualSave,
-      refreshMarks: () => loadMarks(_marksDate),
-      verify:       doVerify,
+      refreshMarks:   () => loadMarks(_marksDate),
+      prevDay:        prevDay,
+      nextDay:        nextDay,
+      openDatePicker: openDatePicker,
+      onDatePick:     onDatePick,
+      verify:         doVerify,
       deleteMark:   doDeleteMark,
       toggleCb:     () => { _cbShow = !_cbShow; if (_cbShow) loadCbSettings(); re(); },
       cbInput:      () => {
