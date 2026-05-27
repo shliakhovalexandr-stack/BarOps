@@ -37,6 +37,28 @@ let _pinStep    = 'first'; // 'first' | 'confirm'
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 
+function showConfirm({ title, message, okLabel = 'Підтвердити', okType = 'danger', onOk }) {
+  const existing = document.getElementById('tm-confirm-overlay');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'tm-confirm-overlay';
+  el.className = 'tm-confirm-overlay';
+  el.innerHTML = `
+    <div class="tm-confirm-card">
+      <div class="tm-confirm-title">${title}</div>
+      <div class="tm-confirm-msg">${message}</div>
+      <div class="tm-confirm-btns">
+        <button class="tm-confirm-cancel" id="tm-confirm-cancel">Скасувати</button>
+        <button class="tm-confirm-ok ${okType}" id="tm-confirm-ok">${okLabel}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove();
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  document.getElementById('tm-confirm-cancel').onclick = close;
+  document.getElementById('tm-confirm-ok').onclick = () => { close(); onOk(); };
+}
+
 /* ════════════════════════
    CSS
 ════════════════════════ */
@@ -139,6 +161,17 @@ const CSS = `<style id="tm-css">
 .tm-loading{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
 .tm-spinner{width:24px;height:24px;border-radius:50%;border:2.5px solid var(--bg3);border-top-color:var(--green);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.tm-confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px)}
+.tm-confirm-card{background:#111116;border:0.5px solid rgba(255,255,255,.12);border-radius:20px;padding:24px;width:100%;max-width:320px;box-shadow:0 24px 60px rgba(0,0,0,.7)}
+.tm-confirm-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:8px}
+.tm-confirm-msg{font-size:14px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:24px}
+.tm-confirm-btns{display:flex;gap:10px}
+.tm-confirm-cancel{flex:1;height:48px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:15px;font-family:var(--font-h);font-weight:600;cursor:pointer}
+.tm-confirm-cancel:active{opacity:.7}
+.tm-confirm-ok{flex:1;height:48px;border-radius:12px;border:none;font-size:15px;font-family:var(--font-h);font-weight:600;cursor:pointer;transition:opacity .15s}
+.tm-confirm-ok.danger{background:var(--red);color:#fff}
+.tm-confirm-ok.warning{background:var(--amber);color:#000}
+.tm-confirm-ok:active{opacity:.8}
 </style>`;
 
 /* ════════════════════════
@@ -689,33 +722,47 @@ async function submitEdit() {
    DEACTIVATE / ACTIVATE
 ════════════════════════ */
 async function deactivate(id) {
-  if (!confirm('Деактивувати цей акаунт? Бармен не зможе увійти.')) return;
-  try {
-    const vId = currentVenueId();
-    await fetch(`${API}/api/auth/team/${id}?venueId=${vId}`, {
-      method:  'DELETE',
-      headers: { Authorization: `Bearer ${token()}` },
-    });
-    const idx = _team.findIndex(m => m.id === id);
-    if (idx !== -1) _team[idx].status = 'inactive';
-    _openId = null;
-    fullRender();
-  } catch (err) { alert('Помилка: ' + err.message); }
+  showConfirm({
+    title:   'Деактивувати акаунт?',
+    message: 'Бармен не зможе увійти до системи.',
+    okLabel: 'Деактивувати',
+    okType:  'warning',
+    onOk: async () => {
+      try {
+        const vId = currentVenueId();
+        await fetch(`${API}/api/auth/team/${id}?venueId=${vId}`, {
+          method:  'DELETE',
+          headers: { Authorization: `Bearer ${token()}` },
+        });
+        const idx = _team.findIndex(m => m.id === id);
+        if (idx !== -1) _team[idx].status = 'inactive';
+        _openId = null;
+        fullRender();
+      } catch (err) { alert('Помилка: ' + err.message); }
+    },
+  });
 }
 
 async function hardDelete(id) {
   const member = _team.find(m => m.id === id);
-  if (!confirm(`Повністю видалити ${member?.name || 'бармена'}? Цю дію не можна скасувати.`)) return;
-  try {
-    const vId = currentVenueId();
-    await fetch(`${API}/api/auth/team/${id}?permanent=true&venueId=${vId}`, {
-      method:  'DELETE',
-      headers: { Authorization: `Bearer ${token()}` },
-    });
-    _team = _team.filter(m => m.id !== id);
-    _openId = null;
-    fullRender();
-  } catch (err) { alert('Помилка: ' + err.message); }
+  showConfirm({
+    title:   `Видалити ${member?.name || 'бармена'}?`,
+    message: 'Цю дію не можна скасувати. Всі дані будуть втрачені.',
+    okLabel: 'Видалити',
+    okType:  'danger',
+    onOk: async () => {
+      try {
+        const vId = currentVenueId();
+        await fetch(`${API}/api/auth/team/${id}?permanent=true&venueId=${vId}`, {
+          method:  'DELETE',
+          headers: { Authorization: `Bearer ${token()}` },
+        });
+        _team = _team.filter(m => m.id !== id);
+        _openId = null;
+        fullRender();
+      } catch (err) { alert('Помилка: ' + err.message); }
+    },
+  });
 }
 
 async function activate(id) {
