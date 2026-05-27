@@ -247,6 +247,7 @@ function teamListHTML() {
     </div>`;
     }).join('')}
 
+    ${(state.role === 'admin' || state.role === 'manager') ? `
     <div class="tm-add-btn" onclick="window.__tm.openAdd()">
       <div class="tm-add-icon">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -255,7 +256,7 @@ function teamListHTML() {
         <div class="tm-add-text">Додати співробітника</div>
         <div class="tm-add-sub">Ім'я, посада та PIN для входу</div>
       </div>
-    </div>
+    </div>` : ''}
   </div>
   <div style="height:16px"></div>`;
 }
@@ -450,11 +451,12 @@ ${CSS}
       <div class="tm-title">Команда</div>
       <div class="tm-sub">${_activeVenueName || state.venue || 'Всі заклади'} · ${_team.length} учасників</div>
     </div>
+    ${(state.role === 'admin' || state.role === 'manager') ? `
     <button onclick="window.__tm.openAdd()"
       style="height:34px;padding:0 14px;background:var(--green);border:none;border-radius:20px;font-size:12px;font-family:var(--font-b);color:#000;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="#000" stroke-width="1.6" stroke-linecap="round"/></svg>
       Додати
-    </button>
+    </button>` : ''}
   </div>
 
   <!-- Venue selector -->
