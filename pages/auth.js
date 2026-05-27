@@ -155,33 +155,27 @@ function viewPin() {
    VIEW: SETUP (перший запуск — ввести телефон)
 ════════════════════════════════════════ */
 function viewSetup() {
-  const phoneDigits = _phone ? _phone.replace('+380', '') : '';
+  const phoneDigits = _phone ? _phone.replace('+38', '') : '';
   return `
   <div class="auth-view ${_view==='setup'?'active':''}" id="auth-setup">
     <div class="auth-inner">
-      <div style="display:flex;flex-direction:column;align-items:center;margin-top:48px;margin-bottom:24px;gap:10px">
+      <div style="display:flex;flex-direction:column;align-items:center;margin-top:48px;margin-bottom:32px;gap:10px">
         ${BOTTLE_SVG}
         <div style="font-family:'Geist',system-ui,sans-serif;font-size:28px;font-weight:600;color:#fff;letter-spacing:-.045em">bar<span style="color:#A88BFF">ops.</span></div>
       </div>
-      <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em">Перший вхід</div>
-      <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-top:6px;line-height:1.65">
-        Введіть номер телефону один раз.<br/>Надалі — тільки PIN-код.
-      </div>
-      <div style="height:20px"></div>
       <div class="auth-lbl">Номер телефону</div>
       <div class="auth-phone-wrap" onclick="document.getElementById('setup-phone-inp').focus()">
-        <span style="font-family:var(--font-b);font-size:15px;color:var(--text1);white-space:nowrap;flex-shrink:0">+380</span>
-        <span style="width:1px;height:22px;background:var(--border2);flex-shrink:0;margin:0 14px"></span>
-        <input id="setup-phone-inp" type="tel" inputmode="numeric" maxlength="9" autocomplete="tel"
-          placeholder="67 123 4567" value="${phoneDigits}"
+        <span style="font-family:var(--font-b);font-size:15px;color:var(--text1);white-space:nowrap;flex-shrink:0">+38</span>
+        <input id="setup-phone-inp" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel"
+          placeholder="0671234567" value="${phoneDigits}"
           oninput="window.__auth.onSetupPhoneInput(this)"
           onkeydown="if(event.key==='Enter')window.__auth.submitSetup()"
-          style="flex:1;height:100%;background:transparent;border:none;outline:none;font-size:17px;font-family:var(--font-h);font-weight:600;color:var(--text0);padding:0;-webkit-text-fill-color:var(--text0)"/>
+          style="flex:1;height:100%;background:transparent;border:none;outline:none;font-size:17px;font-family:var(--font-h);font-weight:600;color:var(--text0);padding:0 0 0 10px;-webkit-text-fill-color:var(--text0)"/>
       </div>
       <div class="auth-error" id="setup-err">Введіть коректний номер</div>
       <div class="auth-spacer"></div>
       <button class="auth-btn auth-btn-primary" id="setup-next-btn"
-        onclick="window.__auth.submitSetup()" ${phoneDigits.length >= 9 ? '' : 'disabled'}>
+        onclick="window.__auth.submitSetup()" ${phoneDigits.length >= 10 ? '' : 'disabled'}>
         Продовжити →
       </button>
       <div style="display:flex;justify-content:center;gap:24px;margin-top:16px">
@@ -488,23 +482,21 @@ async function doLogin() {
 ════════════════════════════════════════ */
 function onSetupPhoneInput(inp) {
   let digits = inp.value.replace(/\D/g, '');
-  if (digits.startsWith('380')) digits = digits.slice(3);
-  else if (digits.startsWith('38')) digits = digits.slice(2);
-  else if (digits.startsWith('0')) digits = digits.slice(1);
-  digits = digits.slice(0, 9);
+  if (digits.startsWith('380')) digits = digits.slice(2); // +380... → 0...
+  digits = digits.slice(0, 10);
   inp.value = digits;
-  _phone = '+380' + digits;
+  _phone = '+38' + digits;
   const btn = document.getElementById('setup-next-btn');
-  if (btn) btn.disabled = digits.length < 9;
+  if (btn) btn.disabled = digits.length < 10;
   document.getElementById('setup-err')?.classList.remove('show');
-  if (digits.length === 9) setTimeout(() => submitSetup(), 400);
+  if (digits.length === 10) setTimeout(() => submitSetup(), 400);
 }
 
 function submitSetup() {
   const inp    = document.getElementById('setup-phone-inp');
   const digits = (inp?.value || '').replace(/\D/g, '');
-  if (digits.length < 9) { document.getElementById('setup-err')?.classList.add('show'); return; }
-  _phone = '+380' + digits;
+  if (digits.length < 10) { document.getElementById('setup-err')?.classList.add('show'); return; }
+  _phone = '+38' + digits;
   localStorage.setItem('barops_phone', _phone);
   _pin = '';
   goTo('pin');
