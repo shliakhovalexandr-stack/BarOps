@@ -1,428 +1,641 @@
-﻿/* ============================================================
+/* ============================================================
    BarOps — pages/excise.js
-   Акцизні марки: фото → Telegram топік закладу
+   Акцизні марки: OCR + Checkbox ПРРО перевірка (in-app)
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
 
-const API_URL = 'https://barops-backend-production.up.railway.app';
+const API = 'https://barops-backend-production.up.railway.app';
 
-let _step       = 'idle';
-let _photoFile  = null;
-let _photoUrl   = null;
-let _errorMsg   = '';
-let _excTgChatId  = '';
-let _excTgTopicId = '';
-let _excTgSaving  = false;
-let _excTgSaved   = false;
+// ── state ────────────────────────────────────────────────────
+let _venueId, _token, _role, _userName;
+let _tab       = 'scan';         // 'scan' | 'list'
+let _scanStep  = 'idle';         // 'idle'|'preview'|'scanning'|'done'|'failed'|'manual'
+let _photoFile = null;
+let _photoUrl  = null;
+let _result    = null;           // { code, id } | null
+let _failMsg   = '';
+let _manualCode = '';
 
-const CSS = `<style id="exc-css">
-.exc-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
-.exc-scroll{overflow-y:auto;flex:1;padding:0 20px 24px}.exc-scroll::-webkit-scrollbar{width:0}
-.exc-topbar{display:flex;align-items:center;gap:12px;padding:8px 20px 12px;flex-shrink:0}
-.exc-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.exc-back:active{background:rgba(255,255,255,.08)}
-.exc-title{font-size:16px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
-.exc-sub{font-size:11px;color:var(--text2);margin-top:1px}
-.exc-hero{margin:0 0 18px;background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-.exc-hero-icon{width:64px;height:64px;border-radius:18px;background:var(--green-bg);border:0.5px solid var(--green-border);display:flex;align-items:center;justify-content:center}
-.exc-hero-title{font-size:17px;font-weight:600;letter-spacing:-.01em;margin-bottom:4px}
-.exc-hero-desc{font-size:12px;color:var(--text2);line-height:1.5}
-.exc-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 18px}
-.exc-btn{padding:14px;border-radius:14px;border:0.5px solid var(--border2);background:var(--bg2);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text0);transition:all .15s}
-.exc-btn:active{transform:scale(.97);background:var(--bg3)}
-.exc-preview{margin:0 0 14px;border-radius:16px;overflow:hidden;border:0.5px solid var(--border);position:relative;background:var(--bg2)}
-.exc-preview img{width:100%;display:block;max-height:280px;object-fit:cover}
-.exc-preview-change{position:absolute;top:10px;right:10px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;padding:5px 12px;font-size:11px;color:var(--text1);cursor:pointer}
-.exc-info{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px}
-.exc-info-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:0.5px solid var(--border)}
-.exc-info-row:last-child{border-bottom:none}
-.exc-info-icon{font-size:14px;width:20px;text-align:center;color:var(--text2);flex-shrink:0}
-.exc-info-label{font-size:12px;color:var(--text2);flex:1}
-.exc-info-val{font-size:13px;font-weight:500;color:var(--text0);text-align:right}
-.exc-send{height:54px;border-radius:14px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:12px}
-.exc-send:active{opacity:.85}
-.exc-send:disabled{opacity:.5;cursor:not-allowed}
-.exc-sending{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;padding:40px 24px;text-align:center}
-.exc-spinner{width:40px;height:40px;border-radius:50%;border:3px solid var(--bg3);border-top-color:var(--amber);animation:excSpin .7s linear infinite}
-@keyframes excSpin{to{transform:rotate(360deg)}}
-.exc-sending-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)}
-.exc-sending-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
-.exc-done{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:40px 24px;text-align:center}
-.exc-done-icon{width:72px;height:72px;border-radius:22px;background:var(--green-bg);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:34px;animation:excPop .4s cubic-bezier(.34,1.56,.64,1) both}
-@keyframes excPop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
-.exc-done-title{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0)}
-.exc-done-sub{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6;max-width:260px}
-.exc-done-again{margin-top:8px;height:48px;width:100%;border-radius:14px;border:0.5px solid var(--border);background:var(--bg2);font-size:14px;font-family:var(--font-b);font-weight:500;color:var(--text0);cursor:pointer}
-.exc-done-again:active{background:rgba(255,255,255,.08)}
-.exc-error{margin:0 0 12px;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:14px;padding:12px 14px;font-size:12px;color:var(--red);line-height:1.5;text-align:center}
-.exc-file-input{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
-.exc-tg-panel{margin:0 0 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
-.exc-tg-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;border-bottom:0.5px solid var(--border)}
-.exc-tg-head-lbl{font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
-.exc-tg-head-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
-.exc-tg-body{padding:12px 14px;display:flex;flex-direction:column;gap:9px}
-.exc-tg-grp{display:flex;flex-direction:column;gap:4px}
-.exc-tg-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase}
-.exc-tg-inp{height:40px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .18s;width:100%}
-.exc-tg-inp:focus{border-color:var(--green)}
-.exc-tg-hint{font-size:10px;color:var(--text2);font-family:var(--font-b);line-height:1.4}
-.exc-tg-save-row{display:flex;justify-content:flex-end}
-.exc-tg-save{height:36px;padding:0 16px;background:var(--green);border:none;border-radius:9px;font-size:12px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-b);transition:all .15s}
-.exc-tg-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
-.exc-tg-save:active{opacity:.8}
-</style>`;
+let _marks      = [];
+let _marksDate  = '';
+let _loadingMarks = false;
+let _verifying  = false;
+let _verifyResult = null;        // { passed, failed, total, receiptsChecked } | null
+let _deletingIds  = new Set();
 
-function getToken() {
-  return localStorage.getItem('barops_token') || '';
+let _cbShow    = false;          // settings panel visible
+let _cbLogin   = '';
+let _cbPin     = '';
+let _cbLicKey  = '';
+let _cbSaving  = false;
+let _cbSaved   = false;
+
+// ── helpers ───────────────────────────────────────────────────
+function hdrs() {
+  return { Authorization: `Bearer ${_token}` };
 }
 
-function getUserInfo() {
-  return {
-    name:      localStorage.getItem('barops_user')  || 'Бармен',
-    venueName: localStorage.getItem('barops_venue') || 'Заклад',
-  };
+function fmtTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
 }
 
-function fmtTime() {
-  return new Date().toLocaleString('uk-UA', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  const months = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
+  return `${parseInt(day)} ${months[parseInt(m) - 1]}`;
 }
 
-function exciseTgPanel() {
-  return `
-  <div class="exc-tg-panel" id="exc-tg-panel">
-    <div class="exc-tg-head" onclick="document.getElementById('exc-tg-body').style.display=document.getElementById('exc-tg-body').style.display==='none'?'flex':'none'">
-      <div>
-        <div class="exc-tg-head-lbl">⚙️ Telegram для акцизних марок</div>
-        <div class="exc-tg-head-sub">Налаштування чату для адміністратора</div>
-      </div>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-    </div>
-    <div id="exc-tg-body" class="exc-tg-body" style="display:none">
-      <div class="exc-tg-grp">
-        <div class="exc-tg-lbl">Chat ID</div>
-        <input class="exc-tg-inp" id="exc-tg-chat" type="text" placeholder="-100xxxxxxxxxx"
-          value="${_excTgChatId}" oninput="window.__excise.tgChanged()">
-        <div class="exc-tg-hint">Залиш порожнім — буде використовуватись глобальний чат бота</div>
-      </div>
-      <div class="exc-tg-grp">
-        <div class="exc-tg-lbl">Topic ID (message_thread_id)</div>
-        <input class="exc-tg-inp" id="exc-tg-topic" type="text" placeholder="123"
-          value="${_excTgTopicId}" oninput="window.__excise.tgChanged()">
-        <div class="exc-tg-hint">ID топіку в групі для акцизних марок</div>
-      </div>
-      <div class="exc-tg-save-row">
-        <button class="exc-tg-save ${_excTgSaved?'saved':''}" id="exc-tg-save-btn"
-          onclick="window.__excise.saveTg()">
-          ${_excTgSaved ? '✓ Збережено' : 'Зберегти'}
-        </button>
-      </div>
-    </div>
-  </div>`;
+function todayKyiv() {
+  const kyiv = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return kyiv.toISOString().slice(0, 10);
 }
 
-function render() {
-  const { name, venueName } = getUserInfo();
-  const role    = state.role || '';
-  const isAdmin = role === 'admin' || role === 'manager';
+function isMgr() {
+  return ['admin', 'manager'].includes(_role);
+}
 
-  if (_step === 'sending') {
-    return `${CSS}
-      <div class="exc-wrap">
-        <div class="exc-topbar">
-          <div class="exc-back" onclick="window.__excise.goBack()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-          </div>
-          <div>
-            <div class="exc-title">Акциз</div>
-          </div>
-        </div>
-        <div class="exc-sending">
-          <div class="exc-spinner"></div>
-          <div class="exc-sending-title">Надсилаємо фото...</div>
-          <div class="exc-sending-sub">Фото акцизної марки<br>відправляється в Telegram</div>
-        </div>
-      </div>`;
+// ── data ──────────────────────────────────────────────────────
+async function loadMarks(date) {
+  _loadingMarks = true; re();
+  try {
+    const d = date || _marksDate || todayKyiv();
+    const res = await fetch(`${API}/api/excise/marks?venueId=${_venueId}&date=${d}`, { headers: hdrs() });
+    if (res.ok) {
+      const data = await res.json();
+      _marks     = data.marks || [];
+      _marksDate = data.date  || d;
+    }
+  } catch {}
+  _loadingMarks = false; re();
+}
+
+async function loadCbSettings() {
+  try {
+    const res = await fetch(`${API}/api/excise/venue/${_venueId}/checkbox`, { headers: hdrs() });
+    if (res.ok) {
+      const d = await res.json();
+      _cbLogin  = d.login      || '';
+      _cbPin    = d.pin        || '';
+      _cbLicKey = d.licenseKey || '';
+    }
+  } catch {}
+}
+
+async function doVerify() {
+  _verifying = true; _verifyResult = null; re();
+  try {
+    const res = await fetch(`${API}/api/excise/verify/${_venueId}?date=${_marksDate}`, {
+      method: 'POST', headers: hdrs(),
+    });
+    const d = await res.json();
+    if (res.ok) {
+      _verifyResult = d;
+      await loadMarks(_marksDate);
+    } else {
+      _verifyResult = { error: d.error || 'Помилка перевірки' };
+    }
+  } catch (e) {
+    _verifyResult = { error: 'Не вдалося підключитися до сервера' };
   }
-
-  if (_step === 'done') {
-    return `${CSS}
-      <div class="exc-wrap">
-        <div class="exc-topbar">
-          <div class="exc-back" onclick="window.__excise.goBack()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-          </div>
-          <div>
-            <div class="exc-title">Акциз</div>
-          </div>
-        </div>
-        <div class="exc-done">
-          <div class="exc-done-icon">✅</div>
-          <div class="exc-done-title">Відправлено!</div>
-          <div class="exc-done-sub">Фото акцизної марки надіслано до Telegram-топіку закладу «${venueName}»</div>
-          <button class="exc-done-again" onclick="window.__excise.reset()">Надіслати ще одне фото</button>
-        </div>
-      </div>`;
-  }
-
-  const hasPhoto = _step === 'preview' && _photoUrl;
-
-  return `${CSS}
-    <div class="exc-wrap">
-      <div class="exc-topbar">
-        <div class="exc-back" onclick="window.__excise.goBack()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-        </div>
-        <div>
-          <div class="exc-title">Акцизні марки</div>
-          <div class="exc-sub">${venueName}</div>
-        </div>
-      </div>
-
-      <div class="exc-scroll">
-
-        ${!hasPhoto ? `
-        <div class="exc-hero">
-          <div class="exc-hero-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6">
-              <rect x="3" y="6" width="18" height="12" rx="2"/>
-              <path d="M3 12h18M8 6V4h8v2"/>
-            </svg>
-          </div>
-          <div>
-            <div class="exc-hero-title">Сфоткайте акцизну марку</div>
-            <div class="exc-hero-desc">Фото автоматично відправляється<br>у Telegram-топік закладу</div>
-          </div>
-        </div>
-
-        <div class="exc-btns">
-          <button class="exc-btn" onclick="window.__excise.openCamera()">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-            Камера
-          </button>
-          <button class="exc-btn" onclick="window.__excise.openGallery()">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="9" cy="9" r="2"/>
-              <path d="M21 15l-5-5L5 21"/>
-            </svg>
-            Галерея
-          </button>
-        </div>
-
-        ${isAdmin ? exciseTgPanel() : ''}
-        ` : ''}
-
-        ${hasPhoto ? `
-        <div class="exc-preview">
-          <img src="${_photoUrl}" alt="Акцизна марка"/>
-          <div class="exc-preview-change" onclick="window.__excise.openGallery()">Змінити фото</div>
-        </div>
-
-        <div class="exc-info">
-          <div class="exc-info-row">
-            <span class="exc-info-icon">◉</span>
-            <span class="exc-info-label">Бармен</span>
-            <span class="exc-info-val">${name}</span>
-          </div>
-          <div class="exc-info-row">
-            <span class="exc-info-icon">◔</span>
-            <span class="exc-info-label">Час</span>
-            <span class="exc-info-val">${fmtTime()}</span>
-          </div>
-        </div>
-
-        ${_step === 'error' ? `<div class="exc-error">⚠️ ${_errorMsg}</div>` : ''}
-
-        <button class="exc-send" onclick="window.__excise.send()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-          Надіслати в Telegram
-        </button>
-        ` : ''}
-
-      </div>
-
-      <input class="exc-file-input" id="exc-cam-inp" type="file" accept="image/*" capture="environment"
-        onchange="window.__excise.handleFile(this)"/>
-      <input class="exc-file-input" id="exc-gal-inp" type="file" accept="image/*"
-        onchange="window.__excise.handleFile(this)"/>
-    </div>`;
+  _verifying = false; re();
 }
 
-function rerender() {
-  const view = document.getElementById('app-view');
-  if (view) view.innerHTML = render();
+async function doDeleteMark(id) {
+  _deletingIds.add(id); re();
+  try {
+    const res = await fetch(`${API}/api/excise/mark/${id}`, { method: 'DELETE', headers: hdrs() });
+    if (res.ok) {
+      _marks = _marks.filter(m => m.id !== id);
+      _verifyResult = null;
+    }
+  } catch {}
+  _deletingIds.delete(id); re();
 }
 
-function goBack() {
-  navigate('dashboard');
+async function doSaveCb() {
+  _cbSaving = true; re();
+  try {
+    const res = await fetch(`${API}/api/excise/venue/${_venueId}/checkbox`, {
+      method: 'PATCH',
+      headers: { ...hdrs(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: _cbLogin, password: _cbLogin, pin: _cbPin, licenseKey: _cbLicKey }),
+    });
+    _cbSaved = res.ok;
+  } catch {}
+  _cbSaving = false; re();
 }
 
-function reset() {
-  _step      = 'idle';
-  _photoFile = null;
-  if (_photoUrl) URL.revokeObjectURL(_photoUrl);
-  _photoUrl  = null;
-  _errorMsg  = '';
-  rerender();
-}
-
+// ── scan flow ─────────────────────────────────────────────────
 function openCamera() {
-  const inp = document.getElementById('exc-cam-inp');
-  if (inp) inp.click();
+  document.getElementById('exc-cam-inp')?.click();
 }
-
 function openGallery() {
-  const inp = document.getElementById('exc-gal-inp');
-  if (inp) inp.click();
+  document.getElementById('exc-gal-inp')?.click();
 }
 
 function handleFile(input) {
   const file = input.files?.[0];
   if (!file) return;
-  
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoFile = file;
   _photoUrl  = URL.createObjectURL(file);
-  _step      = 'preview';
-  _errorMsg  = '';
-  
-  // Очищаємо input ПІСЛЯ зчитування файлу, через таймаут
-  setTimeout(() => {
-    input.value = '';
-  }, 100);
-  
-  rerender();
+  _scanStep  = 'preview';
+  _result    = null; _failMsg = '';
+  setTimeout(() => { input.value = ''; }, 100);
+  re();
 }
 
-async function send() {
+async function doScan() {
   if (!_photoFile) return;
-
-  const { name, venueName } = getUserInfo();
-
-  // Читаємо telegramTopicId з бекенду напряму
-  // Читаємо telegramTopicId з localStorage
-  const telegramTopicId = localStorage.getItem('barops_telegram_topic') || '';
-  console.log('[Excise] telegramTopicId для відправки:', telegramTopicId);
-
-  _step = 'sending';
-  rerender();
+  _scanStep = 'scanning'; re();
 
   try {
-    const formData = new FormData();
-    formData.append('photo',           _photoFile);
-    formData.append('venueName',       venueName);
-    formData.append('barmanName',      name);
-    formData.append('telegramTopicId', telegramTopicId);
-
-    const token = getToken();
-    const res = await fetch(`${API_URL}/api/excise/photo`, {
-      method:  'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body:    formData,
-    });
-
+    const form = new FormData();
+    form.append('photo', _photoFile);
+    const res  = await fetch(`${API}/api/excise/scan`, { method: 'POST', headers: hdrs(), body: form });
     const data = await res.json();
 
     if (!res.ok) throw new Error(data.error || 'Помилка сервера');
 
-    if (_photoUrl) URL.revokeObjectURL(_photoUrl);
-    _photoUrl  = null;
-    _photoFile = null;
-    _step      = 'done';
-    rerender();
-
-    } catch (err) {
-    _step     = 'preview'; // Повертаємось на preview, щоб показати помилку
-    _errorMsg = err.message || 'Не вдалося надіслати фото. Спробуй ще раз.';
-    rerender();
-  }
-}
-
-async function loadExciseTgSettings() {
-  try {
-    const venueId = localStorage.getItem('barops_venueId') || '';
-    if (!venueId) return;
-    const token = getToken();
-    const res = await fetch(`${API_URL}/api/venues`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return;
-    const d = await res.json();
-    const venue = (d.venues || []).find(v => v.id === venueId);
-    if (venue) {
-      _excTgChatId  = venue.telegramExciseChatId  || '';
-      _excTgTopicId = venue.telegramExciseTopicId || '';
-      rerender();
-    }
-  } catch {}
-}
-
-async function saveExciseTg() {
-  if (_excTgSaving) return;
-  _excTgSaving = true;
-  const btn = document.getElementById('exc-tg-save-btn');
-  if (btn) { btn.textContent = '…'; btn.disabled = true; }
-
-  try {
-    const venueId   = localStorage.getItem('barops_venueId') || '';
-    const chatInput  = document.getElementById('exc-tg-chat');
-    const topicInput = document.getElementById('exc-tg-topic');
-    _excTgChatId  = chatInput?.value.trim()  || '';
-    _excTgTopicId = topicInput?.value.trim() || '';
-
-    const res = await fetch(`${API_URL}/api/venues/${venueId}/telegram`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body:    JSON.stringify({
-        telegramExciseChatId:  _excTgChatId  || null,
-        telegramExciseTopicId: _excTgTopicId || null,
-      }),
-    });
-    const d = await res.json();
-    if (d.success) {
-      _excTgSaved = true;
-      if (btn) { btn.textContent = '✓ Збережено'; btn.classList.add('saved'); btn.disabled = false; }
+    if (data.recognized) {
+      _result   = { code: data.code, id: data.id };
+      _scanStep = 'done';
     } else {
-      if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+      _failMsg  = data.message || 'Марку не розпізнано';
+      _scanStep = 'failed';
     }
-  } catch {
-    if (btn) { btn.textContent = 'Помилка'; btn.disabled = false; }
+  } catch (e) {
+    _failMsg  = e.message || 'Помилка. Спробуйте ще раз.';
+    _scanStep = 'failed';
   }
-  _excTgSaving = false;
+  re();
 }
 
+async function doManualSave() {
+  const inp  = document.getElementById('exc-manual');
+  const code = (inp?.value || _manualCode).trim().toUpperCase().replace(/\s/g, '');
+  _manualCode = code;
+  if (!code || code.length < 6) {
+    _failMsg  = 'Введіть код акцизної марки (мінімум 6 символів)';
+    _scanStep = 'failed';
+    re(); return;
+  }
+  _scanStep = 'scanning'; re();
+  try {
+    const res  = await fetch(`${API}/api/excise/manual`, {
+      method: 'POST',
+      headers: { ...hdrs(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      _result   = { code: data.code, id: data.id };
+      _scanStep = 'done';
+    } else {
+      _failMsg  = data.error || 'Помилка';
+      _scanStep = 'failed';
+    }
+  } catch (e) {
+    _failMsg  = 'Помилка. Спробуйте ще раз.';
+    _scanStep = 'failed';
+  }
+  re();
+}
+
+function resetScan() {
+  if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+  _photoFile = null; _photoUrl = null;
+  _scanStep  = 'idle'; _result = null; _failMsg = '';
+  _manualCode = '';
+  re();
+}
+
+// ── render ────────────────────────────────────────────────────
+function re() {
+  if (state.route !== 'excise') return;
+  const el = document.getElementById('exc-root');
+  if (el) el.innerHTML = buildPage();
+}
+
+const CSS = `<style id="exc-css">
+.exc-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.exc-topbar{display:flex;align-items:center;gap:12px;padding:8px 16px 0;flex-shrink:0}
+.exc-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.exc-back:active{background:var(--bg3)}
+.exc-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);flex:1}
+.exc-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
+
+/* Tab bar */
+.exc-tabs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin:10px 16px 0;border-radius:12px;overflow:hidden;flex-shrink:0}
+.exc-tab{background:var(--bg1);padding:9px;text-align:center;font-size:12px;font-family:var(--font-b);font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s}
+.exc-tab.act{background:var(--bg2);color:var(--text0);font-weight:600}
+
+/* Scroll */
+.exc-scroll{overflow-y:auto;flex:1;padding:16px 16px 32px}.exc-scroll::-webkit-scrollbar{width:0}
+
+/* Hero card */
+.exc-hero{background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;margin-bottom:16px}
+.exc-hero-icon{width:64px;height:64px;border-radius:18px;background:var(--green-bg,#1a3320);border:0.5px solid var(--green-border,#2d5c3a);display:flex;align-items:center;justify-content:center}
+.exc-hero-title{font-family:var(--font-h);font-size:17px;font-weight:600;color:var(--text0);margin-bottom:2px}
+.exc-hero-desc{font-size:12px;color:var(--text2);line-height:1.5}
+
+/* Buttons */
+.exc-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.exc-btn{padding:16px;border-radius:14px;border:0.5px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text0);transition:all .15s}
+.exc-btn:active{transform:scale(.97);background:var(--bg3)}
+.exc-cta{height:54px;border-radius:14px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:10px}
+.exc-cta:active{opacity:.85}
+.exc-cta:disabled{opacity:.45;cursor:not-allowed}
+.exc-cta-sec{height:44px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:13px;font-weight:500;cursor:pointer;width:100%;margin-bottom:8px}
+.exc-cta-sec:active{background:var(--bg3)}
+
+/* Photo preview */
+.exc-preview{margin-bottom:14px;border-radius:16px;overflow:hidden;border:0.5px solid var(--border);position:relative;background:var(--bg2)}
+.exc-preview img{width:100%;display:block;max-height:260px;object-fit:cover}
+.exc-preview-btn{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);border:0.5px solid rgba(255,255,255,.15);border-radius:14px;padding:5px 12px;font-size:11px;color:#fff;cursor:pointer;font-family:var(--font-b)}
+
+/* Result cards */
+.exc-result-card{border-radius:16px;padding:20px;text-align:center;margin-bottom:14px}
+.exc-result-card.ok{background:var(--green-bg,#1a3320);border:0.5px solid var(--green-border,#2d5c3a)}
+.exc-result-card.fail{background:var(--red-bg,#2a1212);border:0.5px solid var(--red-border,#5c2d2d)}
+.exc-result-icon{font-size:36px;margin-bottom:8px}
+.exc-result-code{font-family:var(--font-h);font-size:28px;font-weight:700;color:var(--green);letter-spacing:.04em;margin-bottom:4px}
+.exc-result-label{font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em}
+.exc-result-fail-title{font-family:var(--font-h);font-size:15px;font-weight:600;color:var(--red);margin-bottom:6px}
+.exc-result-fail-msg{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
+
+/* Spinner */
+.exc-spin-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:60px 20px}
+.exc-spinner{width:40px;height:40px;border-radius:50%;border:3px solid var(--bg3);border-top-color:var(--amber,#c98a00);animation:excSpin .7s linear infinite}
+@keyframes excSpin{to{transform:rotate(360deg)}}
+.exc-spin-title{font-family:var(--font-h);font-size:15px;font-weight:600;color:var(--text0)}
+.exc-spin-sub{font-size:12px;color:var(--text2);font-family:var(--font-b)}
+
+/* Manual entry */
+.exc-manual-inp{width:100%;box-sizing:border-box;height:52px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;color:var(--text0);font-size:20px;font-family:var(--font-h);font-weight:600;text-align:center;letter-spacing:.08em;outline:none;margin-bottom:10px}
+.exc-manual-inp:focus{border-color:var(--green)}
+
+/* KPI grid */
+.exc-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-bottom:14px;border:0.5px solid var(--border)}
+.exc-kpi{background:var(--bg1);padding:12px 8px;text-align:center}
+.exc-kpi-val{font-family:var(--font-h);font-size:18px;font-weight:600;line-height:1}
+.exc-kpi-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+
+/* Marks list */
+.exc-mark-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border)}
+.exc-mark-row:last-child{border-bottom:none}
+.exc-mark-code{font-family:var(--font-h);font-size:15px;font-weight:600;color:var(--text0);letter-spacing:.04em}
+.exc-mark-meta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.exc-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:8px;font-size:10px;font-weight:600;font-family:var(--font-b);flex-shrink:0}
+.exc-badge.found{background:var(--green-bg,#1a3320);color:var(--green);border:0.5px solid var(--green-border,#2d5c3a)}
+.exc-badge.not_found{background:var(--red-bg,#2a1212);color:var(--red,#e85555);border:0.5px solid var(--red-border,#5c2d2d)}
+.exc-badge.pending{background:var(--bg3);color:var(--text2);border:0.5px solid var(--border)}
+.exc-del-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text2);transition:all .12s}
+.exc-del-btn:active{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+
+/* Verify result */
+.exc-verify-card{border-radius:14px;padding:14px;margin-bottom:14px}
+.exc-verify-card.ok{background:var(--green-bg,#1a3320);border:0.5px solid var(--green-border,#2d5c3a)}
+.exc-verify-card.warn{background:var(--red-bg,#2a1212);border:0.5px solid var(--red-border,#5c2d2d)}
+.exc-verify-card.err{background:var(--bg2);border:0.5px solid var(--border)}
+
+/* Checkbox settings */
+.exc-cb-panel{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin-top:14px}
+.exc-cb-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer}
+.exc-cb-head-lbl{font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
+.exc-cb-head-sub{font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
+.exc-cb-body{padding:12px 14px;border-top:0.5px solid var(--border);display:flex;flex-direction:column;gap:10px}
+.exc-cb-field{display:flex;flex-direction:column;gap:4px}
+.exc-cb-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em}
+.exc-cb-inp{height:38px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;width:100%;box-sizing:border-box}
+.exc-cb-inp:focus{border-color:var(--green)}
+.exc-cb-hint{font-size:10px;color:var(--text2);font-family:var(--font-b);line-height:1.4}
+.exc-cb-save{height:36px;border-radius:10px;border:none;background:var(--green);color:#000;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-b);padding:0 16px}
+.exc-cb-save:disabled{opacity:.5;cursor:not-allowed}
+.exc-cb-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
+
+.exc-file{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
+.exc-date-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.exc-date-lbl{font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-h)}
+.exc-refresh-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2)}
+.exc-refresh-btn:active{background:var(--bg3)}
+.exc-empty{padding:40px 20px;text-align:center;font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.7}
+</style>`;
+
+function buildPage() {
+  if (_scanStep === 'scanning') return `${CSS}${buildScanWrap(buildSpinner())}`;
+
+  return `${CSS}
+<div class="exc-wrap" id="exc-root-inner">
+  <div class="exc-topbar">
+    <div class="exc-back" onclick="window.__exc.back()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </div>
+    <div style="flex:1">
+      <div class="exc-title">Акцизні марки</div>
+    </div>
+  </div>
+
+  <div class="exc-tabs">
+    <div class="exc-tab ${_tab === 'scan' ? 'act' : ''}" onclick="window.__exc.setTab('scan')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-2px;margin-right:4px"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Скан
+    </div>
+    <div class="exc-tab ${_tab === 'list' ? 'act' : ''}" onclick="window.__exc.setTab('list')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-2px;margin-right:4px"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      Сьогодні ${_marks.length > 0 ? `<span style="background:var(--green);color:#000;border-radius:6px;padding:1px 5px;font-size:9px;margin-left:4px;font-weight:700">${_marks.length}</span>` : ''}
+    </div>
+  </div>
+
+  ${_tab === 'scan' ? buildScanTab() : buildListTab()}
+
+  <input class="exc-file" id="exc-cam-inp" type="file" accept="image/*" capture="environment" onchange="window.__exc.handleFile(this)"/>
+  <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>
+</div>`;
+}
+
+function buildScanWrap(inner) {
+  return `${CSS}<div class="exc-wrap"><div class="exc-topbar">
+    <div class="exc-back" onclick="window.__exc.back()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></div>
+    <div class="exc-title">Акцизні марки</div>
+  </div>${inner}</div>
+  <input class="exc-file" id="exc-cam-inp" type="file" accept="image/*" capture="environment" onchange="window.__exc.handleFile(this)"/>
+  <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>`;
+}
+
+function buildSpinner() {
+  return `<div class="exc-spin-wrap">
+    <div class="exc-spinner"></div>
+    <div class="exc-spin-title">Розпізнаємо марку...</div>
+    <div class="exc-spin-sub">Claude Vision аналізує фото</div>
+  </div>`;
+}
+
+function buildScanTab() {
+  if (_scanStep === 'done' && _result) {
+    return `<div class="exc-scroll">
+      <div class="exc-result-card ok">
+        <div class="exc-result-icon">✅</div>
+        <div class="exc-result-code">${_result.code}</div>
+        <div class="exc-result-label">Серія та номер збережено</div>
+      </div>
+      <button class="exc-cta" onclick="window.__exc.resetScan()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Наступна марка
+      </button>
+      <button class="exc-cta-sec" onclick="window.__exc.setTab('list')">Перейти до списку →</button>
+    </div>`;
+  }
+
+  if (_scanStep === 'failed') {
+    return `<div class="exc-scroll">
+      <div class="exc-result-card fail">
+        <div class="exc-result-icon">❌</div>
+        <div class="exc-result-fail-title">Марку не розпізнано</div>
+        <div class="exc-result-fail-msg">${_failMsg}</div>
+      </div>
+      <button class="exc-cta" onclick="window.__exc.resetScan()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Спробувати ще раз
+      </button>
+      <button class="exc-cta-sec" onclick="window.__exc.showManual()">Ввести вручну</button>
+    </div>`;
+  }
+
+  if (_scanStep === 'manual') {
+    return `<div class="exc-scroll">
+      <div style="margin-bottom:12px">
+        <div style="font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);margin-bottom:6px">Введіть код вручну</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5">Серія та номер з акцизної марки (наприклад: AIZT016199)</div>
+      </div>
+      <input class="exc-manual-inp" id="exc-manual" type="text" maxlength="12" autocapitalize="characters"
+        placeholder="AIZT016199" value="${_manualCode}"
+        oninput="window.__exc.manualInput(this.value)"/>
+      <button class="exc-cta" onclick="window.__exc.doManualSave()">
+        Зберегти
+      </button>
+      <button class="exc-cta-sec" onclick="window.__exc.resetScan()">Скасувати</button>
+    </div>`;
+  }
+
+  if (_scanStep === 'preview' && _photoUrl) {
+    return `<div class="exc-scroll">
+      <div class="exc-preview">
+        <img src="${_photoUrl}" alt="Фото марки"/>
+        <div class="exc-preview-btn" onclick="window.__exc.openGallery()">Змінити</div>
+      </div>
+      <button class="exc-cta" onclick="window.__exc.doScan()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        Розпізнати та зберегти
+      </button>
+      <button class="exc-cta-sec" onclick="window.__exc.resetScan()">Скасувати</button>
+    </div>`;
+  }
+
+  // idle
+  return `<div class="exc-scroll">
+    <div class="exc-hero">
+      <div class="exc-hero-icon">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6">
+          <rect x="2" y="6" width="20" height="14" rx="2"/>
+          <path d="M16 4l-4 2-4-2"/>
+          <path d="M5 10h14M5 14h4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="exc-hero-title">Сфоткайте акцизну марку</div>
+        <div class="exc-hero-desc">Claude Vision розпізнає код і збереже в базі.<br>О 9:00 менеджер перевіряє в Checkbox ПРРО.</div>
+      </div>
+    </div>
+    <div class="exc-btn-grid">
+      <button class="exc-btn" onclick="window.__exc.openCamera()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Камера
+      </button>
+      <button class="exc-btn" onclick="window.__exc.openGallery()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        Галерея
+      </button>
+    </div>
+    <button class="exc-cta-sec" onclick="window.__exc.showManual()" style="margin-top:4px">
+      Ввести код вручну
+    </button>
+  </div>`;
+}
+
+function buildListTab() {
+  const today = todayKyiv();
+  const isToday = _marksDate === today || !_marksDate;
+  const dateLabel = isToday ? 'Сьогодні' : fmtDate(_marksDate);
+
+  const total   = _marks.length;
+  const found   = _marks.filter(m => m.checkStatus === 'found').length;
+  const notFound = _marks.filter(m => m.checkStatus === 'not_found').length;
+  const pending = _marks.filter(m => m.checkStatus === 'pending').length;
+
+  let verifyBlock = '';
+  if (_verifyResult) {
+    if (_verifyResult.error) {
+      verifyBlock = `<div class="exc-verify-card err">
+        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">❌ ${_verifyResult.error}</div>
+      </div>`;
+    } else {
+      const allOk = _verifyResult.failed.length === 0;
+      verifyBlock = `<div class="exc-verify-card ${allOk ? 'ok' : 'warn'}">
+        <div style="font-size:13px;font-weight:600;color:${allOk ? 'var(--green)' : 'var(--red)'};font-family:var(--font-h);margin-bottom:4px">
+          ${allOk ? '✅ Всі марки в Checkbox!' : `❌ ${_verifyResult.failed.length} марок немає в Checkbox`}
+        </div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b)">
+          Перевірено ${_verifyResult.total} марок · знайдено ${_verifyResult.passed.length} · чеків: ${_verifyResult.receiptsChecked}
+        </div>
+      </div>`;
+    }
+  }
+
+  const marksList = _marks.length === 0
+    ? `<div class="exc-empty">Марок ще не скановано${isToday ? ' сьогодні' : ''}<br><span style="font-size:11px">Перейдіть на вкладку Скан і відскануйте першу марку</span></div>`
+    : `<div style="border:0.5px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg1);padding:0 14px">
+      ${_marks.map(m => {
+        const deleting = _deletingIds.has(m.id);
+        const statusMap = {
+          found:     { label: '✅ в Checkbox', cls: 'found' },
+          not_found: { label: '❌ не знайдено', cls: 'not_found' },
+          pending:   { label: '⏳ очікує',     cls: 'pending' },
+        };
+        const { label, cls } = statusMap[m.checkStatus] || statusMap.pending;
+        return `<div class="exc-mark-row">
+          <div style="flex:1;min-width:0">
+            <div class="exc-mark-code">${m.code}</div>
+            <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}</div>
+          </div>
+          <div class="exc-badge ${cls}">${label}</div>
+          ${isMgr() ? `<button class="exc-del-btn" onclick="window.__exc.deleteMark('${m.id}')" ${deleting ? 'disabled' : ''}>
+            ${deleting
+              ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
+              : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>'}
+          </button>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  const cbSettings = isMgr() ? buildCbPanel() : '';
+
+  return `<div class="exc-scroll">
+    <div class="exc-date-row">
+      <div class="exc-date-lbl">${dateLabel}, ${fmtDate(_marksDate || today)}</div>
+      <button class="exc-refresh-btn" onclick="window.__exc.refreshMarks()" ${_loadingMarks ? 'disabled' : ''}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="${_loadingMarks ? 'animation:excSpin .7s linear infinite' : ''}"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+      </button>
+    </div>
+
+    ${total > 0 ? `<div class="exc-kpi-row">
+      <div class="exc-kpi"><div class="exc-kpi-val">${total}</div><div class="exc-kpi-lbl">Всього</div></div>
+      <div class="exc-kpi"><div class="exc-kpi-val" style="color:var(--green)">${found}</div><div class="exc-kpi-lbl">✅ OK</div></div>
+      <div class="exc-kpi"><div class="exc-kpi-val" style="color:var(--red,#e85555)">${notFound}</div><div class="exc-kpi-lbl">❌ Немає</div></div>
+      <div class="exc-kpi"><div class="exc-kpi-val" style="color:var(--text2)">${pending}</div><div class="exc-kpi-lbl">⏳ Чекає</div></div>
+    </div>` : ''}
+
+    ${isMgr() ? `<button class="exc-cta" onclick="window.__exc.verify()" ${_verifying ? 'disabled' : ''} style="margin-bottom:12px">
+      ${_verifying
+        ? '<span class="exc-spinner" style="width:18px;height:18px;border-width:2px;margin-right:8px"></span> Перевіряємо...'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:8px"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Перевірити в Checkbox ПРРО'}
+    </button>` : ''}
+
+    ${verifyBlock}
+    ${marksList}
+    ${cbSettings}
+  </div>`;
+}
+
+function buildCbPanel() {
+  const configured = !!_cbLogin || !!_cbPin;
+  return `<div class="exc-cb-panel">
+    <div class="exc-cb-head" onclick="window.__exc.toggleCb()">
+      <div>
+        <div class="exc-cb-head-lbl">⚙️ Checkbox ПРРО</div>
+        <div class="exc-cb-head-sub">${configured ? '✅ Налаштовано' : 'Не налаштовано — введіть облікові дані'}</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" style="transform:rotate(${_cbShow ? 180 : 0}deg);transition:transform .2s"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    ${_cbShow ? `<div class="exc-cb-body">
+      <div class="exc-cb-field">
+        <div class="exc-cb-lbl">Логін касира</div>
+        <input class="exc-cb-inp" type="text" placeholder="test_aiw7faxgg" value="${_cbLogin}" id="cb-login" oninput="window.__exc.cbInput()"/>
+        <div class="exc-cb-hint">login = password для тестових акаунтів Checkbox</div>
+      </div>
+      <div class="exc-cb-field">
+        <div class="exc-cb-lbl">PIN-код</div>
+        <input class="exc-cb-inp" type="text" placeholder="3162387401" value="${_cbPin}" id="cb-pin" oninput="window.__exc.cbInput()"/>
+      </div>
+      <div class="exc-cb-field">
+        <div class="exc-cb-lbl">License Key (якщо є)</div>
+        <input class="exc-cb-inp" type="text" placeholder="5861fee76347f40e23ce09c0" value="${_cbLicKey}" id="cb-lickey" oninput="window.__exc.cbInput()"/>
+        <div class="exc-cb-hint">Тільки для рахунку La Pasta</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="exc-cb-save ${_cbSaved ? 'saved' : ''}" ${_cbSaving ? 'disabled' : ''} onclick="window.__exc.saveCb()">
+          ${_cbSaving ? '...' : _cbSaved ? '✓ Збережено' : 'Зберегти'}
+        </button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+// ── events ────────────────────────────────────────────────────
 export default {
-  render(params) {
-    _step      = 'idle';
+  render() {
+    _venueId  = state.venueId || localStorage.getItem('barops_venueId');
+    _token    = state.token   || localStorage.getItem('barops_token');
+    _role     = (state.role   || localStorage.getItem('barops_role') || '').toLowerCase();
+    _userName = state.name    || localStorage.getItem('barops_user') || 'Бармен';
+
+    _tab = 'scan'; _scanStep = 'idle';
     _photoFile = null;
     if (_photoUrl) URL.revokeObjectURL(_photoUrl);
-    _photoUrl  = null;
-    _errorMsg  = '';
-    _excTgSaved = false;
+    _photoUrl = null;
+    _result = null; _failMsg = ''; _manualCode = '';
+    _marks = []; _marksDate = todayKyiv();
+    _verifying = false; _verifyResult = null;
+    _deletingIds = new Set();
+    _cbShow = false; _cbSaved = false;
 
-    window.__excise = {
-      goBack, reset, openCamera, openGallery, handleFile, send,
-      tgChanged: () => {
-        _excTgSaved = false;
-        const btn = document.getElementById('exc-tg-save-btn');
-        if (btn) { btn.textContent = 'Зберегти'; btn.classList.remove('saved'); }
-      },
-      saveTg: saveExciseTg,
-    };
-
-    const role = state.role || '';
-    if (role === 'admin' || role === 'manager') {
-      loadExciseTgSettings();
-    }
-
-    return render();
+    return `${CSS}<div id="exc-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
-  init(params) {},
+
+  init() {
+    const root = document.getElementById('exc-root');
+    if (!root) return;
+
+    window.__exc = {
+      back:        () => navigate('dashboard'),
+      setTab:      (t) => { _tab = t; if (t === 'list') loadMarks(_marksDate); re(); },
+      openCamera:  openCamera,
+      openGallery: openGallery,
+      handleFile:  handleFile,
+      doScan:      doScan,
+      resetScan:   resetScan,
+      showManual:  () => { _scanStep = 'manual'; re(); },
+      manualInput: (v) => { _manualCode = v; },
+      doManualSave: doManualSave,
+      refreshMarks: () => loadMarks(_marksDate),
+      verify:       doVerify,
+      deleteMark:   doDeleteMark,
+      toggleCb:     () => { _cbShow = !_cbShow; if (_cbShow) loadCbSettings(); re(); },
+      cbInput:      () => {
+        _cbLogin  = document.getElementById('cb-login')?.value  || '';
+        _cbPin    = document.getElementById('cb-pin')?.value    || '';
+        _cbLicKey = document.getElementById('cb-lickey')?.value || '';
+        _cbSaved  = false;
+      },
+      saveCb: doSaveCb,
+    };
+  },
+
+  cleanup() {
+    if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
+    window.__exc = null;
+  },
 };
