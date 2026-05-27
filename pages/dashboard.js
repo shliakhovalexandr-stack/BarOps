@@ -33,6 +33,8 @@ const QUICK_BARTENDER = [
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
   { route:'stock',     badge:null, label:'Залишки',   hint:'Поточні залишки бару',       color:'var(--teal-bg)',   iconColor:'var(--teal)',
     svg:`<path d="M2 14h4V7H2zM7 14h4V4H7zM13 14h4V9h-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>` },
+  { route:'stop-list', badge:null, label:'Стоп-ліст', hint:'Товари яких немає в наявності', color:'var(--red-bg)',    iconColor:'var(--red)',
+    svg:`<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6 9h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` },
   { route:'inventory', badge:null, label:'Інвентар',  hint:'Перерахунок інвентарю',      color:'var(--purple-bg)', iconColor:'var(--purple)',
     svg:`<rect x="2" y="2" width="4" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
          <rect x="8" y="5" width="4" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
@@ -44,7 +46,7 @@ const QUICK_BARTENDER = [
   { route:'writeoff',  badge:null, label:'Списання',  hint:'Списати товари зі складу',   color:'var(--red-bg)',    iconColor:'var(--red)',
     svg:`<path d="M3 14l2-2 7-7 2 2-7 7-2 2H3v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
          <path d="M10 5l2 2" stroke="currentColor" stroke-width="1.3"/>` },
-  { route:'ordering',  badge:null, label:'Закупка',   hint:'Замовлення постачальникам',   color:'var(--green-bg)',  iconColor:'var(--green)',
+  { route:'ordering',  badge:null, label:'Замовлення', hint:'Замовлення постачальникам',   color:'var(--green-bg)',  iconColor:'var(--green)',
     svg:`<rect x="3" y="2" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 6h5M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
 ];
 
