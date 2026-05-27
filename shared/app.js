@@ -27,18 +27,20 @@ async function loadVenuesIntoDrawer() {
     });
     const data = await res.json();
     if (data.venues && data.venues.length > 0) {
-      // Визначаємо активний заклад з state
+      const savedId = localStorage.getItem('barops_venueId');
       MANAGER_VENUES = data.venues.map((v, i) => ({
         id:     v.id,
         name:   v.name,
         pos:    'Syrve',
-        active: v.name === state.venue || i === 0,
+        active: savedId ? v.id === savedId : i === 0,
       }));
-      // Встановлюємо перший активний як поточний
+      // fallback: якщо збережений ID не знайдено — перший заклад
+      if (!MANAGER_VENUES.some(v => v.active)) MANAGER_VENUES[0].active = true;
       const active = MANAGER_VENUES.find(v => v.active);
-      if (active && !state.venue) {
+      if (active) {
         state.venue   = active.name;
         state.venueId = active.id;
+        localStorage.setItem('barops_venue',   active.name);
         localStorage.setItem('barops_venueId', active.id);
       }
       renderDrawer();
@@ -195,6 +197,7 @@ const DRAWER_NAV = [
 function renderDrawer() {
   const el = document.getElementById('app-drawer-wrap');
   if (!el) return;
+  const prevScroll = el.querySelector('[data-drawer-scroll]')?.scrollTop || 0;
   el.innerHTML = `
   <div id="app-drawer-overlay"
     style="position:fixed;inset:0;z-index:200;
@@ -222,7 +225,7 @@ function renderDrawer() {
       <div style="font-family:var(--font-h);font-size:20px;font-weight:800;
                   color:var(--text0);letter-spacing:-.02em">${state.venue}</div>
     </div>
-    <div style="flex:1;overflow-y:auto;padding:8px 0">
+    <div data-drawer-scroll style="flex:1;overflow-y:auto;padding:8px 0">
       ${DRAWER_NAV.map(item => {
         const isActive = state.route === item.route;
         return `
@@ -245,9 +248,9 @@ function renderDrawer() {
       <div style="position:relative">
         <div
           onclick="window.__barops.switchVenue('${v.id}')"
-          oncontextmenu="event.preventDefault();window.__barops.openVenueMenu('${v.id}')"
+          oncontextmenu="event.preventDefault();event.stopPropagation();window.__barops.openVenueMenu('${v.id}');return false"
           data-long-press-id="${v.id}"
-          ontouchstart="window.__barops.startVenueHold('${v.id}')"
+          ontouchstart="window.__barops.startVenueHold(event,'${v.id}')"
           ontouchend="window.__barops.endVenueHold()"
           ontouchmove="window.__barops.endVenueHold()"
           style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
@@ -370,6 +373,9 @@ function renderDrawer() {
       </button>
     </div>` : ''}
   </div>`;
+  // Відновлюємо позицію скролу після ре-рендеру
+  const newScroll = el.querySelector('[data-drawer-scroll]');
+  if (newScroll && prevScroll) newScroll.scrollTop = prevScroll;
 }
 
 export function openDrawer()  {
@@ -761,7 +767,8 @@ export async function bootstrap() {
     navigate, goBack, setRole, state,
     openDrawer, closeDrawer, switchVenue, addVenuePrompt, closeAddSheet, addDraftChange, saveNewVenue,
     openVenueMenu, archiveVenue, deleteVenue, editVenue,
-    startVenueHold(id) {
+    startVenueHold(e, id) {
+      if (e && e.cancelable) e.preventDefault();
       this._venueHoldTimer = setTimeout(() => window.__barops.openVenueMenu(id), 600);
     },
     endVenueHold() {
