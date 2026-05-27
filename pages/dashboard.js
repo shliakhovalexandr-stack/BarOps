@@ -72,6 +72,9 @@ const QUICK_MANAGER = [
 ];
 
 const QUICK_ADMIN = [
+  { route:'journal',  badge:null, label:'Журнал',          hint:'Щоденний журнал бару',           color:'var(--teal-bg)',   iconColor:'var(--teal)',
+    svg:`<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+         <path d="M6 6h7M6 9h7M6 12h5M6 15h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   ...QUICK_MANAGER,
   { route:'recipes',  badge:null, label:'Фудкост',         hint:'Розрахунок собівартості страв',  color:'var(--purple-bg)', iconColor:'var(--purple)',
     svg:`<path d="M5 2v5a3 3 0 006 0V2M5 9h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
