@@ -44,6 +44,7 @@ let _sentHistory = []; // [{ts, date, accounts, itemCount, acts}] — відпр
 let _detailAct   = null; // відкритий акт для перегляду
 let _syrveConfirmOpen   = false;
 let _syrveConfirmGroups = [];
+let _syrveResult        = null; // { isError, lines:[] }
 let _swipeListenerAdded = false;
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
@@ -350,6 +351,13 @@ const CSS = `<style id="wo-css">
 .wo-syrve-conf-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 28px;max-height:80%;display:flex;flex-direction:column;animation:woSlide .28s cubic-bezier(.22,1,.36,1)}
 .wo-syrve-conf-scroll{overflow-y:auto;flex:1;padding:0 18px 8px}
 .wo-syrve-conf-scroll::-webkit-scrollbar{width:0}
+
+/* ── SYRVE RESULT MODAL ── */
+.wo-syrve-res-overlay{position:absolute;inset:0;z-index:56;background:rgba(0,0,0,.80);display:none;flex-direction:column;justify-content:flex-end}
+.wo-syrve-res-overlay.open{display:flex}
+.wo-syrve-res-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 28px;display:flex;flex-direction:column;animation:woSlide .28s cubic-bezier(.22,1,.36,1)}
+.wo-syrve-res-body{padding:6px 18px 0;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
+.wo-syrve-res-body::-webkit-scrollbar{width:0}
 </style>`;
 
 /* ════════════════════════
@@ -674,7 +682,8 @@ function renderBartender() {
     </button>
     <button class="wo-succ-ghost" onclick="window.__wo.closeSuccessExit()">Готово</button>
   </div>
-  ${syrveConfirmHTML()}`;
+  ${syrveConfirmHTML()}
+  ${syrveResultHTML()}`;
 }
 
 function prodListHTML() {
@@ -794,6 +803,56 @@ function syrveConfirmHTML() {
           style="flex:2;height:52px;background:var(--purple);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M7 2l5.5 5L7 12" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Надіслати
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function syrveResultHTML() {
+  if (!_syrveResult) return '';
+  const { isError, lines } = _syrveResult;
+  const accentColor  = isError ? 'var(--red)'    : 'var(--green)';
+  const accentBg     = isError ? 'var(--red-bg)' : 'var(--green-bg)';
+  const accentBorder = isError ? 'var(--red-border)' : 'var(--green-border)';
+  const iconPath     = isError
+    ? `<path d="M4 4l8 8M12 4l-8 8" stroke="${accentColor}" stroke-width="2" stroke-linecap="round"/>`
+    : `<path d="M3 9l5 5 9-9" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const title = isError ? 'Завершено з помилками' : 'Відправлено до Syrve';
+  return `
+  <div class="wo-syrve-res-overlay open" onclick="if(event.target===this)window.__wo.closeSyrveResult()">
+    <div class="wo-syrve-res-sheet" onclick="event.stopPropagation()">
+      <div class="wo-sheet-handle"></div>
+      <div class="wo-sheet-hdr">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:12px;background:${accentBg};border:0.5px solid ${accentBorder};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">${iconPath}</svg>
+          </div>
+          <div>
+            <div class="wo-sheet-title">${title}</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${lines.length} ${isError ? 'помилок' : 'актів'}</div>
+          </div>
+        </div>
+        <div class="wo-sheet-close" onclick="window.__wo.closeSyrveResult()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <div class="wo-syrve-res-body">
+        ${lines.map(line => {
+          const isErr = line.startsWith('✗');
+          const col   = isErr ? 'var(--red)' : 'var(--green)';
+          const bg    = isErr ? 'var(--red-bg)' : 'rgba(255,255,255,.04)';
+          const bord  = isErr ? 'var(--red-border)' : 'var(--border)';
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 13px;background:${bg};border:0.5px solid ${bord};border-radius:10px">
+            <div style="width:6px;height:6px;border-radius:50%;background:${col};margin-top:5px;flex-shrink:0"></div>
+            <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);line-height:1.5;flex:1">${line.replace(/^[✓✗]\s*/,'')}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="padding:14px 18px 0">
+        <button onclick="window.__wo.closeSyrveResult()"
+          style="width:100%;height:52px;background:${accentColor};border:none;border-radius:14px;font-size:15px;font-weight:600;color:${isError?'#fff':'#000'};cursor:pointer;font-family:var(--font-h)">
+          Зрозуміло
         </button>
       </div>
     </div>
@@ -1219,7 +1278,8 @@ function renderManager() {
 
     <div style="height:16px"></div>
   </div>
-  ${syrveConfirmHTML()}`;
+  ${syrveConfirmHTML()}
+  ${syrveResultHTML()}`;
 }
 
 /* ════════════════════════
@@ -1422,6 +1482,11 @@ function closeSyrveConfirm() {
   fullRender();
 }
 
+function closeSyrveResult() {
+  _syrveResult = null;
+  fullRender();
+}
+
 async function doSendActToSyrve() {
   const groups = [..._syrveConfirmGroups];
   _syrveConfirmOpen   = false;
@@ -1504,8 +1569,11 @@ async function doSendActToSyrve() {
     fullRender();
     initSwipe();
   } else {
-    const msg = [...results, ...errors].join('\n');
-    alert(errors.length ? `Завершено з помилками:\n\n${msg}` : `Акти списання створено в Syrve!\n\n${msg}`);
+    _syrveResult = {
+      isError: errors.length > 0,
+      lines:   [...results, ...errors],
+    };
+    fullRender();
   }
 }
 function openActDetail(idx) { _detailAct = _sentHistory[idx] || null; fullRender(); }
@@ -1758,27 +1826,36 @@ export default {
       console.warn('[Writeoff] Рахунки не завантажились:', e.message);
     }
 
-    // Завантажуємо товари з POS balance API
+    // Завантажуємо товари: одразу з кешу, оновлення — у фоні
+    const prodsKey = `barops_prods_${vId}`;
     try {
-      const token = localStorage.getItem('barops_token');
-      const res = await fetch(`${API}/api/pos/balance/${vId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        _prods = [];
-        for (const store of (data.stores || [])) {
-          for (const item of (store.items || [])) {
-            if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !_prods.find(p=>p.id===item.id)) {
-              _prods.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit) });
+      const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
+      if (Array.isArray(cached.data) && cached.data.length) _prods = cached.data;
+    } catch {}
+    ;(async () => {
+      try {
+        const tkn = localStorage.getItem('barops_token');
+        const res = await fetch(`${API}/api/pos/balance/${vId}`, {
+          headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const fresh = [];
+          for (const store of (data.stores || [])) {
+            for (const item of (store.items || [])) {
+              if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !fresh.find(p=>p.id===item.id)) {
+                fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit) });
+              }
             }
           }
+          _prods = fresh;
+          try { localStorage.setItem(prodsKey, JSON.stringify({ ts: Date.now(), data: _prods })); } catch {}
+          refreshProdList();
         }
+      } catch (e) {
+        console.warn('[Writeoff] Товари не завантажились:', e.message);
       }
-    } catch (e) {
-      console.warn('[Writeoff] Товари не завантажились:', e.message);
-      _prods = [];
-    }
+    })();
 
     return buildHTML();
   },
@@ -1790,7 +1867,7 @@ export default {
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport,
-      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve,
+      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult,
       openActDetail, closeActDetail,
       addCustomReason, removeReason,
       deleteWriteoff,
