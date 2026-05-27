@@ -99,6 +99,7 @@ const CSS = `<style id="auth-styles">
 .auth-trial-badge{background:var(--green-bg);border:1px solid var(--green-border);border-radius:14px;padding:16px;margin-bottom:20px;text-align:center}
 .auth-trial-num{font-family:var(--font-h);font-size:48px;font-weight:800;color:var(--green);line-height:1}
 .auth-trial-lbl{font-size:13px;color:var(--green);font-family:var(--font-b);margin-top:4px}
+#setup-phone-inp::placeholder{color:var(--text3);-webkit-text-fill-color:var(--text3);font-weight:400;font-size:15px}
 </style>`;
 
 /* ════════════════════════════════════════
