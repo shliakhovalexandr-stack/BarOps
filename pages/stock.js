@@ -87,7 +87,7 @@ const CSS = `<style id="stk-css">
 .stk-flt-chip.sel{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 
 /* Модалка редагування категорії */
-.stk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
+.stk-modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
 .stk-modal{background:var(--bg1);border:0.5px solid var(--border);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:480px;box-sizing:border-box}
 .stk-modal-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);margin-bottom:4px}
 .stk-modal-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px}
@@ -151,7 +151,7 @@ function showEditModal(item) {
       <button class="stk-modal-cancel" onclick="window.__stk.closeModal()">Скасувати</button>
     </div>
   `;
-  document.body.appendChild(overlay);
+  (document.getElementById('phone') || document.body).appendChild(overlay);
 }
 
 function closeModal() {
@@ -399,7 +399,7 @@ function _openFilterSheet(id, title, options, activeSet, toggleFn, clearFn) {
       </div>
       <button class="stk-modal-cancel" onclick="document.getElementById('${id}')?.remove()">Закрити</button>
     </div>`;
-  document.body.appendChild(sheet);
+  (document.getElementById('phone') || document.body).appendChild(sheet);
 }
 
 function _updateFilterSheet(id, activeSet) {
