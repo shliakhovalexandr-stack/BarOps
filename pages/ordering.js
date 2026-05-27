@@ -224,23 +224,42 @@ function nProds(n) {
 /* ════════════════════════
    DATA LOADING
 ════════════════════════ */
+async function fetchBalanceRetry(maxAttempts = 3) {
+  const h = { Authorization: `Bearer ${_token}` };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (attempt > 1) await new Promise(r => setTimeout(r, 2500));
+    if (state.route !== 'ordering') return null;
+    try {
+      const res  = await fetch(`${API}/api/pos/balance/${_venueId}`, { headers: h });
+      const data = await res.json();
+      if (data.success && data.stores?.length) return data;
+      console.warn(`[Ordering] balance attempt ${attempt}/${maxAttempts}: empty`);
+    } catch (e) {
+      console.warn(`[Ordering] balance attempt ${attempt}/${maxAttempts}:`, e.message);
+    }
+  }
+  return null;
+}
+
 async function loadData() {
   _loading = true;
   _loadError = '';
   try {
     const h = { Authorization: `Bearer ${_token}` };
-    const [sRes, bRes] = await Promise.all([
-      fetch(`${API}/api/suppliers?venueId=${_venueId}`, { headers: h }),
-      fetch(`${API}/api/pos/balance/${_venueId}`,       { headers: h }),
-    ]);
-    const sData = await sRes.json();
-    const bData = await bRes.json();
 
+    // Постачальники — швидко з DB, без ретраю
+    const sRes  = await fetch(`${API}/api/suppliers?venueId=${_venueId}`, { headers: h });
+    const sData = await sRes.json();
     if (sData.success) {
-      _suppliers = sData.suppliers || [];
+      _suppliers     = sData.suppliers || [];
       _openSuppliers = new Set(_suppliers.map(s => s.id));
     }
-    if (bData.success && bData.stores) {
+    _loading = false;
+    fullRender(); // відразу показуємо постачальників
+
+    // Баланс — ретрай у фоні (Railway cold start + Syrve latency)
+    const bData = await fetchBalanceRetry(3);
+    if (bData?.stores) {
       _balanceItems = [];
       for (const store of bData.stores) {
         for (const item of store.items) {
@@ -249,12 +268,13 @@ async function loadData() {
           }
         }
       }
+      partialRefreshSupps(); // оновлюємо тільки рядки товарів
     }
   } catch (err) {
     _loadError = err.message;
+    _loading = false;
+    fullRender();
   }
-  _loading = false;
-  fullRender();
 }
 
 /* ════════════════════════
