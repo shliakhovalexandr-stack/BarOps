@@ -77,6 +77,7 @@ const CSS = `<style id="auth-styles">
 .auth-inp{width:100%;height:54px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;color:var(--text0);font-size:16px;font-family:var(--font-h);font-weight:500;padding:0 16px;box-sizing:border-box;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-text-fill-color:var(--text0)}
 .auth-inp:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .auth-inp::placeholder{color:var(--text3);-webkit-text-fill-color:var(--text3);font-size:14px;font-weight:400;font-family:var(--font-b)}
+.auth-inp:-webkit-autofill,.auth-inp:-webkit-autofill:hover,.auth-inp:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px var(--glass-bg) inset!important;-webkit-text-fill-color:var(--text0)!important;caret-color:var(--text0)}
 .auth-phone-wrap{background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;display:flex;align-items:center;padding:0 14px;height:56px;margin-bottom:14px;transition:border-color .2s,box-shadow .2s}
 .auth-phone-wrap:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
 .auth-btn{width:100%;height:56px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-h);transition:all .18s}
