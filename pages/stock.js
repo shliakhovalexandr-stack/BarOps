@@ -79,9 +79,12 @@ const CSS = `<style id="stk-css">
 /* Filter button */
 .stk-filter-btn{height:32px;padding:0 10px;border-radius:20px;border:0.5px solid var(--border);background:transparent;font-size:12px;font-weight:500;color:var(--text1);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:all .15s}
 .stk-filter-btn.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
-.stk-store-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);cursor:pointer;margin-bottom:6px;transition:background .12s}
-.stk-store-row:active{background:rgba(255,255,255,.08)}
-.stk-store-row.sel{background:var(--green-bg);border-color:var(--green-border)}
+/* Filter sheet grid */
+.stk-flt-all{padding:10px 14px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b);display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;transition:background .12s}
+.stk-flt-all.sel{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.stk-flt-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px}
+.stk-flt-chip{padding:10px 12px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);cursor:pointer;font-size:12px;color:var(--text1);font-family:var(--font-b);display:flex;align-items:center;gap:4px;transition:background .12s;line-height:1.3;word-break:break-word}
+.stk-flt-chip.sel{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 
 /* Модалка редагування категорії */
 .stk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
@@ -370,6 +373,8 @@ function search(q) {
   if (inp) { inp.focus(); if (pos !== null) inp.setSelectionRange(pos, pos); }
 }
 
+const _checkSVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 function _openFilterSheet(id, title, options, activeSet, toggleFn, clearFn) {
   const existing = document.getElementById(id);
   if (existing) { existing.remove(); return; }
@@ -379,19 +384,39 @@ function _openFilterSheet(id, title, options, activeSet, toggleFn, clearFn) {
   const isAll = activeSet.size === 0;
   sheet.innerHTML = `
     <div class="stk-modal" style="max-height:75vh;overflow-y:auto">
-      <div class="stk-modal-title">${title}</div>
-      <div class="stk-store-row ${isAll ? 'sel' : ''}" onclick="${clearFn}">
-        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">Всі</div>
-        ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      <div class="stk-modal-title" style="margin-bottom:12px">${title}</div>
+      <div class="stk-flt-all ${isAll ? 'sel' : ''}" data-filter-all onclick="${clearFn}">
+        <span>Всі</span><span data-check>${isAll ? _checkSVG : ''}</span>
       </div>
-      ${options.map(o => `
-        <div class="stk-store-row ${activeSet.has(o.value) ? 'sel' : ''}" onclick="${toggleFn}('${o.value.replace(/'/g,"\\'")}')">
-          <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">${o.label}</div>
-          ${activeSet.has(o.value) ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-        </div>`).join('')}
+      <div class="stk-flt-grid">
+        ${options.map(o => `
+          <div class="stk-flt-chip ${activeSet.has(o.value) ? 'sel' : ''}"
+               data-filter-val="${o.value.replace(/"/g,'&quot;')}"
+               onclick="${toggleFn}('${o.value.replace(/'/g,"\\'")}')">
+            <span style="flex:1">${o.label}</span>
+            <span data-check style="flex-shrink:0;line-height:0">${activeSet.has(o.value) ? _checkSVG : ''}</span>
+          </div>`).join('')}
+      </div>
       <button class="stk-modal-cancel" onclick="document.getElementById('${id}')?.remove()">Закрити</button>
     </div>`;
   document.body.appendChild(sheet);
+}
+
+function _updateFilterSheet(id, activeSet) {
+  const sheet = document.getElementById(id);
+  if (!sheet) return;
+  const isAll = activeSet.size === 0;
+  const allRow = sheet.querySelector('[data-filter-all]');
+  if (allRow) {
+    allRow.className = `stk-flt-all${isAll ? ' sel' : ''}`;
+    allRow.querySelector('[data-check]').innerHTML = isAll ? _checkSVG : '';
+  }
+  sheet.querySelectorAll('[data-filter-val]').forEach(row => {
+    const val = row.getAttribute('data-filter-val');
+    const sel = activeSet.has(val);
+    row.className = `stk-flt-chip${sel ? ' sel' : ''}`;
+    row.querySelector('[data-check]').innerHTML = sel ? _checkSVG : '';
+  });
 }
 
 function openGroupFilter() {
@@ -402,15 +427,29 @@ function openGroupFilter() {
 }
 function toggleGroup(g) {
   if (_groupFilter.has(g)) _groupFilter.delete(g); else _groupFilter.add(g);
-  document.getElementById('stk-group-sheet')?.remove();
-  openGroupFilter();
+  _updateFilterSheet('stk-group-sheet', _groupFilter);
   fullRender();
 }
 function clearGroups() {
   _groupFilter.clear();
-  document.getElementById('stk-group-sheet')?.remove();
-  openGroupFilter();
+  _updateFilterSheet('stk-group-sheet', _groupFilter);
   fullRender();
+}
+
+function saveWarehouseFilter() {
+  if (!_venueId) return;
+  localStorage.setItem('barops_wh_' + _venueId, JSON.stringify([..._warehouseFilter]));
+}
+
+function loadWarehouseFilter() {
+  if (!_venueId) return;
+  try {
+    const raw = localStorage.getItem('barops_wh_' + _venueId);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    const valid = new Set(_availableStores.map(s => s.storeId));
+    _warehouseFilter = new Set(saved.filter(id => valid.has(id)));
+  } catch { /* ignore */ }
 }
 
 function openWarehouseFilter() {
@@ -420,14 +459,14 @@ function openWarehouseFilter() {
 }
 function toggleWarehouse(id) {
   if (_warehouseFilter.has(id)) _warehouseFilter.delete(id); else _warehouseFilter.add(id);
-  document.getElementById('stk-warehouse-sheet')?.remove();
-  openWarehouseFilter();
+  saveWarehouseFilter();
+  _updateFilterSheet('stk-warehouse-sheet', _warehouseFilter);
   fullRender();
 }
 function clearWarehouses() {
   _warehouseFilter.clear();
-  document.getElementById('stk-warehouse-sheet')?.remove();
-  openWarehouseFilter();
+  saveWarehouseFilter();
+  _updateFilterSheet('stk-warehouse-sheet', _warehouseFilter);
   fullRender();
 }
 
@@ -439,14 +478,12 @@ function openCatFilter() {
 }
 function toggleCat(c) {
   if (_catFilter.has(c)) _catFilter.delete(c); else _catFilter.add(c);
-  document.getElementById('stk-cat-sheet')?.remove();
-  openCatFilter();
+  _updateFilterSheet('stk-cat-sheet', _catFilter);
   fullRender();
 }
 function clearCats() {
   _catFilter.clear();
-  document.getElementById('stk-cat-sheet')?.remove();
-  openCatFilter();
+  _updateFilterSheet('stk-cat-sheet', _catFilter);
   fullRender();
 }
 
@@ -513,7 +550,7 @@ export default {
     return buildHTML();
   },
   async init() {
-    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab, openGroupFilter, toggleGroup, clearGroups, openWarehouseFilter, toggleWarehouse, clearWarehouses, openCatFilter, toggleCat, clearCats, clearAllFilters };
+    window.__stk = { setFilter, search, saveCategory, saveNorm, switchTab, closeModal, swipeStart, swipeMove, swipeEnd, openTab, openGroupFilter, toggleGroup, clearGroups, openWarehouseFilter, toggleWarehouse, clearWarehouses, openCatFilter, toggleCat, clearCats, clearAllFilters, saveWarehouseFilter, loadWarehouseFilter, _updateFilterSheet };
     _venueId         = state.venueId || localStorage.getItem('barops_venueId');
     _token           = localStorage.getItem('barops_token');
     _balanceError    = '';
@@ -578,6 +615,7 @@ export default {
       }
       _isSyrve = true;
       CATS = ['Всі', ...new Set(STOCK.map(s => s.cat))];
+      loadWarehouseFilter();
     } else {
       _balanceError = balanceData.error || balanceData.warning || 'Порожня відповідь';
       console.warn('[Stock] balance failed:', _balanceError);
