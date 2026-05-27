@@ -339,6 +339,11 @@ const CSS = `<style id="wo-css">
 .wo-loser-meta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 .wo-loser-val{font-family:var(--font-h);font-size:14px;font-weight:700}
 
+/* ── CARD DELETE BTN ── */
+.wo-card-del{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s}
+.wo-card-del:active{background:var(--red-bg);border-color:var(--red-border)}
+.wo-card-del:active svg path{stroke:var(--red)}
+
 /* ── SYRVE CONFIRM MODAL ── */
 .wo-syrve-conf-overlay{position:absolute;inset:0;z-index:55;background:rgba(0,0,0,.80);display:none;flex-direction:column;justify-content:flex-end}
 .wo-syrve-conf-overlay.open{display:flex}
@@ -359,7 +364,9 @@ function woCardHTML(w) {
       </div>
       <div class="wo-card" data-cat="${w.cat}" data-id="${w.id}">
         <div class="wo-bar" style="background:${CAT[w.cat]?.color||'var(--text2)'}"></div>
-        <div class="wo-emoji">${w.emoji||''}</div>
+        <div class="wo-card-del" onclick="event.stopPropagation();window.__wo.deleteWriteoff('${w.id}')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
         <div class="wo-info">
           <div class="wo-name">${w.prod}</div>
           <div class="wo-meta">${w.meta}</div>
