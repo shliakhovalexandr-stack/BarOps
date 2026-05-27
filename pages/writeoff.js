@@ -1522,7 +1522,10 @@ async function doSendActToSyrve() {
         body: JSON.stringify(body),
       });
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || JSON.stringify(data.details));
+      if (!resp.ok) {
+        const det = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : '';
+        throw new Error(det || data.error || 'Помилка');
+      }
       results.push(`✓ ${g.accountName}: ${data.itemCount} позицій`);
     } catch (err) {
       errors.push(`✗ ${g.accountName}: ${err.message}`);
