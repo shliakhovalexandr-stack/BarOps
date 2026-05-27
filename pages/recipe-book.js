@@ -21,6 +21,8 @@ let _editRecipeId  = null;
 let _editName      = '';
 let _editIngredients = [];
 let _editSteps       = '';
+let _editMethod      = '';
+let _editGarnish     = '';
 
 let _saving     = false;
 let _delConfirm = null;
@@ -163,8 +165,10 @@ function buildRecipesScreen() {
 
 function buildRecipeScreen() {
   if (!_selRecipe) return '';
-  const ingr  = _selRecipe.ingredients || [];
-  const steps = _selRecipe.steps || '';
+  const ingr    = _selRecipe.ingredients || [];
+  const steps   = _selRecipe.steps   || '';
+  const method  = _selRecipe.method  || '';
+  const garnish = _selRecipe.garnish || '';
   let html = `<div class="rb-topbar">
     <button class="rb-back" onclick="window.__rb.goBack()">${ICON_BACK} ${esc(_selGroup?.name || 'Назад')}</button>
     ${isEditable() ? `<div style="display:flex;gap:8px">
@@ -174,6 +178,14 @@ function buildRecipeScreen() {
   </div>
   <div class="rb-recipe-detail">
     <div class="rb-title">${esc(_selRecipe.name)}</div>`;
+
+  if (method || garnish) {
+    html += `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">`;
+    if (method)  html += `<span style="background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text1);font-family:var(--font-b)">⚗️ ${esc(method)}</span>`;
+    if (garnish) html += `<span style="background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text1);font-family:var(--font-b)">🌿 ${esc(garnish)}</span>`;
+    html += `</div>`;
+  }
+
   if (ingr.length) {
     html += `<div class="rb-section-title">Інгредієнти</div>
     <div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:0 14px">`;
@@ -185,7 +197,7 @@ function buildRecipeScreen() {
   if (steps) {
     html += `<div class="rb-section-title">Приготування</div><div class="rb-steps-text">${esc(steps)}</div>`;
   }
-  if (!ingr.length && !steps) {
+  if (!ingr.length && !steps && !method && !garnish) {
     html += `<div class="rb-empty" style="padding:32px 0">Опис рецепту ще не додано.</div>`;
   }
   return html + '</div>';
@@ -234,8 +246,16 @@ function buildEditRecipeScreen() {
       <button class="rb-add-ingr-btn" onclick="window.__rb.addIngr()">+ Інгредієнт</button>
     </div>
     <div class="rb-field-wrap">
-      <div class="rb-field-label">Приготування</div>
-      <textarea class="rb-textarea" placeholder="Кроки приготування…" oninput="window.__rb.onSteps(this.value)">${esc(_editSteps)}</textarea>
+      <div class="rb-field-label">Метод приготування <span style="color:var(--text2);font-size:10px;text-transform:none;letter-spacing:0">(необов'язково)</span></div>
+      <input class="rb-input" type="text" placeholder="Shaken, Stirred, Blended…" value="${esc(_editMethod)}" oninput="window.__rb.onMethod(this.value)">
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Прикраса <span style="color:var(--text2);font-size:10px;text-transform:none;letter-spacing:0">(необов'язково)</span></div>
+      <input class="rb-input" type="text" placeholder="Лайм, м'ята, сіль…" value="${esc(_editGarnish)}" oninput="window.__rb.onGarnish(this.value)">
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Кроки приготування <span style="color:var(--text2);font-size:10px;text-transform:none;letter-spacing:0">(необов'язково)</span></div>
+      <textarea class="rb-textarea" placeholder="Опишіть кроки…" oninput="window.__rb.onSteps(this.value)">${esc(_editSteps)}</textarea>
     </div>
     <button class="rb-save-btn" onclick="window.__rb.saveRecipe()" ${_saving?'disabled':''}>
       ${_saving ? 'Збереження…' : 'Зберегти'}
@@ -331,7 +351,7 @@ window.__rb = {
   },
 
   addRecipe() {
-    _editRecipeId = null; _editName = ''; _editIngredients = []; _editSteps = ''; _error = '';
+    _editRecipeId = null; _editName = ''; _editIngredients = []; _editSteps = ''; _editMethod = ''; _editGarnish = ''; _error = '';
     _screen = 'edit-recipe'; fullRender();
     setTimeout(() => document.getElementById('rb-r-name')?.focus(), 100);
   },
@@ -341,7 +361,10 @@ window.__rb = {
     if (!r) return;
     _editRecipeId = r.id; _editName = r.name;
     _editIngredients = (r.ingredients || []).map(i => ({ ...i }));
-    _editSteps = r.steps || ''; _error = '';
+    _editSteps   = r.steps   || '';
+    _editMethod  = r.method  || '';
+    _editGarnish = r.garnish || '';
+    _error = '';
     _screen = 'edit-recipe'; fullRender();
     setTimeout(() => document.getElementById('rb-r-name')?.focus(), 100);
   },
@@ -379,6 +402,8 @@ window.__rb = {
   onGroupName(v)  { _editGroupName = v; },
   onRecipeName(v) { _editName = v; },
   onSteps(v)      { _editSteps = v; },
+  onMethod(v)     { _editMethod = v; },
+  onGarnish(v)    { _editGarnish = v; },
 
   onIngr(idx, field, v) {
     if (!_editIngredients[idx]) return;
@@ -423,7 +448,7 @@ window.__rb = {
     try {
       const isNew = !_editRecipeId;
       const url = isNew ? `${API}/api/recipe-book/recipes` : `${API}/api/recipe-book/recipes/${_editRecipeId}`;
-      const body = { groupId: gid, venueId: _venueId, name, ingredients: _editIngredients.filter(i => String(i.name).trim()), steps: _editSteps };
+      const body = { groupId: gid, venueId: _venueId, name, ingredients: _editIngredients.filter(i => String(i.name).trim()), steps: _editSteps, method: _editMethod, garnish: _editGarnish };
       const res  = await fetch(url, { method: isNew ? 'POST' : 'PUT', headers: authHeaders(), body: JSON.stringify(body) });
       const data = await res.json();
       if (data.success) {
