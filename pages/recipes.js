@@ -644,6 +644,11 @@ function buildMain() {
       <div class="rec-title">Фудкост</div>
       <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
+    ${(_role === 'admin' || _role === 'manager') ? `
+    <button data-act="toggle-settings" style="height:32px;padding:0 10px;background:${_showFCSettings ? 'var(--green-bg,#1a3320)' : 'var(--bg2)'};border:0.5px solid ${_showFCSettings ? 'var(--green)' : 'var(--border)'};border-radius:10px;color:${_showFCSettings ? 'var(--green)' : 'var(--text2)'};font-size:11px;font-family:var(--font-b);cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:4px">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M6 1v1.5M6 9.5V11M11 6H9.5M2.5 6H1M9.2 2.8l-1 1M3.8 7.2l-1 1M9.2 9.2l-1-1M3.8 4.8l-1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      макс ${_fcMax}%
+    </button>` : ''}
     ${_role === 'manager' ? `
     <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#000'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
       ${_syncing ? '⏳...' : '↻ Ціни'}
@@ -688,12 +693,9 @@ function buildMain() {
         <div class="rec-kpi-val" style="color:${fcColor(avgFCv)}">${fmtFC(avgFCv)}</div>
         <div class="rec-kpi-lbl">Сер. FC</div>
       </div>
-      <div class="rec-kpi" data-act="toggle-settings" style="cursor:pointer">
+      <div class="rec-kpi">
         <div class="rec-kpi-val" style="color:${alerts > 0 ? 'var(--red)' : 'var(--green)'}">${alerts}</div>
-        <div class="rec-kpi-lbl" style="display:flex;align-items:center;justify-content:center;gap:3px">
-          Поза межами
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2.5M5 6.5v.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-        </div>
+        <div class="rec-kpi-lbl">Поза межами</div>
       </div>
       <div class="rec-kpi">
         <div class="rec-kpi-val">${withFC.length}<span style="font-size:11px;font-weight:400;color:var(--text2)">/${visible.length}</span></div>
@@ -702,16 +704,19 @@ function buildMain() {
     </div>
 
     ${_showFCSettings ? `
-    <div class="rec-settings-bar" style="background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;margin:0 14px 10px;padding:10px 14px">
-      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);flex-shrink:0">Межі FC:</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);flex-shrink:0">мін</div>
-      <input class="rec-thresh-inp" id="rec-fc-min" type="number" min="0" max="100" step="1" value="${_fcMin}"/>
-      <div style="font-size:11px;color:var(--text2)">%</div>
-      <div style="font-size:11px;color:var(--text3);padding:0 2px">—</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);flex-shrink:0">макс</div>
-      <input class="rec-thresh-inp" id="rec-fc-max" type="number" min="0" max="500" step="1" value="${_fcMax}"/>
-      <div style="font-size:11px;color:var(--text2)">%</div>
-      <button data-act="save-thresh" style="height:28px;padding:0 10px;background:var(--green);border:none;border-radius:8px;color:#000;font-size:11px;cursor:pointer;font-family:var(--font-b);margin-left:auto">Зберегти</button>
+    <div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;margin:0 14px 10px;overflow:hidden">
+      <div style="padding:10px 14px 8px;font-size:11px;font-weight:600;color:var(--text0);font-family:var(--font-h);border-bottom:0.5px solid var(--border)">Поріг фудкосту</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px">
+        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);flex-shrink:0">Мін %</div>
+        <input class="rec-thresh-inp" id="rec-fc-min" type="number" min="0" max="100" step="1" value="${_fcMin}" style="width:60px"/>
+        <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
+        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);flex-shrink:0">Макс %</div>
+        <input class="rec-thresh-inp" id="rec-fc-max" type="number" min="0" max="500" step="1" value="${_fcMax}" style="width:60px"/>
+        <button data-act="save-thresh" style="height:32px;padding:0 14px;background:var(--green);border:none;border-radius:10px;color:#000;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-b);margin-left:auto">Зберегти</button>
+      </div>
+      <div style="padding:0 14px 10px;font-size:10px;color:var(--text3);font-family:var(--font-b);line-height:1.5">
+        Страви з FC вище максимуму — червоні. Нижче мінімуму — жовті. Зберігається для цього закладу.
+      </div>
     </div>` : ''}
 
     ${hiddenCount > 0 ? `
