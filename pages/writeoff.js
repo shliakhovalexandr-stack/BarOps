@@ -1526,7 +1526,7 @@ async function doSendActToSyrve() {
         const det = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : '';
         throw new Error(det || data.error || 'Помилка');
       }
-      results.push(`✓ ${g.accountName}: ${data.itemCount} позицій`);
+      results.push(`✓ ${g.accountName}: ${data.itemCount} позицій${data.syrveDocId ? ` · Syrve ID: ${data.syrveDocId.slice(0,8)}…` : ''}`);
     } catch (err) {
       errors.push(`✗ ${g.accountName}: ${err.message}`);
     }
