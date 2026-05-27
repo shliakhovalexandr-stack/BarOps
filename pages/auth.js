@@ -666,8 +666,6 @@ function enterApp() {
 function saveSession(data) {
   localStorage.setItem('barops_token',          data.token);
   localStorage.setItem('barops_refresh',        data.refreshToken || '');
-  localStorage.setItem('barops_venue',          data.user.venueName || '');
-  localStorage.setItem('barops_venueId',        data.user.venueId  || '');
   localStorage.setItem('barops_role',           data.user.role);
   localStorage.setItem('barops_user',           data.user.name);
   localStorage.setItem('barops_telegram_topic', data.user.telegramTopicId || '');
@@ -675,9 +673,21 @@ function saveSession(data) {
     localStorage.setItem('barops_phone', data.user.phone);
     _phone = data.user.phone;
   }
-  state.role    = data.user.role;
-  state.venue   = data.user.venueName || '';
-  state.venueId = data.user.venueId   || '';
+  state.role = data.user.role;
+  state.user = data.user.name;
+
+  // Для адміна/менеджера зберігаємо їх вибраний заклад, не перезаписуємо JWT-значенням
+  const isMulti  = ['admin', 'ADMIN', 'manager', 'MANAGER'].includes(data.user.role);
+  const savedId  = localStorage.getItem('barops_venueId');
+  if (isMulti && savedId) {
+    state.venue   = localStorage.getItem('barops_venue') || data.user.venueName || '';
+    state.venueId = savedId;
+  } else {
+    localStorage.setItem('barops_venue',   data.user.venueName || '');
+    localStorage.setItem('barops_venueId', data.user.venueId   || '');
+    state.venue   = data.user.venueName || '';
+    state.venueId = data.user.venueId   || '';
+  }
   state.user    = data.user.name;
   if (data.user.plan) {
     localStorage.setItem('barops_plan',   data.user.plan.plan   || 'trial');
@@ -732,10 +742,17 @@ export default {
           if (r.ok) {
             const data = await r.json();
             if (data.user) {
-              state.role    = data.user.role;
-              state.venue   = data.user.venueName || '';
-              state.venueId = data.user.venueId   || '';
-              state.user    = data.user.name;
+              state.role = data.user.role;
+              state.user = data.user.name;
+              const isMulti2 = ['admin', 'ADMIN', 'manager', 'MANAGER'].includes(data.user.role);
+              const savedId2 = localStorage.getItem('barops_venueId');
+              if (isMulti2 && savedId2) {
+                state.venue   = localStorage.getItem('barops_venue') || data.user.venueName || '';
+                state.venueId = savedId2;
+              } else {
+                state.venue   = data.user.venueName || '';
+                state.venueId = data.user.venueId   || '';
+              }
             }
             navigate(state.role === 'accountant' ? 'debts' : 'dashboard');
           } else {
