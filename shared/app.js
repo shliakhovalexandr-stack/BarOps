@@ -73,10 +73,11 @@ export function registerPage(name, pageModule) {
    ══════════════════════════════════════ */
 const TAB_BAR_BARTENDER = [
   {
-    route: 'dashboard', label: 'Дашборд',
+    route: 'dashboard', label: 'Головна',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <rect x="3" y="11" width="7" height="8" rx="1.5" fill="currentColor" opacity=".7"/>
-      <rect x="12" y="3" width="7" height="16" rx="1.5" fill="currentColor"/>
+      <path d="M3 10.5L11 3l8 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 9.5V18a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+      <path d="M9 19v-5h4v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
     </svg>`,
   },
   {
@@ -142,10 +143,11 @@ const TAB_BAR_ACCOUNTANT = [
 
 const TAB_BAR_MANAGER = [
   {
-    route: 'dashboard', label: 'Дашборд',
+    route: 'dashboard', label: 'Головна',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <rect x="3" y="11" width="7" height="8" rx="1.5" fill="currentColor" opacity=".7"/>
-      <rect x="12" y="3" width="7" height="16" rx="1.5" fill="currentColor"/>
+      <path d="M3 10.5L11 3l8 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 9.5V18a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+      <path d="M9 19v-5h4v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
     </svg>`,
   },
   {
@@ -182,7 +184,7 @@ const TAB_BAR_MANAGER = [
    4. DRAWER (менеджер)
    ══════════════════════════════════════ */
 const DRAWER_NAV = [
-  { route:'dashboard',  label:'Дашборд',        svg:`<path d="M2 9l5-5 3 3 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="12" width="4" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/>` },
+  { route:'dashboard',  label:'Головна',         svg:`<path d="M2 8L9 2l7 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7v9a.5.5 0 00.5.5h4V13h1v3.5h4a.5.5 0 00.5-.5V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/>` },
   { route:'team',       label:'Команда',        svg:`<circle cx="6" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M2 14c0-2.2 1.8-4 4-4h2M9 14c0-2.2 1.8-4 4-4h0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
   { route:'ordering',   label:'Замовлення',     svg:`<rect x="3" y="2" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h5M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   { route:'ocr',        label:'Накладна',       svg:`<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h7M6 9h7M6 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
