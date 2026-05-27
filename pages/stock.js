@@ -88,7 +88,7 @@ const CSS = `<style id="stk-css">
 
 /* Модалка редагування категорії */
 .stk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
-.stk-modal{background:var(--bg1);border:0.5px solid var(--border);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:480px}
+.stk-modal{background:var(--bg1);border:0.5px solid var(--border);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:480px;box-sizing:border-box}
 .stk-modal-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);margin-bottom:4px}
 .stk-modal-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:16px}
 .stk-modal-inp{width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:12px}
