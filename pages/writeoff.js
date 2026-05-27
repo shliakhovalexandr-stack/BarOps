@@ -42,6 +42,8 @@ let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
 let _sentHistory = []; // [{ts, date, accounts, itemCount, acts}] — відправлені акти Syrve
 let _detailAct   = null; // відкритий акт для перегляду
+let _syrveConfirmOpen   = false;
+let _syrveConfirmGroups = [];
 let _swipeListenerAdded = false;
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
@@ -336,6 +338,13 @@ const CSS = `<style id="wo-css">
 .wo-loser-name{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
 .wo-loser-meta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 .wo-loser-val{font-family:var(--font-h);font-size:14px;font-weight:700}
+
+/* ── SYRVE CONFIRM MODAL ── */
+.wo-syrve-conf-overlay{position:absolute;inset:0;z-index:55;background:rgba(0,0,0,.80);display:none;flex-direction:column;justify-content:flex-end}
+.wo-syrve-conf-overlay.open{display:flex}
+.wo-syrve-conf-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 28px;max-height:80%;display:flex;flex-direction:column;animation:woSlide .28s cubic-bezier(.22,1,.36,1)}
+.wo-syrve-conf-scroll{overflow-y:auto;flex:1;padding:0 18px 8px}
+.wo-syrve-conf-scroll::-webkit-scrollbar{width:0}
 </style>`;
 
 /* ════════════════════════
@@ -657,7 +666,8 @@ function renderBartender() {
       Додати ще одне
     </button>
     <button class="wo-succ-ghost" onclick="window.__wo.closeSuccessExit()">Готово</button>
-  </div>`;
+  </div>
+  ${syrveConfirmHTML()}`;
 }
 
 function prodListHTML() {
@@ -726,6 +736,61 @@ function selectAccount(id, name) {
   _selAccount = { id, name };
   if (_formStep === 1) { setTimeout(() => { _formStep = 2; fullRender(); }, 180); }
   else fullRender();
+}
+
+function syrveConfirmHTML() {
+  if (!_syrveConfirmOpen || !_syrveConfirmGroups.length) return '';
+  return `
+  <div class="wo-syrve-conf-overlay open" onclick="if(event.target===this)window.__wo.closeSyrveConfirm()">
+    <div class="wo-syrve-conf-sheet" onclick="event.stopPropagation()">
+      <div class="wo-sheet-handle"></div>
+      <div class="wo-sheet-hdr">
+        <div>
+          <div class="wo-sheet-title">Надіслати до Syrve?</div>
+          <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">
+            ${_syrveConfirmGroups.length > 1 ? _syrveConfirmGroups.length + ' акти списання' : 'Акт списання'}
+          </div>
+        </div>
+        <div class="wo-sheet-close" onclick="window.__wo.closeSyrveConfirm()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <div class="wo-syrve-conf-scroll">
+        ${_syrveConfirmGroups.map(g => {
+          const items = Object.values(g.items.reduce((acc, w) => {
+            if (!acc[w.prodId]) acc[w.prodId] = { name: w.prod, amount: 0, unitKey: w.unitKey || 'l' };
+            acc[w.prodId].amount += w.volNum || 0;
+            return acc;
+          }, {}));
+          return `
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;color:var(--purple);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <div style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>
+              ${g.accountName}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              ${items.map(it => `
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
+                <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.name}</div>
+                <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--purple);flex-shrink:0;margin-left:10px">−${it.amount.toFixed(2)} ${unitLabel(it.unitKey)}</div>
+              </div>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="wo-fnav" style="padding-top:8px">
+        <button onclick="window.__wo.closeSyrveConfirm()"
+          style="flex:1;height:52px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:14px;font-size:14px;color:var(--text1);cursor:pointer;font-family:var(--font-h)">
+          Скасувати
+        </button>
+        <button onclick="window.__wo.doSendActToSyrve()"
+          style="flex:2;height:52px;background:var(--purple);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M7 2l5.5 5L7 12" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Надіслати
+        </button>
+      </div>
+    </div>
+  </div>`;
 }
 
 function summaryHTML() {
@@ -1146,7 +1211,8 @@ function renderManager() {
     </div>
 
     <div style="height:16px"></div>
-  </div>`;
+  </div>
+  ${syrveConfirmHTML()}`;
 }
 
 /* ════════════════════════
@@ -1331,7 +1397,6 @@ async function sendActToSyrve() {
   const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
   if (!todayItems.length) { alert('Немає списань з productId за сьогодні'); return; }
 
-  // Групуємо по рахунку (accountId) — кожна група = окремий акт
   const byAccount = {};
   for (const w of todayItems) {
     const key = w.accountId || '__auto__';
@@ -1339,19 +1404,29 @@ async function sendActToSyrve() {
     byAccount[key].items.push(w);
   }
 
-  const groups = Object.values(byAccount);
-  const summary = groups.map(g => {
-    const lines = Object.values(
-      g.items.reduce((acc, w) => {
-        if (!acc[w.prodId]) acc[w.prodId] = { name: w.prod, amount: 0, unitKey: w.unitKey || 'l' };
-        acc[w.prodId].amount += w.volNum || 0;
-        return acc;
-      }, {})
-    ).map(i => `  • ${i.name}: ${i.amount.toFixed(2)} ${unitLabel(i.unitKey)}`).join('\n');
-    return `Рахунок: ${g.accountName}\n${lines}`;
-  }).join('\n\n');
+  _syrveConfirmGroups = Object.values(byAccount);
+  _syrveConfirmOpen   = true;
+  fullRender();
+}
 
-  if (!confirm(`Надіслати ${groups.length > 1 ? groups.length + ' акти' : 'акт'} списання до Syrve?\n\n${summary}`)) return;
+function closeSyrveConfirm() {
+  _syrveConfirmOpen   = false;
+  _syrveConfirmGroups = [];
+  fullRender();
+}
+
+async function doSendActToSyrve() {
+  const groups = [..._syrveConfirmGroups];
+  _syrveConfirmOpen   = false;
+  _syrveConfirmGroups = [];
+  fullRender();
+
+  const vId   = localStorage.getItem('barops_venueId') || state.venueId || '';
+  const token = localStorage.getItem('barops_token');
+  if (!vId || !token || !groups.length) return;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
 
   const btn = document.getElementById('wo-syrve-btn');
   if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
@@ -1385,7 +1460,6 @@ async function sendActToSyrve() {
   if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
 
   if (errors.length === 0 && results.length > 0) {
-    // Зберегти в history і очистити поточний список
     const now = new Date();
     const histEntry = {
       ts:        now.toISOString(),
@@ -1406,17 +1480,15 @@ async function sendActToSyrve() {
     const histKey = `barops_wo_history_${vId}`;
     try { localStorage.setItem(histKey, JSON.stringify(_sentHistory.slice(0, 20))); } catch {}
 
-    // Видалити відправлені з бекенду
     for (const w of todayItems) {
       try {
         await fetch(`${API}/api/writeoffs/${w.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
         });
-      } catch (e) { /* ігноруємо помилки видалення */ }
+      } catch (e) { /* ігноруємо */ }
     }
 
-    // Очистити список в пам'яті та localStorage
     _writeoffs = _writeoffs.filter(w => !w.prodId || new Date(w.ts || 0) < today);
     const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     raw[vId] = _writeoffs;
@@ -1593,6 +1665,11 @@ export default {
       });
       if (woRes.ok) {
         const woData = await woRes.json();
+        // Зберігаємо accountId/accountName з localStorage перед перезаписом
+        const localAccMap = {};
+        for (const w of _writeoffs) {
+          if (w.accountId) localAccMap[w.id] = { accountId: w.accountId, accountName: w.accountName };
+        }
         _writeoffs = (woData.data || []).reverse().map(w => {
           const catKey = Object.entries(CAT).find(([, v]) => v.label === w.category)?.[0] || 'insh';
           const item   = w.items?.[0] || {};
@@ -1602,6 +1679,7 @@ export default {
           const d      = new Date(w.createdAt);
           const hhmm   = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
           const dd     = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+          const localAcc = localAccMap[w.id] || {};
           return {
             id:          w.id,
             cat:         catKey,
@@ -1613,8 +1691,8 @@ export default {
             unitKey:     uKey,
             valColor:    CAT[catKey]?.color || 'var(--text0)',
             reason:      w.reason || '',
-            accountId:   null,
-            accountName: null,
+            accountId:   localAcc.accountId   || null,
+            accountName: localAcc.accountName || null,
             time:        hhmm,
             dateStr:     `${dd} · ${hhmm}`,
             ts:          w.createdAt,
@@ -1704,7 +1782,8 @@ export default {
       selectCat, searchProds, selectProd,
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
-      setPeriod, setMgrFilter, exportReport, sendActToSyrve,
+      setPeriod, setMgrFilter, exportReport,
+      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve,
       openActDetail, closeActDetail,
       addCustomReason, removeReason,
       deleteWriteoff,
