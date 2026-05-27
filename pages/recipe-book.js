@@ -9,7 +9,6 @@ let _groups   = [];
 let _loading  = true;
 let _error    = '';
 let _venueId  = null;
-let _token    = null;
 let _role     = 'bartender';
 
 let _screen      = 'groups';
@@ -91,7 +90,8 @@ function plural(n, one, few, many) {
   return `${n} ${many}`;
 }
 function authHeaders() {
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` };
+  const token = localStorage.getItem('barops_token');
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 function isEditable() {
   const r = (_role || '').toUpperCase();
@@ -439,9 +439,8 @@ window.__rb = {
 
 /* ── Page API ────────────────────────────────────── */
 export function render() {
-  _venueId = state.venueId;
-  _token   = state.token;
-  _role    = state.role || 'bartender';
+  _venueId = state.venueId || localStorage.getItem('barops_venueId');
+  _role    = state.role || localStorage.getItem('barops_role') || 'bartender';
   _screen  = 'groups';
   _groups  = [];
   _loading = true;
