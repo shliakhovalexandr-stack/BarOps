@@ -157,20 +157,24 @@ async function loadVenue(venueId) {
   }
 
   if (!_venue) {
-    const local = loadFromLocal();
-    if (local.name) {
-      _venue = {
-        id: venueId,
-        name: local.name,
-        posType: local.posType,
-        telegramTopicId: local.telegramTopicId,
-      };
-      _draft = {
-        name: local.name,
-        posType: local.posType,
-        topicUrl: local.telegramTopicId,
-      };
-      console.log('[VenueEdit] Loaded from localStorage:', _venue);
+    // Fallback тільки якщо venueId збігається з поточним активним закладом
+    const activeVenueId = localStorage.getItem('barops_venueId');
+    if (venueId === activeVenueId) {
+      const local = loadFromLocal();
+      if (local.name) {
+        _venue = {
+          id: venueId,
+          name: local.name,
+          posType: local.posType,
+          telegramTopicId: local.telegramTopicId,
+        };
+        _draft = {
+          name: local.name,
+          posType: local.posType,
+          topicUrl: local.telegramTopicId,
+        };
+        console.log('[VenueEdit] Loaded from localStorage:', _venue);
+      }
     }
   }
 
@@ -312,15 +316,19 @@ ${CSS}
           <div id="tg-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none"></div>
         </div>
         <div class="ve-field" style="margin-bottom:4px">
-          <label class="ve-label">СКЛАД ДЛЯ СПИСАНЬ</label>
-          <div style="display:flex;gap:8px;align-items:flex-start">
-            <input class="ve-input" id="iiko-store-id" type="text" value="${escapeHtml(_draft.syrveStoreId)}" placeholder="UUID складу Syrve" style="margin-bottom:0;flex:1">
-            <button type="button" id="btn-load-stores" style="flex-shrink:0;height:48px;padding:0 14px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-h);white-space:nowrap">
-              Знайти
-            </button>
-          </div>
-          <div class="ve-hint" style="margin-top:6px">Склад Syrve куди надсилатимуться акти списання</div>
-          <div id="stores-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none"></div>
+          <label class="ve-label">СКЛАДИ ДЛЯ СПИСАНЬ</label>
+          ${(() => {
+            const saved = (() => { try { return JSON.parse(_draft.syrveStores || '[]'); } catch { return []; } })();
+            return saved.length ? `<div style="font-size:12px;color:var(--green);font-family:var(--font-b);margin-bottom:6px">Обрано: ${saved.map(s=>s.name).join(', ')}</div>` : '';
+          })()}
+          <button type="button" id="btn-load-stores" style="width:100%;height:44px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">
+            Завантажити склади з Syrve
+          </button>
+          <div class="ve-hint" style="margin-top:6px">Бармен обере склад при надсиланні акту списання</div>
+          <div id="stores-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none;max-height:280px;overflow-y:auto"></div>
+          <button type="button" id="btn-save-stores" class="ve-btn ve-btn-green" style="width:100%;margin-top:10px;height:44px;border-radius:12px;display:none">
+            Зберегти вибір складів
+          </button>
         </div>
 
         <!-- Кнопки -->
@@ -702,8 +710,6 @@ async function initIikoSection(venueId) {
     if (urlEl   && settings.posUrl)            { urlEl.value   = settings.posUrl;           markSaved('iiko-cloud-url'); }
     if (loginEl && settings.posLogin)          { loginEl.value = settings.posLogin;          markSaved('iiko-login'); }
     if (deptEl  && settings.syrveDepartmentId) { deptEl.value  = settings.syrveDepartmentId; markSaved('iiko-department-id'); }
-    const storeEl = document.getElementById('iiko-store-id');
-    if (storeEl && settings.syrveStoreId) { storeEl.value = settings.syrveStoreId; markSaved('iiko-store-id'); }
     if (apiKeyEl && settings.posApiKey)        { apiKeyEl.placeholder = '••••••••  (збережено — залиш порожнім щоб не змінювати)'; markSaved('iiko-api-key'); }
     if (settings.posPassword)                  markSaved('iiko-password');
     // Пароль і API key не підставляємо з міркувань безпеки
@@ -782,7 +788,6 @@ async function initIikoSection(venueId) {
 
     const { url, apiKey, login, password } = getSyrveFormData();
     const deptId  = (document.getElementById('iiko-department-id')?.value || '').trim();
-    const storeId = (document.getElementById('iiko-store-id')?.value || '').trim();
 
     // Для cloud (apiKey) — достатньо apiKey; для self-hosted — потрібен login+password
     const hasCloudKey = !!apiKey;
@@ -808,14 +813,8 @@ async function initIikoSection(venueId) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
             body:    JSON.stringify({ departmentId: deptId }),
           }),
-          fetch(`${API}/api/pos/store/${venueId}`, {
-            method:  'PATCH',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-            body:    JSON.stringify({ storeId }),
-          }),
         ]);
         _draft.syrveDepartmentId = deptId;
-        _draft.syrveStoreId = storeId;
         showToast('Налаштування збережено!');
         badge.textContent      = '⚠️ Збережено — натисніть "Перевірити з\'єднання"';
         badge.style.background = 'rgba(234,179,8,.15)';
@@ -929,41 +928,60 @@ async function initIikoSection(venueId) {
     }
   });
 
+  let _storesAll = [];
   document.getElementById('btn-load-stores')?.addEventListener('click', async () => {
-    const btn     = document.getElementById('btn-load-stores');
-    const listEl  = document.getElementById('stores-list');
-    btn.disabled  = true; btn.textContent = '⏳';
+    const btn    = document.getElementById('btn-load-stores');
+    const listEl = document.getElementById('stores-list');
+    const saveBtn = document.getElementById('btn-save-stores');
+    btn.disabled = true; btn.textContent = '⏳';
     if (listEl) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
     try {
       const r = await fetch(`${API}/api/pos/stores-list/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Помилка');
-      const stores = d.stores || [];
-      if (!stores.length) {
-        if (listEl) { listEl.style.display = 'flex'; listEl.innerHTML = `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Склади не знайдено. Перевірте URL та логін.</div>`; }
+      _storesAll = d.stores || [];
+      const savedIds = new Set((d.savedStores || []).map(s => s.id));
+      if (!_storesAll.length) {
+        if (listEl) { listEl.style.display = 'flex'; listEl.innerHTML = `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Склади не знайдено.</div>`; }
         return;
       }
       if (listEl) {
-        listEl.innerHTML = stores.map(s => `
-          <div class="ve-tg-item" data-id="${s.id}" ${d.currentStoreId === s.id ? 'style="background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.5)"' : ''}>
-            <span class="ve-tg-name">${s.name}</span>
-            <span class="ve-tg-id">${s.id}</span>
-          </div>`).join('');
+        listEl.innerHTML = _storesAll.map(s => `
+          <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
+            <input type="checkbox" data-id="${s.id}" data-name="${s.name}" ${savedIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${s.name}</div>
+              <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${s.id}</div>
+            </div>
+          </label>`).join('');
         listEl.style.display = 'flex';
-        listEl.querySelectorAll('.ve-tg-item').forEach(item => {
-          item.addEventListener('click', () => {
-            const storeInput = document.getElementById('iiko-store-id');
-            if (storeInput) { storeInput.value = item.dataset.id; storeInput.dispatchEvent(new Event('input')); }
-            listEl.querySelectorAll('.ve-tg-item').forEach(el => { el.style.background = ''; el.style.borderColor = ''; });
-            item.style.background   = 'rgba(168,85,247,.15)';
-            item.style.borderColor  = 'rgba(168,85,247,.5)';
-          });
-        });
+        if (saveBtn) saveBtn.style.display = 'block';
       }
     } catch (err) {
       alert('Не вдалось завантажити склади: ' + err.message);
     } finally {
-      btn.disabled = false; btn.textContent = 'Знайти';
+      btn.disabled = false; btn.textContent = 'Завантажити склади з Syrve';
+    }
+  });
+
+  document.getElementById('btn-save-stores')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-save-stores');
+    btn.disabled = true; btn.textContent = '⏳';
+    const checks = document.querySelectorAll('#stores-list input[type=checkbox]:checked');
+    const selected = [...checks].map(cb => ({ id: cb.dataset.id, name: cb.dataset.name }));
+    try {
+      const r = await fetch(`${API}/api/pos/stores/${venueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ stores: selected }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error);
+      _draft.syrveStores = JSON.stringify(selected);
+      showToast(`Збережено ${selected.length} складів`);
+    } catch (err) {
+      alert('Помилка збереження: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Зберегти вибір складів';
     }
   });
 

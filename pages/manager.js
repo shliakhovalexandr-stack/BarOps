@@ -426,7 +426,7 @@ function sectionVenues() {
         <div class="mgr-venue-name">${v.name}</div>
         <div class="mgr-venue-pos">${v.posType || 'Manual'} · ${v.id.slice(0,8)}</div>
       </div>
-      <div class="mgr-venue-edit" onclick="window.__mgr.editVenue('${v.id}')">
+      <div class="mgr-venue-edit" onclick="window.__barops.editVenue('${v.id}','${v.name.replace(/'/g,`\\'`)}')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M2 14l2-2 8-8 2 2-8 8-2 2H2v-2z" stroke="var(--text1)" stroke-width="1.3" stroke-linejoin="round"/>
           <path d="M10 4l2 2" stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round"/>
