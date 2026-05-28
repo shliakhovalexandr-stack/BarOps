@@ -311,6 +311,7 @@ function profileHTML(t) {
   </div>
 
   <div class="tm-ph-actions">
+    ${(state.role === 'admin' || state.role === 'manager') ? `
     <button class="tm-btn tm-btn-green" onclick="window.__tm.openEdit('${t.id}')">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2l3 3-7 7H2V9l7-7z" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Редагувати / Змінити PIN
@@ -321,7 +322,8 @@ function profileHTML(t) {
     <button class="tm-btn" onclick="window.__tm.hardDelete('${t.id}')"
       style="background:transparent;border:1px solid var(--red-border);color:var(--red);opacity:.6;margin-top:4px;height:40px;font-size:12px">
       🗑 Видалити повністю
-    </button>
+    </button>` : `
+    <button class="tm-btn tm-btn-ghost" onclick="window.__tm.closeProfile()">Назад до команди</button>`}
   </div>`;
 }
 
@@ -481,12 +483,11 @@ ${CSS}
         ? `<div class="tm-loading" style="flex-direction:column;gap:16px;padding:32px">
              <div style="font-size:40px">👥</div>
              <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);text-align:center">Команда порожня</div>
-             <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.6">Додайте першого бармена
-натиснувши кнопку вище</div>
-             <div class="tm-add-btn" onclick="window.__tm.openAdd()" style="margin:0;width:100%">
+             <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.6">${(state.role === 'admin' || state.role === 'manager') ? 'Додайте першого бармена натиснувши кнопку вище' : 'У цьому закладі ще немає учасників команди'}</div>
+             ${(state.role === 'admin' || state.role === 'manager') ? `<div class="tm-add-btn" onclick="window.__tm.openAdd()" style="margin:0;width:100%">
                <div class="tm-add-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg></div>
                <div><div class="tm-add-text">Додати першого бармена</div><div class="tm-add-sub">Ім'я, посада та PIN для входу</div></div>
-             </div>
+             </div>` : ''}
            </div>`
         : teamListHTML()}
   </div>
