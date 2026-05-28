@@ -17,6 +17,8 @@ let _result    = null;           // { code, id } | null
 let _failMsg   = '';
 let _manualCode = '';
 
+let _productName = '';
+
 let _marks      = [];
 let _marksDate  = '';
 let _loadingMarks = false;
@@ -163,8 +165,11 @@ async function doScan() {
   _scanStep = 'scanning'; re();
 
   try {
+    const pnInp = document.getElementById('exc-product-name');
+    if (pnInp) _productName = pnInp.value.trim();
     const form = new FormData();
     form.append('photo', _photoFile);
+    form.append('productName', _productName);
     const res  = await fetch(`${API}/api/excise/scan`, { method: 'POST', headers: hdrs(), body: form });
     const data = await res.json();
 
@@ -195,10 +200,12 @@ async function doManualSave() {
   }
   _scanStep = 'scanning'; re();
   try {
+    const pnInp = document.getElementById('exc-product-name');
+    if (pnInp) _productName = pnInp.value.trim();
     const res  = await fetch(`${API}/api/excise/manual`, {
       method: 'POST',
       headers: { ...hdrs(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, productName: _productName }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -219,7 +226,7 @@ function resetScan() {
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoFile = null; _photoUrl = null;
   _scanStep  = 'idle'; _result = null; _failMsg = '';
-  _manualCode = '';
+  _manualCode = ''; _productName = '';
   re();
 }
 
@@ -541,6 +548,9 @@ function buildScanTab() {
       <input class="exc-manual-inp" id="exc-manual" type="text" maxlength="12" autocapitalize="characters"
         placeholder="AIZT016199" value="${_manualCode}"
         oninput="window.__exc.manualInput(this.value)"/>
+      <input class="exc-manual-inp" id="exc-product-name" type="text" maxlength="80"
+        placeholder="Назва товару (необов'язково)" value="${_productName}"
+        oninput="window.__exc._pnChange(this.value)" style="margin-top:-4px;margin-bottom:10px"/>
       <button class="exc-cta" onclick="window.__exc.doManualSave()">
         Зберегти
       </button>
@@ -554,6 +564,9 @@ function buildScanTab() {
         <img src="${_photoUrl}" alt="Фото марки"/>
         <div class="exc-preview-btn" onclick="window.__exc.openGallery()">Змінити</div>
       </div>
+      <input class="exc-manual-inp" id="exc-product-name" type="text" maxlength="80"
+        placeholder="Назва товару (необов'язково)" value="${_productName}"
+        oninput="window.__exc._pnChange(this.value)" style="margin-bottom:10px"/>
       <button class="exc-cta" onclick="window.__exc.doScan()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         Розпізнати та зберегти
@@ -636,6 +649,7 @@ function buildListTab() {
         return `<div class="exc-mark-row">
           <div style="flex:1;min-width:0">
             <div class="exc-mark-code">${m.code}</div>
+            ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}</div>
           </div>
           <div class="exc-badge ${cls}">${label}</div>
@@ -758,6 +772,7 @@ export default {
       resetScan:   resetScan,
       showManual:  () => { _scanStep = 'manual'; re(); },
       manualInput: (v) => { _manualCode = v; },
+      _pnChange:   (v) => { _productName = v; },
       doManualSave: doManualSave,
       refreshMarks:     () => loadMarks(_marksDate),
       prevDay:          prevDay,
