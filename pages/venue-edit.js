@@ -339,6 +339,17 @@ ${CSS}
           <div class="ve-hint" style="margin-top:6px">Якщо вказати — залишки та стоп-лист фільтруватимуться по складах цього департаменту</div>
           <div id="tg-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none"></div>
         </div>
+        <div class="ve-field" style="margin-bottom:4px">
+          <label class="ve-label">СКЛАД ДЛЯ СПИСАНЬ</label>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <input class="ve-input" id="iiko-store-id" type="text" value="${escapeHtml(_draft.syrveStoreId)}" placeholder="UUID складу Syrve" style="margin-bottom:0;flex:1">
+            <button type="button" id="btn-load-stores" style="flex-shrink:0;height:48px;padding:0 14px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-h);white-space:nowrap">
+              Знайти
+            </button>
+          </div>
+          <div class="ve-hint" style="margin-top:6px">Склад Syrve куди надсилатимуться акти списання</div>
+          <div id="stores-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none"></div>
+        </div>
 
         <!-- Кнопки -->
         <div style="display:flex;gap:12px;margin-top:8px">
@@ -719,6 +730,8 @@ async function initIikoSection(venueId) {
     if (urlEl   && settings.posUrl)            { urlEl.value   = settings.posUrl;           markSaved('iiko-cloud-url'); }
     if (loginEl && settings.posLogin)          { loginEl.value = settings.posLogin;          markSaved('iiko-login'); }
     if (deptEl  && settings.syrveDepartmentId) { deptEl.value  = settings.syrveDepartmentId; markSaved('iiko-department-id'); }
+    const storeEl = document.getElementById('iiko-store-id');
+    if (storeEl && settings.syrveStoreId) { storeEl.value = settings.syrveStoreId; markSaved('iiko-store-id'); }
     if (apiKeyEl && settings.posApiKey)        { apiKeyEl.placeholder = '••••••••  (збережено — залиш порожнім щоб не змінювати)'; markSaved('iiko-api-key'); }
     if (settings.posPassword)                  markSaved('iiko-password');
     // Пароль і API key не підставляємо з міркувань безпеки
@@ -796,7 +809,8 @@ async function initIikoSection(venueId) {
     btn.innerHTML = '⏳ Збереження...';
 
     const { url, apiKey, login, password } = getSyrveFormData();
-    const deptId = (document.getElementById('iiko-department-id')?.value || '').trim();
+    const deptId  = (document.getElementById('iiko-department-id')?.value || '').trim();
+    const storeId = (document.getElementById('iiko-store-id')?.value || '').trim();
 
     // Для cloud (apiKey) — достатньо apiKey; для self-hosted — потрібен login+password
     const hasCloudKey = !!apiKey;
@@ -815,13 +829,21 @@ async function initIikoSection(venueId) {
       const data = await res.json();
 
       if (data.success) {
-        // Зберігаємо departmentId окремо (може бути порожнім для очищення)
-        await fetch(`${API}/api/pos/department/${venueId}`, {
-          method:  'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-          body:    JSON.stringify({ departmentId: deptId }),
-        });
+        // Зберігаємо departmentId і storeId окремо (можуть бути порожніми для очищення)
+        await Promise.all([
+          fetch(`${API}/api/pos/department/${venueId}`, {
+            method:  'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify({ departmentId: deptId }),
+          }),
+          fetch(`${API}/api/pos/store/${venueId}`, {
+            method:  'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify({ storeId }),
+          }),
+        ]);
         _draft.syrveDepartmentId = deptId;
+        _draft.syrveStoreId = storeId;
         showToast('Налаштування збережено!');
         badge.textContent      = '⚠️ Збережено — натисніть "Перевірити з\'єднання"';
         badge.style.background = 'rgba(234,179,8,.15)';
@@ -930,6 +952,44 @@ async function initIikoSection(venueId) {
       }
     } catch (err) {
       alert('Не вдалось завантажити групи: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Знайти';
+    }
+  });
+
+  document.getElementById('btn-load-stores')?.addEventListener('click', async () => {
+    const btn     = document.getElementById('btn-load-stores');
+    const listEl  = document.getElementById('stores-list');
+    btn.disabled  = true; btn.textContent = '⏳';
+    if (listEl) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
+    try {
+      const r = await fetch(`${API}/api/pos/stores-list/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Помилка');
+      const stores = d.stores || [];
+      if (!stores.length) {
+        if (listEl) { listEl.style.display = 'flex'; listEl.innerHTML = `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Склади не знайдено. Перевірте URL та логін.</div>`; }
+        return;
+      }
+      if (listEl) {
+        listEl.innerHTML = stores.map(s => `
+          <div class="ve-tg-item" data-id="${s.id}" ${d.currentStoreId === s.id ? 'style="background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.5)"' : ''}>
+            <span class="ve-tg-name">${s.name}</span>
+            <span class="ve-tg-id">${s.id}</span>
+          </div>`).join('');
+        listEl.style.display = 'flex';
+        listEl.querySelectorAll('.ve-tg-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const storeInput = document.getElementById('iiko-store-id');
+            if (storeInput) { storeInput.value = item.dataset.id; storeInput.dispatchEvent(new Event('input')); }
+            listEl.querySelectorAll('.ve-tg-item').forEach(el => { el.style.background = ''; el.style.borderColor = ''; });
+            item.style.background   = 'rgba(168,85,247,.15)';
+            item.style.borderColor  = 'rgba(168,85,247,.5)';
+          });
+        });
+      }
+    } catch (err) {
+      alert('Не вдалось завантажити склади: ' + err.message);
     } finally {
       btn.disabled = false; btn.textContent = 'Знайти';
     }
