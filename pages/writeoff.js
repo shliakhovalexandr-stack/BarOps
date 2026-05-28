@@ -45,6 +45,8 @@ let _detailAct   = null; // відкритий акт для перегляду
 let _syrveConfirmOpen   = false;
 let _syrveConfirmGroups = [];
 let _syrveResult        = null; // { isError, lines:[] }
+let _syrveStores        = []; // [{id, name}] — доступні склади для цього закладу
+let _selStoreId         = null;
 let _swipeListenerAdded = false;
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
@@ -794,15 +796,29 @@ function syrveConfirmHTML() {
           </div>`;
         }).join('')}
       </div>
+      ${_syrveStores.length > 1 ? `
+      <div style="padding:4px 0 12px">
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px">Склад для списання</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${_syrveStores.map(s => `
+          <button type="button" onclick="window.__wo.selectWriteoffStore('${s.id}')"
+            style="height:34px;padding:0 14px;border-radius:10px;font-size:13px;cursor:pointer;font-family:var(--font-h);transition:all .15s;
+                   border:${_selStoreId === s.id ? 'none' : '0.5px solid var(--border)'};
+                   background:${_selStoreId === s.id ? 'var(--purple)' : 'rgba(255,255,255,.06)'};
+                   color:${_selStoreId === s.id ? '#fff' : 'var(--text1)'}">
+            ${s.name}
+          </button>`).join('')}
+        </div>
+      </div>` : ''}
       <div class="wo-fnav" style="padding-top:8px">
         <button onclick="window.__wo.closeSyrveConfirm()"
           style="flex:1;height:52px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:14px;font-size:14px;color:var(--text1);cursor:pointer;font-family:var(--font-h)">
           Скасувати
         </button>
-        <button onclick="window.__wo.doSendActToSyrve()"
-          style="flex:2;height:52px;background:var(--purple);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M7 2l5.5 5L7 12" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Надіслати
+        <button onclick="window.__wo.doSendActToSyrve()" ${_syrveStores.length > 1 && !_selStoreId ? 'disabled' : ''}
+          style="flex:2;height:52px;background:${_syrveStores.length > 1 && !_selStoreId ? 'rgba(255,255,255,.12)' : 'var(--purple)'};border:none;border-radius:14px;font-size:15px;font-weight:600;color:${_syrveStores.length > 1 && !_selStoreId ? 'var(--text2)' : '#fff'};cursor:${_syrveStores.length > 1 && !_selStoreId ? 'not-allowed' : 'pointer'};font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M7 2l5.5 5L7 12" stroke="${_syrveStores.length > 1 && !_selStoreId ? 'var(--text2)' : '#fff'}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          ${_syrveStores.length > 1 && !_selStoreId ? 'Оберіть склад' : 'Надіслати'}
         </button>
       </div>
     </div>
@@ -1464,6 +1480,20 @@ async function sendActToSyrve() {
   const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
   if (!todayItems.length) { alert('Немає списань з productId за сьогодні'); return; }
 
+  // Завантажуємо збережені склади з бекенду
+  try {
+    const r = await fetch(`${API}/api/pos/saved-stores/${vId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (r.ok) {
+      const d = await r.json();
+      _syrveStores = d.stores || [];
+    }
+  } catch { /* ігноруємо, продовжуємо без вибору складу */ }
+
+  // Авто-вибір якщо склад тільки один
+  _selStoreId = _syrveStores.length === 1 ? _syrveStores[0].id : null;
+
   const byAccount = {};
   for (const w of todayItems) {
     const key = w.accountId || '__auto__';
@@ -1479,6 +1509,13 @@ async function sendActToSyrve() {
 function closeSyrveConfirm() {
   _syrveConfirmOpen   = false;
   _syrveConfirmGroups = [];
+  _syrveStores        = [];
+  _selStoreId         = null;
+  fullRender();
+}
+
+function selectWriteoffStore(id) {
+  _selStoreId = id;
   fullRender();
 }
 
@@ -1516,6 +1553,7 @@ async function doSendActToSyrve() {
       const reasons = [...new Set(g.items.filter(w => w.reason).map(w => w.reason))].join('; ');
       const body = { items, comment: reasons || undefined };
       if (g.accountId) body.accountId = g.accountId;
+      if (_selStoreId) body.storeId = _selStoreId;
       const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1870,7 +1908,7 @@ export default {
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFilter, exportReport,
-      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult,
+      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
       openActDetail, closeActDetail,
       addCustomReason, removeReason,
       deleteWriteoff,
