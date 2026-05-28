@@ -231,9 +231,6 @@ function buildHTML() {
     </div>`;
   }
 
-  const displayTopic = _draft.topicUrl || '';
-  const hasTopic = !!displayTopic;
-
   return `
 ${CSS}
 <div class="ve-wrap">
@@ -266,32 +263,7 @@ ${CSS}
       </select>
     </div>
 
-    <div class="ve-sec">Telegram інтеграція</div>
-    <div class="ve-card">
-      ${hasTopic ? `
-      <div class="ve-topic-status ok" id="ve-topic-status">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--green)" stroke-width="1.5"/><path d="M5 8l2 2 3-3" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Топік підключено · Фото акцизних марок будуть надсилатися в правильний чат
-      </div>
-      ` : `
-      <div class="ve-topic-status warn" id="ve-topic-status">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--amber)" stroke-width="1.5"/><path d="M8 5v3.5M8 11v.5" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Топік не налаштовано · Фото будуть падати в загальний чат групи
-      </div>
-      `}
-
-      <div class="ve-label">Telegram Topic</div>
-      <input class="ve-input" id="ve-topic" type="text" value="${escapeHtml(displayTopic)}" placeholder="Встав посилання на топік або ID">
-      <div class="ve-hint">
-        📱 Можна вставити повне посилання на топік або тільки ID<br>
-        Приклади:<br>
-        • https://t.me/c/1234567890/<strong>1966</strong><br>
-        • https://web.telegram.org/a/#-1001234567890_<strong>1966</strong><br>
-        • або просто: <strong>1966</strong>
-      </div>
-    </div>
-
-        <!-- POS інтеграція — динамічна секція -->
+    <!-- POS інтеграція — динамічна секція -->
     <div id="pos-integration-section">
       ${_draft.posType === 'syrve' ? `
       <div class="ve-sec">🔗 Syrve / iiko інтеграція</div>
