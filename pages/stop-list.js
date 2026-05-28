@@ -418,7 +418,9 @@ function buildDiagHtml(d) {
 ════════════════════════ */
 function buildPage() {
   const critCount = _activeStops.filter(s => s.urgency === 'critical').length;
-  const syncStr   = _syncedAt ? `Синхронізовано о ${fmtSyncedAt(_syncedAt)}` : 'Оновлення...';
+  const syncStr   = _syncedAt
+    ? (_loading ? `Оновлення… · ${fmtSyncedAt(_syncedAt)}` : `Синхронізовано о ${fmtSyncedAt(_syncedAt)}`)
+    : 'Завантаження...';
 
   const bodyContent = _loading
     ? `<div class="sl-loading">
@@ -619,9 +621,10 @@ async function loadStopList() {
     return;
   }
 
+  const hasData = _activeStops.length > 0 || _atRisk.length > 0 || _syncedAt;
   _loading = true;
   _error   = '';
-  re();
+  if (!hasData) re(); // спінер тільки якщо немає жодних попередніх даних
 
   try {
     const res = await fetch(`${API}/api/pos/stop-list/${venueId}`, {
@@ -650,11 +653,9 @@ async function loadStopList() {
    RENDER
 ════════════════════════ */
 export function render() {
-  _loading     = true;
-  _error       = '';
-  _activeStops = [];
-  _atRisk      = [];
-  _syncedAt    = null;
+  _error   = '';
+  // Якщо є попередні дані — показуємо їх одразу, оновлення відбудеться у фоні в init()
+  if (!_syncedAt) _loading = true;
   return buildPage();
 }
 
