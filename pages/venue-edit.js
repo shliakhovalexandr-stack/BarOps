@@ -881,7 +881,7 @@ async function initIikoSection(venueId) {
       renderAccountsList('');
       if (saveBtn) saveBtn.style.display = 'block';
     } catch (err) {
-      alert('Не вдалось завантажити рахунки: ' + err.message);
+      showToast('⚠️ Не вдалось завантажити рахунки: ' + err.message, 'error');
     } finally {
       btn.disabled = false; btn.textContent = 'Завантажити рахунки з Syrve';
     }
@@ -922,7 +922,7 @@ async function initIikoSection(venueId) {
         });
       }
     } catch (err) {
-      alert('Не вдалось завантажити групи: ' + err.message);
+      showToast('⚠️ Не вдалось завантажити групи: ' + err.message, 'error');
     } finally {
       btn.disabled = false; btn.textContent = 'Знайти';
     }
@@ -958,7 +958,7 @@ async function initIikoSection(venueId) {
         if (saveBtn) saveBtn.style.display = 'block';
       }
     } catch (err) {
-      alert('Не вдалось завантажити склади: ' + err.message);
+      showToast('⚠️ Не вдалось завантажити склади: ' + err.message, 'error');
     } finally {
       btn.disabled = false; btn.textContent = 'Завантажити склади з Syrve';
     }
@@ -979,7 +979,7 @@ async function initIikoSection(venueId) {
       _draft.syrveStores = JSON.stringify(selected);
       showToast(`Збережено ${selected.length} складів`);
     } catch (err) {
-      alert('Помилка збереження: ' + err.message);
+      showToast('⚠️ ' + err.message, 'error');
     } finally {
       btn.disabled = false; btn.textContent = 'Зберегти вибір складів';
     }
@@ -1007,7 +1007,7 @@ async function initIikoSection(venueId) {
       localStorage.setItem(`barops_wo_accounts_${venueId}`, JSON.stringify(selected));
       showToast(`Збережено ${selected.length} рахунків`);
     } catch (err) {
-      alert('Помилка збереження: ' + err.message);
+      showToast('⚠️ ' + err.message, 'error');
     }
   });
 
