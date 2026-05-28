@@ -69,6 +69,9 @@ const CSS = `<style id="prof-css">
 .prof-toggle.on .prof-toggle-knob{left:16px}
 .prof-logout{margin:0 20px 14px;width:calc(100% - 40px);padding:14px;background:var(--red-bg);border:0.5px solid rgba(251,113,133,.25);border-radius:14px;font-size:13px;font-weight:500;color:var(--red);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
 .prof-logout:active{opacity:.8}
+.prof-close-shift{margin:0 20px 10px;width:calc(100% - 40px);padding:14px;background:rgba(251,191,36,.08);border:0.5px solid rgba(251,191,36,.25);border-radius:14px;font-size:13px;font-weight:500;color:var(--amber);cursor:pointer;font-family:var(--font-b);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.prof-close-shift:active{opacity:.8}
+.prof-close-shift:disabled{opacity:.5;cursor:not-allowed}
 /* plan badge */
 .prof-plan{margin:0 14px 8px;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px}
 .prof-plan--trial{background:var(--amber-bg);border:1px solid var(--amber-border)}
@@ -357,6 +360,13 @@ ${CSS}
     </div>
 
     <!-- Вихід -->
+    <button class="prof-close-shift" id="prof-close-shift-btn" onclick="window.__prof.closeShiftAndLogout()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 2v7" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M5 4.27A6 6 0 1011 4.27" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      Закрити зміну і вийти
+    </button>
     <button class="prof-logout" onclick="window.__barops.logout()">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round"/>
@@ -431,6 +441,30 @@ window.__profSaveTg = async function() {
   }
   _tgSaving = false;
 };
+
+async function closeShiftAndLogout() {
+  const btn = document.getElementById('prof-close-shift-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="opacity:.6">Закриваємо зміну…</span>'; }
+  try {
+    const t = token();
+    const res  = await fetch(`${API}/api/shifts/current`, {
+      headers: { Authorization: `Bearer ${t}` },
+    });
+    const data = await res.json();
+    if (data.success && data.data?.id) {
+      await fetch(`${API}/api/shifts/${data.data.id}/close`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        body:    JSON.stringify({ notes: '' }),
+      });
+    }
+  } catch (e) {
+    console.warn('[closeShiftAndLogout]', e.message);
+  }
+  window.__barops.logout();
+}
+
+window.__prof = { closeShiftAndLogout };
 
 export default {
   render() {
