@@ -696,13 +696,15 @@ export function init() {
       document.body.appendChild(overlay);
 
       try {
-        const res  = await fetch(`${API}/api/pos/debug-cloud-stoplist/${venueId}`, {
+        const res  = await fetch(`${API}/api/pos/debug-stoplist-names/${venueId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         const el   = document.getElementById('sl-diag-content');
         if (!el) return;
-        el.innerHTML = buildDiagHtml(data);
+        // Show raw JSON so we can see exactly what Syrve returns
+        const fmt = JSON.stringify(data, null, 2);
+        el.innerHTML = `<pre style="font-size:10px;color:var(--text1);white-space:pre-wrap;word-break:break-all;padding:8px">${fmt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>`;
       } catch (err) {
         const el = document.getElementById('sl-diag-content');
         if (el) el.innerHTML = `<div class="sl-diag-row fail"><div class="sl-diag-dot fail"></div><div><div class="sl-diag-label">Помилка запиту</div><div class="sl-diag-val">${err.message}</div></div></div>`;
