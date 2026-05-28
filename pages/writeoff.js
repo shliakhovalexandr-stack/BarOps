@@ -1873,36 +1873,40 @@ export default {
       console.warn('[Writeoff] Рахунки не завантажились:', e.message);
     }
 
-    // Завантажуємо товари: одразу з кешу, оновлення — у фоні
+    // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     const prodsKey = `barops_prods_${vId}`;
+    let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
-      if (Array.isArray(cached.data) && cached.data.length) _prods = cached.data;
+      if (Array.isArray(cached.data) && cached.data.length) { _prods = cached.data; prodsCacheTs = cached.ts || 0; }
     } catch {}
-    ;(async () => {
-      try {
-        const tkn = localStorage.getItem('barops_token');
-        const res = await fetch(`${API}/api/pos/balance/${vId}`, {
-          headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const fresh = [];
-          for (const store of (data.stores || [])) {
-            for (const item of (store.items || [])) {
-              if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !fresh.find(p=>p.id===item.id)) {
-                fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit) });
+    const PRODS_CACHE_TTL = 30 * 60 * 1000; // 30 хвилин — не відкривати Syrve-слот якщо список свіжий
+    if (Date.now() - prodsCacheTs > PRODS_CACHE_TTL) {
+      ;(async () => {
+        try {
+          const tkn = localStorage.getItem('barops_token');
+          const res = await fetch(`${API}/api/pos/balance/${vId}`, {
+            headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const fresh = [];
+            for (const store of (data.stores || [])) {
+              for (const item of (store.items || [])) {
+                if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !fresh.find(p=>p.id===item.id)) {
+                  fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit) });
+                }
               }
             }
+            _prods = fresh;
+            try { localStorage.setItem(prodsKey, JSON.stringify({ ts: Date.now(), data: _prods })); } catch {}
+            refreshProdList();
           }
-          _prods = fresh;
-          try { localStorage.setItem(prodsKey, JSON.stringify({ ts: Date.now(), data: _prods })); } catch {}
-          refreshProdList();
+        } catch (e) {
+          console.warn('[Writeoff] Товари не завантажились:', e.message);
         }
-      } catch (e) {
-        console.warn('[Writeoff] Товари не завантажились:', e.message);
-      }
-    })();
+      })();
+    }
 
     return buildHTML();
   },
