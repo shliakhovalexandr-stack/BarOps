@@ -933,10 +933,15 @@ async function initIikoSection(venueId) {
     const btn    = document.getElementById('btn-load-stores');
     const listEl = document.getElementById('stores-list');
     const saveBtn = document.getElementById('btn-save-stores');
-    btn.disabled = true; btn.textContent = '⏳';
+    btn.disabled = true; btn.textContent = '⏳ Завантажую…';
     if (listEl) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
+    // Показуємо повідомлення якщо довго (retry на бекенді ~16с)
+    const slowTimer = setTimeout(() => { if (btn.disabled) btn.textContent = '⏳ Очікую слот Syrve…'; }, 5000);
     try {
-      const r = await fetch(`${API}/api/pos/stores-list/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const r = await fetch(`${API}/api/pos/stores-list/${venueId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        signal: AbortSignal.timeout(70000),
+      });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Помилка');
       _storesAll = d.stores || [];
@@ -960,6 +965,7 @@ async function initIikoSection(venueId) {
     } catch (err) {
       showToast('⚠️ Не вдалось завантажити склади: ' + err.message, 'error');
     } finally {
+      clearTimeout(slowTimer);
       btn.disabled = false; btn.textContent = 'Завантажити склади з Syrve';
     }
   });
