@@ -315,20 +315,36 @@ ${CSS}
           <div class="ve-hint" style="margin-top:6px">Якщо вказати — залишки та стоп-лист фільтруватимуться по складах цього департаменту</div>
           <div id="tg-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none"></div>
         </div>
+        <!-- Склади + Рахунки: одна кнопка = одна Syrve-сесія -->
         <div class="ve-field" style="margin-bottom:4px">
-          <label class="ve-label">СКЛАДИ ДЛЯ СПИСАНЬ</label>
+          <label class="ve-label">СКЛАДИ ТА РАХУНКИ ДЛЯ СПИСАНЬ</label>
           ${(() => {
-            const saved = (() => { try { return JSON.parse(_draft.syrveStores || '[]'); } catch { return []; } })();
-            return saved.length ? `<div style="font-size:12px;color:var(--green);font-family:var(--font-b);margin-bottom:6px">Обрано: ${saved.map(s=>s.name).join(', ')}</div>` : '';
+            const savedS = (() => { try { return JSON.parse(_draft.syrveStores || '[]'); } catch { return []; } })();
+            return savedS.length ? `<div style="font-size:12px;color:var(--green);font-family:var(--font-b);margin-bottom:4px">Склади: ${savedS.map(s=>s.name).join(', ')}</div>` : '';
           })()}
-          <button type="button" id="btn-load-stores" style="width:100%;height:44px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">
-            Завантажити склади з Syrve
+          <button type="button" id="btn-load-syrve-config" style="width:100%;height:44px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">
+            Завантажити склади та рахунки з Syrve
           </button>
-          <div class="ve-hint" style="margin-top:6px">Бармен обере склад при надсиланні акту списання</div>
-          <div id="stores-list" style="margin-top:8px;flex-direction:column;gap:6px;display:none;max-height:280px;overflow-y:auto"></div>
-          <button type="button" id="btn-save-stores" class="ve-btn ve-btn-green" style="width:100%;margin-top:10px;height:44px;border-radius:12px;display:none">
-            Зберегти вибір складів
-          </button>
+          <div class="ve-hint" style="margin-top:6px">Одне з'єднання — склади і рахунки разом</div>
+
+          <div id="stores-section" style="display:none;margin-top:12px">
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Склади</div>
+            <div id="stores-list" style="flex-direction:column;gap:6px;display:flex;max-height:200px;overflow-y:auto"></div>
+            <button type="button" id="btn-save-stores" class="ve-btn ve-btn-green" style="width:100%;margin-top:8px;height:40px;border-radius:12px">
+              Зберегти склади
+            </button>
+          </div>
+
+          <div id="accounts-section" style="display:none;margin-top:12px">
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Рахунки</div>
+            <input type="text" id="wo-accounts-search" placeholder="Пошук рахунку..."
+              style="width:100%;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:10px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:8px">
+            <div id="wo-accounts-list" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
+            <button type="button" id="btn-save-wo-accounts" class="ve-btn ve-btn-green"
+              style="width:100%;margin-top:8px;height:40px;border-radius:12px">
+              Зберегти рахунки
+            </button>
+          </div>
         </div>
 
         <!-- Кнопки -->
@@ -345,25 +361,6 @@ ${CSS}
         <button type="button" id="btn-disconnect-iiko" class="ve-btn"
           style="width:100%;margin-top:12px;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-b);height:44px;border-radius:14px;display:none">
           ❌ Відключити Syrve
-        </button>
-      </div>
-
-      <!-- Рахунки для списань -->
-      <div class="ve-sec">На рахунок (списання)</div>
-      <div class="ve-card">
-        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:12px">
-          Оберіть рахунки зі списку Syrve, які бармен зможе вибрати при надсиланні акту списання.
-        </div>
-        <button type="button" id="btn-load-wo-accounts" class="ve-btn"
-          style="width:100%;background:transparent;border:1.5px solid var(--purple);color:var(--purple);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:44px;border-radius:12px;margin-bottom:12px">
-          Завантажити рахунки з Syrve
-        </button>
-        <input type="text" id="wo-accounts-search" placeholder="Пошук рахунку..."
-          style="display:none;width:100%;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:10px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box;margin-bottom:8px">
-        <div id="wo-accounts-list" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
-        <button type="button" id="btn-save-wo-accounts" class="ve-btn ve-btn-green"
-          style="width:100%;margin-top:12px;height:44px;border-radius:12px;display:none">
-          Зберегти вибір рахунків
         </button>
       </div>
 
@@ -928,45 +925,51 @@ async function initIikoSection(venueId) {
     }
   });
 
-  let _storesAll = [];
-  document.getElementById('btn-load-stores')?.addEventListener('click', async () => {
-    const btn    = document.getElementById('btn-load-stores');
-    const listEl = document.getElementById('stores-list');
-    const saveBtn = document.getElementById('btn-save-stores');
+  // ── Завантажити склади + рахунки за одну Syrve-сесію ──
+  document.getElementById('btn-load-syrve-config')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-load-syrve-config');
     btn.disabled = true; btn.textContent = '⏳ Завантажую…';
-    if (listEl) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
-    // Показуємо повідомлення якщо довго (retry на бекенді ~16с)
     const slowTimer = setTimeout(() => { if (btn.disabled) btn.textContent = '⏳ Очікую слот Syrve…'; }, 5000);
     try {
-      const r = await fetch(`${API}/api/pos/stores-list/${venueId}`, {
+      const r = await fetch(`${API}/api/pos/syrve-config/${venueId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
         signal: AbortSignal.timeout(70000),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Помилка');
-      _storesAll = d.stores || [];
-      const savedIds = new Set((d.savedStores || []).map(s => s.id));
-      if (!_storesAll.length) {
-        if (listEl) { listEl.style.display = 'flex'; listEl.innerHTML = `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Склади не знайдено.</div>`; }
-        return;
+
+      // ── Склади ──
+      const storesEl  = document.getElementById('stores-section');
+      const storesListEl = document.getElementById('stores-list');
+      const savedStoreIds = new Set((d.savedStores || []).map(s => s.id));
+      if (storesListEl) {
+        const stores = d.stores || [];
+        storesListEl.innerHTML = stores.length
+          ? stores.map(s => `
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
+              <input type="checkbox" data-id="${s.id}" data-name="${s.name}" ${savedStoreIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${s.name}</div>
+                <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:1px">${s.id}</div>
+              </div>
+            </label>`).join('')
+          : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Склади не знайдено.</div>`;
       }
-      if (listEl) {
-        listEl.innerHTML = _storesAll.map(s => `
-          <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
-            <input type="checkbox" data-id="${s.id}" data-name="${s.name}" ${savedIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${s.name}</div>
-              <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${s.id}</div>
-            </div>
-          </label>`).join('');
-        listEl.style.display = 'flex';
-        if (saveBtn) saveBtn.style.display = 'block';
-      }
+      if (storesEl) storesEl.style.display = 'block';
+
+      // ── Рахунки ──
+      const accEl = document.getElementById('accounts-section');
+      _woAllAccounts = d.accounts || [];
+      const savedAccIds = new Set((d.savedAccounts || []).map(a => a.id));
+      _woSelectedIds = new Set([..._woSelectedIds, ...savedAccIds]);
+      renderAccountsList('');
+      if (accEl) accEl.style.display = 'block';
+
     } catch (err) {
-      showToast('⚠️ Не вдалось завантажити склади: ' + err.message, 'error');
+      showToast('⚠️ ' + err.message, 'error');
     } finally {
       clearTimeout(slowTimer);
-      btn.disabled = false; btn.textContent = 'Завантажити склади з Syrve';
+      btn.disabled = false; btn.textContent = 'Завантажити склади та рахунки з Syrve';
     }
   });
 
@@ -983,11 +986,11 @@ async function initIikoSection(venueId) {
       });
       if (!r.ok) throw new Error((await r.json()).error);
       _draft.syrveStores = JSON.stringify(selected);
-      showToast(`Збережено ${selected.length} складів`);
+      showToast(`✅ Збережено ${selected.length} складів`);
     } catch (err) {
       showToast('⚠️ ' + err.message, 'error');
     } finally {
-      btn.disabled = false; btn.textContent = 'Зберегти вибір складів';
+      btn.disabled = false; btn.textContent = 'Зберегти склади';
     }
   });
 
@@ -996,8 +999,6 @@ async function initIikoSection(venueId) {
   });
 
   document.getElementById('btn-save-wo-accounts')?.addEventListener('click', async () => {
-    const checks = document.querySelectorAll('#wo-accounts-list input[type=checkbox]');
-    // Синхронізуємо поточні чекбокси в DOM до _woSelectedIds
     document.querySelectorAll('#wo-accounts-list input[type=checkbox]').forEach(cb => {
       if (cb.checked) _woSelectedIds.add(cb.dataset.id);
       else _woSelectedIds.delete(cb.dataset.id);
@@ -1011,7 +1012,7 @@ async function initIikoSection(venueId) {
       });
       if (!r.ok) throw new Error((await r.json()).error);
       localStorage.setItem(`barops_wo_accounts_${venueId}`, JSON.stringify(selected));
-      showToast(`Збережено ${selected.length} рахунків`);
+      showToast(`✅ Збережено ${selected.length} рахунків`);
     } catch (err) {
       showToast('⚠️ ' + err.message, 'error');
     }
