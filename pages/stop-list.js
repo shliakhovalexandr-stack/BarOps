@@ -696,7 +696,7 @@ export function init() {
       document.body.appendChild(overlay);
 
       try {
-        const res  = await fetch(`${API}/api/pos/debug-stoplist-names/${venueId}`, {
+        const res  = await fetch(`${API}/api/pos/debug-cloud-stoplist/${venueId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
