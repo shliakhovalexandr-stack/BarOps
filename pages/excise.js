@@ -639,11 +639,11 @@ function buildListTab() {
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}</div>
           </div>
           <div class="exc-badge ${cls}">${label}</div>
-          ${isMgr() ? `<button class="exc-del-btn" onclick="window.__exc.deleteMark('${m.id}')" ${deleting ? 'disabled' : ''}>
+          <button class="exc-del-btn" onclick="window.__exc.deleteMark('${m.id}')" ${deleting ? 'disabled' : ''}>
             ${deleting
               ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
               : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>'}
-          </button>` : ''}
+          </button>
         </div>`;
       }).join('')}
     </div>`;
