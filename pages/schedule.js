@@ -701,7 +701,7 @@ function renderHub() {
       </div>
       ${deptSections}
       ${reqSection}
-      ` : `
+      ` : (netKey ? `
       <div class="sch-dept-block">
         <div class="sch-dept-head">
           <div style="width:8px;height:8px;border-radius:3px;background:#A88BFF;flex-shrink:0"></div>
@@ -712,7 +712,13 @@ function renderHub() {
       <div style="margin:4px 14px 0;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px">
         <div style="font-size:12px;color:#71717A;line-height:1.5">Натисніть «Забронювати вихідні» внизу, щоб надіслати бажані вихідні менеджеру.</div>
       </div>
-      `}
+      ` : `
+      <div style="margin:32px 18px;padding:24px 20px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;text-align:center">
+        <div style="font-size:14px;color:#fff;font-weight:600;margin-bottom:6px">Для вашої ролі графік не ведеться</div>
+        <div style="font-size:12px;color:#71717A">Роль акаунта: <b style="color:#A88BFF">${ROLE_LABEL[_role] || _role || '—'}</b></div>
+        <div style="font-size:11px;color:#52525B;margin-top:8px;line-height:1.5">Якщо ви бармен/кухар/офіціант — перевірте роль цього акаунта в «Команда».</div>
+      </div>
+      `)}
     </div>
     ${bar}
   </div>`;
