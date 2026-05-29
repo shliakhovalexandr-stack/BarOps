@@ -114,6 +114,7 @@ let _defaultsSheet = null;
 let _cellSheet     = null;   // { roleKey, pi, di }
 let _cellMode      = 'shift';
 let _weekOffset    = 0;
+let _bookOffset    = 0;
 let _rosters       = {};
 let _stations      = {};     // { roleKey: [{ id, label }] }
 let _venueId       = '';
@@ -818,29 +819,36 @@ function renderRoleView(roleKey) {
    SCREEN 3 — BOOKING
 ════════════════════════════════════════ */
 function renderBooking() {
-  const today = new Date();
-  const year  = today.getFullYear();
-  const month = today.getMonth();
+  const base = new Date();
+  base.setDate(1);
+  base.setMonth(base.getMonth() + _bookOffset);
+  const year  = base.getFullYear();
+  const month = base.getMonth();
   const MONTHS_NOM = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
   const firstDow    = new Date(year, month, 1).getDay();
   const offset      = firstDow === 0 ? 6 : firstDow - 1;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayNum    = today.getDate();
+  const todayStr    = ymd(new Date());
+  const mm          = String(month + 1).padStart(2, '0');
   const cells = [];
   for (let i = 0; i < offset; i++) cells.push(`<div class="sch-cell empty"></div>`);
   for (let d = 1; d <= daysInMonth; d++) {
-    const dowIdx = (offset + d - 1) % 7;
-    const isPast = d < todayNum;
-    const isSel  = _selDays.has(d);
+    const dateStr = `${year}-${mm}-${String(d).padStart(2, '0')}`;
+    const dowIdx  = (offset + d - 1) % 7;
+    const isPast  = dateStr < todayStr;
+    const isSel   = _selDays.has(dateStr);
     let cls = 'sch-cell';
     if (isPast) cls += ' past';
     else if (isSel) cls += ' sel';
     else if (dowIdx >= 5) cls += ' wknd';
-    if (d === todayNum) cls += ' today';
-    cells.push(`<div class="${cls}" ${!isPast?`onclick="window.__sch.toggleDay(${d})"`:''}>${d}</div>`);
+    if (dateStr === todayStr) cls += ' today';
+    cells.push(`<div class="${cls}" ${!isPast?`onclick="window.__sch.toggleDay('${dateStr}')"`:''}>${d}</div>`);
   }
-  const selArr = [..._selDays].sort((a,b)=>a-b);
-  const chips  = selArr.map(d => `<div class="sch-bchip" onclick="window.__sch.toggleDay(${d})">${d} ${MONTHS_GEN[month]} <span style="opacity:.6">×</span></div>`).join('');
+  const selArr = [..._selDays].sort();
+  const chips  = selArr.map(ds => {
+    const dt = new Date(`${ds}T00:00:00`);
+    return `<div class="sch-bchip" onclick="window.__sch.toggleDay('${ds}')">${dt.getDate()} ${MONTHS_GEN[dt.getMonth()]} <span style="opacity:.6">×</span></div>`;
+  }).join('');
   return CSS + `
   <div class="sch-wrap">
     <div class="sch-hdr">
@@ -851,9 +859,9 @@ function renderBooking() {
     </div>
     <div class="sch-scroll">
       <div class="sch-cal-nav">
-        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.prevMonth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
         <div class="sch-cal-month">${MONTHS_NOM[month]} ${year}</div>
-        <div class="sch-wbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.nextMonth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </div>
       <div class="sch-cal-wrap">
         <div class="sch-cal-dow">${DOW_SHORT.map(d=>`<div class="${d==='СБ'||d==='НД'?'vio':''}">${d}</div>`).join('')}</div>
@@ -1003,6 +1011,7 @@ export async function render() {
   _selDays    = new Set();
   _cellSheet  = null;
   _weekOffset = 0;
+  _bookOffset = 0;
   await reloadData();
   return renderHub();
 }
@@ -1011,7 +1020,9 @@ export function init() {
   window.__sch = {
     goHub()     { _view = 'hub';     re(); },
     goRole(key) { _role = key; _view = 'role'; re(); },
-    goBooking() { _view = 'booking'; re(); },
+    goBooking() { _view = 'booking'; _bookOffset = 0; _selDays = new Set(); re(); },
+    prevMonth() { _bookOffset--; re(); },
+    nextMonth() { _bookOffset++; re(); },
 
     async prevWeek() { _weekOffset--; await reloadData(); re(); },
     async nextWeek() { _weekOffset++; await reloadData(); re(); },
@@ -1250,11 +1261,8 @@ export function init() {
     },
 
     async submitBooking() {
-      const days = [..._selDays].sort((a, b) => a - b);
-      if (!days.length) return;
-      const today = new Date();
-      const y = today.getFullYear(), m = String(today.getMonth() + 1).padStart(2, '0');
-      const dates = days.map(d => `${y}-${m}-${String(d).padStart(2, '0')}`);
+      const dates = [..._selDays].sort();
+      if (!dates.length) return;
       const note  = document.querySelector('.sch-cmnt-inp')?.value.trim() || '';
       const token = localStorage.getItem('barops_token');
       const btn   = document.querySelector('.sch-bar .sch-cta');
