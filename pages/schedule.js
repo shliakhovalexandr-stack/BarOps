@@ -68,6 +68,16 @@ function getWeekDates(offset = 0) {
   });
 }
 function dateKey(d) { return d.toISOString().split('T')[0]; }
+// TZ-безпечний ключ дати (локальний календарний день, без зсуву через UTC)
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function venueShort(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
+}
 function weekLabel(wd) {
   const f = wd[0], l = wd[6];
   const yr = f.date.getFullYear();
@@ -107,6 +117,7 @@ let _weekOffset    = 0;
 let _rosters       = {};
 let _stations      = {};     // { roleKey: [{ id, label }] }
 let _venueId       = '';
+let _networkRoster = { people: [], grid: [] };  // мережевий графік барменів (для не-менеджерів)
 
 /* ════════════════════════════════════════
    LOAD ROSTERS + STATIONS
@@ -193,6 +204,41 @@ function saveStations(roleKey) {
   if (!raw[_venueId]) raw[_venueId] = {};
   raw[_venueId][roleKey] = _stations[roleKey] || [];
   localStorage.setItem('barops_stations_v1', JSON.stringify(raw));
+}
+
+// Мережевий графік барменів (усі заклади) — для не-менеджерів.
+async function loadNetwork() {
+  const token     = localStorage.getItem('barops_token');
+  const weekDates = getWeekDates(_weekOffset);
+  const weekStart = ymd(weekDates[0].date);
+  let shifts = [];
+  try {
+    const res = await fetch(`${API}/api/schedule/network?weekStart=${weekStart}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (res.ok) {
+      const data = await res.json();
+      shifts = Array.isArray(data.shifts) ? data.shifts : [];
+    }
+  } catch (err) { console.warn('[Schedule] network error:', err); }
+
+  const barmanRoles = ROLE_CONFIG.bartenders.apiRoles;
+  const byUser = {};
+  for (const s of shifts) {
+    if (!barmanRoles.includes((s.role || '').toLowerCase())) continue;
+    (byUser[s.userId] ||= { id: s.userId, n: s.userName || 'Бармен', cells: {} });
+    byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', station: s.station || null };
+  }
+  const people = Object.values(byUser)
+    .map(p => ({ id: p.id, n: p.n, i: ini(p.n), cells: p.cells }))
+    .sort((a, b) => a.n.localeCompare(b.n));
+  const grid = people.map(p => weekDates.map(w => p.cells[ymd(w.date)] || null));
+  _networkRoster = { people, grid };
+}
+
+async function reloadData() {
+  if (canEdit()) await loadRosters();
+  else           await loadNetwork();
 }
 
 async function patchDayOff(id, status) {
@@ -328,6 +374,35 @@ function renderDeptTable(roleKey) {
 }
 
 /* ════════════════════════════════════════
+   NETWORK GRID — графік барменів по всіх закладах (не-менеджер)
+════════════════════════════════════════ */
+function renderNetworkGrid() {
+  const r         = _networkRoster;
+  const weekDates = getWeekDates(_weekOffset);
+  const thCells = weekDates.map(w => {
+    const cls = [w.weekend ? 'wk' : '', isToday(w.date) ? 'td' : ''].filter(Boolean).join(' ');
+    return `<th class="${cls}">${w.d}<br><span style="font-size:10px;font-weight:400">${w.n}</span></th>`;
+  }).join('');
+  const bodyRows = r.people.length === 0
+    ? `<tr><td colspan="8"><div style="padding:16px 0;color:#3F3F46;font-size:12px;text-align:center">Графік на цей тиждень ще не опубліковано.</div></td></tr>`
+    : r.people.map((p, pi) => {
+        const cells = r.grid[pi].map(cell => {
+          if (!cell) return `<td><div class="sch-cell-off"><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
+          const vs   = venueShort(cell.venueName);
+          const time = `${(cell.s||'').slice(0,2)}–${(cell.e||'').slice(0,2)}`;
+          return `<td><div class="sch-net-cell" title="${cell.venueName||''}"><span class="sch-net-venue">${vs}</span><span class="sch-net-time">${time}</span></div></td>`;
+        }).join('');
+        return `<tr>
+          <td><div class="sch-gname"><div class="sch-gini" style="background:rgba(168,139,255,0.10);color:#A88BFF">${p.i}</div><span class="sch-gtext">${p.n.split(' ')[0]}</span></div></td>
+          ${cells}
+        </tr>`;
+      }).join('');
+  return `<div class="sch-grid-wrap"><table class="sch-table">
+    <thead><tr><th style="text-align:left;color:#52525B;padding-right:6px">Бармен</th>${thCells}</tr></thead>
+    <tbody>${bodyRows}</tbody></table></div>`;
+}
+
+/* ════════════════════════════════════════
    CSS
 ════════════════════════════════════════ */
 const CSS = `<style id="sch-css">
@@ -394,6 +469,9 @@ const CSS = `<style id="sch-css">
 .sch-cell-btn:active{transform:scale(.9)}
 .sch-cell-off{min-width:38px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.25}
 .sch-cell-off:hover{opacity:.5;background:#141416}
+.sch-net-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:42px;height:34px;border-radius:7px;background:rgba(168,139,255,.12);border:0.5px solid rgba(168,139,255,.28);padding:0 4px;line-height:1.15;gap:1px}
+.sch-net-venue{font-size:9px;font-weight:700;color:#A88BFF;letter-spacing:.02em}
+.sch-net-time{font-size:9px;font-weight:600;color:#C4B5FD;font-variant-numeric:tabular-nums}
 .sch-empty-state{text-align:center;padding:40px 20px;color:#52525B;font-size:13px;line-height:1.6}
 .sch-cov{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 18px 16px}
 .sch-cov-cell{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center}
@@ -494,7 +572,7 @@ function renderHub() {
     ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`
     : _mode === 'edit'
     ? `<div class="sch-bar"><button class="sch-cta-sec" onclick="window.__sch.setMode('view')">Скасувати</button><button class="sch-cta" style="flex:2" onclick="window.__sch.setMode('view')">Зберегти зміни</button></div>`
-    : `<div class="sch-bar"><div class="sch-bar-icon" onclick=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`;
+    : `<div class="sch-bar"><div class="sch-bar-icon" onclick=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`;
 
   return CSS + `
   <div class="sch-wrap">
@@ -536,9 +614,13 @@ function renderHub() {
       </div>
       ${deptSections}
       ` : `
-      <div style="margin:32px 18px;padding:24px 20px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;text-align:center">
-        <div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px">Бажані вихідні</div>
-        <div style="font-size:13px;color:#71717A;line-height:1.5">Оберіть дні, у які вам зручно відпочивати — менеджер врахує це під час складання графіку на наступний тиждень.</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:0 18px;margin-bottom:8px">
+        <div style="width:8px;height:8px;border-radius:3px;background:#A88BFF;flex-shrink:0"></div>
+        <div style="font-size:11px;font-weight:600;color:#A1A1AA;text-transform:uppercase;letter-spacing:.05em;flex:1">Бармени · вся мережа</div>
+      </div>
+      ${renderNetworkGrid()}
+      <div style="margin:4px 18px 0;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px">
+        <div style="font-size:12px;color:#71717A;line-height:1.5">Бейдж у зміні — заклад. Натисніть «Забронювати вихідні» внизу, щоб надіслати бажані вихідні менеджеру.</div>
       </div>
       `}
     </div>
@@ -676,7 +758,7 @@ function renderRoleView(roleKey) {
   ).join('');
 
   const bar = canEdit()
-    ? `<div class="sch-bar"><div class="sch-bar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`
+    ? `<div class="sch-bar"><div class="sch-bar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`
     : `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`;
 
   const editPill = canEdit()
@@ -921,7 +1003,7 @@ export async function render() {
   _selDays    = new Set();
   _cellSheet  = null;
   _weekOffset = 0;
-  await loadRosters();
+  await reloadData();
   return renderHub();
 }
 
@@ -931,14 +1013,48 @@ export function init() {
     goRole(key) { _role = key; _view = 'role'; re(); },
     goBooking() { _view = 'booking'; re(); },
 
-    async prevWeek() { _weekOffset--; await loadRosters(); re(); },
-    async nextWeek() { _weekOffset++; await loadRosters(); re(); },
+    async prevWeek() { _weekOffset--; await reloadData(); re(); },
+    async nextWeek() { _weekOffset++; await reloadData(); re(); },
 
     setMode(m) {
       if (m === 'edit' && !canEdit()) return;
       _mode = m;
       localStorage.setItem('barops_sch_mode', m);
       re();
+    },
+
+    async publishSchedule() {
+      if (!canEdit()) return;
+      const weekDates = getWeekDates(_weekOffset);
+      const weekStart = ymd(weekDates[0].date);
+      const shifts = [];
+      for (const r of Object.values(_rosters)) {
+        r.people.forEach((p, pi) => {
+          (r.grid[pi] || []).forEach((cell, di) => {
+            if (cell) shifts.push({
+              userId: p.id, userName: p.n, role: p.role,
+              date: ymd(weekDates[di].date),
+              start: cell.s, end: cell.e, station: cell.station || null,
+            });
+          });
+        });
+      }
+      const token = localStorage.getItem('barops_token');
+      const btn   = document.querySelector('.sch-bar .sch-cta');
+      if (btn) { btn.disabled = true; btn.textContent = 'Публікація…'; }
+      try {
+        const res  = await fetch(`${API}/api/schedule/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ weekStart, shifts }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Помилка');
+        if (btn) btn.textContent = 'Опубліковано ✓';
+      } catch (e) {
+        console.error('[schedule] publish:', e);
+        if (btn) { btn.disabled = false; btn.textContent = 'Опублікувати графік'; }
+      }
     },
 
     // ── Cell sheet ──────────────────────────
