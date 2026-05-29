@@ -13,11 +13,13 @@ let _stats     = null;
 let _tasks     = [];      // завдання з бекенду (date >= today)
 let _role      = 'bartender';
 let _taskModal = false;
-let _taskDraft = { date: '', department: 'bartenders', userId: '', userName: '', text: '' };
+let _taskDraft = { date: '', department: 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
 let _team      = [];      // склад закладу (для вибору виконавця; лише менеджер)
 
 const DEPT_LABEL = { kitchen: 'Кухня', waiters: 'Офіціанти', bartenders: 'Бармени' };
 const DEPT_ROLES = { kitchen: ['cook', 'chef'], waiters: ['waiter'], bartenders: ['bartender', 'barman'] };
+const PRIORITY_LABEL = { urgent: 'Терміново', medium: 'Середнє', low: 'Не терміново' };
+const PRIORITY_COLOR = { urgent: 'var(--red)', medium: 'var(--amber)', low: 'var(--text2)' };
 const CHECK_SVG  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /* ════════════════════════
@@ -89,6 +91,11 @@ const CSS = `<style id="jrn-css">
 .jrn-dept-chip{flex:1;height:38px;border-radius:10px;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);
   color:var(--text2);font-size:12px;font-weight:500;font-family:var(--font-b);cursor:pointer}
 .jrn-dept-chip.sel{background:rgba(168,139,255,.14);border-color:var(--purple);color:var(--purple)}
+.jrn-prio-chip{flex:1;height:38px;border-radius:10px;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-weight:500;font-family:var(--font-b);cursor:pointer}
+.jrn-prio-chip.sel.urgent{background:rgba(255,80,80,.14);border-color:var(--red);color:var(--red)}
+.jrn-prio-chip.sel.medium{background:rgba(251,191,36,.14);border-color:var(--amber);color:var(--amber)}
+.jrn-prio-chip.sel.low{background:rgba(134,239,172,.12);border-color:#86EFAC;color:var(--text1)}
+.jrn-prio-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .jrn-modal-btns{display:flex;gap:8px;margin-top:18px}
 .jrn-btn-sec{flex:1;height:48px;border-radius:12px;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);
   color:var(--text1);font-size:14px;font-weight:500;font-family:var(--font-b);cursor:pointer}
@@ -135,6 +142,17 @@ function teamForDept(dept) {
   const roles = DEPT_ROLES[dept] || [];
   return _team.filter(m => roles.includes((m.role || '').toLowerCase()));
 }
+// Зчитати поточні значення полів форми у чернетку (перед перемальовуванням модалки)
+function captureDraft() {
+  _taskDraft.date = document.getElementById('jrn-task-date')?.value || _taskDraft.date;
+  _taskDraft.text = document.getElementById('jrn-task-text')?.value ?? _taskDraft.text;
+  const sel = document.getElementById('jrn-task-assignee');
+  if (sel) {
+    _taskDraft.userId = sel.value || '';
+    const m = _team.find(x => x.id === _taskDraft.userId);
+    _taskDraft.userName = m ? m.name : '';
+  }
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 }
@@ -143,9 +161,8 @@ function esc(s) {
    TASKS — per role
 ════════════════════════ */
 function buildWorkerChecklist() {
-  const today  = ymd(new Date());
-  const myDept = myDepartment(_role);
-  const tasks  = _tasks.filter(t => t.date === today && t.department === myDept);
+  const today = ymd(new Date());
+  const tasks = _tasks.filter(t => t.date === today);   // бекенд уже звузив до моїх завдань
   if (!tasks.length) return `
   <div class="jrn-empty">
     <div class="jrn-empty-icon">✓</div>
@@ -162,6 +179,7 @@ function buildWorkerChecklist() {
     <div class="jrn-cl-item" onclick="window.__jrn.toggleTask('${t.id}',${t.done ? 0 : 1})">
       <div class="jrn-cl-check ${t.done ? 'done' : ''}">${t.done ? CHECK_SVG : ''}</div>
       <div class="jrn-cl-item-text ${t.done ? 'done' : ''}">${esc(t.text)}</div>
+      <span class="jrn-prio-dot" style="background:${PRIORITY_COLOR[t.priority] || 'var(--text2)'}" title="${PRIORITY_LABEL[t.priority] || ''}"></span>
     </div>`).join('')}
   </div>`;
 }
@@ -173,8 +191,8 @@ function buildManagerTasks() {
         <div style="flex:1;min-width:0">
           <div class="jrn-cl-name">${esc(t.text)}</div>
           <div class="jrn-cl-meta">
-            <span class="jrn-badge">${DEPT_LABEL[t.department] || t.department}</span>
-            · ${fmtDateShort(t.date)} · ${t.userName ? esc(t.userName) : 'усі'}${t.done ? ` · ✓ виконано${t.doneBy ? ` (${esc(t.doneBy)})` : ''}` : ''}
+            <span style="color:${PRIORITY_COLOR[t.priority] || 'var(--text2)'};font-weight:600">${PRIORITY_LABEL[t.priority] || ''}</span>
+            · ${esc(t.userName || '—')} · ${fmtDateShort(t.date)}${t.done ? ` · ✓ виконано${t.doneBy ? ` (${esc(t.doneBy)})` : ''}` : ''}
           </div>
         </div>
         <button class="jrn-task-del" onclick="window.__jrn.deleteTask('${t.id}')">×</button>
@@ -192,7 +210,7 @@ function buildTaskModal() {
   <div class="jrn-modal-ov" onclick="window.__jrn.closeTaskModalOv(event)">
     <div class="jrn-modal" onclick="event.stopPropagation()">
       <div class="jrn-modal-title">Нове завдання</div>
-      <div class="jrn-modal-lbl">Дата зміни</div>
+      <div class="jrn-modal-lbl">Дата виконання</div>
       <input type="date" id="jrn-task-date" class="jrn-modal-inp" value="${_taskDraft.date}">
       <div class="jrn-modal-lbl">Підрозділ</div>
       <div class="jrn-dept-row">
@@ -202,11 +220,17 @@ function buildTaskModal() {
       </div>
       <div class="jrn-modal-lbl">Виконавець</div>
       <select id="jrn-task-assignee" class="jrn-modal-inp" onchange="window.__jrn.setAssignee(this.value)">
-        <option value="">Усі (весь підрозділ)</option>
+        <option value="">— Оберіть людину —</option>
         ${teamForDept(_taskDraft.department).map(m =>
           `<option value="${m.id}" ${_taskDraft.userId === m.id ? 'selected' : ''}>${esc(m.name)}</option>`
         ).join('')}
       </select>
+      <div class="jrn-modal-lbl">Важливість</div>
+      <div class="jrn-dept-row">
+        ${Object.entries(PRIORITY_LABEL).map(([k, v]) =>
+          `<button class="jrn-prio-chip ${_taskDraft.priority === k ? 'sel ' + k : ''}" onclick="window.__jrn.setPriority('${k}')">${v}</button>`
+        ).join('')}
+      </div>
       <div class="jrn-modal-lbl">Завдання</div>
       <textarea id="jrn-task-text" class="jrn-modal-inp" rows="3" placeholder="Що потрібно зробити на зміні…">${esc(_taskDraft.text)}</textarea>
       <div class="jrn-modal-btns">
@@ -369,18 +393,22 @@ export default {
       },
 
       openTaskModal() {
-        _taskDraft = { date: ymd(new Date()), department: 'bartenders', userId: '', userName: '', text: '' };
+        _taskDraft = { date: ymd(new Date()), department: 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
         _taskModal = true;
         rerender();
       },
       closeTaskModal() { _taskModal = false; rerender(); },
       closeTaskModalOv(e) { if (e?.target?.classList?.contains('jrn-modal-ov')) { _taskModal = false; rerender(); } },
       setDept(k) {
-        _taskDraft.date = document.getElementById('jrn-task-date')?.value || _taskDraft.date;
-        _taskDraft.text = document.getElementById('jrn-task-text')?.value || _taskDraft.text;
+        captureDraft();
         _taskDraft.department = k;
         _taskDraft.userId = '';        // інший підрозділ — скидаємо виконавця
         _taskDraft.userName = '';
+        rerender();
+      },
+      setPriority(p) {
+        captureDraft();
+        _taskDraft.priority = p;
         rerender();
       },
       setAssignee(userId) {
@@ -395,14 +423,16 @@ export default {
         const userId = document.getElementById('jrn-task-assignee')?.value || '';
         const m = _team.find(x => x.id === userId);
         const userName = m ? m.name : '';
-        if (!date || !text) return;
+        const venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+        const priority = _taskDraft.priority || 'medium';
+        if (!date || !text || !userId) return;
         const btn = document.querySelector('.jrn-btn-cta');
         if (btn) { btn.disabled = true; btn.textContent = 'Створення…'; }
         try {
           const res = await fetch(`${API}/api/tasks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ date, department, text, userId, userName }),
+            body: JSON.stringify({ venueId, date, department, text, userId, userName, priority }),
           });
           const data = await res.json();
           if (!data.success) throw new Error(data.error || 'Помилка');
