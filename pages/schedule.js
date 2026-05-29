@@ -313,7 +313,7 @@ function summaryStats() {
 ════════════════════════════════════════ */
 const ROLE_LABEL = {
   chef: 'Шеф', cook: 'Кухар', bartender: 'Бармен', barman: 'Бармен',
-  waiter: 'Офіціант', manager: 'Менеджер', admin: 'Адмін',
+  waiter: 'Офіціант', manager: 'Менеджер', admin: 'Системний менеджер',
   hostess: 'Хостес', cleaner: 'Хозяюшка', housekeeper: 'Хозяюшка',
   accountant: 'Бухгалтер',
 };

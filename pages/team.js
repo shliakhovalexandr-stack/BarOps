@@ -178,7 +178,7 @@ const CSS = `<style id="tm-css">
    HELPERS
 ════════════════════════ */
 function roleLabel(role) {
-  const map = { admin:'Адмін', manager:'Менеджер', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант' };
+  const map = { admin:'Системний менеджер', manager:'Менеджер', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант' };
   return map[(role||'').toLowerCase()] || role || 'Бармен';
 }
 function roleClass(role) {
@@ -239,7 +239,7 @@ function teamListHTML() {
         <div style="flex:1;min-width:0">
           <div class="tm-name">${t.name}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">
-            <span style="color:var(--text1)">${roleLabel(t.role)}</span> · ${t.phone}
+            <span style="color:var(--text1)">${roleLabel(t.role)}</span>${(t.role||'').toLowerCase()==='admin' ? '' : ` · ${t.phone}`}
           </div>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
@@ -290,10 +290,10 @@ function profileHTML(t) {
 
     <div class="tm-ph-sec">Дані акаунту</div>
     <div class="tm-ph-card">
-      <div class="tm-ph-row">
+      ${(t.role||'').toLowerCase()==='admin' ? '' : `<div class="tm-ph-row">
         <div class="tm-ph-row-lbl">📞 Телефон</div>
         <div class="tm-ph-row-val">${t.phone}</div>
-      </div>
+      </div>`}
       <div class="tm-ph-row">
         <div class="tm-ph-row-lbl">🔐 PIN</div>
         <div class="tm-ph-row-val" style="color:var(--text2)">● ● ● ●</div>

@@ -394,7 +394,7 @@ ${CSS}
             <div style="width:10px;height:1.5px;background:var(--text1);border-radius:1px;align-self:flex-start;margin-left:8px"></div>
           </div>` : ''}
           <div>
-            <div class="d-venue-sub">${state.role==='admin'?'Адмін':state.role==='manager'?'Менеджер':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'} ·${new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long'})}</div>
+            <div class="d-venue-sub">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'} ·${new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long'})}</div>
             ${isMgr ? `
             <div class="d-venue-btn" onclick="window.__dash.toggleVenueSheet()">
               <div class="d-venue-name">${_activeVenueName || state.venue || '...'}</div>
