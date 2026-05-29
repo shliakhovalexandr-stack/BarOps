@@ -148,6 +148,8 @@ async function loadRosters() {
   // Load schedule
   const stored = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
   const vData  = stored[_venueId] || {};
+  // Підтверджені вихідні (окреме сховище за ymd, щоб без зсуву дат)
+  const approvedOff = (JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}')[_venueId]) || {};
 
   // Load day-off requests (тільки manager/admin; решта отримує 403 → пропускаємо)
   const dayoffByRole = {};
@@ -165,6 +167,8 @@ async function loadRosters() {
           day: formatReqDates(rq.dates),
           note: rq.note || '',
           status: rq.status || 'pending',
+          userId: rq.userId || '',
+          dates: rq.dates || [],
         });
       }
     }
@@ -178,9 +182,12 @@ async function loadRosters() {
 
     const grid = people.map(p => {
       const emp = vData[p.id] || {};
+      const off = approvedOff[p.id] || {};
       return weekDates.map(w => {
         const slot = emp[dateKey(w.date)];
-        return slot ? { s: slot.start, e: slot.end, station: slot.station || null } : null;
+        if (slot) return { s: slot.start, e: slot.end, station: slot.station || null };
+        if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
+        return null;
       });
     });
 
@@ -267,6 +274,23 @@ async function loadMyDayoff() {
     const res = await fetch(`${API}/api/dayoff`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     if (res.ok) { const d = await res.json(); _myDayoff = Array.isArray(d.requests) ? d.requests : []; }
   } catch (e) { console.warn('[dayoff] mine:', e); }
+}
+
+function findReqById(id) {
+  for (const r of Object.values(_rosters)) {
+    const f = (r.requests || []).find(x => x.id === id);
+    if (f) return f;
+  }
+  return null;
+}
+// Підтверджений запит → позначаємо дати як вихідні у графіку (окреме сховище за ymd)
+function markApprovedOff(req) {
+  if (!req || !req.userId || !Array.isArray(req.dates) || !req.dates.length) return;
+  const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
+  if (!raw[_venueId]) raw[_venueId] = {};
+  if (!raw[_venueId][req.userId]) raw[_venueId][req.userId] = {};
+  for (const d of req.dates) raw[_venueId][req.userId][d] = true;
+  localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
 }
 
 /* ════════════════════════════════════════
@@ -361,6 +385,10 @@ function renderDeptTable(roleKey) {
           if (!cell) {
             const onclick = _mode === 'edit' ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"` : '';
             return `<td><div class="sch-cell-off${_mode === 'edit' ? ' editable' : ''}" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
+          }
+          if (cell.dayOff) {
+            const onclick = _mode === 'edit' ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"` : '';
+            return `<td><div class="sch-cell-dayoff${_mode === 'edit' ? ' editable' : ''}" ${onclick}>Вих</div></td>`;
           }
           let bg = r.bgIcon, bd = r.bdIcon, tx = r.color;
           let label = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
@@ -488,6 +516,9 @@ const CSS = `<style id="sch-css">
 .sch-cell-off.editable{cursor:pointer}
 .sch-cell-off.editable:hover{opacity:1;background:rgba(168,139,255,.14);border-color:rgba(168,139,255,.5)}
 .sch-cell-off.editable:active{opacity:1;background:rgba(168,139,255,.22);border-color:rgba(168,139,255,.6)}
+.sch-cell-dayoff{min-width:60px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#86EFAC;background:rgba(134,239,172,.08);border:0.5px dashed rgba(134,239,172,.4);white-space:nowrap}
+.sch-cell-dayoff.editable{cursor:pointer}
+.sch-cell-dayoff.editable:hover{background:rgba(134,239,172,.16)}
 .sch-net-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:60px;height:38px;border-radius:8px;background:rgba(168,139,255,.12);border:0.5px solid rgba(168,139,255,.28);padding:0 6px;line-height:1.2;gap:1px}
 .sch-net-venue{font-size:10px;font-weight:700;color:#A88BFF;letter-spacing:.02em}
 .sch-net-time{font-size:9px;font-weight:600;color:#C4B5FD;font-variant-numeric:tabular-nums}
@@ -721,6 +752,10 @@ function renderRoleView(roleKey) {
           if (!cell) {
             const edt = _mode === 'edit';
             return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#3F3F46;cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>off</div></td>`;
+          }
+          if (cell.dayOff) {
+            const edt = _mode === 'edit';
+            return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:rgba(134,239,172,0.08);border:0.5px dashed rgba(134,239,172,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#86EFAC;cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>Вих</div></td>`;
           }
           let bg = r.bgIcon, bd = r.bdIcon, tx = r.color;
           let label = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
@@ -1305,13 +1340,9 @@ export function init() {
     async approveReq(roleKey, ri) {
       const req = _rosters[roleKey]?.requests[ri];
       if (!req) return;
-      req.status = 'approved';
-      const el = document.getElementById(`sch-req-${roleKey}-${ri}`);
-      if (el) {
-        el.className = 'sch-req approved';
-        el.innerHTML = `<div style="flex:1"><div class="sch-req-who">${req.who}</div><div class="sch-req-day">${req.day}</div></div><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
-      }
+      markApprovedOff(req);
       await patchDayOff(req.id, 'approved');
+      await reloadData(); re();
     },
     async rejectReq(roleKey, ri) {
       const req = _rosters[roleKey]?.requests[ri];
@@ -1320,7 +1351,12 @@ export function init() {
       _rosters[roleKey].requests.splice(+ri, 1);
       re();
     },
-    async hubApproveReq(id) { await patchDayOff(id, 'approved'); await reloadData(); re(); },
+    async hubApproveReq(id) {
+      const req = findReqById(id);
+      if (req) markApprovedOff(req);
+      await patchDayOff(id, 'approved');
+      await reloadData(); re();
+    },
     async hubRejectReq(id)  { await patchDayOff(id, 'rejected'); await reloadData(); re(); },
 
     toggleDay(d) {
