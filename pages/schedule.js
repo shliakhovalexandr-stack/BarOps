@@ -231,11 +231,15 @@ async function loadNetwork() {
     }
   } catch (err) { console.warn('[Schedule] network error:', err); }
 
-  const barmanRoles = ROLE_CONFIG.bartenders.apiRoles;
+  _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+  const myKey       = roleKeyForRole(_role);                 // 'bartenders' | 'cooks' | 'waiters' | ...
+  const deptRoles   = (ROLE_CONFIG[myKey]?.apiRoles) || [];
+  const networkWide = myKey === 'bartenders';                // лише бармени бачать усю мережу; решта — свій заклад
   const byUser = {};
   for (const s of shifts) {
-    if (!barmanRoles.includes((s.role || '').toLowerCase())) continue;
-    (byUser[s.userId] ||= { id: s.userId, n: s.userName || 'Бармен', cells: {} });
+    if (!deptRoles.includes((s.role || '').toLowerCase())) continue;
+    if (!networkWide && s.venueId !== _venueId) continue;    // не-бармени — лише свій заклад
+    (byUser[s.userId] ||= { id: s.userId, n: s.userName || '—', cells: {} });
     byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null };
   }
   const people = Object.values(byUser)
@@ -443,7 +447,7 @@ function renderNetworkGrid() {
         </tr>`;
       }).join('');
   return `<div class="sch-grid-wrap"><table class="sch-table">
-    <thead><tr><th style="text-align:left;color:#52525B;padding-right:6px">Бармен</th>${thCells}</tr></thead>
+    <thead><tr><th style="text-align:left;color:#52525B;padding-right:6px">Хто</th>${thCells}</tr></thead>
     <tbody>${bodyRows}</tbody></table></div>`;
 }
 
@@ -647,6 +651,10 @@ function renderHub() {
       </div>`).join('')}
     </div>` : '';
 
+  const netKey   = roleKeyForRole(_role);
+  const netLabel = (ROLE_CONFIG[netKey]?.label || 'Зміни').toUpperCase();
+  const netScope = netKey === 'bartenders' ? 'вся мережа' : (state.venue || 'свій заклад');
+
   const bar = !canEdit()
     ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`
     : _mode === 'edit'
@@ -697,12 +705,12 @@ function renderHub() {
       <div class="sch-dept-block">
         <div class="sch-dept-head">
           <div style="width:8px;height:8px;border-radius:3px;background:#A88BFF;flex-shrink:0"></div>
-          <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">Бармени · вся мережа</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">${netLabel} · ${netScope}</div>
         </div>
         ${renderNetworkGrid()}
       </div>
       <div style="margin:4px 14px 0;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px">
-        <div style="font-size:12px;color:#71717A;line-height:1.5">Бейдж у зміні — заклад. Натисніть «Забронювати вихідні» внизу, щоб надіслати бажані вихідні менеджеру.</div>
+        <div style="font-size:12px;color:#71717A;line-height:1.5">Натисніть «Забронювати вихідні» внизу, щоб надіслати бажані вихідні менеджеру.</div>
       </div>
       `}
     </div>
