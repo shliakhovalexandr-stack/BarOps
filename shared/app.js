@@ -604,10 +604,15 @@ function updateTabBarActive() {
   if (!el || !el.children.length) { renderTabBar(); return; }
   const tabs = state.role === 'admin' || state.role === 'manager' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT : TAB_BAR_BARTENDER;
-  if (el.children.length !== tabs.length) { renderTabBar(); return; }
-  [...el.children].forEach((btn, i) => {
-    if (!tabs[i]) return;
-    const isActive = state.route === tabs[i].route;
+  // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
+  const domRoutes = [...el.children].map(c => c.dataset.route || '');
+  if (domRoutes.length !== tabs.length || tabs.some((t, i) => t.route !== domRoutes[i])) {
+    renderTabBar();
+    return;
+  }
+  // Підсвічуємо за власним маршрутом кнопки, а не за позицією — щоб нічого не зміщувалось
+  [...el.children].forEach(btn => {
+    const isActive = btn.dataset.route === state.route;
     const color = isActive ? 'var(--green)' : 'var(--text2)';
     btn.classList.toggle('tab-bar__item--active', isActive);
     btn.style.setProperty('--tab-color', color);
@@ -644,12 +649,13 @@ function renderTabBar() {
     const isActive = state.route === tab.route;
     const color = isActive ? 'var(--green)' : 'var(--text2)';
     if (tab.fab) return `
-      <div class="tab-bar__fab-wrap" onclick="window.__barops.navigate('${tab.route}')">
+      <div class="tab-bar__fab-wrap" data-route="${tab.route}" onclick="window.__barops.navigate('${tab.route}')">
         <div class="tab-bar__fab">${tab.icon}</div>
         <span class="tab-bar__label">${tab.label}</span>
       </div>`;
     return `
       <button class="tab-bar__item ${isActive?'tab-bar__item--active':''}"
+        data-route="${tab.route}"
         onclick="window.__barops.navigate('${tab.route}')"
         aria-label="${tab.label}" style="--tab-color:${color}">
         <div class="tab-bar__icon" style="color:${color}">
