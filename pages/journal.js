@@ -9,7 +9,6 @@ import { state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
-let _stats     = null;
 let _tasks     = [];      // завдання з бекенду (date >= today)
 let _role      = 'bartender';
 let _taskModal = false;
@@ -112,10 +111,6 @@ const CSS = `<style id="jrn-css">
 ════════════════════════ */
 function token() {
   return localStorage.getItem('barops_token') || state.token || '';
-}
-function fmtMoney(n) {
-  if (!n) return '0 ₴';
-  return Math.round(n).toLocaleString('uk-UA') + ' ₴';
 }
 function todayStr() {
   return new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -245,14 +240,6 @@ function buildTaskModal() {
    BUILD HTML
 ════════════════════════ */
 function buildHTML() {
-  const s = _stats;
-
-  const kpi = [
-    { val: s ? String(s.invoices?.count ?? '—')  : '—', lbl:'Накладних\nзміна',    cls: '' },
-    { val: s ? String(s.writeoffs?.count ?? 0)   : '—', lbl:'Списань\nсьогодні',   cls: (s?.writeoffs?.count > 0) ? 'a' : 'g' },
-    { val: s ? String(s.critical?.length ?? 0)   : '—', lbl:'Критичних\nзалишків', cls: (s?.critical?.length > 0) ? 'r' : 'g' },
-  ];
-
   const isMgr = canManage();
   const checklistsHTML = isMgr ? buildManagerTasks() : buildWorkerChecklist();
 
@@ -268,43 +255,8 @@ ${CSS}
       </div>
     </div>
 
-    <!-- Статистика зміни -->
-    <div class="jrn-sec">Зміна сьогодні</div>
-    ${!s ? `
-    <div style="padding:0 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-      ${[1,2,3].map(() => `<div class="jrn-skel" style="height:72px"></div>`).join('')}
-    </div>` : `
-    <div class="jrn-kpi-row">
-      ${kpi.map(k => `
-      <div class="jrn-kpi${k.cls ? ' jrn-kpi--' + k.cls : ''}">
-        <div class="jrn-kpi-val${k.cls ? ' jrn-kpi-val--' + k.cls : ''}">${k.val}</div>
-        <div class="jrn-kpi-lbl">${k.lbl.replace('\n', '<br/>')}</div>
-      </div>`).join('')}
-    </div>`}
-
-    ${s ? `
-    <div class="jrn-shift-card" style="margin-top:8px">
-      <div class="jrn-shift-row">
-        <div class="jrn-shift-dot" style="background:var(--green)"></div>
-        <div class="jrn-shift-lbl">Накладних на суму</div>
-        <div class="jrn-shift-val">${fmtMoney(s.invoices?.total)}</div>
-      </div>
-      ${s.writeoffs?.count > 0 ? `
-      <div class="jrn-shift-row">
-        <div class="jrn-shift-dot" style="background:var(--red)"></div>
-        <div class="jrn-shift-lbl">Списань за категоріями</div>
-        <div class="jrn-shift-val" style="color:var(--red)">${Object.entries(s.writeoffs?.byCategory || {}).map(([k,v]) => `${k}: ${v}`).join(' · ') || s.writeoffs.count}</div>
-      </div>` : ''}
-      ${s.shift ? `
-      <div class="jrn-shift-row">
-        <div class="jrn-shift-dot" style="background:var(--purple)"></div>
-        <div class="jrn-shift-lbl">Зміну відкрив</div>
-        <div class="jrn-shift-val">${s.shift.user}</div>
-      </div>` : ''}
-    </div>` : ''}
-
     <!-- Завдання / Чек-листи -->
-    <div class="jrn-sec" style="padding-top:16px">${isMgr ? 'Завдання на зміни' : 'Чек-листи'}</div>
+    <div class="jrn-sec" style="padding-top:8px">${isMgr ? 'Завдання на зміни' : 'Чек-листи'}</div>
     ${checklistsHTML}
 
     <div style="height:20px"></div>
@@ -316,19 +268,6 @@ ${buildTaskModal()}`;
 /* ════════════════════════
    DATA LOADING
 ════════════════════════ */
-async function loadStats() {
-  const venueId = state.venueId || localStorage.getItem('barops_venueId');
-  if (!venueId) return;
-  try {
-    const res  = await fetch(`${API}/api/stats?venueId=${venueId}`, {
-      headers: { Authorization: `Bearer ${token()}` },
-    });
-    const data = await res.json();
-    if (data.success) _stats = data.today;
-  } catch { /* silent */ }
-  rerender();
-}
-
 async function loadTasks() {
   const venueId = state.venueId || localStorage.getItem('barops_venueId');
   if (!venueId) return;
@@ -368,7 +307,6 @@ function rerender() {
 ════════════════════════ */
 export default {
   render() {
-    _stats     = null;
     _tasks     = [];
     _team      = [];
     _taskModal = false;
@@ -453,7 +391,6 @@ export default {
         loadTasks();
       },
     };
-    loadStats();
     loadTasks();
     loadTeam();
   },
