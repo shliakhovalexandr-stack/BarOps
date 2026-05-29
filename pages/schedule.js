@@ -236,7 +236,7 @@ async function loadNetwork() {
   for (const s of shifts) {
     if (!barmanRoles.includes((s.role || '').toLowerCase())) continue;
     (byUser[s.userId] ||= { id: s.userId, n: s.userName || 'Бармен', cells: {} });
-    byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', station: s.station || null };
+    byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null };
   }
   const people = Object.values(byUser)
     .map(p => ({ id: p.id, n: p.n, i: ini(p.n), cells: p.cells }))
@@ -433,9 +433,9 @@ function renderNetworkGrid() {
     : r.people.map((p, pi) => {
         const cells = r.grid[pi].map(cell => {
           if (!cell) return `<td><div class="sch-cell-off"><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
-          const vs   = venueShort(cell.venueName);
-          const time = `${(cell.s||'').slice(0,2)}–${(cell.e||'').slice(0,2)}`;
-          return `<td><div class="sch-net-cell" title="${cell.venueName||''}"><span class="sch-net-venue">${vs}</span><span class="sch-net-time">${time}</span></div></td>`;
+          const place = (cell.stationName || cell.venueName || '').trim();   // де працює (станція=заклад), інакше заклад-публікатор
+          const time  = `${(cell.s||'').slice(0,2)}–${(cell.e||'').slice(0,2)}`;
+          return `<td><div class="sch-net-cell" title="${place}"><span class="sch-net-venue">${place.slice(0,10)}</span><span class="sch-net-time">${time}</span></div></td>`;
         }).join('');
         return `<tr>
           <td><div class="sch-gname"><div class="sch-gini" style="background:rgba(168,139,255,0.10);color:#A88BFF">${p.i}</div><span class="sch-gtext">${p.n.split(' ')[0]}</span></div></td>
@@ -1140,14 +1140,20 @@ export function init() {
       const weekDates = getWeekDates(_weekOffset);
       const weekStart = ymd(weekDates[0].date);
       const shifts = [];
-      for (const r of Object.values(_rosters)) {
+      for (const [roleKey, r] of Object.entries(_rosters)) {
+        const stns = _stations[roleKey] || [];
         r.people.forEach((p, pi) => {
           (r.grid[pi] || []).forEach((cell, di) => {
-            if (cell) shifts.push({
-              userId: p.id, userName: p.n, role: p.role,
-              date: ymd(weekDates[di].date),
-              start: cell.s, end: cell.e, station: cell.station || null,
-            });
+            if (cell && cell.s) {   // лише реальні зміни (не вихідні)
+              const stn = stns.find(x => x.id === cell.station);
+              shifts.push({
+                userId: p.id, userName: p.n, role: p.role,
+                date: ymd(weekDates[di].date),
+                start: cell.s, end: cell.e,
+                station: cell.station || null,
+                stationName: stn ? stn.label : '',
+              });
+            }
           });
         });
       }
