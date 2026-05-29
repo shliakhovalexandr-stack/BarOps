@@ -352,7 +352,7 @@ function renderDeptTable(roleKey) {
             const c = stnColorMap[cell.station];
             bg = c.bg; bd = c.bd; tx = c.tx;
             const stn = stns.find(s => s.id === cell.station);
-            label = stn ? stn.label.slice(0,7) : label;
+            label = stn ? stn.label.slice(0,12) : label;
           }
           const onclick = _mode === 'edit'
             ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`
@@ -466,13 +466,18 @@ const CSS = `<style id="sch-css">
 .sch-gname{display:flex;align-items:center;gap:6px;padding-right:8px;min-width:80px}
 .sch-gini{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;flex-shrink:0}
 .sch-gtext{font-size:11px;font-weight:500;color:#A1A1AA;white-space:nowrap;overflow:hidden;max-width:72px;text-overflow:ellipsis}
-.sch-cell-btn{display:flex;align-items:center;justify-content:center;min-width:38px;height:28px;border-radius:7px;font-size:10px;font-weight:600;cursor:pointer;transition:transform .1s;user-select:none;padding:0 5px;white-space:nowrap;letter-spacing:-.01em}
+.sch-cell-btn{display:flex;align-items:center;justify-content:center;min-width:60px;height:32px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:transform .1s;user-select:none;padding:0 8px;white-space:nowrap;letter-spacing:-.01em}
 .sch-cell-btn:active{transform:scale(.9)}
-.sch-cell-off{min-width:38px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.25}
+.sch-cell-off{min-width:60px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.25}
 .sch-cell-off:hover{opacity:.5;background:#141416}
-.sch-net-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:42px;height:34px;border-radius:7px;background:rgba(168,139,255,.12);border:0.5px solid rgba(168,139,255,.28);padding:0 4px;line-height:1.15;gap:1px}
-.sch-net-venue{font-size:9px;font-weight:700;color:#A88BFF;letter-spacing:.02em}
+.sch-net-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:60px;height:38px;border-radius:8px;background:rgba(168,139,255,.12);border:0.5px solid rgba(168,139,255,.28);padding:0 6px;line-height:1.2;gap:1px}
+.sch-net-venue{font-size:10px;font-weight:700;color:#A88BFF;letter-spacing:.02em}
 .sch-net-time{font-size:9px;font-weight:600;color:#C4B5FD;font-variant-numeric:tabular-nums}
+/* секції-картки підрозділів */
+.sch-dept-block{margin:0 14px 12px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden}
+.sch-dept-head{display:flex;align-items:center;gap:8px;padding:13px 14px 9px}
+.sch-dept-chev{width:26px;height:26px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sch-dept-block .sch-grid-wrap{margin:0 12px 12px}
 .sch-empty-state{text-align:center;padding:40px 20px;color:#52525B;font-size:13px;line-height:1.6}
 .sch-cov{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 18px 16px}
 .sch-cov-cell{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center}
@@ -557,16 +562,17 @@ function renderHub() {
   const deptSections = Object.entries(_rosters).map(([key, r]) => {
     const onShift = r.grid.filter(row => row.some(c => c !== null)).length;
     return `
-      <div style="display:flex;align-items:center;gap:8px;padding:0 18px;margin-bottom:8px">
-        <div style="width:8px;height:8px;border-radius:3px;background:${r.color};flex-shrink:0"></div>
-        <div style="font-size:11px;font-weight:600;color:#A1A1AA;text-transform:uppercase;letter-spacing:.05em;flex:1">${r.label}</div>
-        <div style="font-size:11px;color:#52525B">${r.people.length} · ${onShift} на зміні</div>
-        <div style="width:26px;height:26px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0" onclick="window.__sch.goRole('${key}')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      <div class="sch-dept-block">
+        <div class="sch-dept-head">
+          <div style="width:8px;height:8px;border-radius:3px;background:${r.color};flex-shrink:0"></div>
+          <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">${r.label}</div>
+          <div style="font-size:11px;color:#52525B">${r.people.length} · ${onShift} на зміні</div>
+          <div class="sch-dept-chev" onclick="window.__sch.goRole('${key}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
         </div>
-      </div>
-      ${renderDeptTable(key)}
-      <div style="height:4px;margin:0 18px 16px;background:rgba(255,255,255,0.04);border-radius:2px"></div>`;
+        ${renderDeptTable(key)}
+      </div>`;
   }).join('');
 
   const bar = !canEdit()
@@ -615,12 +621,14 @@ function renderHub() {
       </div>
       ${deptSections}
       ` : `
-      <div style="display:flex;align-items:center;gap:8px;padding:0 18px;margin-bottom:8px">
-        <div style="width:8px;height:8px;border-radius:3px;background:#A88BFF;flex-shrink:0"></div>
-        <div style="font-size:11px;font-weight:600;color:#A1A1AA;text-transform:uppercase;letter-spacing:.05em;flex:1">Бармени · вся мережа</div>
+      <div class="sch-dept-block">
+        <div class="sch-dept-head">
+          <div style="width:8px;height:8px;border-radius:3px;background:#A88BFF;flex-shrink:0"></div>
+          <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">Бармени · вся мережа</div>
+        </div>
+        ${renderNetworkGrid()}
       </div>
-      ${renderNetworkGrid()}
-      <div style="margin:4px 18px 0;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px">
+      <div style="margin:4px 14px 0;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px">
         <div style="font-size:12px;color:#71717A;line-height:1.5">Бейдж у зміні — заклад. Натисніть «Забронювати вихідні» внизу, щоб надіслати бажані вихідні менеджеру.</div>
       </div>
       `}
