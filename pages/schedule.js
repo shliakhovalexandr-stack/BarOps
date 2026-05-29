@@ -7,9 +7,21 @@ import { state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
+// Роль із JWT-токена (джерело правди від сервера на вході), бо barops_role може застаріти.
+function tokenRole() {
+  try {
+    const part = (localStorage.getItem('barops_token') || '').split('.')[1] || '';
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    return (JSON.parse(json).role || '').toLowerCase();
+  } catch { return ''; }
+}
+function resolveRole() {
+  return tokenRole() || (state.role || '').toLowerCase() || (localStorage.getItem('barops_role') || '').toLowerCase() || 'bartender';
+}
+
 // Редагувати графік можуть лише менеджер/адмін; решта — перегляд + бронювання вихідних.
 function canEdit() {
-  const r = (state.role || '').toLowerCase();
+  const r = resolveRole();
   return r === 'manager' || r === 'admin';
 }
 
@@ -232,7 +244,7 @@ async function loadNetwork() {
   } catch (err) { console.warn('[Schedule] network error:', err); }
 
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
-  const myKey       = roleKeyForRole(_role);                 // 'bartenders' | 'cooks' | 'waiters' | ...
+  const myKey       = roleKeyForRole(resolveRole());         // роль КОРИСТУВАЧА (не вкладка-підрозділ _role)
   const deptRoles   = (ROLE_CONFIG[myKey]?.apiRoles) || [];
   const networkWide = myKey === 'bartenders';                // лише бармени бачать усю мережу; решта — свій заклад
   const byUser = {};
@@ -651,7 +663,8 @@ function renderHub() {
       </div>`).join('')}
     </div>` : '';
 
-  const netKey   = roleKeyForRole(_role);
+  const userRole = resolveRole();                 // роль КОРИСТУВАЧА (не вкладка _role)
+  const netKey   = roleKeyForRole(userRole);
   const netLabel = (ROLE_CONFIG[netKey]?.label || 'Зміни').toUpperCase();
   const netScope = netKey === 'bartenders' ? 'вся мережа' : (state.venue || 'свій заклад');
 
@@ -715,7 +728,7 @@ function renderHub() {
       ` : `
       <div style="margin:32px 18px;padding:24px 20px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;text-align:center">
         <div style="font-size:14px;color:#fff;font-weight:600;margin-bottom:6px">Для вашої ролі графік не ведеться</div>
-        <div style="font-size:12px;color:#71717A">Роль акаунта: <b style="color:#A88BFF">${ROLE_LABEL[_role] || _role || '—'}</b></div>
+        <div style="font-size:12px;color:#71717A">Роль акаунта: <b style="color:#A88BFF">${ROLE_LABEL[userRole] || userRole || '—'}</b></div>
         <div style="font-size:11px;color:#52525B;margin-top:8px;line-height:1.5">Якщо ви бармен/кухар/офіціант — перевірте роль цього акаунта в «Команда».</div>
       </div>
       `)}
