@@ -1,14 +1,22 @@
 /* ============================================================
    BarOps — pages/journal.js
-   Журнал бармена: статистика зміни + чек-листи
+   Журнал: статистика зміни + завдання/чек-листи
+   - Менеджер/адмін: створює завдання на дату + підрозділ
+   - Працівник: бачить завдання свого підрозділу на сьогодні
    ============================================================ */
 
 import { state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
-let _stats  = null;
-let _checks = [];   // чек-листи від менеджера/адміна
+let _stats     = null;
+let _tasks     = [];      // завдання з бекенду (date >= today)
+let _role      = 'bartender';
+let _taskModal = false;
+let _taskDraft = { date: '', department: 'bartenders', text: '' };
+
+const DEPT_LABEL = { kitchen: 'Кухня', waiters: 'Офіціанти', bartenders: 'Бармени' };
+const CHECK_SVG  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /* ════════════════════════
    CSS
@@ -19,7 +27,7 @@ const CSS = `<style id="jrn-css">
 .jrn-title{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
 .jrn-date{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .jrn-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;
-  padding:14px 20px 8px;font-family:var(--font-b)}
+  padding:14px 20px 8px;font-family:var(--font-b);display:flex;align-items:center;justify-content:space-between}
 /* kpi */
 .jrn-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px}
 .jrn-kpi{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:13px;
@@ -43,6 +51,15 @@ const CSS = `<style id="jrn-css">
 .jrn-cl-check.done{background:var(--green);border-color:var(--green)}
 .jrn-cl-item-text{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
 .jrn-cl-item-text.done{color:var(--text3);text-decoration:line-through}
+/* manager task row */
+.jrn-task-row{display:flex;align-items:center;gap:10px;padding:14px 16px}
+.jrn-task-del{width:28px;height:28px;border-radius:8px;flex-shrink:0;background:rgba(255,80,80,.08);
+  border:0.5px solid rgba(255,80,80,.3);color:#ff5c5c;font-size:16px;cursor:pointer;font-family:inherit;line-height:1}
+.jrn-badge{display:inline-block;font-size:10px;font-weight:600;color:var(--purple);background:rgba(168,139,255,.12);
+  border:0.5px solid rgba(168,139,255,.28);border-radius:6px;padding:1px 6px}
+.jrn-add-btn{width:100%;height:42px;border-radius:12px;background:var(--purple);border:none;color:#fff;
+  font-size:13px;font-weight:600;font-family:var(--font-h);cursor:pointer}
+.jrn-add-btn:active{opacity:.85}
 /* shift row */
 .jrn-shift-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px}
 .jrn-shift-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border)}
@@ -55,6 +72,27 @@ const CSS = `<style id="jrn-css">
   border:0.5px solid var(--border);border-radius:16px}
 .jrn-empty-icon{font-size:28px;margin-bottom:8px}
 .jrn-empty-txt{font-size:13px;color:var(--text2);font-family:var(--font-b)}
+/* modal */
+.jrn-modal-ov{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.76);display:flex;align-items:flex-end;animation:jrnOv .18s ease}
+@keyframes jrnOv{from{opacity:0}to{opacity:1}}
+.jrn-modal{width:100%;background:var(--bg1,#0A0A0A);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);
+  padding:20px 20px 36px;animation:jrnSl .26s cubic-bezier(.22,1,.36,1)}
+@keyframes jrnSl{from{transform:translateY(100%)}to{transform:none}}
+.jrn-modal-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:14px}
+.jrn-modal-lbl{font-size:10px;font-weight:500;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;margin:10px 0 6px}
+.jrn-modal-inp{width:100%;box-sizing:border-box;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);border-radius:10px;
+  padding:11px 12px;font-size:14px;color:var(--text0);outline:none;font-family:var(--font-b);color-scheme:dark}
+.jrn-modal-inp:focus{border-color:rgba(168,139,255,.5)}
+.jrn-dept-row{display:flex;gap:6px}
+.jrn-dept-chip{flex:1;height:38px;border-radius:10px;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);
+  color:var(--text2);font-size:12px;font-weight:500;font-family:var(--font-b);cursor:pointer}
+.jrn-dept-chip.sel{background:rgba(168,139,255,.14);border-color:var(--purple);color:var(--purple)}
+.jrn-modal-btns{display:flex;gap:8px;margin-top:18px}
+.jrn-btn-sec{flex:1;height:48px;border-radius:12px;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);
+  color:var(--text1);font-size:14px;font-weight:500;font-family:var(--font-b);cursor:pointer}
+.jrn-btn-cta{flex:2;height:48px;border-radius:12px;background:var(--purple);border:none;color:#fff;
+  font-size:15px;font-weight:600;font-family:var(--font-h);cursor:pointer}
+.jrn-btn-cta:disabled{opacity:.4}
 /* skel */
 .jrn-skel{background:var(--glass-bg);border-radius:12px;animation:jSkel 1.2s ease-in-out infinite}
 @keyframes jSkel{0%,100%{opacity:.4}50%{opacity:.9}}
@@ -66,14 +104,104 @@ const CSS = `<style id="jrn-css">
 function token() {
   return localStorage.getItem('barops_token') || state.token || '';
 }
-
 function fmtMoney(n) {
   if (!n) return '0 ₴';
   return Math.round(n).toLocaleString('uk-UA') + ' ₴';
 }
-
 function todayStr() {
   return new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDateShort(iso) {
+  const d = new Date(`${iso}T00:00:00`);
+  return isNaN(d) ? iso : d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+}
+function canManage() {
+  const r = (_role || '').toLowerCase();
+  return r === 'admin' || r === 'manager';
+}
+function myDepartment(role) {
+  const r = (role || '').toLowerCase();
+  if (r === 'cook' || r === 'chef') return 'kitchen';
+  if (r === 'waiter') return 'waiters';
+  if (r === 'bartender' || r === 'barman') return 'bartenders';
+  return null;
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+}
+
+/* ════════════════════════
+   TASKS — per role
+════════════════════════ */
+function buildWorkerChecklist() {
+  const today  = ymd(new Date());
+  const myDept = myDepartment(_role);
+  const tasks  = _tasks.filter(t => t.date === today && t.department === myDept);
+  if (!tasks.length) return `
+  <div class="jrn-empty">
+    <div class="jrn-empty-icon">✓</div>
+    <div class="jrn-empty-txt">Чек-листів від менеджера немає</div>
+  </div>`;
+  const done = tasks.filter(t => t.done).length;
+  return `
+  <div class="jrn-cl-card">
+    <div class="jrn-cl-head">
+      <div class="jrn-cl-name">Завдання на сьогодні</div>
+      <div class="jrn-cl-meta">${done}/${tasks.length} виконано</div>
+    </div>
+    ${tasks.map(t => `
+    <div class="jrn-cl-item" onclick="window.__jrn.toggleTask('${t.id}',${t.done ? 0 : 1})">
+      <div class="jrn-cl-check ${t.done ? 'done' : ''}">${t.done ? CHECK_SVG : ''}</div>
+      <div class="jrn-cl-item-text ${t.done ? 'done' : ''}">${esc(t.text)}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function buildManagerTasks() {
+  const listHTML = _tasks.length ? _tasks.map(t => `
+    <div class="jrn-cl-card">
+      <div class="jrn-task-row">
+        <div style="flex:1;min-width:0">
+          <div class="jrn-cl-name">${esc(t.text)}</div>
+          <div class="jrn-cl-meta">
+            <span class="jrn-badge">${DEPT_LABEL[t.department] || t.department}</span>
+            · ${fmtDateShort(t.date)}${t.done ? ` · ✓ виконано${t.doneBy ? ` (${esc(t.doneBy)})` : ''}` : ''}
+          </div>
+        </div>
+        <button class="jrn-task-del" onclick="window.__jrn.deleteTask('${t.id}')">×</button>
+      </div>
+    </div>`).join('') : `
+    <div class="jrn-empty"><div class="jrn-empty-txt">Завдань ще немає. Створіть перше.</div></div>`;
+  return `
+    <div style="padding:0 14px 8px"><button class="jrn-add-btn" onclick="window.__jrn.openTaskModal()">+ Завдання</button></div>
+    ${listHTML}`;
+}
+
+function buildTaskModal() {
+  if (!_taskModal) return '';
+  return `
+  <div class="jrn-modal-ov" onclick="window.__jrn.closeTaskModalOv(event)">
+    <div class="jrn-modal" onclick="event.stopPropagation()">
+      <div class="jrn-modal-title">Нове завдання</div>
+      <div class="jrn-modal-lbl">Дата зміни</div>
+      <input type="date" id="jrn-task-date" class="jrn-modal-inp" value="${_taskDraft.date}">
+      <div class="jrn-modal-lbl">Підрозділ</div>
+      <div class="jrn-dept-row">
+        ${Object.entries(DEPT_LABEL).map(([k, v]) =>
+          `<button class="jrn-dept-chip ${_taskDraft.department === k ? 'sel' : ''}" onclick="window.__jrn.setDept('${k}')">${v}</button>`
+        ).join('')}
+      </div>
+      <div class="jrn-modal-lbl">Завдання</div>
+      <textarea id="jrn-task-text" class="jrn-modal-inp" rows="3" placeholder="Що потрібно зробити на зміні…">${esc(_taskDraft.text)}</textarea>
+      <div class="jrn-modal-btns">
+        <button class="jrn-btn-sec" onclick="window.__jrn.closeTaskModal()">Скасувати</button>
+        <button class="jrn-btn-cta" onclick="window.__jrn.saveTask()">Створити</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ════════════════════════
@@ -88,30 +216,8 @@ function buildHTML() {
     { val: s ? String(s.critical?.length ?? 0)   : '—', lbl:'Критичних\nзалишків', cls: (s?.critical?.length > 0) ? 'r' : 'g' },
   ];
 
-  const checklistsHTML = _checks.length ? _checks.map(cl => {
-    const done  = cl.items.filter(i => i.done).length;
-    const total = cl.items.length;
-    return `
-    <div class="jrn-cl-card">
-      <div class="jrn-cl-head">
-        <div class="jrn-cl-name">${cl.title}</div>
-        <div class="jrn-cl-meta">${cl.author} · ${done}/${total} виконано</div>
-      </div>
-      ${cl.items.map((item, idx) => `
-      <div class="jrn-cl-item" onclick="window.__jrn.toggleCheck('${cl.id}',${idx})">
-        <div class="jrn-cl-check ${item.done ? 'done' : ''}">
-          ${item.done ? `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>` : ''}
-        </div>
-        <div class="jrn-cl-item-text ${item.done ? 'done' : ''}">${item.text}</div>
-      </div>`).join('')}
-    </div>`;
-  }).join('') : `
-  <div class="jrn-empty">
-    <div class="jrn-empty-icon">✓</div>
-    <div class="jrn-empty-txt">Чек-листів від менеджера немає</div>
-  </div>`;
+  const isMgr = canManage();
+  const checklistsHTML = isMgr ? buildManagerTasks() : buildWorkerChecklist();
 
   return `
 ${CSS}
@@ -160,13 +266,14 @@ ${CSS}
       </div>` : ''}
     </div>` : ''}
 
-    <!-- Чек-листи -->
-    <div class="jrn-sec" style="padding-top:16px">Чек-листи</div>
+    <!-- Завдання / Чек-листи -->
+    <div class="jrn-sec" style="padding-top:16px">${isMgr ? 'Завдання на зміни' : 'Чек-листи'}</div>
     ${checklistsHTML}
 
     <div style="height:20px"></div>
   </div>
-</div>`;
+</div>
+${buildTaskModal()}`;
 }
 
 /* ════════════════════════
@@ -185,6 +292,20 @@ async function loadStats() {
   rerender();
 }
 
+async function loadTasks() {
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  if (!venueId) return;
+  try {
+    const from = ymd(new Date());
+    const res  = await fetch(`${API}/api/tasks?venueId=${venueId}&from=${from}`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    });
+    const data = await res.json();
+    if (data.success) _tasks = data.tasks || [];
+  } catch { /* silent */ }
+  rerender();
+}
+
 function rerender() {
   if (state.route !== 'journal') return;
   const v = document.getElementById('app-view');
@@ -196,19 +317,75 @@ function rerender() {
 ════════════════════════ */
 export default {
   render() {
-    _stats  = null;
-    _checks = [];
+    _stats     = null;
+    _tasks     = [];
+    _taskModal = false;
+    _role      = state.role || localStorage.getItem('barops_role') || 'bartender';
     return buildHTML();
   },
   async init() {
+    _role = state.role || localStorage.getItem('barops_role') || 'bartender';
     window.__jrn = {
-      toggleCheck(clId, idx) {
-        const cl = _checks.find(c => c.id === clId);
-        if (!cl) return;
-        cl.items[idx].done = !cl.items[idx].done;
+      async toggleTask(id, done) {
+        const t = _tasks.find(x => x.id === id);
+        if (t) t.done = !!done;     // оптимістично
         rerender();
+        try {
+          await fetch(`${API}/api/tasks/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+            body: JSON.stringify({ done: !!done }),
+          });
+        } catch { /* silent */ }
+        loadTasks();
+      },
+
+      openTaskModal() {
+        _taskDraft = { date: ymd(new Date()), department: 'bartenders', text: '' };
+        _taskModal = true;
+        rerender();
+      },
+      closeTaskModal() { _taskModal = false; rerender(); },
+      closeTaskModalOv(e) { if (e?.target?.classList?.contains('jrn-modal-ov')) { _taskModal = false; rerender(); } },
+      setDept(k) {
+        _taskDraft.date = document.getElementById('jrn-task-date')?.value || _taskDraft.date;
+        _taskDraft.text = document.getElementById('jrn-task-text')?.value || _taskDraft.text;
+        _taskDraft.department = k;
+        rerender();
+      },
+      async saveTask() {
+        const date = document.getElementById('jrn-task-date')?.value || '';
+        const text = (document.getElementById('jrn-task-text')?.value || '').trim();
+        const department = _taskDraft.department;
+        if (!date || !text) return;
+        const btn = document.querySelector('.jrn-btn-cta');
+        if (btn) { btn.disabled = true; btn.textContent = 'Створення…'; }
+        try {
+          const res = await fetch(`${API}/api/tasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+            body: JSON.stringify({ date, department, text }),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || 'Помилка');
+          _taskModal = false;
+          await loadTasks();
+        } catch (e) {
+          console.error('[tasks] save:', e);
+          if (btn) { btn.disabled = false; btn.textContent = 'Створити'; }
+        }
+      },
+      async deleteTask(id) {
+        try {
+          await fetch(`${API}/api/tasks/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token()}` },
+          });
+        } catch { /* silent */ }
+        loadTasks();
       },
     };
     loadStats();
+    loadTasks();
   },
 };
