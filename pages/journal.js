@@ -13,9 +13,11 @@ let _stats     = null;
 let _tasks     = [];      // завдання з бекенду (date >= today)
 let _role      = 'bartender';
 let _taskModal = false;
-let _taskDraft = { date: '', department: 'bartenders', text: '' };
+let _taskDraft = { date: '', department: 'bartenders', userId: '', userName: '', text: '' };
+let _team      = [];      // склад закладу (для вибору виконавця; лише менеджер)
 
 const DEPT_LABEL = { kitchen: 'Кухня', waiters: 'Офіціанти', bartenders: 'Бармени' };
+const DEPT_ROLES = { kitchen: ['cook', 'chef'], waiters: ['waiter'], bartenders: ['bartender', 'barman'] };
 const CHECK_SVG  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /* ════════════════════════
@@ -129,6 +131,10 @@ function myDepartment(role) {
   if (r === 'bartender' || r === 'barman') return 'bartenders';
   return null;
 }
+function teamForDept(dept) {
+  const roles = DEPT_ROLES[dept] || [];
+  return _team.filter(m => roles.includes((m.role || '').toLowerCase()));
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 }
@@ -168,7 +174,7 @@ function buildManagerTasks() {
           <div class="jrn-cl-name">${esc(t.text)}</div>
           <div class="jrn-cl-meta">
             <span class="jrn-badge">${DEPT_LABEL[t.department] || t.department}</span>
-            · ${fmtDateShort(t.date)}${t.done ? ` · ✓ виконано${t.doneBy ? ` (${esc(t.doneBy)})` : ''}` : ''}
+            · ${fmtDateShort(t.date)} · ${t.userName ? esc(t.userName) : 'усі'}${t.done ? ` · ✓ виконано${t.doneBy ? ` (${esc(t.doneBy)})` : ''}` : ''}
           </div>
         </div>
         <button class="jrn-task-del" onclick="window.__jrn.deleteTask('${t.id}')">×</button>
@@ -194,6 +200,13 @@ function buildTaskModal() {
           `<button class="jrn-dept-chip ${_taskDraft.department === k ? 'sel' : ''}" onclick="window.__jrn.setDept('${k}')">${v}</button>`
         ).join('')}
       </div>
+      <div class="jrn-modal-lbl">Виконавець</div>
+      <select id="jrn-task-assignee" class="jrn-modal-inp" onchange="window.__jrn.setAssignee(this.value)">
+        <option value="">Усі (весь підрозділ)</option>
+        ${teamForDept(_taskDraft.department).map(m =>
+          `<option value="${m.id}" ${_taskDraft.userId === m.id ? 'selected' : ''}>${esc(m.name)}</option>`
+        ).join('')}
+      </select>
       <div class="jrn-modal-lbl">Завдання</div>
       <textarea id="jrn-task-text" class="jrn-modal-inp" rows="3" placeholder="Що потрібно зробити на зміні…">${esc(_taskDraft.text)}</textarea>
       <div class="jrn-modal-btns">
@@ -306,6 +319,20 @@ async function loadTasks() {
   rerender();
 }
 
+async function loadTeam() {
+  if (!canManage()) return;
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  if (!venueId) return;
+  try {
+    const res  = await fetch(`${API}/api/auth/team?venueId=${venueId}`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.team)) _team = data.team;
+  } catch { /* silent */ }
+  rerender();
+}
+
 function rerender() {
   if (state.route !== 'journal') return;
   const v = document.getElementById('app-view');
@@ -319,6 +346,7 @@ export default {
   render() {
     _stats     = null;
     _tasks     = [];
+    _team      = [];
     _taskModal = false;
     _role      = state.role || localStorage.getItem('barops_role') || 'bartender';
     return buildHTML();
@@ -341,7 +369,7 @@ export default {
       },
 
       openTaskModal() {
-        _taskDraft = { date: ymd(new Date()), department: 'bartenders', text: '' };
+        _taskDraft = { date: ymd(new Date()), department: 'bartenders', userId: '', userName: '', text: '' };
         _taskModal = true;
         rerender();
       },
@@ -351,12 +379,22 @@ export default {
         _taskDraft.date = document.getElementById('jrn-task-date')?.value || _taskDraft.date;
         _taskDraft.text = document.getElementById('jrn-task-text')?.value || _taskDraft.text;
         _taskDraft.department = k;
+        _taskDraft.userId = '';        // інший підрозділ — скидаємо виконавця
+        _taskDraft.userName = '';
         rerender();
+      },
+      setAssignee(userId) {
+        _taskDraft.userId = userId || '';
+        const m = _team.find(x => x.id === userId);
+        _taskDraft.userName = m ? m.name : '';
       },
       async saveTask() {
         const date = document.getElementById('jrn-task-date')?.value || '';
         const text = (document.getElementById('jrn-task-text')?.value || '').trim();
         const department = _taskDraft.department;
+        const userId = document.getElementById('jrn-task-assignee')?.value || '';
+        const m = _team.find(x => x.id === userId);
+        const userName = m ? m.name : '';
         if (!date || !text) return;
         const btn = document.querySelector('.jrn-btn-cta');
         if (btn) { btn.disabled = true; btn.textContent = 'Створення…'; }
@@ -364,7 +402,7 @@ export default {
           const res = await fetch(`${API}/api/tasks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ date, department, text }),
+            body: JSON.stringify({ date, department, text, userId, userName }),
           });
           const data = await res.json();
           if (!data.success) throw new Error(data.error || 'Помилка');
@@ -387,5 +425,6 @@ export default {
     };
     loadStats();
     loadTasks();
+    loadTeam();
   },
 };
