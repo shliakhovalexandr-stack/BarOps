@@ -423,6 +423,11 @@ function editSheetHTML() {
       <div class="tm-sh-lbl">Ім'я (залиште для зміни)</div>
       <input class="tm-sh-inp" id="edit-name" type="text" placeholder="${t.name}" value="${t.name}"/>
 
+      <div class="tm-sh-lbl">Посада / Роль</div>
+      <select class="tm-sh-inp" id="edit-role-select" style="cursor:pointer;margin-bottom:12px">
+        ${[['BARTENDER','🍸 Бармен'],['MANAGER','👨‍💼 Менеджер'],['ACCOUNTANT','📊 Бухгалтер'],['CHEF','👨‍🍳 Шеф-кухар'],['COOK','🍳 Кухар'],['WAITER','🍽 Офіціант']].map(([v,l]) => `<option value="${v}" ${(t.role||'').toUpperCase()===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+
       <div class="tm-sh-lbl">Новий PIN (залиште порожнім щоб не змінювати)</div>
       ${pinKeypadHTML('add', currentPin, 'Новий PIN (4 цифри) — необов\'язково')}
 
@@ -687,6 +692,8 @@ async function submitEdit() {
   const body  = {};
 
   if (name && name !== t.name) body.name = name;
+  const roleSel = document.getElementById('edit-role-select')?.value;
+  if (roleSel && roleSel !== (t.role || '').toUpperCase()) body.role = roleSel;
   // PIN — просто зберігаємо без підтвердження (менеджер сам встановлює)
   if (_addPin.length >= 4) {
     body.pin = _addPin;
