@@ -7,6 +7,12 @@ import { state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
+// Редагувати графік можуть лише менеджер/адмін; решта — перегляд + бронювання вихідних.
+function canEdit() {
+  const r = (state.role || '').toLowerCase();
+  return r === 'manager' || r === 'admin';
+}
+
 /* ════════════════════════════════════════
    ROLE CONFIG (статичний)
 ════════════════════════════════════════ */
@@ -72,6 +78,20 @@ function isToday(d) {
   const t = new Date();
   return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
 }
+function roleKeyForRole(role) {
+  const r = (role || '').toLowerCase();
+  for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
+    if (cfg.apiRoles.includes(r)) return key;
+  }
+  return null;
+}
+function formatReqDates(dates) {
+  if (!Array.isArray(dates) || !dates.length) return '';
+  return dates.map(s => {
+    const d = new Date(`${s}T00:00:00`);
+    return isNaN(d) ? s : `${DOW_SHORT[(d.getDay()+6)%7]} ${d.getDate()}`;
+  }).join(', ');
+}
 
 /* ════════════════════════════════════════
    STATE
@@ -116,6 +136,27 @@ async function loadRosters() {
   const stored = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
   const vData  = stored[_venueId] || {};
 
+  // Load day-off requests (тільки manager/admin; решта отримує 403 → пропускаємо)
+  const dayoffByRole = {};
+  try {
+    const dUrl = _venueId ? `${API}/api/dayoff?venueId=${_venueId}` : `${API}/api/dayoff`;
+    const dRes = await fetch(dUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (dRes.ok) {
+      const dData = await dRes.json();
+      for (const rq of (dData.requests || [])) {
+        const rk = roleKeyForRole(rq.role);
+        if (!rk) continue;
+        (dayoffByRole[rk] ||= []).push({
+          id: rq.id,
+          who: rq.userName || 'Співробітник',
+          day: formatReqDates(rq.dates),
+          note: rq.note || '',
+          status: rq.status || 'pending',
+        });
+      }
+    }
+  } catch (err) { console.warn('[Schedule] dayoff error:', err); }
+
   _rosters = {};
   for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
     const people = teamMembers
@@ -130,7 +171,7 @@ async function loadRosters() {
       });
     });
 
-    _rosters[key] = { ...cfg, sub: `${cfg.label} · ${people.length} люд`, people, grid, requests: [] };
+    _rosters[key] = { ...cfg, sub: `${cfg.label} · ${people.length} люд`, people, grid, requests: dayoffByRole[key] || [] };
   }
 }
 
@@ -152,6 +193,17 @@ function saveStations(roleKey) {
   if (!raw[_venueId]) raw[_venueId] = {};
   raw[_venueId][roleKey] = _stations[roleKey] || [];
   localStorage.setItem('barops_stations_v1', JSON.stringify(raw));
+}
+
+async function patchDayOff(id, status) {
+  const token = localStorage.getItem('barops_token');
+  try {
+    await fetch(`${API}/api/dayoff/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ status }),
+    });
+  } catch (e) { console.error('[dayoff] patch:', e); }
 }
 
 /* ════════════════════════════════════════
@@ -438,7 +490,9 @@ function renderHub() {
       <div style="height:4px;margin:0 18px 16px;background:rgba(255,255,255,0.04);border-radius:2px"></div>`;
   }).join('');
 
-  const bar = _mode === 'edit'
+  const bar = !canEdit()
+    ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`
+    : _mode === 'edit'
     ? `<div class="sch-bar"><button class="sch-cta-sec" onclick="window.__sch.setMode('view')">Скасувати</button><button class="sch-cta" style="flex:2" onclick="window.__sch.setMode('view')">Зберегти зміни</button></div>`
     : `<div class="sch-bar"><div class="sch-bar-icon" onclick=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`;
 
@@ -464,6 +518,7 @@ function renderHub() {
       </div>
     </div>
     <div class="sch-scroll">
+      ${canEdit() ? `
       <div class="sch-sum">
         <div class="sch-sum-row">
           <div class="sch-sum-cell"><div class="sch-sum-val">${stats.total}</div><div class="sch-sum-lbl">Людей</div></div>
@@ -480,6 +535,12 @@ function renderHub() {
         <button class="sch-seg-btn${_mode==='edit'?' on':''}" onclick="window.__sch.setMode('edit')">Редагувати</button>
       </div>
       ${deptSections}
+      ` : `
+      <div style="margin:32px 18px;padding:24px 20px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;text-align:center">
+        <div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px">Бажані вихідні</div>
+        <div style="font-size:13px;color:#71717A;line-height:1.5">Оберіть дні, у які вам зручно відпочивати — менеджер врахує це під час складання графіку на наступний тиждень.</div>
+      </div>
+      `}
     </div>
     ${bar}
   </div>`;
@@ -614,7 +675,18 @@ function renderRoleView(roleKey) {
     </div>`
   ).join('');
 
-  const bar = `<div class="sch-bar"><div class="sch-bar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`;
+  const bar = canEdit()
+    ? `<div class="sch-bar"><div class="sch-bar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta">Опублікувати графік</button></div>`
+    : `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`;
+
+  const editPill = canEdit()
+    ? `<button onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')"
+        style="height:34px;padding:0 14px;border-radius:20px;background:${_mode==='edit'?'#1F1F22':'#A88BFF'};border:${_mode==='edit'?'0.5px solid rgba(255,255,255,0.12)':'none'};font-size:13px;font-weight:600;color:${_mode==='edit'?'#A1A1AA':'#000'};cursor:pointer;font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:6px;margin-top:2px">
+        ${_mode==='edit'
+          ? 'Готово'
+          : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Редагувати`}
+      </button>`
+    : '';
 
   return CSS + `
   <div class="sch-wrap">
@@ -626,12 +698,7 @@ function renderRoleView(roleKey) {
         <div class="sch-hdr-venue">Графік · ${venueName}</div>
         <div class="sch-hdr-title">${r.label}</div>
       </div>
-      <button onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')"
-        style="height:34px;padding:0 14px;border-radius:20px;background:${_mode==='edit'?'#1F1F22':'#A88BFF'};border:${_mode==='edit'?'0.5px solid rgba(255,255,255,0.12)':'none'};font-size:13px;font-weight:600;color:${_mode==='edit'?'#A1A1AA':'#000'};cursor:pointer;font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:6px;margin-top:2px">
-        ${_mode==='edit'
-          ? 'Готово'
-          : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Редагувати`}
-      </button>
+      ${editPill}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 18px 12px;flex-shrink:0">
       <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
@@ -695,7 +762,7 @@ function renderBooking() {
   return CSS + `
   <div class="sch-wrap">
     <div class="sch-hdr">
-      <div class="sch-back" onclick="window.__sch.goRole('${_role}')">
+      <div class="sch-back" onclick="window.__sch.goHub()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </div>
       <div class="sch-hdr-body"><div class="sch-hdr-venue">Графік</div><div class="sch-hdr-title">Бронювання вихідних</div></div>
@@ -718,7 +785,7 @@ function renderBooking() {
       <div class="sch-cmnt"><div class="sch-cmnt-lbl">Коментар</div><textarea class="sch-cmnt-inp" placeholder="Причина запиту..." rows="3"></textarea></div>
     </div>
     <div class="sch-bar">
-      <button class="sch-cta" ${selArr.length===0?'disabled':''}>Надіслати запит · ${selArr.length} ${selArr.length===1?'день':selArr.length<5?'дні':'днів'}</button>
+      <button class="sch-cta" ${selArr.length===0?'disabled':''} onclick="window.__sch.submitBooking()">Надіслати запит · ${selArr.length} ${selArr.length===1?'день':selArr.length<5?'дні':'днів'}</button>
     </div>
   </div>`;
 }
@@ -850,7 +917,7 @@ function re() {
 export async function render() {
   _view       = 'hub';
   _role       = 'cooks';
-  _mode       = localStorage.getItem('barops_sch_mode') || 'view';
+  _mode       = canEdit() ? (localStorage.getItem('barops_sch_mode') || 'view') : 'view';
   _selDays    = new Set();
   _cellSheet  = null;
   _weekOffset = 0;
@@ -868,6 +935,7 @@ export function init() {
     async nextWeek() { _weekOffset++; await loadRosters(); re(); },
 
     setMode(m) {
+      if (m === 'edit' && !canEdit()) return;
       _mode = m;
       localStorage.setItem('barops_sch_mode', m);
       re();
@@ -1041,20 +1109,54 @@ export function init() {
     },
 
     // ── Requests ────────────────────────────
-    approveReq(roleKey, ri) {
-      _rosters[roleKey].requests[ri].status = 'approved';
+    async approveReq(roleKey, ri) {
+      const req = _rosters[roleKey]?.requests[ri];
+      if (!req) return;
+      req.status = 'approved';
       const el = document.getElementById(`sch-req-${roleKey}-${ri}`);
-      const req = _rosters[roleKey].requests[ri];
       if (el) {
         el.className = 'sch-req approved';
         el.innerHTML = `<div style="flex:1"><div class="sch-req-who">${req.who}</div><div class="sch-req-day">${req.day}</div></div><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
       }
+      await patchDayOff(req.id, 'approved');
     },
-    rejectReq(roleKey, ri) { _rosters[roleKey].requests.splice(+ri, 1); re(); },
+    async rejectReq(roleKey, ri) {
+      const req = _rosters[roleKey]?.requests[ri];
+      if (!req) return;
+      await patchDayOff(req.id, 'rejected');
+      _rosters[roleKey].requests.splice(+ri, 1);
+      re();
+    },
 
     toggleDay(d) {
       if (_selDays.has(d)) _selDays.delete(d); else _selDays.add(d);
       re();
+    },
+
+    async submitBooking() {
+      const days = [..._selDays].sort((a, b) => a - b);
+      if (!days.length) return;
+      const today = new Date();
+      const y = today.getFullYear(), m = String(today.getMonth() + 1).padStart(2, '0');
+      const dates = days.map(d => `${y}-${m}-${String(d).padStart(2, '0')}`);
+      const note  = document.querySelector('.sch-cmnt-inp')?.value.trim() || '';
+      const token = localStorage.getItem('barops_token');
+      const btn   = document.querySelector('.sch-bar .sch-cta');
+      if (btn) { btn.disabled = true; btn.textContent = 'Надсилання…'; }
+      try {
+        const res  = await fetch(`${API}/api/dayoff`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ dates, note }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Помилка');
+        _selDays = new Set();
+        this.goHub();
+      } catch (e) {
+        console.error('[dayoff] submit:', e);
+        if (btn) { btn.disabled = false; btn.textContent = 'Спробувати ще раз'; }
+      }
     },
   };
 }
