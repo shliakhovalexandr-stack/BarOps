@@ -1172,7 +1172,7 @@ export function init() {
         const res  = await fetch(`${API}/api/schedule/publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ weekStart, shifts }),
+          body: JSON.stringify({ venueId: state.venueId || localStorage.getItem('barops_venueId') || '', weekStart, shifts }),
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Помилка');
