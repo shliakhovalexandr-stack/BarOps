@@ -24,6 +24,8 @@ let _editSteps       = '';
 let _editMethod      = '';
 let _editGarnish     = '';
 
+let _editPhotoUrl = '';
+
 let _saving     = false;
 let _delConfirm = null;
 
@@ -80,6 +82,11 @@ const CSS = `
 .rb-del-btn.danger{background:#ff3333;color:#fff}
 .rb-del-btn.cancel{background:var(--bg2);color:var(--text1)}
 .rb-loading-wrap{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text2);font-size:14px;font-family:var(--font-b);padding:60px}
+.rb-photo-preview{width:100%;border-radius:12px;object-fit:cover;max-height:220px;display:block;background:var(--bg2)}
+.rb-photo-actions{display:flex;gap:8px;margin-top:8px}
+.rb-photo-btn{flex:1;padding:10px;background:var(--bg2);border:0.5px dashed var(--border);border-radius:10px;font-size:13px;color:var(--text1);font-family:var(--font-b);cursor:pointer;text-align:center;display:block;box-sizing:border-box}
+.rb-photo-remove{padding:10px 14px;background:rgba(255,80,80,.08);border:0.5px solid rgba(255,80,80,.3);border-radius:10px;font-size:13px;color:#ff5c5c;font-family:var(--font-b);cursor:pointer;flex-shrink:0}
+.rb-recipe-photo{width:100%;border-radius:12px;object-fit:cover;max-height:320px;display:block;margin-top:8px}
 `;
 
 /* ── Utils ───────────────────────────────────────── */
@@ -105,6 +112,29 @@ const ICON_BACK = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><
 const ICON_CHEVRON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_EDIT = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13h2.5l6-6L9 4.5l-6 6V13z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M10.5 3l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 const ICON_TRASH = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3h4v1M5 4l1 9h4l1-9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+/* ── Photo compression ───────────────────────────── */
+function compressToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.70));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
+    img.src = url;
+  });
+}
 
 /* ── HTML builders ───────────────────────────────── */
 function buildGroupsScreen() {
@@ -197,7 +227,10 @@ function buildRecipeScreen() {
   if (steps) {
     html += `<div class="rb-section-title">Приготування</div><div class="rb-steps-text">${esc(steps)}</div>`;
   }
-  if (!ingr.length && !steps && !method && !garnish) {
+  if (_selRecipe.photoUrl) {
+    html += `<img class="rb-recipe-photo" src="${_selRecipe.photoUrl}" alt="Фото рецепту">`;
+  }
+  if (!ingr.length && !steps && !method && !garnish && !_selRecipe.photoUrl) {
     html += `<div class="rb-empty" style="padding:32px 0">Опис рецепту ще не додано.</div>`;
   }
   return html + '</div>';
@@ -256,6 +289,17 @@ function buildEditRecipeScreen() {
     <div class="rb-field-wrap">
       <div class="rb-field-label">Кроки приготування <span style="color:var(--text2);font-size:10px;text-transform:none;letter-spacing:0">(необов'язково)</span></div>
       <textarea class="rb-textarea" placeholder="Опишіть кроки…" oninput="window.__rb.onSteps(this.value)">${esc(_editSteps)}</textarea>
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Фото <span style="color:var(--text2);font-size:10px;text-transform:none;letter-spacing:0">(необов'язково)</span></div>
+      ${_editPhotoUrl ? `
+        <img class="rb-photo-preview" src="${_editPhotoUrl}" alt="">
+        <div class="rb-photo-actions">
+          <label class="rb-photo-btn" for="rb-photo-inp">Замінити фото</label>
+          <button class="rb-photo-remove" onclick="window.__rb.removePhoto()">Видалити</button>
+        </div>
+      ` : `<label class="rb-photo-btn" for="rb-photo-inp">📷 Додати фото</label>`}
+      <input type="file" id="rb-photo-inp" accept="image/*" style="display:none" onchange="window.__rb.handlePhoto(this)">
     </div>
     <button class="rb-save-btn" onclick="window.__rb.saveRecipe()" ${_saving?'disabled':''}>
       ${_saving ? 'Збереження…' : 'Зберегти'}
@@ -351,7 +395,7 @@ window.__rb = {
   },
 
   addRecipe() {
-    _editRecipeId = null; _editName = ''; _editIngredients = []; _editSteps = ''; _editMethod = ''; _editGarnish = ''; _error = '';
+    _editRecipeId = null; _editName = ''; _editIngredients = []; _editSteps = ''; _editMethod = ''; _editGarnish = ''; _editPhotoUrl = ''; _error = '';
     _screen = 'edit-recipe'; fullRender();
     setTimeout(() => document.getElementById('rb-r-name')?.focus(), 100);
   },
@@ -361,9 +405,10 @@ window.__rb = {
     if (!r) return;
     _editRecipeId = r.id; _editName = r.name;
     _editIngredients = (r.ingredients || []).map(i => ({ ...i }));
-    _editSteps   = r.steps   || '';
-    _editMethod  = r.method  || '';
-    _editGarnish = r.garnish || '';
+    _editSteps    = r.steps    || '';
+    _editMethod   = r.method   || '';
+    _editGarnish  = r.garnish  || '';
+    _editPhotoUrl = r.photoUrl || '';
     _error = '';
     _screen = 'edit-recipe'; fullRender();
     setTimeout(() => document.getElementById('rb-r-name')?.focus(), 100);
@@ -398,6 +443,19 @@ window.__rb = {
       } catch { _error = 'Помилка видалення'; fullRender(); }
     }
   },
+
+  async handlePhoto(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      _editPhotoUrl = await compressToBase64(file);
+      fullRender();
+    } catch (e) {
+      console.error('[recipe photo]', e);
+    }
+  },
+
+  removePhoto() { _editPhotoUrl = ''; fullRender(); },
 
   onGroupName(v)  { _editGroupName = v; },
   onRecipeName(v) { _editName = v; },
@@ -448,7 +506,7 @@ window.__rb = {
     try {
       const isNew = !_editRecipeId;
       const url = isNew ? `${API}/api/recipe-book/recipes` : `${API}/api/recipe-book/recipes/${_editRecipeId}`;
-      const body = { groupId: gid, venueId: _venueId, name, ingredients: _editIngredients.filter(i => String(i.name).trim()), steps: _editSteps, method: _editMethod, garnish: _editGarnish };
+      const body = { groupId: gid, venueId: _venueId, name, ingredients: _editIngredients.filter(i => String(i.name).trim()), steps: _editSteps, method: _editMethod, garnish: _editGarnish, photoUrl: _editPhotoUrl };
       const res  = await fetch(url, { method: isNew ? 'POST' : 'PUT', headers: authHeaders(), body: JSON.stringify(body) });
       const data = await res.json();
       if (data.success) {
@@ -470,9 +528,10 @@ export function render() {
   _groups  = [];
   _loading = true;
   _error   = '';
-  _selGroup  = null;
-  _selRecipe = null;
-  _delConfirm = null;
+  _selGroup    = null;
+  _selRecipe   = null;
+  _delConfirm  = null;
+  _editPhotoUrl = '';
 
   if (!document.getElementById('rb-css')) {
     const s = document.createElement('style');
