@@ -119,6 +119,7 @@ let _rosters       = {};
 let _stations      = {};     // { roleKey: [{ id, label }] }
 let _venueId       = '';
 let _networkRoster = { people: [], grid: [] };  // мережевий графік барменів (для не-менеджерів)
+let _myDayoff      = [];  // власні запити на вихідні (для працівника — історія)
 
 /* ════════════════════════════════════════
    LOAD ROSTERS + STATIONS
@@ -251,6 +252,21 @@ async function patchDayOff(id, status) {
       body: JSON.stringify({ status }),
     });
   } catch (e) { console.error('[dayoff] patch:', e); }
+}
+
+const STATUS_LABEL = { pending: 'Очікує', approved: 'Підтверджено', rejected: 'Відхилено' };
+const STATUS_COLOR = { pending: '#FBBF24', approved: '#86EFAC', rejected: '#FB7185' };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function fmtSubmitted(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : 'Надіслано ' + d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+}
+async function loadMyDayoff() {
+  const token = localStorage.getItem('barops_token');
+  try {
+    const res = await fetch(`${API}/api/dayoff`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.ok) { const d = await res.json(); _myDayoff = Array.isArray(d.requests) ? d.requests : []; }
+  } catch (e) { console.warn('[dayoff] mine:', e); }
 }
 
 /* ════════════════════════════════════════
@@ -480,6 +496,11 @@ const CSS = `<style id="sch-css">
 .sch-dept-head{display:flex;align-items:center;gap:8px;padding:13px 14px 9px}
 .sch-dept-chev{width:26px;height:26px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .sch-dept-block .sch-grid-wrap{margin:0 12px 12px}
+.sch-hist{display:flex;align-items:center;gap:10px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px}
+.sch-hist-dates{font-size:13px;font-weight:600;color:#fff}
+.sch-hist-note{font-size:11px;color:#71717A;margin-top:2px}
+.sch-hist-when{font-size:10px;color:#52525B;margin-top:3px}
+.sch-hist-badge{font-size:10px;font-weight:600;border-radius:7px;padding:3px 9px;white-space:nowrap;flex-shrink:0}
 .sch-empty-state{text-align:center;padding:40px 20px;color:#52525B;font-size:13px;line-height:1.6}
 .sch-cov{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 18px 16px}
 .sch-cov-cell{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center}
@@ -577,6 +598,24 @@ function renderHub() {
       </div>`;
   }).join('');
 
+  // Зведені запити на вихідні (усі підрозділи) — щоб менеджер бачив одразу на хабі
+  const allReqs = [];
+  Object.values(_rosters).forEach(r => (r.requests || []).forEach(req => allReqs.push(req)));
+  allReqs.sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1));
+  const pendingCount = allReqs.filter(r => r.status === 'pending').length;
+  const reqSection = allReqs.length ? `
+    <div class="sch-sec"><div class="sch-sec-lbl">Запити на вихідні</div><div class="sch-sec-val">${pendingCount ? pendingCount + ' нових' : 'всі опрацьовані'}</div></div>
+    <div class="sch-req-list">
+      ${allReqs.map(req => `
+      <div class="sch-req ${req.status}">
+        <div style="flex:1;min-width:0"><div class="sch-req-who">${esc(req.who)}</div><div class="sch-req-day">${req.day}${req.note ? ` · ${esc(req.note)}` : ''}</div></div>
+        ${req.status === 'pending'
+          ? `<button class="sch-rbtn ap" onclick="window.__sch.hubApproveReq('${req.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+             <button class="sch-rbtn rj" onclick="window.__sch.hubRejectReq('${req.id}')" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
+          : `<span style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'};white-space:nowrap">${STATUS_LABEL[req.status] || req.status}</span>`}
+      </div>`).join('')}
+    </div>` : '';
+
   const bar = !canEdit()
     ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`
     : _mode === 'edit'
@@ -622,6 +661,7 @@ function renderHub() {
         <button class="sch-seg-btn${_mode==='edit'?' on':''}" onclick="window.__sch.setMode('edit')">Редагувати</button>
       </div>
       ${deptSections}
+      ${reqSection}
       ` : `
       <div class="sch-dept-block">
         <div class="sch-dept-head">
@@ -883,6 +923,22 @@ function renderBooking() {
         <div class="sch-bquota">Обрані дні будуть надіслані на підтвердження.</div>
       </div>
       <div class="sch-cmnt"><div class="sch-cmnt-lbl">Коментар</div><textarea class="sch-cmnt-inp" placeholder="Причина запиту..." rows="3"></textarea></div>
+      ${_myDayoff.length ? `
+      <div class="sch-sec"><div class="sch-sec-lbl">Мої запити</div><div class="sch-sec-val">${_myDayoff.length}</div></div>
+      <div style="padding:0 18px 16px;display:flex;flex-direction:column;gap:6px">
+        ${_myDayoff.map(r => {
+          const lbl = STATUS_LABEL[r.status] || r.status;
+          const clr = STATUS_COLOR[r.status] || '#71717A';
+          return `<div class="sch-hist">
+            <div style="flex:1;min-width:0">
+              <div class="sch-hist-dates">${formatReqDates(r.dates)}</div>
+              ${r.note ? `<div class="sch-hist-note">${esc(r.note)}</div>` : ''}
+              <div class="sch-hist-when">${fmtSubmitted(r.createdAt)}</div>
+            </div>
+            <span class="sch-hist-badge" style="color:${clr};border:0.5px solid ${clr}66;background:${clr}1f">${lbl}</span>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
     </div>
     <div class="sch-bar">
       <button class="sch-cta" ${selArr.length===0?'disabled':''} onclick="window.__sch.submitBooking()">Надіслати запит · ${selArr.length} ${selArr.length===1?'день':selArr.length<5?'дні':'днів'}</button>
@@ -1030,7 +1086,7 @@ export function init() {
   window.__sch = {
     goHub()     { _view = 'hub';     re(); },
     goRole(key) { _role = key; _view = 'role'; re(); },
-    goBooking() { _view = 'booking'; _bookOffset = 0; _selDays = new Set(); re(); },
+    async goBooking() { _view = 'booking'; _bookOffset = 0; _selDays = new Set(); re(); await loadMyDayoff(); re(); },
     prevMonth() { _bookOffset--; re(); },
     nextMonth() { _bookOffset++; re(); },
 
@@ -1264,6 +1320,8 @@ export function init() {
       _rosters[roleKey].requests.splice(+ri, 1);
       re();
     },
+    async hubApproveReq(id) { await patchDayOff(id, 'approved'); await reloadData(); re(); },
+    async hubRejectReq(id)  { await patchDayOff(id, 'rejected'); await reloadData(); re(); },
 
     toggleDay(d) {
       if (_selDays.has(d)) _selDays.delete(d); else _selDays.add(d);
@@ -1286,7 +1344,8 @@ export function init() {
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Помилка');
         _selDays = new Set();
-        this.goHub();
+        await loadMyDayoff();   // лишаємось на екрані — показуємо оновлену історію
+        re();
       } catch (e) {
         console.error('[dayoff] submit:', e);
         if (btn) { btn.disabled = false; btn.textContent = 'Спробувати ще раз'; }
