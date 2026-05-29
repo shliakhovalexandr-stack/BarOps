@@ -43,6 +43,8 @@ const CSS = `<style id="jrn-css">
   letter-spacing:.05em;text-transform:uppercase;line-height:1.3}
 /* checklist */
 .jrn-cl-card{margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
+.jrn-cl-card.done{border:1px solid #86EFAC;background:rgba(134,239,172,.07)}
+.jrn-done-badge{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;color:#0A0A0A;background:#86EFAC;border-radius:6px;padding:2px 8px}
 .jrn-cl-head{padding:14px 16px 10px;border-bottom:0.5px solid var(--border)}
 .jrn-cl-name{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0)}
 .jrn-cl-meta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
@@ -181,14 +183,15 @@ function buildWorkerChecklist() {
 
 function buildManagerTasks() {
   const listHTML = _tasks.length ? _tasks.map(t => `
-    <div class="jrn-cl-card">
+    <div class="jrn-cl-card${t.done ? ' done' : ''}">
       <div class="jrn-task-row">
         <div style="flex:1;min-width:0">
           <div class="jrn-cl-name">${esc(t.text)}</div>
           <div class="jrn-cl-meta">
             <span style="color:${PRIORITY_COLOR[t.priority] || 'var(--text2)'};font-weight:600">${PRIORITY_LABEL[t.priority] || ''}</span>
-            · ${esc(t.userName || '—')} · ${fmtDateShort(t.date)}${t.done ? ` · ✓ виконано${t.doneBy ? ` (${esc(t.doneBy)})` : ''}` : ''}
+            · ${esc(t.userName || '—')} · ${fmtDateShort(t.date)}
           </div>
+          ${t.done ? `<div class="jrn-done-badge">✓ Виконано${t.doneBy ? ` · ${esc(t.doneBy)}` : ''}</div>` : ''}
         </div>
         <button class="jrn-task-del" onclick="window.__jrn.deleteTask('${t.id}')">×</button>
       </div>
