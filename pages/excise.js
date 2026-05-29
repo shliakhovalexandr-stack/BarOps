@@ -379,6 +379,8 @@ const CSS = `<style id="exc-css">
 .exc-result-icon{font-size:36px;margin-bottom:8px}
 .exc-result-code{font-family:var(--font-h);font-size:28px;font-weight:700;color:var(--green);letter-spacing:.04em;margin-bottom:4px}
 .exc-result-label{font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em}
+.exc-result-photo{width:100%;margin-top:14px;border-radius:12px;display:block;max-height:300px;object-fit:contain;background:#000}
+.exc-result-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:8px}
 .exc-result-fail-title{font-family:var(--font-h);font-size:15px;font-weight:600;color:var(--red);margin-bottom:6px}
 .exc-result-fail-msg{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
 
@@ -515,6 +517,7 @@ function buildScanTab() {
         <div class="exc-result-icon">✅</div>
         <div class="exc-result-code">${_result.code}</div>
         <div class="exc-result-label">Серія та номер збережено</div>
+        ${_photoUrl ? `<img class="exc-result-photo" src="${_photoUrl}" alt="Фото марки"><div class="exc-result-hint">Звірте код із фото</div>` : ''}
       </div>
       <button class="exc-cta" onclick="window.__exc.resetScan()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
