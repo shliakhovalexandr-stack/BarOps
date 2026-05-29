@@ -344,7 +344,7 @@ function renderDeptTable(roleKey) {
         const cells = r.grid[pi].map((cell, di) => {
           if (!cell) {
             const onclick = _mode === 'edit' ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"` : '';
-            return `<td><div class="sch-cell-off" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
+            return `<td><div class="sch-cell-off${_mode === 'edit' ? ' editable' : ''}" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
           }
           let bg = r.bgIcon, bd = r.bdIcon, tx = r.color;
           let label = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
@@ -468,8 +468,10 @@ const CSS = `<style id="sch-css">
 .sch-gtext{font-size:11px;font-weight:500;color:#A1A1AA;white-space:nowrap;overflow:hidden;max-width:72px;text-overflow:ellipsis}
 .sch-cell-btn{display:flex;align-items:center;justify-content:center;min-width:60px;height:32px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:transform .1s;user-select:none;padding:0 8px;white-space:nowrap;letter-spacing:-.01em}
 .sch-cell-btn:active{transform:scale(.9)}
-.sch-cell-off{min-width:60px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.25}
-.sch-cell-off:hover{opacity:.5;background:#141416}
+.sch-cell-off{min-width:60px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:.3;border:0.5px dashed transparent;transition:all .12s}
+.sch-cell-off.editable{cursor:pointer}
+.sch-cell-off.editable:hover{opacity:1;background:rgba(168,139,255,.14);border-color:rgba(168,139,255,.5)}
+.sch-cell-off.editable:active{opacity:1;background:rgba(168,139,255,.22);border-color:rgba(168,139,255,.6)}
 .sch-net-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:60px;height:38px;border-radius:8px;background:rgba(168,139,255,.12);border:0.5px solid rgba(168,139,255,.28);padding:0 6px;line-height:1.2;gap:1px}
 .sch-net-venue{font-size:10px;font-weight:700;color:#A88BFF;letter-spacing:.02em}
 .sch-net-time{font-size:9px;font-weight:600;color:#C4B5FD;font-variant-numeric:tabular-nums}
