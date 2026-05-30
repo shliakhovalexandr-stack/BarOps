@@ -28,6 +28,7 @@ let _editPhotoUrl = '';
 
 let _saving     = false;
 let _delConfirm = null;
+let _drag       = null;   // стан перетягування груп
 
 /* ── CSS ─────────────────────────────────────────── */
 const CSS = `
@@ -87,6 +88,10 @@ const CSS = `
 .rb-photo-btn{flex:1;padding:10px;background:var(--bg2);border:0.5px dashed var(--border);border-radius:10px;font-size:13px;color:var(--text1);font-family:var(--font-b);cursor:pointer;text-align:center;display:block;box-sizing:border-box}
 .rb-photo-remove{padding:10px 14px;background:rgba(255,80,80,.08);border:0.5px solid rgba(255,80,80,.3);border-radius:10px;font-size:13px;color:#ff5c5c;font-family:var(--font-b);cursor:pointer;flex-shrink:0}
 .rb-recipe-photo{width:100%;border-radius:12px;object-fit:cover;max-height:320px;display:block;margin-top:8px}
+.rb-drag-handle{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:30px;height:30px;margin:-4px 2px -4px -4px;color:var(--text2);cursor:grab;touch-action:none}
+.rb-drag-handle:active{cursor:grabbing}
+.rb-card.rb-dragging{opacity:.96;box-shadow:0 12px 32px rgba(0,0,0,.55);z-index:1000}
+.rb-placeholder{border:1px dashed var(--green);border-radius:14px;margin-bottom:10px;background:rgba(127,90,240,.05);box-sizing:border-box}
 `;
 
 /* ── Utils ───────────────────────────────────────── */
@@ -112,6 +117,7 @@ const ICON_BACK = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><
 const ICON_CHEVRON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_EDIT = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13h2.5l6-6L9 4.5l-6 6V13z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M10.5 3l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 const ICON_TRASH = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3h4v1M5 4l1 9h4l1-9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_DRAG = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="6" cy="4" r="1.2" fill="currentColor"/><circle cx="12" cy="4" r="1.2" fill="currentColor"/><circle cx="6" cy="9" r="1.2" fill="currentColor"/><circle cx="12" cy="9" r="1.2" fill="currentColor"/><circle cx="6" cy="14" r="1.2" fill="currentColor"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/></svg>`;
 
 /* ── Photo compression ───────────────────────────── */
 function compressToBase64(file) {
@@ -149,7 +155,8 @@ function buildGroupsScreen() {
   } else {
     _groups.forEach(g => {
       const count = g.recipes?.length || 0;
-      html += `<div class="rb-card" onclick="window.__rb.openGroup('${g.id}')">
+      html += `<div class="rb-card" data-gid="${g.id}" onclick="window.__rb.openGroup('${g.id}')">
+        ${isEditable() ? `<div class="rb-drag-handle" onpointerdown="window.__rb.dragStart(event,'${g.id}')" onclick="event.stopPropagation()">${ICON_DRAG}</div>` : ''}
         <div style="flex:1;min-width:0">
           <div class="rb-card-title">${esc(g.name)}</div>
           <div class="rb-card-sub">${plural(count,'рецепт','рецепти','рецептів')}</div>
@@ -367,6 +374,87 @@ window.__rb = {
     _selGroup = _groups.find(g => g.id === id) || null;
     if (!_selGroup) return;
     _screen = 'recipes'; fullRender();
+  },
+
+  /* ── Перетягування груп ── */
+  dragStart(e, id) {
+    if (!isEditable() || _drag) return;
+    e.preventDefault(); e.stopPropagation();
+    const list = document.querySelector('.rb-list');
+    const el   = list?.querySelector(`.rb-card[data-gid="${id}"]`);
+    if (!list || !el) return;
+
+    const rect = el.getBoundingClientRect();
+    const ph   = document.createElement('div');
+    ph.className = 'rb-placeholder';
+    ph.style.height = rect.height + 'px';
+
+    _drag = { id, el, ph, list, grabDY: e.clientY - rect.top };
+    el.parentNode.insertBefore(ph, el);
+    el.classList.add('rb-dragging');
+    el.style.position = 'fixed';
+    el.style.width = rect.width + 'px';
+    el.style.left  = rect.left + 'px';
+    el.style.top   = rect.top + 'px';
+    el.style.margin = '0';
+    el.style.pointerEvents = 'none';
+
+    _drag.move = (ev) => this.dragMove(ev);
+    _drag.up   = ()   => this.dragEnd();
+    window.addEventListener('pointermove', _drag.move, { passive: false });
+    window.addEventListener('pointerup', _drag.up);
+    window.addEventListener('pointercancel', _drag.up);
+  },
+
+  dragMove(e) {
+    if (!_drag) return;
+    e.preventDefault();
+    const y = e.clientY;
+    _drag.el.style.top = (y - _drag.grabDY) + 'px';
+
+    const cards = [..._drag.list.querySelectorAll('.rb-card[data-gid]')].filter(c => c !== _drag.el);
+    let placed = false;
+    for (const c of cards) {
+      const r = c.getBoundingClientRect();
+      if (y < r.top + r.height / 2) {
+        if (_drag.ph.nextSibling !== c) _drag.list.insertBefore(_drag.ph, c);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) _drag.list.appendChild(_drag.ph);
+  },
+
+  dragEnd() {
+    if (!_drag) return;
+    const { el, ph, list, move, up } = _drag;
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+
+    el.classList.remove('rb-dragging');
+    el.style.position = el.style.width = el.style.left = el.style.top = el.style.margin = el.style.pointerEvents = '';
+    list.insertBefore(el, ph);
+    ph.remove();
+
+    const order = [...list.querySelectorAll('.rb-card[data-gid]')].map(c => c.dataset.gid);
+    _drag = null;
+
+    const byId = {}; _groups.forEach(g => { byId[g.id] = g; });
+    const reordered = order.map(id => byId[id]).filter(Boolean);
+    if (reordered.length === _groups.length) _groups = reordered;
+
+    this.persistGroupOrder();
+  },
+
+  async persistGroupOrder() {
+    await Promise.all(_groups.map((g, i) => {
+      if (g.sortOrder === i) return null;
+      g.sortOrder = i;
+      return fetch(`${API}/api/recipe-book/groups/${g.id}`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ sortOrder: i }),
+      }).catch(() => {});
+    }));
   },
 
   openRecipe(id) {
