@@ -150,8 +150,6 @@ function viewPin() {
         </div>` : ''}
         <div class="apin-links">
           <span class="apin-link" onclick="window.__auth.goTo('admin-login')">ADMIN</span>
-          <span class="apin-link-sep">·</span>
-          <span class="apin-link" onclick="window.__auth.goTo('reg-1')">Зареєструватись</span>
         </div>
       </div>
     </div>
@@ -190,10 +188,6 @@ function viewSetup() {
           style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
           ADMIN →
         </span>
-        <span onclick="window.__auth.goTo('reg-1')"
-          style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
-          Зареєструватись →
-        </span>
       </div>
       <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--text3);font-family:var(--font-b)">v3.2</div>
     </div>
@@ -231,10 +225,6 @@ function viewAdminLogin() {
         ${_mgrLoading ? 'disabled' : ''}>
         ${_mgrLoading ? '<span class="auth-spinner"></span>' : 'Увійти'}
       </button>
-      <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text2);font-family:var(--font-b)">
-        Немає акаунту?
-        <span onclick="window.__auth.goTo('reg-1')" style="color:var(--green);cursor:pointer;font-weight:600"> Зареєструватись</span>
-      </div>
       <div style="height:12px"></div>
     </div>
   </div>`;
