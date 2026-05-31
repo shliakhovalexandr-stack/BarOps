@@ -478,7 +478,7 @@ async function doLogin() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка входу');
     saveSession(data);
-    navigate(data.user.role === 'accountant' ? 'debts' : 'dashboard');
+    navigate('dashboard');
   } catch (err) {
     showError(err.message || 'Невірний PIN');
   }
@@ -537,7 +537,7 @@ async function doManagerLogin() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка входу');
     saveSession(data);
-    navigate(data.user.role === 'accountant' ? 'debts' : 'dashboard');
+    navigate('dashboard');
   } catch (err) {
     _mgrLoading = false; _mgrError = err.message; rerender();
   }
@@ -656,7 +656,7 @@ async function resendOtp() {
 }
 
 function enterApp() {
-  navigate(state.role === 'accountant' ? 'debts' : 'dashboard');
+  navigate('dashboard');
 }
 
 /* ════════════════════════════════════════
@@ -753,7 +753,7 @@ export default {
                 state.venueId = data.user.venueId   || '';
               }
             }
-            navigate(state.role === 'accountant' ? 'debts' : 'dashboard');
+            navigate('dashboard');
           } else {
             const refreshToken = localStorage.getItem('barops_refresh');
             if (refreshToken) {
@@ -767,7 +767,7 @@ export default {
                 if (rr.ok && rd.token) {
                   localStorage.setItem('barops_token', rd.token);
                   if (rd.role) { state.role = rd.role; localStorage.setItem('barops_role', rd.role); }
-                  navigate(state.role === 'accountant' ? 'debts' : 'dashboard');
+                  navigate('dashboard');
                   return;
                 }
               } catch {}
@@ -778,7 +778,7 @@ export default {
           }
         })
         .catch(() => {
-          if (state.venue && state.role) navigate(state.role === 'accountant' ? 'debts' : 'dashboard');
+          if (state.venue && state.role) navigate('dashboard');
         });
     }
   },
