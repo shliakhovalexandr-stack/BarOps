@@ -345,12 +345,23 @@ export default {
         _taskDraft.department = k;
         _taskDraft.userId = '';        // інший підрозділ — скидаємо виконавця
         _taskDraft.userName = '';
-        rerender();
+        // Точкове оновлення модалки — без перемальовування всієї сторінки
+        const deptKeys = Object.keys(DEPT_LABEL);
+        document.querySelectorAll('.jrn-dept-chip').forEach((b, i) => {
+          b.className = 'jrn-dept-chip' + (deptKeys[i] === k ? ' sel' : '');
+        });
+        const sel = document.getElementById('jrn-task-assignee');
+        if (sel) sel.innerHTML = `<option value="">— Оберіть людину —</option>`
+          + teamForDept(k).map(m => `<option value="${m.id}">${esc(m.name)} (${esc(m.role)})</option>`).join('');
       },
       setPriority(p) {
         captureDraft();
         _taskDraft.priority = p;
-        rerender();
+        // Точкове оновлення кнопок важливості — без перемальовування
+        const prioKeys = Object.keys(PRIORITY_LABEL);
+        document.querySelectorAll('.jrn-prio-chip').forEach((b, i) => {
+          b.className = 'jrn-prio-chip' + (prioKeys[i] === p ? ' sel ' + p : '');
+        });
       },
       setAssignee(userId) {
         _taskDraft.userId = userId || '';
