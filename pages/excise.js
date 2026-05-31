@@ -66,7 +66,7 @@ function todayKyiv() {
 }
 
 function isMgr() {
-  return ['admin', 'manager'].includes(_role);
+  return ['admin', 'manager', 'director'].includes(_role);
 }
 
 // ── data ──────────────────────────────────────────────────────

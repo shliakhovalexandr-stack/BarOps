@@ -109,7 +109,7 @@ function authHeaders() {
 }
 function isEditable() {
   const r = (_role || '').toUpperCase();
-  return r === 'ADMIN' || r === 'MANAGER';
+  return r === 'ADMIN' || r === 'MANAGER' || r === 'DIRECTOR';
 }
 
 /* ── SVG icons ───────────────────────────────────── */

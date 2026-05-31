@@ -743,7 +743,7 @@ function renderManager() {
    BUILD + RENDER
 ════════════════════════ */
 function buildHTML() {
-  const body = (state.role === 'admin' || state.role === 'manager') ? renderManager() : renderBartender();
+  const body = (state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? renderManager() : renderBartender();
   return `${CSS}<div class="ord-wrap">${body}</div>`;
 }
 function fullRender() {
@@ -1113,6 +1113,6 @@ export default {
     _token   = localStorage.getItem('barops_token');
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
     loadData();
-    if (state.role === 'admin' || state.role === 'manager') loadOrders();
+    if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') loadOrders();
   },
 };

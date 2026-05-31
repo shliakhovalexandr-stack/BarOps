@@ -575,7 +575,7 @@ function renderManager() {
    MAIN BUILD
 ════════════════════════ */
 function buildHTML() {
-  const body = (state.role === 'admin' || state.role === 'manager') ? renderManager() : renderBartender();
+  const body = (state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? renderManager() : renderBartender();
   return `${CSS}<div class="pa-wrap">${body}</div>`;
 }
 function fullRender() {
