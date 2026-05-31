@@ -352,7 +352,7 @@ export default {
         });
         const sel = document.getElementById('jrn-task-assignee');
         if (sel) sel.innerHTML = `<option value="">— Оберіть людину —</option>`
-          + teamForDept(k).map(m => `<option value="${m.id}">${esc(m.name)} (${esc(m.role)})</option>`).join('');
+          + teamForDept(k).map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
       },
       setPriority(p) {
         captureDraft();
