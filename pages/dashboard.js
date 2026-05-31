@@ -472,7 +472,8 @@ ${CSS}
     <div class="d-sec">Швидкі дії</div>
     <div class="d-quick">${quickGrid(quick)}</div>
 
-    <!-- KPI -->
+    <!-- KPI (приховано для бухгалтера) -->
+    ${!isAcc ? `
     <div class="d-sec" style="padding-top:16px">Зміна сьогодні</div>
     ${_loading ? `
     <div style="padding:0 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
@@ -488,7 +489,7 @@ ${CSS}
           <div class="d-kpi-delta" style="color:${col}">${k.delta}</div>
         </div>`;
       }).join('')}
-    </div>`}
+    </div>`}` : ''}
 
     <!-- Manager analytics -->
     ${isMgr && s ? `
