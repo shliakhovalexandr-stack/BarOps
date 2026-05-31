@@ -639,7 +639,7 @@ export async function navigate(route, opts = {}) {
 
   // Drawer — менеджер/адмін (повна навігація) + бухгалтер (лише перемикання закладів)
   const roleLc = (state.role || '').toLowerCase();
-  const hasDrawer = roleLc === 'admin' || roleLc === 'manager' || roleLc === 'accountant';
+  const hasDrawer = roleLc === 'admin' || roleLc === 'manager' || roleLc === 'director' || roleLc === 'accountant';
   const drawerWrap = document.getElementById('app-drawer-wrap');
   if (drawerWrap) {
     const wasOpen = _drawerOpen;
@@ -674,7 +674,7 @@ export function goBack() {
 function updateTabBarActive() {
   const el = document.getElementById('app-tab-bar');
   if (!el || !el.children.length) { renderTabBar(); return; }
-  const tabs = state.role === 'admin' || state.role === 'manager' ? TAB_BAR_MANAGER
+  const tabs = state.role === 'admin' || state.role === 'manager' || state.role === 'director' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT : TAB_BAR_BARTENDER;
   // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
   const domRoutes = [...el.children].map(c => c.dataset.route || '');
@@ -715,6 +715,7 @@ function renderTabBar() {
   if (!el) return;
   const tabs = state.role === 'admin'       ? TAB_BAR_MANAGER
              : state.role === 'manager'     ? TAB_BAR_MANAGER
+             : state.role === 'director'    ? TAB_BAR_MANAGER
              : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
              : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {

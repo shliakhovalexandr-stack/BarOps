@@ -146,7 +146,7 @@ const CSS = `<style id="ocr-css">
 ════════════════════════ */
 function ocrTgPanel() {
   const role = (localStorage.getItem('barops_role') || '').toLowerCase();
-  if (role !== 'admin' && role !== 'manager') return '';
+  if (role !== 'admin' && role !== 'manager' && role !== 'director') return '';
   return `
   <div class="ocr-tg-panel" id="ocr-tg-panel">
     <div class="ocr-tg-head" onclick="(function(){var b=document.getElementById('ocr-tg-bdy');b.style.display=b.style.display!=='flex'?'flex':'none'})()">
@@ -431,7 +431,7 @@ export default {
     _ocrTgSaved = false;
 
     const role = (localStorage.getItem('barops_role') || '').toLowerCase();
-    if (role === 'admin' || role === 'manager') {
+    if (role === 'admin' || role === 'manager' || role === 'director') {
       loadOcrTgSettings();
     }
 

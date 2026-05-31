@@ -1765,7 +1765,7 @@ async function deleteWriteoff(id) {
 ════════════════════════ */
 export default {
   async render() {
-    _view       = (state.role === 'admin' || state.role === 'manager') ? 'manager' : 'bartender';
+    _view       = (state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? 'manager' : 'bartender';
     _catFilter  = 'all';
     _formOpen   = false;
     _formStep   = 1;

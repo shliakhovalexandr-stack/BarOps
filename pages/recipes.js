@@ -644,7 +644,7 @@ function buildMain() {
       <div class="rec-title">Фудкост</div>
       <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
-    ${(_role === 'admin' || _role === 'manager') ? `
+    ${(_role === 'admin' || _role === 'manager' || _role === 'director') ? `
     <button data-act="toggle-settings" style="height:32px;padding:0 10px;background:${_showFCSettings ? 'var(--green-bg,#1a3320)' : 'var(--bg2)'};border:0.5px solid ${_showFCSettings ? 'var(--green)' : 'var(--border)'};border-radius:10px;color:${_showFCSettings ? 'var(--green)' : 'var(--text2)'};font-size:11px;font-family:var(--font-b);cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:4px">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M6 1v1.5M6 9.5V11M11 6H9.5M2.5 6H1M9.2 2.8l-1 1M3.8 7.2l-1 1M9.2 9.2l-1-1M3.8 4.8l-1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
       макс ${_fcMax}%
@@ -785,7 +785,7 @@ function buildMain() {
 }
 
 function buildDetail(d) {
-  const isMgr = _role === 'admin' || _role === 'manager';
+  const isMgr = _role === 'admin' || _role === 'manager' || _role === 'director';
   const cost  = calcCost(d);
   const fc    = calcFC(d);
   const price = _prices[d.id]?.salePrice || d.sellingPrice || 0;

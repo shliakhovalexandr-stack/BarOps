@@ -22,7 +22,7 @@ function resolveRole() {
 // Редагувати графік можуть лише менеджер/адмін; решта — перегляд + бронювання вихідних.
 function canEdit() {
   const r = resolveRole();
-  return r === 'manager' || r === 'admin';
+  return r === 'manager' || r === 'admin' || r === 'director';
 }
 
 /* ════════════════════════════════════════
@@ -32,7 +32,7 @@ const ROLE_CONFIG = {
   cooks:      { label: 'Кухарі',    icon: 'fork',  color: '#FBBF24', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']                    },
   bartenders: { label: 'Бармени',   icon: 'glass', color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']             },
   waiters:    { label: 'Офіціанти', icon: 'tray',  color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']                         },
-  managers:   { label: 'Менеджери', icon: 'star',  color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['manager','admin']                },
+  managers:   { label: 'Менеджери', icon: 'star',  color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['manager','admin','director']     },
   cleaners:   { label: 'Хозяюшки', icon: 'broom', color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess','cleaner','housekeeper'] },
 };
 

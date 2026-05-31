@@ -126,7 +126,7 @@ function fmtDateShort(iso) {
 }
 function canManage() {
   const r = (_role || '').toLowerCase();
-  return r === 'admin' || r === 'manager';
+  return r === 'admin' || r === 'manager' || r === 'director';
 }
 function myDepartment(role) {
   const r = (role || '').toLowerCase();
