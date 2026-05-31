@@ -149,7 +149,7 @@ function viewPin() {
           <span class="apin-change" onclick="window.__auth.changeAccount()">Змінити акаунт</span>
         </div>` : ''}
         <div class="apin-links">
-          <span class="apin-link" onclick="window.__auth.goTo('admin-login')">ADMIN</span>
+          <span class="apin-link" onclick="window.__auth.goTo('admin-login')">System Manager</span>
         </div>
       </div>
     </div>
@@ -186,7 +186,7 @@ function viewSetup() {
       <div style="display:flex;justify-content:center;gap:24px;margin-top:16px">
         <span onclick="window.__auth.goTo('admin-login')"
           style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
-          ADMIN →
+          System Manager →
         </span>
       </div>
       <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--text3);font-family:var(--font-b)">v3.2</div>
