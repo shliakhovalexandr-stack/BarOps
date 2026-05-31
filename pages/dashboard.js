@@ -316,7 +316,11 @@ async function loadStats() {
 ════════════════════════ */
 function buildHTML() {
   const isMgr = state.role === 'admin' || state.role === 'manager';
-  const quick = state.role === 'admin' ? QUICK_ADMIN : isMgr ? QUICK_MANAGER : QUICK_BARTENDER;
+  const isAcc = (state.role || '').toLowerCase() === 'accountant';
+  const quick = state.role === 'admin' ? QUICK_ADMIN
+              : isMgr ? QUICK_MANAGER
+              : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule'].includes(q.route))
+              : QUICK_BARTENDER;
   const s     = _stats;
 
   // KPI з реальних даних
@@ -434,7 +438,7 @@ ${CSS}
         </div>
       </div>
       <div class="d-shift-row">
-        ${!isMgr ? (s?.shift ? `
+        ${(!isMgr && !isAcc) ? (s?.shift ? `
         <div class="d-pill">
           <div class="d-pill-dot"></div>
           <span>Зміна активна · ${s.shift.user}</span>
