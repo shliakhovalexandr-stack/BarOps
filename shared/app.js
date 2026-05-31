@@ -112,6 +112,14 @@ const TAB_BAR_BARTENDER = [
 
 const TAB_BAR_ACCOUNTANT = [
   {
+    route: 'dashboard', label: 'Головна',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M3 10.5L11 3l8 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 9.5V18a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+      <path d="M9 19v-5h4v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
     route: 'debts', label: 'Борги',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <path d="M4 6h14M4 10h10M4 14h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
