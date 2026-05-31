@@ -390,10 +390,10 @@ export default {
     ${CSS}
     <div class="dbt-wrap">
       <div class="dbt-header">
-        <button class="dbt-back" onclick="window.__barops.navigate('dashboard')">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+        <button class="dbt-back" onclick="${isAccountant() ? 'window.__barops.openDrawer()' : "window.__barops.navigate('dashboard')"}" aria-label="${isAccountant() ? 'Меню' : 'Назад'}">
+          ${isAccountant()
+            ? `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M3 9h12M3 13h12" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+            : `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
         </button>
         <div>
           <div class="dbt-title">Борги</div>

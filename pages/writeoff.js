@@ -411,8 +411,10 @@ function woList() {
 function renderBartender() {
   return `
   <div class="wo-topbar" style="flex-shrink:0">
-    <div class="wo-back" onclick="window.__barops.navigate('dashboard')">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="wo-back" onclick="${(state.role || '').toLowerCase() === 'accountant' ? 'window.__barops.openDrawer()' : "window.__barops.navigate('dashboard')"}">
+      ${(state.role || '').toLowerCase() === 'accountant'
+        ? `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M3 9h12M3 13h12" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+        : `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
     </div>
     <div style="flex:1">
       <div class="wo-title">Списання</div>
@@ -914,8 +916,10 @@ function renderManager() {
 
   return `
   <div class="wo-topbar" style="flex-shrink:0">
-    <div class="wo-back" onclick="window.__barops.navigate('dashboard')">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="wo-back" onclick="${(state.role || '').toLowerCase() === 'accountant' ? 'window.__barops.openDrawer()' : "window.__barops.navigate('dashboard')"}">
+      ${(state.role || '').toLowerCase() === 'accountant'
+        ? `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M3 9h12M3 13h12" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+        : `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
     </div>
     <div style="flex:1">
       <div class="wo-title">Списання</div>

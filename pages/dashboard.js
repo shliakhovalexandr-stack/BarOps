@@ -398,7 +398,7 @@ ${CSS}
       <div style="font-family:'Geist',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--text2);letter-spacing:-.02em;margin-bottom:10px">bar<span style="color:#A88BFF">ops.</span></div>
       <div class="d-venue-row">
         <div style="display:flex;align-items:center;gap:10px">
-          ${isMgr ? `
+          ${(isMgr || (state.role || '').toLowerCase() === 'accountant') ? `
           <div onclick="window.__barops.openDrawer()"
             style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);
                    

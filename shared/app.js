@@ -647,7 +647,9 @@ export async function navigate(route, opts = {}) {
   // Плаваюча кнопка-бургер для бухгалтера — показуємо лише для accountant (поза auth)
   const acctBurger = document.getElementById('acct-burger');
   if (acctBurger) {
-    acctBurger.style.display = (roleLc === 'accountant' && !noTabBar.includes(route)) ? 'flex' : 'none';
+    // На дашборді/аналітиці бургер уже вбудований у шапку — плаваючий ховаємо
+    const pageHasInlineBurger = route === 'dashboard' || route === 'analytics';
+    acctBurger.style.display = (roleLc === 'accountant' && !noTabBar.includes(route) && !pageHasInlineBurger) ? 'flex' : 'none';
   }
 }
 
@@ -860,15 +862,7 @@ export async function bootstrap() {
     },
   };
 
-  // Плаваюча кнопка-бургер для бухгалтера — відкриває drawer з перемиканням закладів
-  if (!document.getElementById('acct-burger')) {
-    const b = document.createElement('div');
-    b.id = 'acct-burger';
-    b.onclick = () => window.__barops.openDrawer();
-    b.style.cssText = 'position:fixed;top:14px;right:14px;z-index:150;width:40px;height:40px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:none;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
-    b.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round"/></svg>';
-    document.body.appendChild(b);
-  }
+  // Бургер вбудовано в шапку кожної сторінки бухгалтера (інлайн, як у менеджера)
 
   updateClock();
   setInterval(updateClock, 1000);
