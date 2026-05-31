@@ -649,7 +649,7 @@ function buildMain() {
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M6 1v1.5M6 9.5V11M11 6H9.5M2.5 6H1M9.2 2.8l-1 1M3.8 7.2l-1 1M9.2 9.2l-1-1M3.8 4.8l-1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
       макс ${_fcMax}%
     </button>` : ''}
-    ${_role === 'manager' ? `
+    ${(_role === 'manager' || _role === 'director') ? `
     <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#000'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
       ${_syncing ? '⏳...' : '↻ Ціни'}
     </button>` : ''}

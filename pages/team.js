@@ -184,7 +184,7 @@ function roleLabel(role) {
 function roleClass(role) {
   const r = (role||'').toLowerCase();
   if (r === 'admin')   return 'admin';
-  if (r === 'manager') return 'mgr';
+  if (r === 'manager' || r === 'director') return 'mgr';
   return '';
 }
 function initials(name) {
@@ -489,7 +489,7 @@ ${CSS}
         ? `<div class="tm-loading" style="flex-direction:column;gap:16px;padding:32px">
              <div style="font-size:40px">👥</div>
              <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);text-align:center">Команда порожня</div>
-             <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.6">${(state.role === 'admin' || state.role === 'manager') ? 'Додайте першого бармена натиснувши кнопку вище' : 'У цьому закладі ще немає учасників команди'}</div>
+             <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.6">${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? 'Додайте першого бармена натиснувши кнопку вище' : 'У цьому закладі ще немає учасників команди'}</div>
              ${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? `<div class="tm-add-btn" onclick="window.__tm.openAdd()" style="margin:0;width:100%">
                <div class="tm-add-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg></div>
                <div><div class="tm-add-text">Додати першого бармена</div><div class="tm-add-sub">Ім'я, посада та PIN для входу</div></div>
