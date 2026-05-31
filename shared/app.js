@@ -202,6 +202,7 @@ const DRAWER_NAV = [
 function renderDrawer() {
   const el = document.getElementById('app-drawer-wrap');
   if (!el) return;
+  if ((state.role || '').toLowerCase() === 'accountant') { renderAccountantDrawer(el); return; }
   const prevScroll = el.querySelector('[data-drawer-scroll]')?.scrollTop || 0;
   el.innerHTML = `
   <div id="app-drawer-overlay"
@@ -381,6 +382,59 @@ function renderDrawer() {
   // Відновлюємо позицію скролу після ре-рендеру
   const newScroll = el.querySelector('[data-drawer-scroll]');
   if (newScroll && prevScroll) newScroll.scrollTop = prevScroll;
+}
+
+// Drawer бухгалтера — лише перемикання між закладами (для налаштування інвентаризацій)
+function renderAccountantDrawer(el) {
+  el.innerHTML = `
+  <div id="app-drawer-overlay"
+    style="position:fixed;inset:0;z-index:200;
+           background:rgba(0,0,0,${_drawerOpen?'.72':'0'});
+           pointer-events:${_drawerOpen?'all':'none'};
+           transition:background .25s"
+    onclick="window.__barops.closeDrawer()"></div>
+  <div style="position:fixed;top:0;left:0;bottom:0;z-index:201;width:280px;
+              background:var(--bg1);border-right:0.5px solid var(--border);
+              transform:translateX(${_drawerOpen?'0':'-100%'});
+              transition:transform .3s cubic-bezier(.22,1,.36,1);
+              display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:52px 20px 16px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-family:var(--font-b);font-size:12px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase">Бухгалтер</div>
+        <div onclick="window.__barops.closeDrawer()"
+          style="width:28px;height:28px;border-radius:50%;background:var(--bg2);
+                 border:0.5px solid var(--border2);display:flex;align-items:center;
+                 justify-content:center;cursor:pointer">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <div style="font-family:var(--font-h);font-size:20px;font-weight:800;
+                  color:var(--text0);letter-spacing:-.02em">${state.venue || 'Заклад'}</div>
+    </div>
+    <div data-drawer-scroll style="flex:1;overflow-y:auto;padding:8px 0">
+      <div style="padding:8px 20px 6px;font-size:10px;color:var(--text2);
+                  letter-spacing:.10em;text-transform:uppercase;font-family:var(--font-b)">Заклади</div>
+      ${MANAGER_VENUES.map(v => `
+      <div onclick="window.__barops.switchVenue('${v.id}')"
+        style="display:flex;align-items:center;gap:10px;padding:12px 20px;cursor:pointer;
+               background:${v.active?'rgba(168,139,255,.08)':'transparent'};
+               transition:background .12s">
+        <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;
+                    background:${v.active?'var(--green)':'var(--bg4)'};
+                    border:1.5px solid ${v.active?'var(--green)':'var(--border3)'}"></div>
+        <div style="flex:1">
+          <div style="font-size:14px;color:${v.active?'var(--text0)':'var(--text2)'};
+                      font-family:var(--font-b);font-weight:${v.active?'500':'400'}">${v.name}</div>
+          <div style="font-size:10px;color:var(--text2);font-family:var(--font-b)">${v.pos}</div>
+        </div>
+        ${v.active?`<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2 7l3 3 7-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`:''}
+      </div>`).join('')}
+    </div>
+  </div>`;
 }
 
 export function openDrawer()  {
@@ -575,17 +629,25 @@ export async function navigate(route, opts = {}) {
     }
   }
 
-  // Drawer (менеджер) — тільки якщо відкритий, щоб не руйнувати DOM під активним дотиком
+  // Drawer — менеджер/адмін (повна навігація) + бухгалтер (лише перемикання закладів)
+  const roleLc = (state.role || '').toLowerCase();
+  const hasDrawer = roleLc === 'admin' || roleLc === 'manager' || roleLc === 'accountant';
   const drawerWrap = document.getElementById('app-drawer-wrap');
   if (drawerWrap) {
     const wasOpen = _drawerOpen;
     _drawerOpen = false;
-    if ((state.role === 'admin' || state.role === 'manager') && !noTabBar.includes(route)) {
+    if (hasDrawer && !noTabBar.includes(route)) {
       if (wasOpen) renderDrawer();
       else updateDrawerActive();
     } else {
       drawerWrap.innerHTML = '';
     }
+  }
+
+  // Плаваюча кнопка-бургер для бухгалтера — показуємо лише для accountant (поза auth)
+  const acctBurger = document.getElementById('acct-burger');
+  if (acctBurger) {
+    acctBurger.style.display = (roleLc === 'accountant' && !noTabBar.includes(route)) ? 'flex' : 'none';
   }
 }
 
@@ -797,6 +859,17 @@ export async function bootstrap() {
       navigate('auth', { replace: true });
     },
   };
+
+  // Плаваюча кнопка-бургер для бухгалтера — відкриває drawer з перемиканням закладів
+  if (!document.getElementById('acct-burger')) {
+    const b = document.createElement('div');
+    b.id = 'acct-burger';
+    b.onclick = () => window.__barops.openDrawer();
+    b.style.cssText = 'position:fixed;top:14px;right:14px;z-index:150;width:40px;height:40px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:none;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
+    b.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    document.body.appendChild(b);
+  }
+
   updateClock();
   setInterval(updateClock, 1000);
   const sb = document.getElementById('app-status-bar');

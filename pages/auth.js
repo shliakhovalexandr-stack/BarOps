@@ -676,7 +676,7 @@ function saveSession(data) {
   state.user = data.user.name;
 
   // Для адміна/менеджера зберігаємо їх вибраний заклад, не перезаписуємо JWT-значенням
-  const isMulti  = ['admin', 'ADMIN', 'manager', 'MANAGER'].includes(data.user.role);
+  const isMulti  = ['admin', 'ADMIN', 'manager', 'MANAGER', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
   const savedId  = localStorage.getItem('barops_venueId');
   if (isMulti && savedId) {
     state.venue   = localStorage.getItem('barops_venue') || data.user.venueName || '';
@@ -743,7 +743,7 @@ export default {
             if (data.user) {
               state.role = data.user.role;
               state.user = data.user.name;
-              const isMulti2 = ['admin', 'ADMIN', 'manager', 'MANAGER'].includes(data.user.role);
+              const isMulti2 = ['admin', 'ADMIN', 'manager', 'MANAGER', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
               const savedId2 = localStorage.getItem('barops_venueId');
               if (isMulti2 && savedId2) {
                 state.venue   = localStorage.getItem('barops_venue') || data.user.venueName || '';
