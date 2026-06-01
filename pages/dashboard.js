@@ -321,7 +321,7 @@ function buildHTML() {
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
   const quick = state.role === 'admin' ? QUICK_ADMIN
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
-              : isMgr ? QUICK_MANAGER.filter(q => !['excise', 'ordering'].includes(q.route))
+              : isMgr ? QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff'].includes(q.route))
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule'].includes(q.route))
               : QUICK_BARTENDER;
   const s     = _stats;
