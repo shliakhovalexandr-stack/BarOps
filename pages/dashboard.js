@@ -317,7 +317,10 @@ async function loadStats() {
 function buildHTML() {
   const isMgr = state.role === 'admin' || state.role === 'manager' || state.role === 'director';
   const isAcc = (state.role || '').toLowerCase() === 'accountant';
+  // Керуючий — менеджерські швидкі дії + «Графіки»
+  const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
   const quick = state.role === 'admin' ? QUICK_ADMIN
+              : state.role === 'director' ? [...QUICK_MANAGER, ...(scheduleAction ? [scheduleAction] : [])]
               : isMgr ? QUICK_MANAGER
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule'].includes(q.route))
               : QUICK_BARTENDER;
