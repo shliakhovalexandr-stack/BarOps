@@ -190,8 +190,8 @@ const TAB_BAR_MANAGER = [
   },
 ];
 
-// Керуючий — як менеджер, але «Рецепти» замінено на «Журнал»
-const TAB_BAR_DIRECTOR = TAB_BAR_MANAGER.map(tab =>
+// Менеджер і Керуючий — як адмінський таб-бар, але «Рецепти» замінено на «Журнал»
+const TAB_BAR_MGR_JOURNAL = TAB_BAR_MANAGER.map(tab =>
   tab.route === 'recipe-book'
     ? { route: 'journal', label: 'Журнал',
         icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -685,8 +685,8 @@ export function goBack() {
 function updateTabBarActive() {
   const el = document.getElementById('app-tab-bar');
   if (!el || !el.children.length) { renderTabBar(); return; }
-  const tabs = state.role === 'director' ? TAB_BAR_DIRECTOR
-             : state.role === 'admin' || state.role === 'manager' ? TAB_BAR_MANAGER
+  const tabs = state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
+             : state.role === 'admin' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT : TAB_BAR_BARTENDER;
   // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
   const domRoutes = [...el.children].map(c => c.dataset.route || '');
@@ -726,8 +726,8 @@ function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
   const tabs = state.role === 'admin'       ? TAB_BAR_MANAGER
-             : state.role === 'manager'     ? TAB_BAR_MANAGER
-             : state.role === 'director'    ? TAB_BAR_DIRECTOR
+             : state.role === 'manager'     ? TAB_BAR_MGR_JOURNAL
+             : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
              : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
              : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {
