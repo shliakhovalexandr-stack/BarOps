@@ -54,7 +54,13 @@ const QUICK_BARTENDER = [
          <path d="M5 10h2M8 10h2M11 10h2M5 13h2M8 13h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` },
 ];
 
+const QUICK_CURRENT_SHIFT = { route:'current-shift', badge:null, label:'Поточна зміна', hint:'Офіціанти, зони та відкриті столи з POS', color:'var(--purple-bg)', iconColor:'var(--purple)',
+  svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M3 16c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+       <circle cx="14.5" cy="4.5" r="1.2" fill="currentColor" opacity=".7"/>` };
+
 const QUICK_MANAGER = [
+  QUICK_CURRENT_SHIFT,
   { route:'debts',    badge:null, label:'Борги',            hint:'Відкриті рахунки та борги',    color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
