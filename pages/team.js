@@ -140,6 +140,20 @@ const CSS = `<style id="tm-css">
 .tm-sh-roles{display:flex;gap:6px;margin-bottom:16px}
 .tm-sh-role{flex:1;height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;font-size:12px;color:var(--text1);cursor:pointer;font-family:var(--font-b);transition:all .15s;display:flex;align-items:center;justify-content:center}
 .tm-sh-role.sel{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+/* Кастомний дропдаун ролі (нативний select малює ОС білим — замінюємо) */
+.tm-dd{position:relative;margin-bottom:12px}
+.tm-dd-btn{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .2s,box-shadow .2s}
+.tm-dd-btn.open{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
+.tm-dd-btn .tm-dd-chev{margin-left:auto;transition:transform .2s}
+.tm-dd-btn.open .tm-dd-chev{transform:rotate(180deg)}
+.tm-dd-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:30;background:var(--bg2,#1A1A1E);border:0.5px solid var(--border2,var(--border));border-radius:12px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.55);display:none;animation:tmDdIn .14s ease}
+.tm-dd-menu.open{display:block}
+@keyframes tmDdIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.tm-dd-opt{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:14px;color:var(--text1);font-family:var(--font-b);cursor:pointer;border-bottom:0.5px solid var(--border)}
+.tm-dd-opt:last-child{border-bottom:none}
+.tm-dd-opt:active{background:rgba(255,255,255,.05)}
+.tm-dd-opt.sel{background:var(--green-bg);color:var(--green)}
+.tm-dd-opt .tm-dd-emoji{font-size:16px;width:20px;text-align:center}
 
 /* PIN dots in sheet */
 .tm-pin-row{display:flex;gap:10px;justify-content:center;margin:12px 0}
@@ -186,6 +200,38 @@ function roleClass(role) {
   if (r === 'admin')   return 'admin';
   if (r === 'manager' || r === 'director') return 'mgr';
   return '';
+}
+
+// Список ролей для дропдауна (значення + емодзі + підпис)
+const ROLE_OPTIONS = [
+  ['BARTENDER',  '🍸', 'Бармен'],
+  ['MANAGER',    '👨‍💼', 'Менеджер'],
+  ['DIRECTOR',   '🧭', 'Керуючий'],
+  ['ACCOUNTANT', '📊', 'Бухгалтер'],
+  ['CHEF',       '👨‍🍳', 'Шеф-кухар'],
+  ['COOK',       '🍳', 'Кухар'],
+  ['WAITER',     '🍽', 'Офіціант'],
+];
+
+// Кастомний дропдаун ролі у стилі додатку (нативний select малює ОС білим)
+function roleDropdownHTML(idPrefix, selectedValue, onSelect) {
+  const sel = (selectedValue || 'BARTENDER').toUpperCase();
+  const cur = ROLE_OPTIONS.find(o => o[0] === sel) || ROLE_OPTIONS[0];
+  return `
+  <div class="tm-dd" id="${idPrefix}-dd">
+    <div class="tm-dd-btn" id="${idPrefix}-dd-btn" onclick="window.__tm.toggleRoleDd('${idPrefix}')">
+      <span class="tm-dd-emoji">${cur[1]}</span>
+      <span id="${idPrefix}-dd-label">${cur[2]}</span>
+      <svg class="tm-dd-chev" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="var(--text2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="tm-dd-menu" id="${idPrefix}-dd-menu">
+      ${ROLE_OPTIONS.map(([v, e, l]) => `
+      <div class="tm-dd-opt ${v === sel ? 'sel' : ''}" data-val="${v}"
+          onclick="window.__tm.${onSelect}('${v}','${e}','${l}','${idPrefix}')">
+        <span class="tm-dd-emoji">${e}</span><span>${l}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
 }
 
 // Групи команди за ролями (у порядку показу)
@@ -414,15 +460,7 @@ function addSheetHTML() {
       </div>
 
       <div class="tm-sh-lbl">Посада / Роль</div>
-      <select class="tm-sh-inp" id="role-select" onchange="window.__tm.selectRole(this.value)" style="cursor:pointer;margin-bottom:12px">
-        <option value="BARTENDER">🍸 Бармен</option>
-        <option value="MANAGER">👨‍💼 Менеджер</option>
-        <option value="DIRECTOR">🧭 Керуючий</option>
-        <option value="ACCOUNTANT">📊 Бухгалтер</option>
-        <option value="CHEF">👨‍🍳 Шеф-кухар</option>
-        <option value="COOK">🍳 Кухар</option>
-        <option value="WAITER">🍽 Офіціант</option>
-      </select>
+      ${roleDropdownHTML('add', _selectedRole, 'pickRole')}
 
       ${pinKeypadHTML('add', currentPin, pinLabel)}
 
@@ -455,9 +493,7 @@ function editSheetHTML() {
       <input class="tm-sh-inp" id="edit-name" type="text" placeholder="${t.name}" value="${t.name}"/>
 
       <div class="tm-sh-lbl">Посада / Роль</div>
-      <select class="tm-sh-inp" id="edit-role-select" style="cursor:pointer;margin-bottom:12px">
-        ${[['BARTENDER','🍸 Бармен'],['MANAGER','👨‍💼 Менеджер'],['DIRECTOR','🧭 Керуючий'],['ACCOUNTANT','📊 Бухгалтер'],['CHEF','👨‍🍳 Шеф-кухар'],['COOK','🍳 Кухар'],['WAITER','🍽 Офіціант']].map(([v,l]) => `<option value="${v}" ${(t.role||'').toUpperCase()===v?'selected':''}>${l}</option>`).join('')}
-      </select>
+      ${roleDropdownHTML('edit', _editRole, 'pickRole')}
 
       <div class="tm-sh-lbl">Новий PIN (залиште порожнім щоб не змінювати)</div>
       ${pinKeypadHTML('add', currentPin, 'Новий PIN (4 цифри) — необов\'язково')}
@@ -579,6 +615,7 @@ function openEdit(id) {
   if (!t) return;
   _sheetMode = 'edit';
   _editTarget = t;
+  _editRole = (t.role || 'BARTENDER').toUpperCase();   // поточна роль у дропдаун
   _addPin = '';
   _addPinConfirm = '';
   _pinStep = 'first';
@@ -591,9 +628,33 @@ function closeSheetOverlay(e) {
 }
 
 let _selectedRole   = 'BARTENDER';
+let _editRole       = 'BARTENDER';  // роль у формі редагування
 let _selectedVenueId = '';  // заклад для нового бармена
 function selectVenue(id) {
   _selectedVenueId = id;
+}
+
+// Кастомний дропдаун ролі — відкрити/закрити меню
+function toggleRoleDd(prefix) {
+  const menu = document.getElementById(`${prefix}-dd-menu`);
+  const btn  = document.getElementById(`${prefix}-dd-btn`);
+  if (!menu || !btn) return;
+  const willOpen = !menu.classList.contains('open');
+  menu.classList.toggle('open', willOpen);
+  btn.classList.toggle('open', willOpen);
+}
+// Вибір ролі в кастомному дропдауні (без перемальовування форми)
+function pickRole(value, emoji, label, prefix) {
+  if (prefix === 'edit') _editRole = value; else _selectedRole = value;
+  const lblEl   = document.getElementById(`${prefix}-dd-label`);
+  const btn     = document.getElementById(`${prefix}-dd-btn`);
+  const menu    = document.getElementById(`${prefix}-dd-menu`);
+  if (lblEl) lblEl.textContent = label;
+  if (btn) { const em = btn.querySelector('.tm-dd-emoji'); if (em) em.textContent = emoji; btn.classList.remove('open'); }
+  if (menu) {
+    menu.classList.remove('open');
+    menu.querySelectorAll('.tm-dd-opt').forEach(o => o.classList.toggle('sel', o.dataset.val === value));
+  }
 }
 
 function switchTeamVenue(id, name) {
@@ -724,8 +785,7 @@ async function submitEdit() {
   const body  = {};
 
   if (name && name !== t.name) body.name = name;
-  const roleSel = document.getElementById('edit-role-select')?.value;
-  if (roleSel && roleSel !== (t.role || '').toUpperCase()) body.role = roleSel;
+  if (_editRole && _editRole !== (t.role || '').toUpperCase()) body.role = _editRole;
   // PIN — просто зберігаємо без підтвердження (менеджер сам встановлює)
   if (_addPin.length >= 4) {
     body.pin = _addPin;
@@ -879,6 +939,7 @@ export default {
       openProfile, closeProfile,
       openAdd, openEdit, closeSheet, closeSheetOverlay,
       selectRole, selectVenue, switchTeamVenue, pinAdd, pinDel,
+      toggleRoleDd, pickRole,
       submitAdd, submitEdit,
       deactivate, activate, hardDelete,
       formatAddPhone, pastePhone,
