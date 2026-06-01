@@ -187,6 +187,52 @@ function roleClass(role) {
   if (r === 'manager' || r === 'director') return 'mgr';
   return '';
 }
+
+// Групи команди за ролями (у порядку показу)
+const TEAM_GROUPS = [
+  { label: 'Керівництво', roles: ['admin', 'manager', 'director'] },
+  { label: 'Бухгалтерія', roles: ['accountant'] },
+  { label: 'Бармени',     roles: ['bartender', 'barman'] },
+  { label: 'Кухня',       roles: ['chef', 'cook'] },
+  { label: 'Офіціанти',   roles: ['waiter'] },
+];
+
+function memberCardHTML(t) {
+  const isInactive = t.status === 'inactive';
+  return `
+    <div class="tm-card${isInactive ? ' inactive' : ''}"
+         onclick="window.__tm.openProfile('${t.id}')">
+      <div class="tm-card-main">
+        ${avatarHTML(t.name, 44, false)}
+        <div style="flex:1;min-width:0">
+          <div class="tm-name">${t.name}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">
+            <span style="color:var(--text1)">${roleLabel(t.role)}</span>${(t.role||'').toLowerCase()==='admin' ? '' : ` · ${t.phone}`}
+          </div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>`;
+}
+
+function groupedTeamHTML() {
+  const used = new Set();
+  let html = '';
+  for (const g of TEAM_GROUPS) {
+    const members = _team.filter(t => g.roles.includes((t.role || '').toLowerCase()));
+    if (!members.length) continue;
+    members.forEach(m => used.add(m.id));
+    html += `<div class="tm-sec">${g.label}</div>`;
+    html += members.map(memberCardHTML).join('');
+  }
+  // Невідомі/інші ролі — окрема група в кінці, щоб ніхто не загубився
+  const rest = _team.filter(t => !used.has(t.id));
+  if (rest.length) {
+    html += `<div class="tm-sec">Інші</div>`;
+    html += rest.map(memberCardHTML).join('');
+  }
+  return html;
+}
 function initials(name) {
   return (name || '').split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
 }
@@ -229,23 +275,7 @@ function teamListHTML() {
   </div>
 
   <div class="tm-list">
-    ${_team.map(t => {
-      const isInactive = t.status === 'inactive';
-      return `
-    <div class="tm-card${isInactive ? ' inactive' : ''}"
-         onclick="window.__tm.openProfile('${t.id}')">
-      <div class="tm-card-main">
-        ${avatarHTML(t.name, 44, false)}
-        <div style="flex:1;min-width:0">
-          <div class="tm-name">${t.name}</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">
-            <span style="color:var(--text1)">${roleLabel(t.role)}</span>${(t.role||'').toLowerCase()==='admin' ? '' : ` · ${t.phone}`}
-          </div>
-        </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
-      </div>
-    </div>`;
-    }).join('')}
+    ${groupedTeamHTML()}
 
     ${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? `
     <div class="tm-add-btn" onclick="window.__tm.openAdd()">
