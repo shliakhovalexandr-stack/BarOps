@@ -190,6 +190,17 @@ const TAB_BAR_MANAGER = [
   },
 ];
 
+// Керуючий — як менеджер, але «Рецепти» замінено на «Журнал»
+const TAB_BAR_DIRECTOR = TAB_BAR_MANAGER.map(tab =>
+  tab.route === 'recipe-book'
+    ? { route: 'journal', label: 'Журнал',
+        icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="4" y="3" width="14" height="16" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M8 8h6M8 12h6M8 16h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>` }
+    : tab
+);
+
 /* ══════════════════════════════════════
    4. DRAWER (менеджер)
    ══════════════════════════════════════ */
@@ -674,7 +685,8 @@ export function goBack() {
 function updateTabBarActive() {
   const el = document.getElementById('app-tab-bar');
   if (!el || !el.children.length) { renderTabBar(); return; }
-  const tabs = state.role === 'admin' || state.role === 'manager' || state.role === 'director' ? TAB_BAR_MANAGER
+  const tabs = state.role === 'director' ? TAB_BAR_DIRECTOR
+             : state.role === 'admin' || state.role === 'manager' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT : TAB_BAR_BARTENDER;
   // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
   const domRoutes = [...el.children].map(c => c.dataset.route || '');
@@ -715,7 +727,7 @@ function renderTabBar() {
   if (!el) return;
   const tabs = state.role === 'admin'       ? TAB_BAR_MANAGER
              : state.role === 'manager'     ? TAB_BAR_MANAGER
-             : state.role === 'director'    ? TAB_BAR_MANAGER
+             : state.role === 'director'    ? TAB_BAR_DIRECTOR
              : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
              : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {
