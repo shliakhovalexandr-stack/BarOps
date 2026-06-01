@@ -784,7 +784,7 @@ function buildCbPanel() {
         <input class="exc-cb-inp" type="text" placeholder="3162387401" value="${_cbPin}" id="cb-pin" oninput="window.__exc.cbInput()"/>
       </div>
       <div class="exc-cb-field">
-        <div class="exc-cb-lbl">License Key (якщо є)</div>
+        <div class="exc-cb-lbl">License Key (Ключ ліцензії каси)</div>
         <input class="exc-cb-inp" type="text" placeholder="5861fee76347f40e23ce09c0" value="${_cbLicKey}" id="cb-lickey" oninput="window.__exc.cbInput()"/>
         <div class="exc-cb-hint">Рекомендований метод для бойових кас: PIN + License Key.</div>
       </div>
