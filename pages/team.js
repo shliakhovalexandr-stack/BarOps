@@ -570,6 +570,7 @@ function openAdd() {
   _addPinConfirm = '';
   _pinStep = 'first';
   _editTarget = null;
+  _selectedRole = 'BARTENDER';   // скидаємо роль на дефолт (інакше лишається з минулого додавання)
   fullRender();
 }
 
