@@ -15,6 +15,11 @@ let _venueId = '';
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function money(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA') + ' ₴'; }
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
 
 const CSS = `<style id="cs-css">
 .cs-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
@@ -124,7 +129,7 @@ function body() {
     </div>
     <div>
       <div class="cs-title">Поточна зміна</div>
-      <div class="cs-sub">${state.venue || ''} · виторг офіціантів за сьогодні</div>
+      <div class="cs-sub">${state.venue || ''}${_data && _data.fetchedAt ? ` · оновлено о ${fmtTime(_data.fetchedAt)}` : ' · виторг офіціантів за сьогодні'}</div>
     </div>
     <div class="cs-refresh" onclick="window.__cs.reload()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>
