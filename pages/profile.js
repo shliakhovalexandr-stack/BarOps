@@ -4,6 +4,7 @@
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
+import { pushSupported, pushPermission, subscribePush, unsubscribePush } from '../shared/push.js';
 
 const POS_SYSTEMS = {
   manual:     { name: 'Вручну',     icon: '✋', color: 'var(--text2)' },
@@ -345,8 +346,18 @@ ${CSS}
     <!-- Сповіщення -->
     <div class="prof-sec">Сповіщення</div>
     <div class="prof-settings">
+      <!-- Робочий тумблер push -->
+      <div class="prof-setting-row">
+        <div>
+          <div class="prof-setting-lbl">Push-сповіщення</div>
+          <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${pushSupported() ? 'Заявки на закупку та нові завдання' : 'Недоступно на цьому пристрої'}</div>
+        </div>
+        <div class="prof-toggle ${pushPermission()==='granted'?'on':''}" id="prof-push-toggle"
+          onclick="window.__prof.togglePush()">
+          <div class="prof-toggle-knob" style="left:${pushPermission()==='granted'?18:2}px"></div>
+        </div>
+      </div>
       ${[
-        ['Push-сповіщення', true],
         ['Цінові алерти', true],
         ['Списання барменів', isMgr],
         ['Закриття зміни', false],
@@ -465,7 +476,36 @@ async function closeShiftAndLogout() {
   window.__barops.logout();
 }
 
-window.__prof = { closeShiftAndLogout };
+async function togglePush() {
+  const el = document.getElementById('prof-push-toggle');
+  if (!pushSupported()) {
+    alert('Push-сповіщення недоступні на цьому пристрої.\n\nНа iPhone: відкрийте додаток з головного екрана (PWA), iOS 16.4+.');
+    return;
+  }
+  const isOn = el?.classList.contains('on');
+  if (isOn) {
+    await unsubscribePush();
+    setPushToggle(false);
+  } else {
+    const ok = await subscribePush();
+    if (ok) setPushToggle(true);
+    else {
+      setPushToggle(false);
+      if (pushPermission() === 'denied') {
+        alert('Сповіщення заблоковані. Увімкніть їх у налаштуваннях браузера/системи для цього сайту.');
+      }
+    }
+  }
+}
+function setPushToggle(on) {
+  const el = document.getElementById('prof-push-toggle');
+  if (!el) return;
+  el.classList.toggle('on', on);
+  const knob = el.querySelector('.prof-toggle-knob');
+  if (knob) knob.style.left = on ? '18px' : '2px';
+}
+
+window.__prof = { closeShiftAndLogout, togglePush };
 
 export default {
   render() {

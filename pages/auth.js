@@ -4,6 +4,7 @@
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
+import { ensurePushIfGranted } from '../shared/push.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
@@ -682,6 +683,8 @@ function saveSession(data) {
     localStorage.setItem('barops_plan',   data.user.plan.plan   || 'trial');
     localStorage.setItem('barops_expiry', data.user.plan.expiry || '');
   }
+  // Оновити push-підписку під поточного користувача (якщо дозвіл уже надано)
+  try { ensurePushIfGranted(); } catch {}
 }
 
 /* ════════════════════════════════════════

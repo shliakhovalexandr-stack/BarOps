@@ -3,7 +3,7 @@
    Кешування ресурсів для офлайн-режиму
    ============================================================ */
 
-const CACHE_NAME = 'barops-v6';
+const CACHE_NAME = 'barops-v7';
 
 // Тільки справді статичні ресурси (CSS, маніфест)
 // JS-сторінки НЕ precache — вони завантажуються при першому відкритті
@@ -70,5 +70,35 @@ self.addEventListener('fetch', event => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+// ── Web Push: показ сповіщення ──
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data && event.data.text() }; }
+  const title = data.title || 'BarOps';
+  const options = {
+    body:  data.body || '',
+    icon:  '/icons/icon-192.png',
+    badge: '/icons/icon-96.png',
+    tag:   data.tag || undefined,
+    data:  { url: data.url || '/' },
+    vibrate: [80, 40, 80],
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ── Клік по сповіщенню: відкрити/сфокусувати додаток ──
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      for (const c of clients) {
+        if ('focus' in c) { c.focus(); if ('navigate' in c && url !== '/') c.navigate(url).catch(() => {}); return; }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
   );
 });
