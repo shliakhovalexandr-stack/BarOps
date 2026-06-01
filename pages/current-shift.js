@@ -79,36 +79,19 @@ function re() {
 }
 
 function waiterCard(w) {
-  const open = _openId === w.id;
   return `
   <div class="cs-card">
-    <div class="cs-row" onclick="window.__cs.toggle('${w.id}')">
+    <div class="cs-row" style="cursor:default">
       <div class="cs-av">${initials(w.name)}</div>
       <div style="flex:1;min-width:0">
         <div class="cs-name">${w.name}</div>
-        <div class="cs-meta">
-          ${(w.sections || []).map(s => `<span class="cs-zone">${s}</span>`).join('') || '<span class="cs-zone" style="background:var(--bg3);color:var(--text2);border-color:var(--border)">без зони</span>'}
-          · ${w.openTables} ${w.openTables === 1 ? 'стіл' : 'столів'}
-        </div>
+        <div class="cs-meta">${w.orders} ${w.orders === 1 ? 'чек' : (w.orders >= 2 && w.orders <= 4 ? 'чеки' : 'чеків')} за сьогодні</div>
       </div>
       <div>
         <div class="cs-sum">${money(w.sum)}</div>
-        <div class="cs-sum-lbl">за зміну</div>
+        <div class="cs-sum-lbl">виторг</div>
       </div>
-      <svg class="cs-chev ${open ? 'open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
     </div>
-    ${open ? `<div class="cs-tables">
-      ${(w.tables || []).length
-        ? w.tables.map(t => `
-        <div class="cs-table">
-          <div class="cs-table-no">${t.number ?? '—'}</div>
-          <div class="cs-table-info">
-            <div class="cs-table-zone">${t.section || 'без зони'}</div>
-          </div>
-          <div class="cs-table-sum">${money(t.sum)}</div>
-        </div>`).join('')
-        : '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 2px">Немає відкритих столів</div>'}
-    </div>` : ''}
   </div>`;
 }
 
@@ -122,14 +105,14 @@ function body() {
   } else if (!_data || !_data.waiters.length) {
     inner = `<div class="cs-empty">
       <div class="cs-empty-icon">🧑‍🍳</div>
-      <div class="cs-empty-txt">Зараз немає офіціантів з відкритими столами.<br>Дані оновлюються в реальному часі з POS.</div>
+      <div class="cs-empty-txt">Сьогодні ще немає продажів по офіціантах.<br>Дані з POS за поточний день.</div>
     </div>`;
   } else {
     const d = _data;
     inner = `
     <div class="cs-kpis">
       <div class="cs-kpi"><div class="cs-kpi-val">${d.waiters.length}</div><div class="cs-kpi-lbl">Офіціантів</div></div>
-      <div class="cs-kpi"><div class="cs-kpi-val">${d.totalOpenTables}</div><div class="cs-kpi-lbl">Відкритих столів</div></div>
+      <div class="cs-kpi"><div class="cs-kpi-val">${d.totalOrders}</div><div class="cs-kpi-lbl">Чеків</div></div>
       <div class="cs-kpi"><div class="cs-kpi-val" style="color:var(--green)">${money(d.totalSum)}</div><div class="cs-kpi-lbl">Виторг</div></div>
     </div>
     ${d.waiters.map(waiterCard).join('')}`;
@@ -141,7 +124,7 @@ function body() {
     </div>
     <div>
       <div class="cs-title">Поточна зміна</div>
-      <div class="cs-sub">${state.venue || ''} · з POS у реальному часі</div>
+      <div class="cs-sub">${state.venue || ''} · виторг офіціантів за сьогодні</div>
     </div>
     <div class="cs-refresh" onclick="window.__cs.reload()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>
@@ -159,7 +142,6 @@ export default {
     window.__cs = {
       back:   () => navigate('dashboard'),
       reload: () => load(),
-      toggle: (id) => { _openId = _openId === id ? null : id; re(); },
     };
     load();
   },
