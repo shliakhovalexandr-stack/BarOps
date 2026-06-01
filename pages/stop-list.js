@@ -154,9 +154,11 @@ const CSS = `<style id="sl-styles">
    HELPERS
 ════════════════════════ */
 function fmtStock(item) {
-  if (item.stock === 0) return '0 ' + item.unit;
-  const v = typeof item.stock === 'number' ? item.stock : 0;
-  return (v < 1 ? v.toFixed(2) : v.toFixed(1)).replace(/\.0+$/, '') + ' ' + item.unit;
+  const v = typeof item.stock === 'number' ? item.stock : null;
+  // Невідомий залишок (немає даних з POS) — позначаємо прочерком
+  if (v === null || v < 0) return '—';
+  if (v === 0) return '0' + (item.unit ? ' ' + item.unit : '');
+  return (v < 1 ? v.toFixed(2) : v.toFixed(1)).replace(/\.0+$/, '') + (item.unit ? ' ' + item.unit : '');
 }
 
 function urgencyLabel(u) {
@@ -177,7 +179,8 @@ function fmtSyncedAt(iso) {
    CARD BUILDERS
 ════════════════════════ */
 function stopCard(item) {
-  const isSoldOut = item.stock <= 0;
+  // Позиція у стоп-листі Syrve = недоступна для продажу (незалежно від фіз. залишку)
+  const hasStock = typeof item.stock === 'number' && item.stock > 0;
   const cardClass = item.urgency === 'critical' ? 'crit' : item.urgency === 'high' ? 'high' : 'med';
 
   return `
@@ -193,7 +196,7 @@ function stopCard(item) {
       <div class="sl-card-metrics">
         <div class="sl-metric">
           <div class="sl-metric-lbl">Залишок</div>
-          <div class="sl-metric-val ${isSoldOut ? 'red' : 'amber'}">${fmtStock(item)}</div>
+          <div class="sl-metric-val ${hasStock ? 'amber' : 'red'}">${fmtStock(item)}</div>
         </div>
         <div class="sl-metric">
           <div class="sl-metric-lbl">Одиниця</div>
@@ -201,7 +204,7 @@ function stopCard(item) {
         </div>
         <div class="sl-metric">
           <div class="sl-metric-lbl">Статус</div>
-          <div class="sl-metric-val ${isSoldOut ? 'red' : 'amber'}">${isSoldOut ? 'Стоп' : 'Критично'}</div>
+          <div class="sl-metric-val red">Стоп</div>
         </div>
       </div>
     </div>
