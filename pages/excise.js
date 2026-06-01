@@ -32,10 +32,22 @@ let _pickerMonth = 0;            // 1-12
 
 let _cbShow    = false;          // settings panel visible
 let _cbLogin   = '';
+let _cbPassword = '';
 let _cbPin     = '';
 let _cbLicKey  = '';
 let _cbSaving  = false;
 let _cbSaved   = false;
+
+// Вибір закладу (підприємця) для налаштування каси — лише для системного менеджера
+let _cbVenues   = [];            // [{id, name}]
+let _cbVenueId  = '';            // обраний у меню заклад
+let _cbVenueName = '';
+let _cbVenuesLoaded = false;
+let _cbVenueDdOpen  = false;     // дропдаун вибору закладу
+
+function isSysMgr() { return _role === 'admin'; }
+// Заклад, до якого застосовуються операції каси (для адміна — обраний у меню, інакше поточний)
+function cbVenueId() { return (isSysMgr() && _cbVenueId) ? _cbVenueId : _venueId; }
 
 // ── helpers ───────────────────────────────────────────────────
 function hdrs() {
@@ -86,12 +98,28 @@ async function loadMarks(date) {
 
 async function loadCbSettings() {
   try {
-    const res = await fetch(`${API}/api/excise/venue/${_venueId}/checkbox`, { headers: hdrs() });
+    const res = await fetch(`${API}/api/excise/venue/${cbVenueId()}/checkbox`, { headers: hdrs() });
     if (res.ok) {
       const d = await res.json();
-      _cbLogin  = d.login      || '';
-      _cbPin    = d.pin        || '';
-      _cbLicKey = d.licenseKey || '';
+      _cbLogin    = d.login      || '';
+      _cbPassword = d.password   || '';
+      _cbPin      = d.pin        || '';
+      _cbLicKey   = d.licenseKey || '';
+    }
+  } catch {}
+}
+
+// Список закладів мережі для дропдауна (тільки системний менеджер)
+async function loadCbVenues() {
+  if (_cbVenuesLoaded) return;
+  try {
+    const res = await fetch(`${API}/api/auth/venues`, { headers: hdrs() });
+    const d = await res.json();
+    _cbVenues = (d.venues || []).map(v => ({ id: v.id, name: v.name }));
+    _cbVenuesLoaded = true;
+    if (!_cbVenueId) {
+      const cur = _cbVenues.find(v => v.id === _venueId) || _cbVenues[0];
+      if (cur) { _cbVenueId = cur.id; _cbVenueName = cur.name; }
     }
   } catch {}
 }
@@ -130,10 +158,12 @@ async function doDeleteMark(id) {
 async function doSaveCb() {
   _cbSaving = true; re();
   try {
-    const res = await fetch(`${API}/api/excise/venue/${_venueId}/checkbox`, {
+    // Якщо пароль не введено — для тестових акаунтів дублюємо логін
+    const password = (_cbPassword || '').trim() || _cbLogin;
+    const res = await fetch(`${API}/api/excise/venue/${cbVenueId()}/checkbox`, {
       method: 'PATCH',
       headers: { ...hdrs(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: _cbLogin, password: _cbLogin, pin: _cbPin, licenseKey: _cbLicKey }),
+      body: JSON.stringify({ login: _cbLogin, password, pin: _cbPin, licenseKey: _cbLicKey }),
     });
     _cbSaved = res.ok;
   } catch {}
@@ -433,6 +463,13 @@ const CSS = `<style id="exc-css">
 .exc-cb-save{height:36px;border-radius:10px;border:none;background:var(--green);color:#000;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-b);padding:0 16px}
 .exc-cb-save:disabled{opacity:.5;cursor:not-allowed}
 .exc-cb-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
+.exc-cb-dd{position:relative}
+.exc-cb-dd-btn{height:38px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:13px;color:var(--text0);font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.exc-cb-dd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.5);max-height:240px;overflow-y:auto}
+.exc-cb-dd-opt{padding:11px 12px;font-size:13px;color:var(--text1);font-family:var(--font-b);cursor:pointer;border-bottom:0.5px solid var(--border)}
+.exc-cb-dd-opt:last-child{border-bottom:none}
+.exc-cb-dd-opt:active{background:rgba(255,255,255,.05)}
+.exc-cb-dd-opt.sel{background:var(--green-bg,#1a3320);color:var(--green)}
 
 .exc-file{position:fixed;top:-200px;left:-200px;opacity:0;width:1px;height:1px}
 
@@ -707,19 +744,40 @@ function buildListTab() {
 
 function buildCbPanel() {
   const configured = !!_cbLogin || !!_cbPin;
+  const sysMgr = isSysMgr();
+  const headSub = sysMgr && _cbVenueName
+    ? `Заклад: ${_cbVenueName} · ${configured ? '✅ налаштовано' : 'не налаштовано'}`
+    : (configured ? '✅ Налаштовано' : 'Не налаштовано — введіть облікові дані');
   return `<div class="exc-cb-panel">
     <div class="exc-cb-head" onclick="window.__exc.toggleCb()">
       <div>
         <div class="exc-cb-head-lbl">⚙️ Checkbox ПРРО</div>
-        <div class="exc-cb-head-sub">${configured ? '✅ Налаштовано' : 'Не налаштовано — введіть облікові дані'}</div>
+        <div class="exc-cb-head-sub">${headSub}</div>
       </div>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" style="transform:rotate(${_cbShow ? 180 : 0}deg);transition:transform .2s"><path d="M6 9l6 6 6-6"/></svg>
     </div>
     ${_cbShow ? `<div class="exc-cb-body">
+      ${sysMgr ? `
+      <div class="exc-cb-field">
+        <div class="exc-cb-lbl">Підприємець / Заклад</div>
+        <div class="exc-cb-dd">
+          <div class="exc-cb-dd-btn" onclick="window.__exc.toggleCbVenueDd()">
+            <span>${_cbVenueName || 'Оберіть заклад'}</span>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="transform:rotate(${_cbVenueDdOpen?180:0}deg);transition:transform .2s"><path d="M3 5l4 4 4-4" stroke="var(--text2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          ${_cbVenueDdOpen ? `<div class="exc-cb-dd-menu">
+            ${_cbVenues.map(v => `<div class="exc-cb-dd-opt ${v.id===_cbVenueId?'sel':''}" onclick="window.__exc.selectCbVenue('${v.id}','${(v.name||'').replace(/'/g,"\\'")}')">${v.name}</div>`).join('')}
+          </div>` : ''}
+        </div>
+      </div>` : ''}
       <div class="exc-cb-field">
         <div class="exc-cb-lbl">Логін касира</div>
         <input class="exc-cb-inp" type="text" placeholder="test_aiw7faxgg" value="${_cbLogin}" id="cb-login" oninput="window.__exc.cbInput()"/>
-        <div class="exc-cb-hint">login = password для тестових акаунтів Checkbox</div>
+      </div>
+      <div class="exc-cb-field">
+        <div class="exc-cb-lbl">Пароль</div>
+        <input class="exc-cb-inp" type="text" placeholder="залиште порожнім = логін (тест)" value="${_cbPassword}" id="cb-pass" oninput="window.__exc.cbInput()"/>
+        <div class="exc-cb-hint">Для бойової каси — справжній пароль касира. Для тестових акаунтів залиште порожнім.</div>
       </div>
       <div class="exc-cb-field">
         <div class="exc-cb-lbl">PIN-код</div>
@@ -728,7 +786,7 @@ function buildCbPanel() {
       <div class="exc-cb-field">
         <div class="exc-cb-lbl">License Key (якщо є)</div>
         <input class="exc-cb-inp" type="text" placeholder="5861fee76347f40e23ce09c0" value="${_cbLicKey}" id="cb-lickey" oninput="window.__exc.cbInput()"/>
-        <div class="exc-cb-hint">Тільки для рахунку La Pasta</div>
+        <div class="exc-cb-hint">Рекомендований метод для бойових кас: PIN + License Key.</div>
       </div>
       <div style="display:flex;justify-content:flex-end">
         <button class="exc-cb-save ${_cbSaved ? 'saved' : ''}" ${_cbSaving ? 'disabled' : ''} onclick="window.__exc.saveCb()">
@@ -756,7 +814,9 @@ export default {
     _verifying = false; _verifyResult = null;
     _deletingIds = new Set();
     _pickerOpen = false;
-    _cbShow = false; _cbSaved = false;
+    _cbShow = false; _cbSaved = false; _cbVenueDdOpen = false;
+    _cbVenuesLoaded = false; _cbVenues = []; _cbVenueId = ''; _cbVenueName = '';
+    _cbLogin = ''; _cbPassword = ''; _cbPin = ''; _cbLicKey = '';
 
     return `${CSS}<div id="exc-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
   },
@@ -787,12 +847,27 @@ export default {
       pickerSelectDay:  pickerSelectDay,
       verify:           doVerify,
       deleteMark:   doDeleteMark,
-      toggleCb:     () => { _cbShow = !_cbShow; if (_cbShow) loadCbSettings(); re(); },
+      toggleCb:     async () => {
+        _cbShow = !_cbShow;
+        _cbVenueDdOpen = false;
+        if (_cbShow) {
+          if (isSysMgr()) await loadCbVenues();
+          await loadCbSettings();
+        }
+        re();
+      },
+      toggleCbVenueDd: () => { _cbVenueDdOpen = !_cbVenueDdOpen; re(); },
+      selectCbVenue: async (id, name) => {
+        _cbVenueId = id; _cbVenueName = name; _cbVenueDdOpen = false; _cbSaved = false;
+        await loadCbSettings();   // підвантажити дані каси обраного закладу
+        re();
+      },
       cbInput:      () => {
-        _cbLogin  = document.getElementById('cb-login')?.value  || '';
-        _cbPin    = document.getElementById('cb-pin')?.value    || '';
-        _cbLicKey = document.getElementById('cb-lickey')?.value || '';
-        _cbSaved  = false;
+        _cbLogin    = document.getElementById('cb-login')?.value  || '';
+        _cbPassword = document.getElementById('cb-pass')?.value   || '';
+        _cbPin      = document.getElementById('cb-pin')?.value    || '';
+        _cbLicKey   = document.getElementById('cb-lickey')?.value || '';
+        _cbSaved    = false;
       },
       saveCb: doSaveCb,
     };
