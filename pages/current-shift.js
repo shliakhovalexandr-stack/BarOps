@@ -83,20 +83,44 @@ function re() {
   if (root) root.innerHTML = body();
 }
 
+function chequeWord(n) {
+  const r = Math.round(n);
+  return r === 1 ? 'чек' : (r >= 2 && r <= 4 ? 'чеки' : 'чеків');
+}
+function guestWord(n) {
+  const r = Math.round(n);
+  return r === 1 ? 'гість' : (r >= 2 && r <= 4 ? 'гості' : 'гостей');
+}
+
 function waiterCard(w) {
+  const open = _openId === w.id;
   return `
   <div class="cs-card">
-    <div class="cs-row" style="cursor:default">
+    <div class="cs-row" onclick="window.__cs.toggle('${w.id.replace(/'/g, "\\'")}')">
       <div class="cs-av">${initials(w.name)}</div>
       <div style="flex:1;min-width:0">
         <div class="cs-name">${w.name}</div>
-        <div class="cs-meta">${w.orders} ${w.orders === 1 ? 'чек' : (w.orders >= 2 && w.orders <= 4 ? 'чеки' : 'чеків')} за сьогодні</div>
+        <div class="cs-meta">${Math.round(w.orders)} ${chequeWord(w.orders)} · ${Math.round(w.guests)} ${guestWord(w.guests)}</div>
       </div>
       <div>
         <div class="cs-sum">${money(w.sum)}</div>
         <div class="cs-sum-lbl">виторг</div>
       </div>
+      <svg class="cs-chev ${open ? 'open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
     </div>
+    ${open ? `<div class="cs-tables">
+      <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;padding:2px 2px 6px">Звіт по оплатах · ${state.venue || ''}</div>
+      ${(w.payments || []).length
+        ? w.payments.map(pmt => `
+        <div class="cs-table">
+          <div class="cs-table-info">
+            <div class="cs-table-zone" style="color:var(--text1)">${pmt.label}</div>
+            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${Math.round(pmt.orders)} ${chequeWord(pmt.orders)} · ${Math.round(pmt.guests)} ${guestWord(pmt.guests)}</div>
+          </div>
+          <div class="cs-table-sum">${money(pmt.sum)}</div>
+        </div>`).join('')
+        : '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 2px">Немає даних по оплатах</div>'}
+    </div>` : ''}
   </div>`;
 }
 
@@ -147,6 +171,7 @@ export default {
     window.__cs = {
       back:   () => navigate('dashboard'),
       reload: () => load(),
+      toggle: (id) => { _openId = _openId === id ? null : id; re(); },
     };
     load();
   },
