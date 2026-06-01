@@ -105,7 +105,7 @@ async function loadData() {
       fetch(`${API}/api/stats?venueId=${venueId}`,
                                           { headers: { Authorization: `Bearer ${token()}` } }),
       fetch(`${API}/api/register/plan`,   { headers: { Authorization: `Bearer ${token()}` } }),
-      (state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? fetch(`${API}/api/pos/settings/${venueId}`, { headers: { Authorization: `Bearer ${token()}` } }) : Promise.resolve({ ok: false }),
+      state.role === 'admin' ? fetch(`${API}/api/pos/settings/${venueId}`, { headers: { Authorization: `Bearer ${token()}` } }) : Promise.resolve({ ok: false }),
     ]);
 
     if (meRes.ok)    { const d = await meRes.json();    _profile = d.user; }
@@ -314,8 +314,8 @@ ${CSS}
       <div class="prof-info-row"><div class="prof-info-lbl">👤 Роль</div><div class="prof-info-val">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'}</div></div>
     </div>
 
-    <!-- POS-інтеграція -->
-    ${isMgr ? posIntegrationBlock() : ''}
+    <!-- POS-інтеграція (лише власник = адмін) -->
+    ${state.role === 'admin' ? posIntegrationBlock() : ''}
 
     <!-- Telegram -->
     <div class="prof-sec">Telegram</div>
