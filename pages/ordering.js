@@ -645,7 +645,7 @@ function suppSheetHTML() {
         </div>` : ''}
       </div>
       <div class="ord-sheet-foot">
-        <button class="ord-btn ord-btn-teal" onclick="window.__ord.saveSuppEdit()" ${_suppSaving ? 'disabled' : ''}>
+        <button id="supp-save-btn" class="ord-btn ord-btn-teal" onclick="window.__ord.saveSuppEdit()" ${_suppSaving ? 'disabled' : ''}>
           ${_suppSaving ? 'Збереження…' : isEdit ? 'Зберегти зміни' : 'Додати постачальника'}
         </button>
       </div>
@@ -734,7 +734,7 @@ function renderManager() {
       <div class="ord-sec">Постачальники
         <button class="ord-sec-link" onclick="window.__ord.openSuppAdd()">+ Додати</button>
       </div>
-      ${mgrSuppliersHTML()}
+      <div id="ord-mgr-supps">${mgrSuppliersHTML()}</div>
       <div class="ord-alert ord-alert-purple" style="margin-top:4px">
         <div class="ord-alert-icon" style="background:var(--purple-bg)">
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="var(--purple)" stroke-width="1.2"/><path d="M6.5 4v3.5M6.5 9.5v.4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/></svg>
@@ -749,9 +749,8 @@ function renderManager() {
     <div style="height:20px"></div>
   </div>
 
-  ${suppSheetHTML()}
-  ${prodPickerHTML()}
-  ${confirmHTML()}`;
+  <div id="ord-sheet-host">${suppSheetHTML()}${prodPickerHTML()}</div>
+  <div id="ord-confirm-host">${confirmHTML()}</div>`;
 }
 
 /* ════════════════════════
@@ -788,6 +787,22 @@ function fullRender() {
 function partialRefreshSupps() {
   const el = document.getElementById('ord-bar-supps');
   if (el) el.innerHTML = barSuppliersHTML();
+}
+// Точкові оновлення — щоб не перебудовувати всю сторінку (без «скоку» й повторних анімацій)
+function refreshSheetHost() {
+  const el = document.getElementById('ord-sheet-host');
+  if (el) el.innerHTML = suppSheetHTML() + prodPickerHTML();
+  else fullRender();
+}
+function refreshConfirmHost() {
+  const el = document.getElementById('ord-confirm-host');
+  if (el) el.innerHTML = confirmHTML();
+  else fullRender();
+}
+function refreshMgrSupps() {
+  const el = document.getElementById('ord-mgr-supps');
+  if (el) el.innerHTML = mgrSuppliersHTML();
+  else fullRender();
 }
 
 /* ════════════════════════
@@ -963,7 +978,7 @@ function openSuppAdd() {
   _suppDraft = { name: '', contact: '', orderDays: '' };
   _suppError = '';
   _suppSheet = 'add';
-  fullRender();
+  refreshSheetHost();
 }
 
 function openSuppEdit(suppId) {
@@ -972,13 +987,13 @@ function openSuppEdit(suppId) {
   _suppDraft = { name: s.name, contact: s.contact || '', orderDays: s.orderDays || '' };
   _suppError = '';
   _suppSheet = suppId;
-  fullRender();
+  refreshSheetHost();
 }
 
 function closeSuppSheet(e) {
   if (e && e.target?.id !== 'supp-sheet-ov') return;
   _suppSheet = null;
-  fullRender();
+  refreshSheetHost();
 }
 
 function suppDraft(field, value) {
@@ -986,10 +1001,12 @@ function suppDraft(field, value) {
 }
 
 async function saveSuppEdit() {
-  if (!_suppDraft.name.trim()) { _suppError = 'Введіть назву постачальника'; fullRender(); return; }
+  if (!_suppDraft.name.trim()) { _suppError = 'Введіть назву постачальника'; refreshSheetHost(); return; }
   _suppSaving = true;
   _suppError  = '';
-  fullRender();
+  // Оновлюємо лише кнопку (без перерендеру sheet — щоб не «скакало»)
+  const _btn = document.getElementById('supp-save-btn');
+  if (_btn) { _btn.disabled = true; _btn.textContent = 'Збереження…'; }
   try {
     const isEdit = _suppSheet !== 'add';
     const url    = isEdit ? `${API}/api/suppliers/${_suppSheet}` : `${API}/api/suppliers`;
@@ -1013,21 +1030,23 @@ async function saveSuppEdit() {
       _suppliers.push(data.supplier);
       _openSuppliers.add(data.supplier.id);
     }
-    _suppSheet  = isEdit ? _suppSheet : data.supplier.id; // залишаємось в edit після create
+    // Закриваємо sheet після збереження + оновлюємо лише список (без «скоку» сторінки)
+    _suppSheet  = null;
     _suppSaving = false;
-    fullRender();
+    refreshSheetHost();
+    refreshMgrSupps();
   } catch (err) {
     _suppError  = err.message;
     _suppSaving = false;
-    fullRender();
+    refreshSheetHost();
   }
 }
 
-function openConfirm(opts) { _confirm = opts; fullRender(); }
-function closeConfirm()    { _confirm = null; fullRender(); }
+function openConfirm(opts) { _confirm = opts; refreshConfirmHost(); }
+function closeConfirm()    { _confirm = null; refreshConfirmHost(); }
 function confirmYes() {
   const act = _confirm && _confirm.action;
-  _confirm = null; fullRender();
+  _confirm = null; refreshConfirmHost();
   if (typeof act === 'function') act();
 }
 
@@ -1051,7 +1070,8 @@ async function deleteSupp(suppId) {
     });
     _suppliers = _suppliers.filter(x => x.id !== suppId);
     _suppSheet = null;
-    fullRender();
+    refreshSheetHost();
+    refreshMgrSupps();
   } catch (err) {
     alert('Помилка: ' + err.message);
   }
