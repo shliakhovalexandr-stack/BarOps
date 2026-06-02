@@ -32,6 +32,7 @@ let _mgrTab        = 'orders';
 /* Supplier management */
 let _suppSheet        = null;   // null | 'add' | suppId(string) для edit
 let _suppDraft        = { name:'', contact:'', orderDays:'' };
+let _confirm          = null;   // { title, message, confirmLabel, danger, action }
 let _prodPickerSupp   = null;   // suppId для якого відкритий пікер
 let _prodSearch       = '';
 let _suppSaving       = false;
@@ -144,6 +145,19 @@ const CSS = `<style id="ord-css">
 .ord-sheet-overlay{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.78);display:none;flex-direction:column;justify-content:flex-end}
 .ord-sheet-overlay.open{display:flex;animation:ordOvIn .2s ease}
 @keyframes ordOvIn{from{opacity:0}to{opacity:1}}
+.ord-confirm-ov{position:absolute;inset:0;z-index:80;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:24px}
+.ord-confirm-ov.open{display:flex;animation:ordOvIn .2s ease}
+.ord-confirm{background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:20px;width:100%;max-width:340px;box-shadow:0 20px 50px rgba(0,0,0,.5);animation:ordPop .22s cubic-bezier(.22,1,.36,1)}
+@keyframes ordPop{from{transform:scale(.94);opacity:.5}to{transform:none;opacity:1}}
+.ord-confirm-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:8px}
+.ord-confirm-msg{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:18px}
+.ord-confirm-btns{display:flex;gap:10px}
+.ord-confirm-btns button{flex:1;height:44px;border-radius:12px;font-size:14px;font-family:var(--font-h);font-weight:600;cursor:pointer}
+.ord-confirm-cancel{background:var(--bg2);color:var(--text1);border:0.5px solid var(--border)}
+.ord-confirm-cancel:active{background:var(--bg3)}
+.ord-confirm-ok{background:var(--bg2);color:var(--text0);border:none}
+.ord-confirm-ok.danger{background:var(--red,#e85555);color:#fff}
+.ord-confirm-ok.danger:active{filter:brightness(.92)}
 .ord-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 32px;animation:ordSlideUp .3s cubic-bezier(.22,1,.36,1);max-height:88%;display:flex;flex-direction:column}
 @keyframes ordSlideUp{from{transform:translateY(100%)}to{transform:none}}
 .ord-sheet-handle{width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:14px auto 16px;flex-shrink:0}
@@ -736,7 +750,27 @@ function renderManager() {
   </div>
 
   ${suppSheetHTML()}
-  ${prodPickerHTML()}`;
+  ${prodPickerHTML()}
+  ${confirmHTML()}`;
+}
+
+/* ════════════════════════
+   CONFIRM MODAL (у стилі додатку)
+════════════════════════ */
+function confirmHTML() {
+  if (!_confirm) return '';
+  const c = _confirm;
+  return `
+  <div class="ord-confirm-ov open" onclick="window.__ord.closeConfirm()">
+    <div class="ord-confirm" onclick="event.stopPropagation()">
+      <div class="ord-confirm-title">${c.title || 'Підтвердження'}</div>
+      <div class="ord-confirm-msg">${c.message || ''}</div>
+      <div class="ord-confirm-btns">
+        <button class="ord-confirm-cancel" onclick="window.__ord.closeConfirm()">Скасувати</button>
+        <button class="ord-confirm-ok ${c.danger ? 'danger' : ''}" onclick="window.__ord.confirmYes()">${c.confirmLabel || 'OK'}</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ════════════════════════
@@ -989,16 +1023,34 @@ async function saveSuppEdit() {
   }
 }
 
-async function deleteSuppConfirm(suppId) {
+function openConfirm(opts) { _confirm = opts; fullRender(); }
+function closeConfirm()    { _confirm = null; fullRender(); }
+function confirmYes() {
+  const act = _confirm && _confirm.action;
+  _confirm = null; fullRender();
+  if (typeof act === 'function') act();
+}
+
+function deleteSuppConfirm(suppId) {
   const s = _suppliers.find(x => x.id === suppId);
-  if (!s || !confirm(`Видалити постачальника "${s.name}"? Всі прив'язки товарів також будуть видалені.`)) return;
+  if (!s) return;
+  openConfirm({
+    title:        'Видалити постачальника?',
+    message:      `Постачальник «${s.name}» та всі прив'язки його товарів будуть видалені. Дію не можна скасувати.`,
+    confirmLabel: 'Видалити',
+    danger:       true,
+    action:       () => deleteSupp(suppId),
+  });
+}
+
+async function deleteSupp(suppId) {
   try {
     await fetch(`${API}/api/suppliers/${suppId}`, {
       method:  'DELETE',
       headers: { Authorization: `Bearer ${_token}` },
     });
-    _suppliers     = _suppliers.filter(x => x.id !== suppId);
-    _suppSheet     = null;
+    _suppliers = _suppliers.filter(x => x.id !== suppId);
+    _suppSheet = null;
     fullRender();
   } catch (err) {
     alert('Помилка: ' + err.message);
@@ -1107,6 +1159,7 @@ export default {
       toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
+      closeConfirm, confirmYes,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
