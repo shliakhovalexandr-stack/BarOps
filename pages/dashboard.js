@@ -59,8 +59,14 @@ const QUICK_CURRENT_SHIFT = { route:'current-shift', badge:null, label:'Пото
        <path d="M3 16c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
        <circle cx="14.5" cy="4.5" r="1.2" fill="currentColor" opacity=".7"/>` };
 
+const QUICK_PLAYLIST = { route:'playlist', badge:null, label:'Плей-лист', hint:'Страви на продаж + облік по офіціантах', color:'var(--green-bg)', iconColor:'var(--green)',
+  svg:`<circle cx="6" cy="14" r="2.4" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M8.4 14V4l7-1.5V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+       <circle cx="13" cy="12" r="2.4" stroke="currentColor" stroke-width="1.3"/>` };
+
 const QUICK_MANAGER = [
   QUICK_CURRENT_SHIFT,
+  QUICK_PLAYLIST,
   { route:'debts',    badge:null, label:'Борги',            hint:'Відкриті рахунки та борги',    color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
