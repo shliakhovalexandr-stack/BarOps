@@ -18,6 +18,7 @@ let _failMsg   = '';
 let _manualCode = '';
 
 let _productName = '';
+let _pnError    = false;          // підсвітити поле назви товару (обов'язкове)
 
 let _marks      = [];
 let _marksDate  = '';
@@ -29,6 +30,9 @@ let _deletingIds  = new Set();
 let _pickerOpen  = false;
 let _pickerYear  = 0;
 let _pickerMonth = 0;            // 1-12
+
+// Перегляд фото марки
+let _photoView = null;           // { id, code, name, loading, url } | null
 
 let _cbShow    = false;          // settings panel visible
 let _cbLogin   = '';
@@ -57,6 +61,29 @@ function hdrs() {
 function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Стиснути фото у data URL (JPEG) перед відправкою — щоб не роздувати БД
+function compressToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1000;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+    img.src = url;
+  });
 }
 
 function fmtDate(d) {
@@ -143,6 +170,25 @@ async function doVerify() {
   _verifying = false; re();
 }
 
+async function openPhoto(id) {
+  const m = _marks.find(x => x.id === id);
+  _photoView = { id, code: m?.code || '', name: m?.productName || '', loading: true, url: '' };
+  re();
+  try {
+    const res = await fetch(`${API}/api/excise/mark/${id}/photo`, { headers: hdrs() });
+    const d = await res.json();
+    if (_photoView && _photoView.id === id) {
+      _photoView.url = res.ok ? (d.photoUrl || '') : '';
+    }
+  } catch {
+    if (_photoView && _photoView.id === id) _photoView.url = '';
+  }
+  if (_photoView && _photoView.id === id) _photoView.loading = false;
+  re();
+}
+
+function closePhoto() { _photoView = null; re(); }
+
 async function doDeleteMark(id) {
   _deletingIds.add(id); re();
   try {
@@ -192,14 +238,23 @@ function handleFile(input) {
 
 async function doScan() {
   if (!_photoFile) return;
+
+  const pnInp0 = document.getElementById('exc-product-name');
+  if (pnInp0) _productName = pnInp0.value.trim();
+  if (!_productName) {
+    _pnError = true; re();
+    document.getElementById('exc-product-name')?.focus();
+    return;
+  }
+  _pnError = false;
   _scanStep = 'scanning'; re();
 
   try {
-    const pnInp = document.getElementById('exc-product-name');
-    if (pnInp) _productName = pnInp.value.trim();
     const form = new FormData();
     form.append('photo', _photoFile);
     form.append('productName', _productName);
+    // Стиснена копія для перегляду в картці (OCR отримує оригінал вище)
+    try { const pd = await compressToBase64(_photoFile); if (pd) form.append('photoData', pd); } catch {}
     const res  = await fetch(`${API}/api/excise/scan`, { method: 'POST', headers: hdrs(), body: form });
     const data = await res.json();
 
@@ -223,15 +278,21 @@ async function doManualSave() {
   const inp  = document.getElementById('exc-manual');
   const code = (inp?.value || _manualCode).trim().toUpperCase().replace(/\s/g, '');
   _manualCode = code;
+  const pnInp = document.getElementById('exc-product-name');
+  if (pnInp) _productName = pnInp.value.trim();
   if (!code || code.length < 6) {
     _failMsg  = 'Введіть код акцизної марки (мінімум 6 символів)';
     _scanStep = 'failed';
     re(); return;
   }
+  if (!_productName) {
+    _pnError = true; re();
+    document.getElementById('exc-product-name')?.focus();
+    return;
+  }
+  _pnError = false;
   _scanStep = 'scanning'; re();
   try {
-    const pnInp = document.getElementById('exc-product-name');
-    if (pnInp) _productName = pnInp.value.trim();
     const res  = await fetch(`${API}/api/excise/manual`, {
       method: 'POST',
       headers: { ...hdrs(), 'Content-Type': 'application/json' },
@@ -256,7 +317,7 @@ function resetScan() {
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoFile = null; _photoUrl = null;
   _scanStep  = 'idle'; _result = null; _failMsg = '';
-  _manualCode = ''; _productName = '';
+  _manualCode = ''; _productName = ''; _pnError = false;
   re();
 }
 
@@ -440,14 +501,28 @@ const CSS = `<style id="exc-css">
 .exc-badge.found{background:var(--green-bg,#1a3320);color:var(--green);border:0.5px solid var(--green-border,#2d5c3a)}
 .exc-badge.not_found{background:var(--red-bg,#2a1212);color:var(--red,#e85555);border:0.5px solid var(--red-border,#5c2d2d)}
 .exc-badge.pending{background:var(--bg3);color:var(--text2);border:0.5px solid var(--border)}
+.exc-badge.extra{background:var(--amber-bg,#2e2510);color:var(--amber,#e0a23a);border:0.5px solid var(--amber-border,#5c4a1f)}
 .exc-del-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text2);transition:all .12s}
 .exc-del-btn:active{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+
+/* Product name required */
+.exc-manual-inp.pn-error{border-color:var(--red,#e85555)!important;background:var(--red-bg,#2a1212)}
+.exc-pn-err{font-size:11px;color:var(--red,#e85555);font-family:var(--font-b);text-align:center;margin-bottom:10px}
 
 /* Verify result */
 .exc-verify-card{border-radius:14px;padding:14px;margin-bottom:14px}
 .exc-verify-card.ok{background:var(--green-bg,#1a3320);border:0.5px solid var(--green-border,#2d5c3a)}
 .exc-verify-card.warn{background:var(--red-bg,#2a1212);border:0.5px solid var(--red-border,#5c2d2d)}
 .exc-verify-card.err{background:var(--bg2);border:0.5px solid var(--border)}
+.exc-verify-cats{display:flex;flex-direction:column;gap:6px}
+.exc-vc{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text1);font-family:var(--font-b)}
+.exc-vc span:nth-child(2){flex:1;min-width:0}
+.exc-vc b{font-family:var(--font-h);font-size:14px}
+.exc-vc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.exc-vc-dot.green{background:var(--green)}
+.exc-vc-dot.red{background:var(--red,#e85555)}
+.exc-vc-dot.amber{background:var(--amber,#e0a23a)}
+.exc-extra-title{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--amber,#e0a23a);margin:16px 0 8px}
 
 /* Checkbox settings */
 .exc-cb-panel{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin-top:14px}
@@ -495,6 +570,19 @@ const CSS = `<style id="exc-css">
 .exc-nav-btn:active{background:var(--bg3)}
 .exc-nav-btn:disabled{opacity:.35;cursor:not-allowed}
 .exc-empty{padding:40px 20px;text-align:center;font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.7}
+.exc-cam-ic{font-size:11px;opacity:.85}
+
+/* Photo viewer */
+.exc-pv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:950;display:flex;align-items:center;justify-content:center;padding:16px}
+.exc-pv-sheet{background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;width:100%;max-width:480px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.exc-pv-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:0.5px solid var(--border)}
+.exc-pv-code{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:.04em}
+.exc-pv-name{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.exc-pv-close{width:34px;height:34px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text1);flex-shrink:0}
+.exc-pv-close:active{background:var(--bg3)}
+.exc-pv-img{display:block;width:100%;max-height:78vh;object-fit:contain;background:#000}
+.exc-pv-empty{padding:48px 20px;text-align:center;font-size:13px;color:var(--text2);font-family:var(--font-b)}
+.exc-pv-spin{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--green);animation:excSpin .7s linear infinite;margin:48px auto}
 </style>`;
 
 function buildPage() {
@@ -527,7 +615,31 @@ function buildPage() {
   <input class="exc-file" id="exc-cam-inp" type="file" accept="image/*" capture="environment" onchange="window.__exc.handleFile(this)"/>
   <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>
   ${_pickerOpen ? buildDatePicker() : ''}
+  ${_photoView ? buildPhotoView() : ''}
 </div>`;
+}
+
+function buildPhotoView() {
+  const v = _photoView;
+  const inner = v.loading
+    ? `<div class="exc-pv-spin"></div>`
+    : (v.url
+        ? `<img class="exc-pv-img" src="${v.url}" alt="Фото марки"/>`
+        : `<div class="exc-pv-empty">Фото недоступне</div>`);
+  return `<div class="exc-pv-overlay" onclick="window.__exc.closePhoto()">
+    <div class="exc-pv-sheet" onclick="event.stopPropagation()">
+      <div class="exc-pv-head">
+        <div style="flex:1;min-width:0">
+          <div class="exc-pv-code">${v.code || ''}</div>
+          ${v.name ? `<div class="exc-pv-name">${v.name}</div>` : ''}
+        </div>
+        <div class="exc-pv-close" onclick="window.__exc.closePhoto()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+      </div>
+      ${inner}
+    </div>
+  </div>`;
 }
 
 function buildScanWrap(inner) {
@@ -588,9 +700,10 @@ function buildScanTab() {
       <input class="exc-manual-inp" id="exc-manual" type="text" maxlength="12" autocapitalize="characters"
         placeholder="AIZT016199" value="${_manualCode}"
         oninput="window.__exc.manualInput(this.value)"/>
-      <input class="exc-manual-inp" id="exc-product-name" type="text" maxlength="80"
-        placeholder="Назва товару (необов'язково)" value="${_productName}"
-        oninput="window.__exc._pnChange(this.value)" style="margin-top:-4px;margin-bottom:10px"/>
+      <input class="exc-manual-inp${_pnError ? ' pn-error' : ''}" id="exc-product-name" type="text" maxlength="80"
+        placeholder="Назва товару (обов'язково) *" value="${_productName}"
+        oninput="window.__exc._pnChange(this.value)" style="margin-top:-4px;margin-bottom:${_pnError ? '4px' : '10px'}"/>
+      ${_pnError ? `<div class="exc-pn-err">Вкажіть назву товару перед збереженням</div>` : ''}
       <button class="exc-cta" onclick="window.__exc.doManualSave()">
         Зберегти
       </button>
@@ -604,9 +717,10 @@ function buildScanTab() {
         <img src="${_photoUrl}" alt="Фото марки"/>
         <div class="exc-preview-btn" onclick="window.__exc.openGallery()">Змінити</div>
       </div>
-      <input class="exc-manual-inp" id="exc-product-name" type="text" maxlength="80"
-        placeholder="Назва товару (необов'язково)" value="${_productName}"
-        oninput="window.__exc._pnChange(this.value)" style="margin-bottom:10px"/>
+      <input class="exc-manual-inp${_pnError ? ' pn-error' : ''}" id="exc-product-name" type="text" maxlength="80"
+        placeholder="Назва товару (обов'язково) *" value="${_productName}"
+        oninput="window.__exc._pnChange(this.value)" style="margin-bottom:${_pnError ? '4px' : '10px'}"/>
+      ${_pnError ? `<div class="exc-pn-err">Вкажіть назву товару перед скануванням</div>` : ''}
       <button class="exc-cta" onclick="window.__exc.doScan()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         Розпізнати та зберегти
@@ -663,17 +777,40 @@ function buildListTab() {
         <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">❌ ${_verifyResult.error}</div>
       </div>`;
     } else {
-      const allOk = _verifyResult.failed.length === 0;
-      verifyBlock = `<div class="exc-verify-card ${allOk ? 'ok' : 'warn'}">
-        <div style="font-size:13px;font-weight:600;color:${allOk ? 'var(--green)' : 'var(--red)'};font-family:var(--font-h);margin-bottom:4px">
-          ${allOk ? '✅ Всі марки в Checkbox!' : `❌ ${_verifyResult.failed.length} марок немає в Checkbox`}
+      const okN    = (_verifyResult.passed || []).length;
+      const failN  = (_verifyResult.failed || []).length;
+      const extraN = (_verifyResult.extra  || []).length;
+      const clean  = failN === 0 && extraN === 0;
+      verifyBlock = `<div class="exc-verify-card ${clean ? 'ok' : 'warn'}">
+        <div style="font-size:13px;font-weight:600;color:${clean ? 'var(--green)' : 'var(--red,#e85555)'};font-family:var(--font-h);margin-bottom:8px">
+          ${clean ? '✅ Все звірено з Checkbox' : '⚠️ Є розбіжності з Checkbox'}
         </div>
-        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b)">
-          Перевірено ${_verifyResult.total} марок · знайдено ${_verifyResult.passed.length} · чеків: ${_verifyResult.receiptsChecked}
+        <div class="exc-verify-cats">
+          <div class="exc-vc"><span class="exc-vc-dot green"></span><span>Фото є + марка є в Checkbox</span><b style="color:var(--green)">${okN}</b></div>
+          <div class="exc-vc"><span class="exc-vc-dot red"></span><span>Фото є, марки немає в Checkbox</span><b style="color:var(--red,#e85555)">${failN}</b></div>
+          <div class="exc-vc"><span class="exc-vc-dot amber"></span><span>Марка в Checkbox, фото немає</span><b style="color:var(--amber,#e0a23a)">${extraN}</b></div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:8px">
+          Перевірено ${_verifyResult.total} марок · чеків: ${_verifyResult.receiptsChecked}
         </div>
       </div>`;
     }
   }
+
+  // Категорія 3: марки з Checkbox, які бармен не сфоткав
+  const extraArr = (_verifyResult && !_verifyResult.error && _verifyResult.extra) ? _verifyResult.extra : [];
+  const extraList = extraArr.length === 0 ? '' : `
+    <div class="exc-extra-title">📋 В Checkbox, але бармен не скинув фото (${extraArr.length})</div>
+    <div style="border:0.5px solid var(--amber-border,#5c4a1f);border-radius:14px;overflow:hidden;background:var(--bg1);padding:0 14px">
+      ${extraArr.map(x => `<div class="exc-mark-row">
+        <div style="flex:1;min-width:0">
+          <div class="exc-mark-code">${x.code}</div>
+          ${x.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${x.productName}</div>` : ''}
+          <div class="exc-mark-meta">З чека Checkbox · фото не сканували</div>
+        </div>
+        <div class="exc-badge extra">📋 без фото</div>
+      </div>`).join('')}
+    </div>`;
 
   const marksList = _marks.length === 0
     ? `<div class="exc-empty">Марок ще не скановано${isToday ? ' сьогодні' : ''}<br><span style="font-size:11px">Перейдіть на вкладку Скан і відскануйте першу марку</span></div>`
@@ -686,11 +823,14 @@ function buildListTab() {
           pending:   { label: '⏳ очікує',     cls: 'pending' },
         };
         const { label, cls } = statusMap[m.checkStatus] || statusMap.pending;
+        const tap = m.hasPhoto
+          ? `onclick="window.__exc.openPhoto('${m.id}')" style="flex:1;min-width:0;cursor:pointer"`
+          : `style="flex:1;min-width:0"`;
         return `<div class="exc-mark-row">
-          <div style="flex:1;min-width:0">
-            <div class="exc-mark-code">${m.code}</div>
+          <div ${tap}>
+            <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
-            <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}</div>
+            <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
           </div>
           <div class="exc-badge ${cls}">${label}</div>
           <button class="exc-del-btn" onclick="window.__exc.deleteMark('${m.id}')" ${deleting ? 'disabled' : ''}>
@@ -738,6 +878,7 @@ function buildListTab() {
 
     ${verifyBlock}
     ${marksList}
+    ${extraList}
     ${cbSettings}
   </div>`;
 }
@@ -809,10 +950,11 @@ export default {
     _photoFile = null;
     if (_photoUrl) URL.revokeObjectURL(_photoUrl);
     _photoUrl = null;
-    _result = null; _failMsg = ''; _manualCode = '';
+    _result = null; _failMsg = ''; _manualCode = ''; _productName = ''; _pnError = false;
     _marks = []; _marksDate = todayKyiv();
     _verifying = false; _verifyResult = null;
     _deletingIds = new Set();
+    _photoView = null;
     _pickerOpen = false;
     _cbShow = false; _cbSaved = false; _cbVenueDdOpen = false;
     _cbVenuesLoaded = false; _cbVenues = []; _cbVenueId = ''; _cbVenueName = '';
@@ -835,7 +977,7 @@ export default {
       resetScan:   resetScan,
       showManual:  () => { _scanStep = 'manual'; re(); },
       manualInput: (v) => { _manualCode = v; },
-      _pnChange:   (v) => { _productName = v; },
+      _pnChange:   (v) => { _productName = v; if (v.trim()) _pnError = false; },
       doManualSave: doManualSave,
       refreshMarks:     () => loadMarks(_marksDate),
       prevDay:          prevDay,
@@ -846,6 +988,8 @@ export default {
       pickerNextMonth:  pickerNextMonth,
       pickerSelectDay:  pickerSelectDay,
       verify:           doVerify,
+      openPhoto:    openPhoto,
+      closePhoto:   closePhoto,
       deleteMark:   doDeleteMark,
       toggleCb:     async () => {
         _cbShow = !_cbShow;
