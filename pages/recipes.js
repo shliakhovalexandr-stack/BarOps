@@ -3,7 +3,7 @@
    Фудкост: страви з Syrve + ТТК + розрахунок собівартості
    ============================================================ */
 
-import { state } from '../shared/app.js';
+import { state, navigate } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
@@ -328,6 +328,7 @@ function on(e) {
   if (act === 'price-edit')   { _priceEdit = { productId: pid, field: fld }; _priceDraft = String(_prices[pid]?.[fld] || ''); re(); return; }
   if (act === 'price-save')   { if (_priceEdit) savePrice(_priceEdit.productId, _priceEdit.field, _priceDraft); return; }
   if (act === 'price-cancel') { _priceEdit = null; _priceDraft = ''; re(); return; }
+  if (act === 'back')         { navigate('dashboard'); return; }
   if (act === 'reload')       { loadAll(); return; }
   if (act === 'sync-prices')  { if (!_syncing) syncPrices(); return; }
   if (act === 'toggle-settings') { _showFCSettings = !_showFCSettings; re(); return; }
@@ -531,6 +532,8 @@ const CSS = `<style id="rec-css">
 .rec-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .rec-scroll{overflow-y:auto;flex:1}.rec-scroll::-webkit-scrollbar{width:0}
 .rec-topbar{padding:8px 16px 6px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.rec-back{width:34px;height:34px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text1);flex-shrink:0}
+.rec-back:active{background:var(--bg3)}
 .rec-title{font-family:var(--font-h);font-size:16px;font-weight:600;color:var(--text0);flex:1}
 .rec-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 .rec-search-wrap{padding:0 20px 12px}
@@ -588,9 +591,13 @@ function buildPage() {
   return buildMain();
 }
 
+const BACK_BTN = `<button data-act="back" class="rec-back" aria-label="Назад">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+</button>`;
+
 function buildSkel() {
   return `<div class="rec-wrap">
-    <div class="rec-topbar"><div class="rec-title">Фудкост</div></div>
+    <div class="rec-topbar">${BACK_BTN}<div class="rec-title">Фудкост</div></div>
     <div class="rec-scroll" style="padding-top:8px">
       ${[1,2,3].map(() => `<div class="rec-skel" style="height:110px"></div>`).join('')}
     </div>
@@ -599,7 +606,7 @@ function buildSkel() {
 
 function buildError() {
   return `<div class="rec-wrap">
-    <div class="rec-topbar"><div class="rec-title">Фудкост</div></div>
+    <div class="rec-topbar">${BACK_BTN}<div class="rec-title">Фудкост</div></div>
     <div style="padding:40px 24px;text-align:center">
       <div style="font-size:36px;margin-bottom:14px">⚠️</div>
       <div style="font-family:var(--font-h);font-size:15px;color:var(--text0);margin-bottom:8px">${_error}</div>
@@ -640,6 +647,7 @@ function buildMain() {
 
   return `<div class="rec-wrap">
   <div class="rec-topbar">
+    ${BACK_BTN}
     <div style="flex:1">
       <div class="rec-title">Фудкост</div>
       <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
