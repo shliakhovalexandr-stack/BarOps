@@ -276,8 +276,8 @@ function renderDrawer() {
           oncontextmenu="event.preventDefault();event.stopPropagation();window.__barops.openVenueMenu('${v.id}');return false"
           data-long-press-id="${v.id}"
           ontouchstart="window.__barops.startVenueHold(event,'${v.id}')"
-          ontouchend="window.__barops.endVenueHold()"
-          ontouchmove="window.__barops.endVenueHold()"
+          ontouchend="window.__barops.endVenueHold(event,'${v.id}')"
+          ontouchmove="window.__barops.moveVenueHold()"
           style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
                  background:${v.id===_venueMenuId?'rgba(255,255,255,.04)':v.active?'rgba(168,139,255,.08)':'transparent'};
                  transition:background .12s">
@@ -864,11 +864,26 @@ export async function bootstrap() {
     openDrawer, closeDrawer, switchVenue, addVenuePrompt, closeAddSheet, addDraftChange, saveNewVenue,
     openVenueMenu, archiveVenue, deleteVenue, editVenue,
     startVenueHold(e, id) {
-      if (e && e.cancelable) e.preventDefault();
-      this._venueHoldTimer = setTimeout(() => window.__barops.openVenueMenu(id), 600);
+      // НЕ викликаємо preventDefault — інакше на мобільному скасовується click (тап не перемикає заклад)
+      this._venueLongPress = false;
+      this._venueHoldTimer = setTimeout(() => {
+        this._venueLongPress = true;   // довге утримання → контекстне меню
+        window.__barops.openVenueMenu(id);
+      }, 600);
     },
-    endVenueHold() {
+    moveVenueHold() {
+      // Скрол/рух пальця — скасовуємо утримання
       if (this._venueHoldTimer) { clearTimeout(this._venueHoldTimer); this._venueHoldTimer = null; }
+    },
+    endVenueHold(e, id) {
+      if (this._venueHoldTimer) { clearTimeout(this._venueHoldTimer); this._venueHoldTimer = null; }
+      // Короткий тап (не long-press) → перемикаємо заклад вручну,
+      // бо синтетичний click на деяких мобільних не завжди надходить
+      if (!this._venueLongPress) {
+        if (e && e.cancelable) e.preventDefault();   // тут можна — щоб не було подвійного спрацювання з click
+        window.__barops.switchVenue(id);
+      }
+      this._venueLongPress = false;
     },
     logout: function() {
       localStorage.removeItem('barops_token');
