@@ -36,7 +36,9 @@ const CSS = `<style id="stk-css">
 .stk-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .stk-scroll{overflow-y:auto;flex:1}.stk-scroll::-webkit-scrollbar{width:0}
 
-.stk-topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 0;flex-shrink:0}
+.stk-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 20px 0;flex-shrink:0}
+.stk-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text1);flex-shrink:0}
+.stk-back:active{background:var(--bg3)}
 .stk-title{font-family:var(--font-h);font-size:26px;font-weight:600;color:var(--text0);letter-spacing:-.025em;line-height:1}
 .stk-add-btn{display:flex;align-items:center;gap:5px;padding:7px 12px;background:var(--green);color:#000;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
 
@@ -262,7 +264,12 @@ function buildHTML() {
 ${CSS}
 <div class="stk-wrap">
   <div class="stk-topbar">
-    <h1 class="stk-title">Залишки</h1>
+    <div style="display:flex;align-items:center;gap:12px;min-width:0">
+      <div class="stk-back" onclick="window.__barops.navigate('dashboard')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+      <h1 class="stk-title">Залишки</h1>
+    </div>
     <button class="stk-add-btn">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Перерахунок
