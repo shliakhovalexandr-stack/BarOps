@@ -453,23 +453,24 @@ function mgrOrdersHTML() {
       const items  = (s.items || []).filter(i => (i.qty || 0) > 0);
       const copyId = `copy-${o.id}-${si}`;
       const tgId = `tg-${o.id}-${si}`, vbId = `vb-${o.id}-${si}`;
+      const supp = _suppliers.find(x => x.id === s.supplierId) || {};
       return `
       <div class="ord-req-supp">
         <div class="ord-req-sname" style="margin-bottom:6px">${s.supplierName || 'Постачальник'}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-          <button id="${tgId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'tg','${tgId}')"
-            style="height:26px;padding:0 11px;border-radius:8px;background:var(--blue-bg,#16263a);border:0.5px solid var(--blue-border,#2d4a6b);color:var(--blue,#4FA8E8);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:4px">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 3L2 11l6 2 2 6 3-4 5 4 4-16z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Telegram
-          </button>
-          <button id="${vbId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'viber','${vbId}')"
-            style="height:26px;padding:0 11px;border-radius:8px;background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:4px">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 5h14v10H9l-4 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Viber
-          </button>
-          <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
-            style="height:26px;padding:0 11px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:4px">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Копіювати
-          </button>
-        </div>
+        <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
+          style="width:100%;height:38px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Копіювати замовлення
+        </button>
+        ${(supp.telegram || supp.viber) ? `<div style="display:flex;gap:6px;margin-bottom:8px">
+          ${supp.telegram ? `<button id="${tgId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'tg','${tgId}')"
+            style="flex:1;height:28px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border);color:var(--blue,#4FA8E8);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 3L2 11l6 2 2 6 3-4 5 4 4-16z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Відкрити Telegram
+          </button>` : ''}
+          ${supp.viber ? `<button id="${vbId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'viber','${vbId}')"
+            style="flex:1;height:28px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border);color:var(--purple);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 5h14v10H9l-4 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Відкрити Viber
+          </button>` : ''}
+        </div>` : ''}
         ${items.map(i => `
           <div class="ord-req-item">
             <span class="ord-req-iname">${i.productName}</span>
@@ -993,11 +994,8 @@ async function copySupplier(orderId, suppIdx, btnId) {
   const items = (s.items || []).filter(i => (i.qty || 0) > 0);
   if (!items.length) return;
 
-  const lines = items.map(i => {
-    const comment = i.comment ? ` (${i.comment})` : '';
-    return `- ${i.productName}${comment} — ${i.qty} ${i.unit || 'од.'}`;
-  });
-  const text = `${s.supplierName}:\n${lines.join('\n')}`;
+  // Повний готовий текст із супровідним (Доброго дня / ФОП / Заклад / оплата + перелік)
+  const { text } = buildSupplierMessage(s);
 
   try {
     await navigator.clipboard.writeText(text);
@@ -1021,15 +1019,31 @@ function toggleDoneOrder(id) {
 }
 
 // ── Відправка закупівлі постачальнику (deep-link + супровідний текст) ──
-function tgNick(v) {
+// Нормалізація українського номера у міжнародний (без +): 380XXXXXXXXX
+function normPhone(v) {
+  let d = (v || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.length === 10 && d[0] === '0') d = '38' + d;            // 0XXXXXXXXX → 380XXXXXXXXX
+  else if (d.length === 9)             d = '380' + d;           // XXXXXXXXX  → 380XXXXXXXXX
+  else if (d.length === 11 && d.startsWith('80')) d = '3' + d;  // 80XXXXXXXXX → 380...
+  return d;
+}
+// Telegram: приймає @нік, t.me-лінк або номер телефону
+function tgUrl(v) {
   if (!v) return '';
-  return v.trim()
-    .replace(/^https?:\/\/t\.me\//i, '').replace(/^t\.me\//i, '')
-    .replace(/^@/, '').replace(/[/?].*$/, '').trim();
+  const s = v.trim();
+  if (/^https?:\/\//i.test(s)) return s;                        // вже повне посилання
+  // номер телефону (лише цифри/+/пробіли/дужки/дефіси)
+  if (/^[+\d][\d\s\-()]{6,}$/.test(s)) {
+    const ph = normPhone(s);
+    return ph ? `https://t.me/+${ph}` : '';
+  }
+  const nick = s.replace(/^t\.me\//i, '').replace(/^@/, '').replace(/[/?].*$/, '');
+  return nick ? `https://t.me/${nick}` : '';
 }
 function viberNum(v) {
-  if (!v) return '';
-  return v.replace(/[^\d+]/g, '');
+  const ph = normPhone(v);
+  return ph ? `+${ph}` : '';
 }
 function buildSupplierMessage(s) {
   const supp  = _suppliers.find(x => x.id === s.supplierId) || {};
@@ -1051,8 +1065,7 @@ async function sendToSupplier(orderId, suppIdx, channel, btnId) {
 
   let url = '';
   if (channel === 'tg') {
-    const nick = tgNick(supp.telegram);
-    url = nick ? `https://t.me/${nick}` : `https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(text)}`;
+    url = tgUrl(supp.telegram) || `https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(text)}`;
   } else {
     const num = viberNum(supp.viber);
     url = num ? `viber://chat?number=${encodeURIComponent(num)}` : `viber://forward?text=${encodeURIComponent(text)}`;
