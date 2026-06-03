@@ -626,14 +626,18 @@ ${CSS}
 function fullRender() {
   if (state.route !== 'dashboard') return;
   const v = document.getElementById('app-view');
-  if (v) v.innerHTML = buildHTML();
+  if (!v) return;
+  // Зберігаємо позицію скролу, щоб фонові оновлення (stats/заявки) не кидали на верх
+  const prev = v.querySelector('.d-scroll');
+  const top  = prev ? prev.scrollTop : 0;
+  v.innerHTML = buildHTML();
+  if (top) {
+    const next = v.querySelector('.d-scroll');
+    if (next) next.scrollTop = top;
+  }
 }
 
-function partialRender() {
-  if (state.route !== 'dashboard') return;
-  const v = document.getElementById('app-view');
-  if (v) v.innerHTML = buildHTML();
-}
+function partialRender() { fullRender(); }
 
 function toggleVenueSheet() { _venueSheetOpen = !_venueSheetOpen; fullRender(); }
 function closeVenueSheet(e) {
