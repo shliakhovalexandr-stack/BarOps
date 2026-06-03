@@ -1603,6 +1603,15 @@ async function doSendActToSyrve() {
     const histKey = `barops_wo_history_${vId}`;
     try { localStorage.setItem(histKey, JSON.stringify(_sentHistory.slice(0, 20))); } catch {}
 
+    // Зберігаємо акт на сервері (історія не губиться при очищенні кешу / на іншому пристрої)
+    try {
+      await fetch(`${API}/api/writeoffs/acts/${vId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ payload: histEntry, itemCount: todayItems.length }),
+      });
+    } catch (e) { /* офлайн — лишається в localStorage */ }
+
     for (const w of todayItems) {
       try {
         await fetch(`${API}/api/writeoffs/${w.id}`, {
@@ -1783,6 +1792,23 @@ export default {
     try { _sentHistory = JSON.parse(localStorage.getItem(`barops_wo_history_${vId}`) || '[]'); } catch { _sentHistory = []; }
     const stored = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     _writeoffs = stored[vId] || [];
+
+    // Історія актів — головне джерело сервер, localStorage лише офлайн-кеш
+    try {
+      const aTok = localStorage.getItem('barops_token');
+      const aRes = await fetch(`${API}/api/writeoffs/acts/${vId}`, {
+        headers: aTok ? { Authorization: `Bearer ${aTok}` } : {},
+      });
+      if (aRes.ok) {
+        const ad = await aRes.json();
+        const serverHist = Array.isArray(ad.acts) ? ad.acts.map(a => a.payload).filter(Boolean) : [];
+        const seen = new Set(serverHist.map(h => h && h.ts));
+        // сервер + локальні записи, яких ще немає на сервері (по ts)
+        _sentHistory = [...serverHist, ..._sentHistory.filter(h => h && !seen.has(h.ts))]
+          .sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')));
+        try { localStorage.setItem(`barops_wo_history_${vId}`, JSON.stringify(_sentHistory.slice(0, 20))); } catch {}
+      }
+    } catch { /* офлайн — лишаємо localStorage */ }
 
     try {
       const woToken = localStorage.getItem('barops_token');
