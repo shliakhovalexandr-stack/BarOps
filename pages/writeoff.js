@@ -52,6 +52,8 @@ let _swipeListenerAdded = false;
 let _prodSearch = '';
 let _mgrPeriod  = 'day';
 let _mgrFilter  = 'all';
+let _mgrFrom    = ''; // YYYY-MM-DD для періоду «Обрати»
+let _mgrTo      = '';
 let _succOpen   = false;
 
 /* ── Unit helpers ── */
@@ -84,18 +86,29 @@ function itemLoss(w) {
   return toBaseQty(w.volNum, w.unitKey) * price;
 }
 
-function getMgrKpi(period) {
-  const now  = new Date();
-  const ds   = (y,m,d) => new Date(y,m,d);
-  const day  = ds(now.getFullYear(), now.getMonth(), now.getDate());
-  const week = new Date(day); week.setDate(week.getDate() - ((week.getDay()||7) - 1));
-  const mon  = ds(now.getFullYear(), now.getMonth(), 1);
-  const since = period==='day' ? day : period==='week' ? week : period==='month' ? mon : null;
-  const list  = since ? _writeoffs.filter(w => new Date(w.ts||0) >= since) : _writeoffs;
-  const vol   = list.reduce((s,w) => s + (w.volNum||0), 0);
+// Діапазон [since, until) для періоду (календарний тиждень Пн-Нд / місяць / діапазон)
+function periodRange(period) {
+  const now = new Date();
+  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === 'week')  { const w = new Date(day); w.setDate(w.getDate() - ((w.getDay()||7) - 1)); return { since: w, until: new Date(w.getTime() + 7*86400000) }; }
+  if (period === 'month') { return { since: new Date(now.getFullYear(), now.getMonth(), 1), until: new Date(now.getFullYear(), now.getMonth()+1, 1) }; }
+  if (period === 'custom'){ return { since: _mgrFrom ? new Date(_mgrFrom+'T00:00:00') : null, until: _mgrTo ? new Date(_mgrTo+'T23:59:59.999') : null }; }
+  return { since: day, until: new Date(day.getTime() + 86400000) }; // day
+}
+function inPeriod(ts, period) {
+  const { since, until } = periodRange(period);
+  const t = new Date(ts || 0);
+  if (since && t < since) return false;
+  if (until && t >= until) return false;
+  return true;
+}
+
+// KPI за період. sentOnly=true — лише надіслані (для менеджера)
+function getMgrKpi(period, sentOnly) {
+  const list  = _writeoffs.filter(w => inPeriod(w.ts, period) && (!sentOnly || w.sentAt));
   const loss  = list.reduce((s,w) => s + itemLoss(w), 0);
   const lossR = Math.round(loss);
-  return { count: list.length.toString(), vol: vol>0 ? vol.toFixed(2)+'л' : '0л', loss: lossR>0 ? lossR+'₴' : '—' };
+  return { count: list.length.toString(), loss: lossR>0 ? lossR+'₴' : '—' };
 }
 
 /* Динамічний чарт (останні 7 днів) */
@@ -286,6 +299,11 @@ const CSS = `<style id="wo-css">
 .wo-period-tabs{display:flex;gap:2px;margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:9px;padding:3px}
 .wo-pt{flex:1;height:28px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .wo-pt.act{background:var(--bg3);color:var(--text0)}
+.wo-daterange{display:flex;gap:8px;margin:0 14px 10px}
+.wo-dr-field{flex:1;display:flex;flex-direction:column;gap:4px}
+.wo-dr-field span{font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;padding-left:2px}
+.wo-dr-field input{height:38px;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;color:var(--text0);font-size:13px;font-family:var(--font-b);padding:0 10px;outline:none;color-scheme:dark}
+.wo-dr-field input:focus{border-color:var(--purple)}
 
 .wo-mgr-kpi{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px 4px}
 .wo-mk{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:11px 10px;text-align:center}
@@ -405,7 +423,7 @@ function woCardHTML(w) {
 
 function woList() {
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const filtered = [..._writeoffs].reverse().filter(w => _catFilter === 'all' || w.cat === _catFilter);
+  const filtered = [..._writeoffs].reverse().filter(w => !w.sentAt && (_catFilter === 'all' || w.cat === _catFilter));
   const todayItems = filtered.filter(w => new Date(w.ts || 0) >= todayStart);
   const prevItems  = filtered.filter(w => new Date(w.ts || 0) < todayStart);
 
@@ -422,8 +440,9 @@ function woList() {
   return html || `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
 }
 
-function woTodayStr() {
+function woTodayStr(fmt) {
   const d = new Date();
+  if (fmt === 'iso') return d.toISOString().slice(0, 10);
   return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
 }
 
@@ -487,8 +506,8 @@ function renderBartender() {
 
     <!-- Syrve send -->
     ${(() => {
-      // Усі ненадіслані позиції з товаром (включно з попередніми змінами)
-      const sendWo = _writeoffs.filter(w => w.prodId);
+      // Ненадіслані позиції з товаром
+      const sendWo = _writeoffs.filter(w => w.prodId && !w.sentAt);
       return `<div style="margin:12px 14px 0;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
         <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
@@ -910,9 +929,9 @@ function summaryHTML() {
    MANAGER RENDER
 ════════════════════════ */
 function renderManager() {
-  const kpi   = getMgrKpi(_mgrPeriod);
+  const kpi   = getMgrKpi(_mgrPeriod, true);   // менеджер бачить лише надіслані за період
   const CHART_DATA = getChartData();
-  const unsentWo = _writeoffs.filter(w => w.prodId);   // усі ненадіслані позиції з товаром
+  const unsentWo = _writeoffs.filter(w => w.prodId && !w.sentAt);   // ненадіслані позиції з товаром
   const max   = Math.max(...CHART_DATA.map(d=>d.biy+d.psuv+d.deg+d.insh), 1);
   const days  = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
   const colors = { biy:'var(--red)', psuv:'var(--amber)', deg:'var(--green)', insh:'var(--purple)' };
@@ -950,9 +969,19 @@ function renderManager() {
               onclick="window.__wo.setPeriod('${p}')">${['Сьогодні','Тиждень','Місяць','Обрати'][i]}</button>`).join('')}
     </div>
 
+    ${_mgrPeriod === 'custom' ? `
+    <div class="wo-daterange">
+      <label class="wo-dr-field"><span>Від</span>
+        <input type="date" value="${_mgrFrom}" max="${woTodayStr('iso')}" onchange="window.__wo.setMgrFrom(this.value)"/>
+      </label>
+      <label class="wo-dr-field"><span>До</span>
+        <input type="date" value="${_mgrTo}" max="${woTodayStr('iso')}" onchange="window.__wo.setMgrTo(this.value)"/>
+      </label>
+    </div>` : ''}
+
     <!-- KPI -->
     <div class="wo-mgr-kpi">
-      <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.count}</div><div class="wo-mk-lbl">Списань<br/>за день</div></div>
+      <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.count}</div><div class="wo-mk-lbl">Списань<br/>за період</div></div>
       <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.loss}</div><div class="wo-mk-lbl">Збиток<br/>оціночно</div></div>
     </div>
 
@@ -970,7 +999,7 @@ function renderManager() {
 
     <!-- Unsent -->
     ${(() => {
-      const unsent = [..._writeoffs].reverse();
+      const unsent = [..._writeoffs].filter(w => !w.sentAt).reverse();
       if (!unsent.length) return `
         <div class="wo-sec">Не відправлені</div>
         <div style="margin:0 14px 8px;padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
@@ -1056,29 +1085,31 @@ function renderManager() {
       </div>
     </div>
 
-    <!-- History: sent acts only -->
-    <div class="wo-sec" style="padding-top:10px">Історія списань</div>
-    <div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
-      ${_sentHistory.length ? _sentHistory.map((h, i) => {
-        const time = h.date || '';
-        return `
-        <div class="wo-act-card" onclick="window.__wo.openActDetail(${i})">
-          <div style="width:32px;height:32px;border-radius:9px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M1.5 7.5h12M7.5 2l5 5.5-5 5.5" stroke="var(--purple)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+    <!-- Списання за період (тільки надіслані) -->
+    ${(() => {
+      const periodSent = _writeoffs
+        .filter(w => w.sentAt && inPeriod(w.ts, _mgrPeriod))
+        .sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')));
+      const rows = periodSent.map(w => {
+        const loss = itemLoss(w);
+        return `<div class="wo-card" style="gap:10px">
+          <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text0);font-family:var(--font-b)">Акт · ${time}</div>
-            <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.acts?.map(a=>a.accountName).join(', ') || h.accounts?.join(' · ') || ''}</div>
+            <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${w.reason ? `${CAT[w.cat]?.label||''} · ${w.reason}` : (CAT[w.cat]?.label||'')} · ${w.dateStr||''}</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--purple)">${h.itemCount} поз.</div>
+            <div style="font-family:var(--font-h);font-size:15px;font-weight:700;color:${CAT[w.cat]?.color||'var(--text0)'}">${w.vol||'—'}</div>
+            ${loss>0 ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${Math.round(loss)}₴</div>` : ''}
           </div>
         </div>`;
-      }).join('') : `
-        <div style="padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
-          <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Відправлених актів немає</div>
-        </div>`}
-    </div>
+      }).join('');
+      return `
+      <div class="wo-sec" style="padding-top:10px">Списання за період</div>
+      <div class="wo-list" style="margin-bottom:16px">
+        ${rows || `<div style="padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center"><div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Немає надісланих списань за період</div></div>`}
+      </div>`;
+    })()}
 
     <!-- Act detail overlay -->
     <div class="wo-detail-overlay ${_detailAct ? 'open' : ''}" id="wo-detail-overlay"
@@ -1469,7 +1500,17 @@ function closeSuccess()     { _succOpen=false; openForm(); }
 function closeSuccessExit() { _succOpen=false; _formOpen=false; fullRender(); }
 
 /* manager */
-function setPeriod(p) { _mgrPeriod=p; fullRender(); }
+function setPeriod(p) {
+  _mgrPeriod = p;
+  if (p === 'custom' && !_mgrFrom) {
+    const e = new Date(), s = new Date(); s.setDate(s.getDate() - 7);
+    _mgrFrom = s.toISOString().slice(0, 10);
+    _mgrTo   = e.toISOString().slice(0, 10);
+  }
+  fullRender();
+}
+function setMgrFrom(v) { _mgrFrom = v; fullRender(); }
+function setMgrTo(v)   { _mgrTo = v; fullRender(); }
 function setMgrFilter(f) { _mgrFilter=f; fullRender(); }
 
 async function sendActToSyrve() {
@@ -1477,8 +1518,8 @@ async function sendActToSyrve() {
   const token = localStorage.getItem('barops_token');
   if (!vId || !token) { alert('Немає авторизації або venueId'); return; }
 
-  // Усі ненадіслані позиції з товаром (включно з попередніми змінами)
-  const sendItems = _writeoffs.filter(w => w.prodId);
+  // Ненадіслані позиції з товаром
+  const sendItems = _writeoffs.filter(w => w.prodId && !w.sentAt);
   if (!sendItems.length) { alert('Немає списань з товаром для надсилання'); return; }
 
   // Завантажуємо збережені склади з бекенду
@@ -1603,18 +1644,19 @@ async function doSendActToSyrve() {
       });
     } catch (e) { /* офлайн — лишається в localStorage */ }
 
-    for (const w of sentItems) {
-      if (!w.id) continue;
+    // Позначаємо надісланими (не видаляємо — лишаються в історії 90 днів)
+    const sentIds = sentItems.map(w => w.id).filter(Boolean);
+    if (sentIds.length) {
       try {
-        await fetch(`${API}/api/writeoffs/${w.id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
+        await fetch(`${API}/api/writeoffs/mark-sent`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body:    JSON.stringify({ ids: sentIds }),
         });
       } catch (e) { /* ігноруємо */ }
     }
-
-    // Прибираємо саме надіслані позиції (за посиланням), решта лишається
-    _writeoffs = _writeoffs.filter(w => !sentItems.includes(w));
+    const nowIso = new Date().toISOString();
+    for (const w of sentItems) w.sentAt = nowIso;   // зникають із «не відправлені», лишаються в історії
     const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     raw[vId] = _writeoffs;
     localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
@@ -1778,6 +1820,7 @@ export default {
     _prodSearch = '';
     _mgrPeriod  = 'day';
     _mgrFilter  = 'all';
+    _mgrFrom    = ''; _mgrTo = '';
     _succOpen   = false;
 
     // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
@@ -1854,6 +1897,7 @@ export default {
             time:        hhmm,
             dateStr:     `${dd} · ${hhmm}`,
             ts:          w.createdAt,
+            sentAt:      w.sentAt || null,
           };
         });
         // Оновлюємо кеш
@@ -1953,7 +1997,7 @@ export default {
       selectCat, searchProds, selectProd,
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
-      setPeriod, setMgrFilter, exportReport,
+      setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport,
       sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
       openActDetail, closeActDetail,
       addCustomReason, removeReason,
