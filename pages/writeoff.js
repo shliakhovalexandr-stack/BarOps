@@ -1435,6 +1435,7 @@ async function submitForm() {
       items: [{ productName: entry.prod, productId: entry.prodId, qty: vol, unit: uLbl }],
       category: CAT[finalCat]?.label || finalCat || 'Інше',
       reason:   entry.reason || null,
+      venueId:  vId,
     });
     if (saved?.data?.id) {
       entry.id = saved.data.id;
@@ -1795,7 +1796,7 @@ export default {
 
     try {
       const woToken = localStorage.getItem('barops_token');
-      const woRes = await fetch(`${API}/api/writeoffs`, {
+      const woRes = await fetch(`${API}/api/writeoffs?venueId=${encodeURIComponent(vId)}`, {
         headers: woToken ? { Authorization: `Bearer ${woToken}` } : {},
       });
       if (woRes.ok) {
