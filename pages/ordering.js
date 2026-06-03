@@ -585,7 +585,6 @@ function suppSheetHTML() {
   if (!_suppSheet) return '';
   const isEdit = _suppSheet !== 'add';
   const supp   = isEdit ? _suppliers.find(s => s.id === _suppSheet) : null;
-  const prods  = supp ? (supp.supplierProducts || []) : [];
 
   return `
   <div class="ord-sheet-overlay open" onclick="window.__ord.closeSuppSheet(event)" id="supp-sheet-ov">
@@ -617,26 +616,7 @@ function suppSheetHTML() {
           oninput="window.__ord.suppDraft('orderDays',this.value)"/>
 
         ${isEdit ? `
-        <div style="display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px">
-          <div style="font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Товари (${prods.length})</div>
-          <div onclick="window.__ord.openProdPicker('${supp.id}')"
-            style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--teal);cursor:pointer;padding:6px 12px;background:var(--teal-bg);border:0.5px solid var(--teal-border);border-radius:8px;font-family:var(--font-b)">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="var(--teal)" stroke-width="1.5" stroke-linecap="round"/></svg>
-            Додати товар
-          </div>
-        </div>
-        ${prods.length > 0
-          ? `<div style="background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
-              ${prods.map((sp, i) => `
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
-                <div style="flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b)">${sp.productName}</div>
-                <div onclick="window.__ord.removeProduct('${sp.id}')"
-                  style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:7px;background:var(--bg4);flex-shrink:0">
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text2)" stroke-width="1.5" stroke-linecap="round"/></svg>
-                </div>
-              </div>`).join('')}
-            </div>`
-          : `<div style="padding:14px;text-align:center;font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:14px">Товари не додані — натисніть "Додати товар"</div>`}
+        <div id="supp-prods">${suppProdsHTML(supp)}</div>
 
         <div onclick="window.__ord.deleteSuppConfirm('${supp.id}')"
           style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;cursor:pointer;border-radius:10px;border:1px solid var(--red-border);color:var(--red);font-size:13px;font-family:var(--font-b);margin-bottom:8px">
@@ -653,14 +633,54 @@ function suppSheetHTML() {
   </div>`;
 }
 
+// Секція товарів у панелі постачальника (для точкового оновлення)
+function suppProdsHTML(supp) {
+  const prods = supp ? (supp.supplierProducts || []) : [];
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px">
+      <div style="font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Товари (${prods.length})</div>
+      <div onclick="window.__ord.openProdPicker('${supp.id}')"
+        style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--teal);cursor:pointer;padding:6px 12px;background:var(--teal-bg);border:0.5px solid var(--teal-border);border-radius:8px;font-family:var(--font-b)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="var(--teal)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Додати товар
+      </div>
+    </div>
+    ${prods.length > 0
+      ? `<div style="background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
+          ${prods.map((sp, i) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
+            <div style="flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b)">${sp.productName}</div>
+            <div onclick="window.__ord.removeProduct('${sp.id}')"
+              style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:7px;background:var(--bg4);flex-shrink:0">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text2)" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>`).join('')}
+        </div>`
+      : `<div style="padding:14px;text-align:center;font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:14px">Товари не додані — натисніть "Додати товар"</div>`}`;
+}
+
 /* ════════════════════════
    PRODUCT PICKER SHEET
 ════════════════════════ */
+function pickerRowHTML(supp, b) {
+  const assignedId = (supp.supplierProducts || []).find(sp => sp.productId === b.id)?.id || '';
+  const isOn = !!assignedId;
+  const name = b.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `<div class="ord-pp-row" data-pid="${b.id}" onclick="window.__ord.toggleProduct('${supp.id}','${b.id}','${name}','${assignedId}',event)">
+    <div class="ord-pp-check ${isOn ? 'on' : ''}">
+      ${isOn ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="ord-pp-name">${b.name}</div>
+      ${b.amount !== undefined ? `<div class="ord-pp-stock">Залишок: ${(b.amount || 0).toFixed(2)} ${b.unit || ''}</div>` : ''}
+    </div>
+  </div>`;
+}
+
 function prodPickerHTML() {
   if (!_prodPickerSupp) return '';
   const supp     = _suppliers.find(s => s.id === _prodPickerSupp);
   if (!supp) return '';
-  const assigned = new Map((supp.supplierProducts || []).map(sp => [sp.productId, sp.id]));
 
   const q        = _prodSearch.toLowerCase();
   const filtered = _balanceItems.filter(b => !q || b.name.toLowerCase().includes(q));
@@ -683,23 +703,11 @@ function prodPickerHTML() {
             oninput="window.__ord.prodSearchChange(this.value)"/>
         </div>
 
+        <div id="ord-pp-list">
         ${filtered.length === 0
           ? `<div style="padding:24px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:12px">${_balanceItems.length === 0 ? 'Залишки Syrve не завантажені' : 'Нічого не знайдено'}</div>`
-          : filtered.map(b => {
-              const isOn = assigned.has(b.id);
-              const spId = assigned.get(b.id) || '';
-              const name = b.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-              return `
-              <div class="ord-pp-row" onclick="window.__ord.toggleProduct('${supp.id}','${b.id}','${name}','${spId}')">
-                <div class="ord-pp-check ${isOn ? 'on' : ''}">
-                  ${isOn ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
-                </div>
-                <div style="flex:1;min-width:0">
-                  <div class="ord-pp-name">${b.name}</div>
-                  ${b.amount !== undefined ? `<div class="ord-pp-stock">Залишок: ${(b.amount || 0).toFixed(2)} ${b.unit || ''}</div>` : ''}
-                </div>
-              </div>`;
-            }).join('')}
+          : filtered.map(b => pickerRowHTML(supp, b)).join('')}
+        </div>
         <div style="height:8px"></div>
       </div>
     </div>
@@ -749,7 +757,8 @@ function renderManager() {
     <div style="height:20px"></div>
   </div>
 
-  <div id="ord-sheet-host">${suppSheetHTML()}${prodPickerHTML()}</div>
+  <div id="ord-sheet-host">${suppSheetHTML()}</div>
+  <div id="ord-picker-host">${prodPickerHTML()}</div>
   <div id="ord-confirm-host">${confirmHTML()}</div>`;
 }
 
@@ -791,7 +800,12 @@ function partialRefreshSupps() {
 // Точкові оновлення — щоб не перебудовувати всю сторінку (без «скоку» й повторних анімацій)
 function refreshSheetHost() {
   const el = document.getElementById('ord-sheet-host');
-  if (el) el.innerHTML = suppSheetHTML() + prodPickerHTML();
+  if (el) el.innerHTML = suppSheetHTML();
+  else fullRender();
+}
+function refreshPickerHost() {
+  const el = document.getElementById('ord-picker-host');
+  if (el) el.innerHTML = prodPickerHTML();
   else fullRender();
 }
 function refreshConfirmHost() {
@@ -803,6 +817,13 @@ function refreshMgrSupps() {
   const el = document.getElementById('ord-mgr-supps');
   if (el) el.innerHTML = mgrSuppliersHTML();
   else fullRender();
+}
+// Оновити лише секцію товарів у відкритій панелі постачальника (без анімації панелі)
+function refreshSuppProds() {
+  if (!_suppSheet || _suppSheet === 'add') return;
+  const supp = _suppliers.find(s => s.id === _suppSheet);
+  const el = document.getElementById('supp-prods');
+  if (supp && el) el.innerHTML = suppProdsHTML(supp);
 }
 
 /* ════════════════════════
@@ -1081,36 +1102,32 @@ async function deleteSupp(suppId) {
 function openProdPicker(suppId) {
   _prodPickerSupp = suppId;
   _prodSearch     = '';
-  fullRender();
+  refreshPickerHost();
 }
 
 function closeProdPicker(e) {
   if (e && e.target?.id !== 'prod-picker-ov') return;
   _prodPickerSupp = null;
-  fullRender();
+  refreshPickerHost();
 }
 
 function prodSearchChange(q) {
   _prodSearch = q;
-  const el = document.getElementById('prod-picker-ov');
-  if (!el) return;
-  const body = el.querySelector('.ord-sheet-body');
-  if (!body) return;
-  const tmp = document.createElement('div');
-  tmp.innerHTML = prodPickerHTML();
-  const newBody = tmp.querySelector('.ord-sheet-body');
-  if (newBody) {
-    const inp = body.querySelector('.ord-sheet-search-inp');
-    const pos = inp ? inp.selectionStart : null;
-    body.innerHTML = newBody.innerHTML;
-    const newInp = body.querySelector('.ord-sheet-search-inp');
-    if (newInp) { newInp.focus(); if (pos !== null) newInp.setSelectionRange(pos, pos); }
-  }
+  const supp = _suppliers.find(s => s.id === _prodPickerSupp);
+  const list = document.getElementById('ord-pp-list');
+  if (!supp || !list) return;
+  const ql = q.toLowerCase();
+  const filtered = _balanceItems.filter(b => !ql || b.name.toLowerCase().includes(ql));
+  list.innerHTML = filtered.length === 0
+    ? `<div style="padding:24px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:12px">${_balanceItems.length === 0 ? 'Залишки Syrve не завантажені' : 'Нічого не знайдено'}</div>`
+    : filtered.map(b => pickerRowHTML(supp, b)).join('');
 }
 
-async function toggleProduct(suppId, productId, productName, spId) {
+async function toggleProduct(suppId, productId, productName, spId, ev) {
   const supp = _suppliers.find(s => s.id === suppId);
   if (!supp) return;
+  // Запам'ятовуємо рядок ДО await (потім event.currentTarget стане null)
+  const row = ev && ev.currentTarget ? ev.currentTarget : null;
   const isAssigned = (supp.supplierProducts || []).some(sp => sp.productId === productId);
 
   if (isAssigned && spId) {
@@ -1135,7 +1152,10 @@ async function toggleProduct(suppId, productId, productName, spId) {
       supp.supplierProducts.push(data.supplierProduct);
     } catch { return; }
   }
-  fullRender();
+  // Оновлюємо лише клікнутий рядок + лічильник товарів у панелі (без перерендеру/скоку)
+  const b = _balanceItems.find(x => x.id === productId);
+  if (row && b) row.outerHTML = pickerRowHTML(supp, b);
+  refreshSuppProds();
 }
 
 async function removeProduct(spId) {
@@ -1146,7 +1166,9 @@ async function removeProduct(spId) {
     for (const s of _suppliers) {
       s.supplierProducts = (s.supplierProducts || []).filter(sp => sp.id !== spId);
     }
-    fullRender();
+    // Оновлюємо лише секцію товарів у панелі (і пікер, якщо відкритий) — без скоку
+    refreshSuppProds();
+    if (_prodPickerSupp) refreshPickerHost();
   } catch (err) {
     alert('Помилка: ' + err.message);
   }
