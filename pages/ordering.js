@@ -33,6 +33,7 @@ let _mgrTab        = 'orders';
 let _suppSheet        = null;   // null | 'add' | suppId(string) для edit
 let _suppDraft        = { name:'', contact:'', orderDays:'', fop:'', paymentForm:'' };
 let _confirm          = null;   // { title, message, confirmLabel, danger, action }
+let _rename           = null;   // { id, syrve, value } — модалка перейменування товару
 let _prodPickerSupp   = null;   // suppId для якого відкритий пікер
 let _prodSearch       = '';
 let _suppSaving       = false;
@@ -158,6 +159,11 @@ const CSS = `<style id="ord-css">
 .ord-confirm-ok{background:var(--bg2);color:var(--text0);border:none}
 .ord-confirm-ok.danger{background:var(--red,#e85555);color:#fff}
 .ord-confirm-ok.danger:active{filter:brightness(.92)}
+.ord-confirm-ok.primary{background:var(--purple);color:#fff}
+.ord-confirm-ok.primary:active{filter:brightness(.92)}
+.ord-confirm-inp{width:100%;box-sizing:border-box;height:46px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;color:var(--text0);font-size:15px;font-family:var(--font-b);padding:0 14px;outline:none;margin-bottom:8px}
+.ord-confirm-inp:focus{border-color:var(--purple)}
+.ord-confirm-hint{font-size:11px;color:var(--text3);font-family:var(--font-b);margin-bottom:16px}
 .ord-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 32px;animation:ordSlideUp .3s cubic-bezier(.22,1,.36,1);max-height:88%;display:flex;flex-direction:column}
 @keyframes ordSlideUp{from{transform:translateY(100%)}to{transform:none}}
 .ord-sheet-handle{width:36px;height:3px;background:var(--bg4);border-radius:2px;margin:14px auto 16px;flex-shrink:0}
@@ -782,7 +788,7 @@ function renderManager() {
 
   <div id="ord-sheet-host">${suppSheetHTML()}</div>
   <div id="ord-picker-host">${prodPickerHTML()}</div>
-  <div id="ord-confirm-host">${confirmHTML()}</div>`;
+  <div id="ord-confirm-host">${confirmHTML()}${renameHTML()}</div>`;
 }
 
 /* ════════════════════════
@@ -799,6 +805,27 @@ function confirmHTML() {
       <div class="ord-confirm-btns">
         <button class="ord-confirm-cancel" onclick="window.__ord.closeConfirm()">Скасувати</button>
         <button class="ord-confirm-ok ${c.danger ? 'danger' : ''}" onclick="window.__ord.confirmYes()">${c.confirmLabel || 'OK'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Модалка перейменування товару (стиль додатку)
+function renameHTML() {
+  if (!_rename) return '';
+  const r = _rename;
+  return `
+  <div class="ord-confirm-ov open" onclick="window.__ord.renameCancel()">
+    <div class="ord-confirm" onclick="event.stopPropagation()">
+      <div class="ord-confirm-title">Назва для відправки</div>
+      <input class="ord-confirm-inp" id="ord-rename-inp" type="text" maxlength="120"
+        value="${(r.value || '').replace(/"/g, '&quot;')}" placeholder="Назва товару"
+        oninput="window.__ord.renameInput(this.value)"
+        onkeydown="if(event.key==='Enter')window.__ord.renameSave()"/>
+      <div class="ord-confirm-hint">Syrve: ${r.syrve || '—'}</div>
+      <div class="ord-confirm-btns">
+        <button class="ord-confirm-cancel" onclick="window.__ord.renameCancel()">Скасувати</button>
+        <button class="ord-confirm-ok primary" onclick="window.__ord.renameSave()">Зберегти</button>
       </div>
     </div>
   </div>`;
@@ -833,8 +860,12 @@ function refreshPickerHost() {
 }
 function refreshConfirmHost() {
   const el = document.getElementById('ord-confirm-host');
-  if (el) el.innerHTML = confirmHTML();
-  else fullRender();
+  if (!el) { fullRender(); return; }
+  el.innerHTML = confirmHTML() + renameHTML();
+  if (_rename) {
+    const inp = document.getElementById('ord-rename-inp');
+    if (inp) { inp.focus(); inp.select(); }
+  }
 }
 function refreshMgrSupps() {
   const el = document.getElementById('ord-mgr-supps');
@@ -1193,13 +1224,23 @@ async function toggleProduct(suppId, productId, productName, spId, ev) {
   refreshSuppProds();
 }
 
-async function renameProduct(spId) {
+function renameProduct(spId) {
   let sp = null;
   for (const s of _suppliers) { const f = (s.supplierProducts || []).find(x => x.id === spId); if (f) { sp = f; break; } }
   if (!sp) return;
-  const val = prompt(`Назва для відправки постачальнику\n(Syrve: ${sp.productName})`, sp.customName || sp.productName || '');
-  if (val === null) return;
-  const customName = val.trim();
+  _rename = { id: spId, syrve: sp.productName, value: sp.customName || sp.productName || '' };
+  refreshConfirmHost();
+}
+function renameInput(v) { if (_rename) _rename.value = v; }
+function renameCancel() { _rename = null; refreshConfirmHost(); }
+async function renameSave() {
+  if (!_rename) return;
+  const spId = _rename.id;
+  const customName = (_rename.value || '').trim();
+  _rename = null; refreshConfirmHost();
+  let sp = null;
+  for (const s of _suppliers) { const f = (s.supplierProducts || []).find(x => x.id === spId); if (f) { sp = f; break; } }
+  if (!sp) return;
   try {
     await fetch(`${API}/api/suppliers/products/${spId}`, {
       method:  'PATCH',
@@ -1258,7 +1299,8 @@ export default {
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       closeConfirm, confirmYes,
-      openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct, renameProduct,
+      openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
+      renameProduct, renameInput, renameCancel, renameSave,
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
