@@ -31,7 +31,7 @@ let _mgrTab        = 'orders';
 
 /* Supplier management */
 let _suppSheet        = null;   // null | 'add' | suppId(string) для edit
-let _suppDraft        = { name:'', contact:'', orderDays:'', telegram:'', viber:'', fop:'', paymentForm:'' };
+let _suppDraft        = { name:'', contact:'', orderDays:'', fop:'', paymentForm:'' };
 let _confirm          = null;   // { title, message, confirmLabel, danger, action }
 let _prodPickerSupp   = null;   // suppId для якого відкритий пікер
 let _prodSearch       = '';
@@ -452,25 +452,13 @@ function mgrOrdersHTML() {
     return (o.suppliers || []).map((s, si) => {
       const items  = (s.items || []).filter(i => (i.qty || 0) > 0);
       const copyId = `copy-${o.id}-${si}`;
-      const tgId = `tg-${o.id}-${si}`, vbId = `vb-${o.id}-${si}`;
-      const supp = _suppliers.find(x => x.id === s.supplierId) || {};
       return `
       <div class="ord-req-supp">
         <div class="ord-req-sname" style="margin-bottom:6px">${s.supplierName || 'Постачальник'}</div>
         <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
-          style="width:100%;height:38px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+          style="width:100%;height:38px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px">
           <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Копіювати замовлення
         </button>
-        ${(supp.telegram || supp.viber) ? `<div style="display:flex;gap:6px;margin-bottom:8px">
-          ${supp.telegram ? `<button id="${tgId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'tg','${tgId}')"
-            style="flex:1;height:28px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border);color:var(--blue,#4FA8E8);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 3L2 11l6 2 2 6 3-4 5 4 4-16z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Відкрити Telegram
-          </button>` : ''}
-          ${supp.viber ? `<button id="${vbId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'viber','${vbId}')"
-            style="flex:1;height:28px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border);color:var(--purple);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 5h14v10H9l-4 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Відкрити Viber
-          </button>` : ''}
-        </div>` : ''}
         ${items.map(i => `
           <div class="ord-req-item">
             <span class="ord-req-iname">${i.productName}</span>
@@ -626,16 +614,6 @@ function suppSheetHTML() {
         <input class="ord-inp" type="text" placeholder="Напр.: Вт, Чт"
           value="${_suppDraft.orderDays}"
           oninput="window.__ord.suppDraft('orderDays',this.value)"/>
-
-        <div class="ord-inp-lbl">Telegram нік</div>
-        <input class="ord-inp" type="text" placeholder="@nick або https://t.me/nick"
-          value="${(_suppDraft.telegram||'').replace(/"/g,'&quot;')}"
-          oninput="window.__ord.suppDraft('telegram',this.value)"/>
-
-        <div class="ord-inp-lbl">Viber нік / телефон</div>
-        <input class="ord-inp" type="text" placeholder="+380... або нік"
-          value="${(_suppDraft.viber||'').replace(/"/g,'&quot;')}"
-          oninput="window.__ord.suppDraft('viber',this.value)"/>
 
         <div class="ord-inp-lbl">ФОП (для тексту)</div>
         <input class="ord-inp" type="text" placeholder="Напр.: ФОП Іваненко І.І."
@@ -1018,33 +996,7 @@ function toggleDoneOrder(id) {
   fullRender();
 }
 
-// ── Відправка закупівлі постачальнику (deep-link + супровідний текст) ──
-// Нормалізація українського номера у міжнародний (без +): 380XXXXXXXXX
-function normPhone(v) {
-  let d = (v || '').replace(/\D/g, '');
-  if (!d) return '';
-  if (d.length === 10 && d[0] === '0') d = '38' + d;            // 0XXXXXXXXX → 380XXXXXXXXX
-  else if (d.length === 9)             d = '380' + d;           // XXXXXXXXX  → 380XXXXXXXXX
-  else if (d.length === 11 && d.startsWith('80')) d = '3' + d;  // 80XXXXXXXXX → 380...
-  return d;
-}
-// Telegram: приймає @нік, t.me-лінк або номер телефону
-function tgUrl(v) {
-  if (!v) return '';
-  const s = v.trim();
-  if (/^https?:\/\//i.test(s)) return s;                        // вже повне посилання
-  // номер телефону (лише цифри/+/пробіли/дужки/дефіси)
-  if (/^[+\d][\d\s\-()]{6,}$/.test(s)) {
-    const ph = normPhone(s);
-    return ph ? `https://t.me/+${ph}` : '';
-  }
-  const nick = s.replace(/^t\.me\//i, '').replace(/^@/, '').replace(/[/?].*$/, '');
-  return nick ? `https://t.me/${nick}` : '';
-}
-function viberNum(v) {
-  const ph = normPhone(v);
-  return ph ? `+${ph}` : '';
-}
+// ── Супровідний текст замовлення для постачальника ──
 function buildSupplierMessage(s) {
   const supp  = _suppliers.find(x => x.id === s.supplierId) || {};
   const items = (s.items || []).filter(i => (i.qty || 0) > 0);
@@ -1054,27 +1006,6 @@ function buildSupplierMessage(s) {
   if (state.venue)      head.push(`Заклад: ${state.venue}`);
   if (supp.paymentForm) head.push(`Форма оплати: ${supp.paymentForm}`);
   return { supp, text: `${head.join('\n')}\n\n${lines.join('\n')}` };
-}
-async function sendToSupplier(orderId, suppIdx, channel, btnId) {
-  const order = _orders.find(o => o.id === orderId); if (!order) return;
-  const s = (order.suppliers || [])[suppIdx]; if (!s) return;
-  const { supp, text } = buildSupplierMessage(s);
-
-  // Текст завжди в буфер — щоб гарантовано вставити в чат
-  try { await navigator.clipboard.writeText(text); } catch {}
-
-  let url = '';
-  if (channel === 'tg') {
-    url = tgUrl(supp.telegram) || `https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(text)}`;
-  } else {
-    const num = viberNum(supp.viber);
-    url = num ? `viber://chat?number=${encodeURIComponent(num)}` : `viber://forward?text=${encodeURIComponent(text)}`;
-  }
-
-  const btn = document.getElementById(btnId);
-  if (btn) { const o = btn.innerHTML; btn.innerHTML = '✓ текст у буфері'; btn.style.color = 'var(--green)'; setTimeout(() => { btn.innerHTML = o; btn.style.color = ''; }, 2500); }
-
-  try { window.open(url, '_blank'); } catch { window.location.href = url; }
 }
 
 async function markOrderDone(id) {
@@ -1097,7 +1028,7 @@ function setMgrTab(tab) { _mgrTab = tab; fullRender(); }
 
 /* ── Supplier CRUD ── */
 function openSuppAdd() {
-  _suppDraft = { name: '', contact: '', orderDays: '', telegram: '', viber: '', fop: '', paymentForm: '' };
+  _suppDraft = { name: '', contact: '', orderDays: '', fop: '', paymentForm: '' };
   _suppError = '';
   _suppSheet = 'add';
   refreshSheetHost();
@@ -1106,7 +1037,7 @@ function openSuppAdd() {
 function openSuppEdit(suppId) {
   const s = _suppliers.find(x => x.id === suppId);
   if (!s) return;
-  _suppDraft = { name: s.name, contact: s.contact || '', orderDays: s.orderDays || '', telegram: s.telegram || '', viber: s.viber || '', fop: s.fop || '', paymentForm: s.paymentForm || '' };
+  _suppDraft = { name: s.name, contact: s.contact || '', orderDays: s.orderDays || '', fop: s.fop || '', paymentForm: s.paymentForm || '' };
   _suppError = '';
   _suppSheet = suppId;
   refreshSheetHost();
@@ -1135,7 +1066,6 @@ async function saveSuppEdit() {
     const method = isEdit ? 'PATCH' : 'POST';
     const body   = {
       name: _suppDraft.name.trim(), contact: _suppDraft.contact.trim(), orderDays: _suppDraft.orderDays.trim(),
-      telegram: (_suppDraft.telegram||'').trim(), viber: (_suppDraft.viber||'').trim(),
       fop: (_suppDraft.fop||'').trim(), paymentForm: (_suppDraft.paymentForm||'').trim(),
     };
     if (!isEdit) body.venueId = _venueId;
@@ -1329,7 +1259,6 @@ export default {
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       closeConfirm, confirmYes,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct, renameProduct,
-      sendToSupplier,
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
