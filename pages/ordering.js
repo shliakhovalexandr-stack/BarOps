@@ -1241,17 +1241,26 @@ async function renameSave() {
   let sp = null;
   for (const s of _suppliers) { const f = (s.supplierProducts || []).find(x => x.id === spId); if (f) { sp = f; break; } }
   if (!sp) return;
+
+  // Оптимістично — показуємо назву одразу, не чекаючи мережу
+  const prev = sp.customName || '';
+  sp.customName = customName;
+  refreshSuppProds();
+  if (_prodPickerSupp) refreshPickerHost();
+
+  // Зберігаємо у фоні; при помилці — відкат
   try {
-    await fetch(`${API}/api/suppliers/products/${spId}`, {
+    const res = await fetch(`${API}/api/suppliers/products/${spId}`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
       body:    JSON.stringify({ customName }),
     });
-    sp.customName = customName;
+    if (!res.ok) throw new Error('save failed');
+  } catch (err) {
+    sp.customName = prev;
     refreshSuppProds();
     if (_prodPickerSupp) refreshPickerHost();
-  } catch (err) {
-    alert('Помилка: ' + err.message);
+    alert('Не вдалося зберегти назву. Спробуйте ще раз.');
   }
 }
 
