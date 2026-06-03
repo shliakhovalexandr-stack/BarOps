@@ -31,7 +31,7 @@ let _mgrTab        = 'orders';
 
 /* Supplier management */
 let _suppSheet        = null;   // null | 'add' | suppId(string) для edit
-let _suppDraft        = { name:'', contact:'', orderDays:'' };
+let _suppDraft        = { name:'', contact:'', orderDays:'', telegram:'', viber:'', fop:'', paymentForm:'' };
 let _confirm          = null;   // { title, message, confirmLabel, danger, action }
 let _prodPickerSupp   = null;   // suppId для якого відкритий пікер
 let _prodSearch       = '';
@@ -306,9 +306,11 @@ function barSuppliersHTML() {
   return _suppliers.map(s => {
     const prods = (s.supplierProducts || []).map(sp => {
       const bal = getBalance(sp.productId);
+      const hasCustom = sp.customName && sp.customName !== sp.productName;
       return {
         productId:   sp.productId,
-        name:        sp.productName,
+        name:        sp.customName || sp.productName,
+        syrve:       hasCustom ? sp.productName : '',
         stock:       bal ? (bal.amount || 0) : null,
         unit:        bal?.unit || '',
         qty:         _barQtys[sp.productId] || 0,
@@ -335,6 +337,7 @@ function barSuppliersHTML() {
               <div class="ord-pemoji">📦</div>
               <div style="flex:1;min-width:0">
                 <div class="ord-pname">${p.name}</div>
+                ${p.syrve ? `<div class="ord-pstock" style="color:var(--text3)">Syrve: ${p.syrve}</div>` : ''}
                 <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
               </div>
               ${p.qty > 0 ? `<div class="ord-qty-badge">${p.qty} ${unit || 'од.'}</div>` : ''}
@@ -449,14 +452,22 @@ function mgrOrdersHTML() {
     return (o.suppliers || []).map((s, si) => {
       const items  = (s.items || []).filter(i => (i.qty || 0) > 0);
       const copyId = `copy-${o.id}-${si}`;
+      const tgId = `tg-${o.id}-${si}`, vbId = `vb-${o.id}-${si}`;
       return `
       <div class="ord-req-supp">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div class="ord-req-sname" style="margin-bottom:0">${s.supplierName || 'Постачальник'}</div>
+        <div class="ord-req-sname" style="margin-bottom:6px">${s.supplierName || 'Постачальник'}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <button id="${tgId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'tg','${tgId}')"
+            style="height:26px;padding:0 11px;border-radius:8px;background:var(--blue-bg,#16263a);border:0.5px solid var(--blue-border,#2d4a6b);color:var(--blue,#4FA8E8);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:4px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 3L2 11l6 2 2 6 3-4 5 4 4-16z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Telegram
+          </button>
+          <button id="${vbId}" onclick="window.__ord.sendToSupplier('${o.id}',${si},'viber','${vbId}')"
+            style="height:26px;padding:0 11px;border-radius:8px;background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:4px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 5h14v10H9l-4 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Viber
+          </button>
           <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
-            style="height:24px;padding:0 10px;border-radius:7px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--font-b);cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:4px">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            Копіювати
+            style="height:26px;padding:0 11px;border-radius:8px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:4px">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Копіювати
           </button>
         </div>
         ${items.map(i => `
@@ -615,6 +626,26 @@ function suppSheetHTML() {
           value="${_suppDraft.orderDays}"
           oninput="window.__ord.suppDraft('orderDays',this.value)"/>
 
+        <div class="ord-inp-lbl">Telegram нік</div>
+        <input class="ord-inp" type="text" placeholder="@nick або https://t.me/nick"
+          value="${(_suppDraft.telegram||'').replace(/"/g,'&quot;')}"
+          oninput="window.__ord.suppDraft('telegram',this.value)"/>
+
+        <div class="ord-inp-lbl">Viber нік / телефон</div>
+        <input class="ord-inp" type="text" placeholder="+380... або нік"
+          value="${(_suppDraft.viber||'').replace(/"/g,'&quot;')}"
+          oninput="window.__ord.suppDraft('viber',this.value)"/>
+
+        <div class="ord-inp-lbl">ФОП (для тексту)</div>
+        <input class="ord-inp" type="text" placeholder="Напр.: ФОП Іваненко І.І."
+          value="${(_suppDraft.fop||'').replace(/"/g,'&quot;')}"
+          oninput="window.__ord.suppDraft('fop',this.value)"/>
+
+        <div class="ord-inp-lbl">Форма оплати</div>
+        <input class="ord-inp" type="text" placeholder="Напр.: безготівка / ФОП на ФОП"
+          value="${(_suppDraft.paymentForm||'').replace(/"/g,'&quot;')}"
+          oninput="window.__ord.suppDraft('paymentForm',this.value)"/>
+
         ${isEdit ? `
         <div id="supp-prods">${suppProdsHTML(supp)}</div>
 
@@ -647,14 +678,24 @@ function suppProdsHTML(supp) {
     </div>
     ${prods.length > 0
       ? `<div style="background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
-          ${prods.map((sp, i) => `
-          <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
-            <div style="flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b)">${sp.productName}</div>
+          ${prods.map((sp, i) => {
+            const hasCustom = sp.customName && sp.customName !== sp.productName;
+            return `
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sp.customName || sp.productName}</div>
+              ${hasCustom ? `<div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Syrve: ${sp.productName}</div>` : ''}
+            </div>
+            <div onclick="window.__ord.renameProduct('${sp.id}')" title="Перейменувати для відправки"
+              style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:7px;background:var(--bg4);flex-shrink:0;color:var(--teal)">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 13h2.5l6-6L9 4.5l-6 6V13z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M10.5 3l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </div>
             <div onclick="window.__ord.removeProduct('${sp.id}')"
               style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:7px;background:var(--bg4);flex-shrink:0">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text2)" stroke-width="1.5" stroke-linecap="round"/></svg>
             </div>
-          </div>`).join('')}
+          </div>`;
+          }).join('')}
         </div>`
       : `<div style="padding:14px;text-align:center;font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:14px">Товари не додані — натисніть "Додати товар"</div>`}`;
 }
@@ -663,15 +704,18 @@ function suppProdsHTML(supp) {
    PRODUCT PICKER SHEET
 ════════════════════════ */
 function pickerRowHTML(supp, b) {
-  const assignedId = (supp.supplierProducts || []).find(sp => sp.productId === b.id)?.id || '';
+  const sp = (supp.supplierProducts || []).find(x => x.productId === b.id);
+  const assignedId = sp?.id || '';
   const isOn = !!assignedId;
+  const custom = sp?.customName && sp.customName !== b.name ? sp.customName : '';
   const name = b.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `<div class="ord-pp-row" data-pid="${b.id}" onclick="window.__ord.toggleProduct('${supp.id}','${b.id}','${name}','${assignedId}',event)">
     <div class="ord-pp-check ${isOn ? 'on' : ''}">
       ${isOn ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
     </div>
     <div style="flex:1;min-width:0">
-      <div class="ord-pp-name">${b.name}</div>
+      <div class="ord-pp-name" style="${custom ? '' : 'color:var(--text2)'}">${custom || b.name}</div>
+      ${custom ? `<div class="ord-pp-stock" style="color:var(--text3)">Syrve: ${b.name}</div>` : ''}
       ${b.amount !== undefined ? `<div class="ord-pp-stock">Залишок: ${(b.amount || 0).toFixed(2)} ${b.unit || ''}</div>` : ''}
     </div>
   </div>`;
@@ -899,7 +943,7 @@ async function submitOrder() {
     const items = (s.supplierProducts || [])
       .map(sp => ({
         productId:   sp.productId,
-        productName: sp.productName,
+        productName: sp.customName || sp.productName,   // наша назва для відправки
         qty:         _barQtys[sp.productId] || 0,
         unit:        _barUnits[sp.productId] || (_balanceItems.find(b => b.id === sp.productId)?.unit) || 'од.',
         comment:     _barComments[sp.productId] || '',
@@ -976,6 +1020,50 @@ function toggleDoneOrder(id) {
   fullRender();
 }
 
+// ── Відправка закупівлі постачальнику (deep-link + супровідний текст) ──
+function tgNick(v) {
+  if (!v) return '';
+  return v.trim()
+    .replace(/^https?:\/\/t\.me\//i, '').replace(/^t\.me\//i, '')
+    .replace(/^@/, '').replace(/[/?].*$/, '').trim();
+}
+function viberNum(v) {
+  if (!v) return '';
+  return v.replace(/[^\d+]/g, '');
+}
+function buildSupplierMessage(s) {
+  const supp  = _suppliers.find(x => x.id === s.supplierId) || {};
+  const items = (s.items || []).filter(i => (i.qty || 0) > 0);
+  const lines = items.map(i => `• ${i.productName}${i.comment ? ` (${i.comment})` : ''} — ${i.qty} ${i.unit || 'од.'}`);
+  const head  = ['Доброго дня!'];
+  if (supp.fop)         head.push(`ФОП: ${supp.fop}`);
+  if (state.venue)      head.push(`Заклад: ${state.venue}`);
+  if (supp.paymentForm) head.push(`Форма оплати: ${supp.paymentForm}`);
+  return { supp, text: `${head.join('\n')}\n\n${lines.join('\n')}` };
+}
+async function sendToSupplier(orderId, suppIdx, channel, btnId) {
+  const order = _orders.find(o => o.id === orderId); if (!order) return;
+  const s = (order.suppliers || [])[suppIdx]; if (!s) return;
+  const { supp, text } = buildSupplierMessage(s);
+
+  // Текст завжди в буфер — щоб гарантовано вставити в чат
+  try { await navigator.clipboard.writeText(text); } catch {}
+
+  let url = '';
+  if (channel === 'tg') {
+    const nick = tgNick(supp.telegram);
+    url = nick ? `https://t.me/${nick}` : `https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(text)}`;
+  } else {
+    const num = viberNum(supp.viber);
+    url = num ? `viber://chat?number=${encodeURIComponent(num)}` : `viber://forward?text=${encodeURIComponent(text)}`;
+  }
+
+  const btn = document.getElementById(btnId);
+  if (btn) { const o = btn.innerHTML; btn.innerHTML = '✓ текст у буфері'; btn.style.color = 'var(--green)'; setTimeout(() => { btn.innerHTML = o; btn.style.color = ''; }, 2500); }
+
+  try { window.open(url, '_blank'); } catch { window.location.href = url; }
+}
+
 async function markOrderDone(id) {
   try {
     await fetch(`${API}/api/orders/${id}`, {
@@ -996,7 +1084,7 @@ function setMgrTab(tab) { _mgrTab = tab; fullRender(); }
 
 /* ── Supplier CRUD ── */
 function openSuppAdd() {
-  _suppDraft = { name: '', contact: '', orderDays: '' };
+  _suppDraft = { name: '', contact: '', orderDays: '', telegram: '', viber: '', fop: '', paymentForm: '' };
   _suppError = '';
   _suppSheet = 'add';
   refreshSheetHost();
@@ -1005,7 +1093,7 @@ function openSuppAdd() {
 function openSuppEdit(suppId) {
   const s = _suppliers.find(x => x.id === suppId);
   if (!s) return;
-  _suppDraft = { name: s.name, contact: s.contact || '', orderDays: s.orderDays || '' };
+  _suppDraft = { name: s.name, contact: s.contact || '', orderDays: s.orderDays || '', telegram: s.telegram || '', viber: s.viber || '', fop: s.fop || '', paymentForm: s.paymentForm || '' };
   _suppError = '';
   _suppSheet = suppId;
   refreshSheetHost();
@@ -1032,7 +1120,11 @@ async function saveSuppEdit() {
     const isEdit = _suppSheet !== 'add';
     const url    = isEdit ? `${API}/api/suppliers/${_suppSheet}` : `${API}/api/suppliers`;
     const method = isEdit ? 'PATCH' : 'POST';
-    const body   = { name: _suppDraft.name.trim(), contact: _suppDraft.contact.trim(), orderDays: _suppDraft.orderDays.trim() };
+    const body   = {
+      name: _suppDraft.name.trim(), contact: _suppDraft.contact.trim(), orderDays: _suppDraft.orderDays.trim(),
+      telegram: (_suppDraft.telegram||'').trim(), viber: (_suppDraft.viber||'').trim(),
+      fop: (_suppDraft.fop||'').trim(), paymentForm: (_suppDraft.paymentForm||'').trim(),
+    };
     if (!isEdit) body.venueId = _venueId;
 
     const res  = await fetch(url, {
@@ -1158,6 +1250,27 @@ async function toggleProduct(suppId, productId, productName, spId, ev) {
   refreshSuppProds();
 }
 
+async function renameProduct(spId) {
+  let sp = null;
+  for (const s of _suppliers) { const f = (s.supplierProducts || []).find(x => x.id === spId); if (f) { sp = f; break; } }
+  if (!sp) return;
+  const val = prompt(`Назва для відправки постачальнику\n(Syrve: ${sp.productName})`, sp.customName || sp.productName || '');
+  if (val === null) return;
+  const customName = val.trim();
+  try {
+    await fetch(`${API}/api/suppliers/products/${spId}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body:    JSON.stringify({ customName }),
+    });
+    sp.customName = customName;
+    refreshSuppProds();
+    if (_prodPickerSupp) refreshPickerHost();
+  } catch (err) {
+    alert('Помилка: ' + err.message);
+  }
+}
+
 async function removeProduct(spId) {
   try {
     await fetch(`${API}/api/suppliers/products/${spId}`, {
@@ -1202,7 +1315,8 @@ export default {
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       closeConfirm, confirmYes,
-      openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
+      openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct, renameProduct,
+      sendToSupplier,
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
