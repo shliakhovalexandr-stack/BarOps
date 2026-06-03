@@ -41,6 +41,7 @@ let _selUnit    = 'l';
 let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
 let _sentHistory = []; // [{ts, date, accounts, itemCount, acts}] — відправлені акти Syrve
+let _prices      = {}; // productId → собівартість (unitPrice) з Syrve Office
 let _detailAct   = null; // відкритий акт для перегляду
 let _syrveConfirmOpen   = false;
 let _syrveConfirmGroups = [];
@@ -71,6 +72,18 @@ function fmtStock(amount, u) {
 }
 
 /* Динамічний KPI з localStorage */
+// Кількість у базовій одиниці (л / кг / шт) для множення на собівартість
+function toBaseQty(volNum, unitKey) {
+  if (unitKey === 'ml' || unitKey === 'g') return (volNum || 0) / 1000;
+  return volNum || 0; // l, kg, sht
+}
+// Собівартість списаної позиції з Syrve Office (unitPrice × кількість у базовій од.)
+function itemLoss(w) {
+  const price = _prices[w.prodId];
+  if (!price) return 0;
+  return toBaseQty(w.volNum, w.unitKey) * price;
+}
+
 function getMgrKpi(period) {
   const now  = new Date();
   const ds   = (y,m,d) => new Date(y,m,d);
@@ -80,8 +93,9 @@ function getMgrKpi(period) {
   const since = period==='day' ? day : period==='week' ? week : period==='month' ? mon : null;
   const list  = since ? _writeoffs.filter(w => new Date(w.ts||0) >= since) : _writeoffs;
   const vol   = list.reduce((s,w) => s + (w.volNum||0), 0);
-  const loss  = list.reduce((s,w) => s + (w.loss||0), 0);
-  return { count: list.length.toString(), vol: vol>0 ? vol.toFixed(2)+'л' : '0л', loss: loss>0 ? loss+'₴' : '—' };
+  const loss  = list.reduce((s,w) => s + itemLoss(w), 0);
+  const lossR = Math.round(loss);
+  return { count: list.length.toString(), vol: vol>0 ? vol.toFixed(2)+'л' : '0л', loss: lossR>0 ? lossR+'₴' : '—' };
 }
 
 /* Динамічний чарт (останні 7 днів) */
@@ -110,7 +124,7 @@ const CSS = `<style id="wo-css">
 .wo-sub{font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
 
 /* today summary */
-.wo-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px 10px}
+.wo-summary{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px 10px}
 .wo-stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r,12px);padding:12px 10px;text-align:center;position:relative;overflow:hidden}
 .wo-stat::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 12px 12px}
 .wo-stat-r::after{background:var(--red)}.wo-stat-a::after{background:var(--amber)}.wo-stat-p::after{background:var(--purple)}
@@ -273,7 +287,7 @@ const CSS = `<style id="wo-css">
 .wo-pt{flex:1;height:28px;border-radius:7px;border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .wo-pt.act{background:var(--bg3);color:var(--text0)}
 
-.wo-mgr-kpi{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px 4px}
+.wo-mgr-kpi{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px 4px}
 .wo-mk{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:11px 10px;text-align:center}
 .wo-mk-val{font-family:var(--font-h);font-size:20px;font-weight:700;line-height:1}
 .wo-mk-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
@@ -436,10 +450,6 @@ function renderBartender() {
         <div class="wo-stat wo-stat-r">
           <div class="wo-stat-val" style="color:var(--red)">${kpi.count}</div>
           <div class="wo-stat-lbl">Записів<br/>сьогодні</div>
-        </div>
-        <div class="wo-stat wo-stat-a">
-          <div class="wo-stat-val" style="color:var(--amber)">${kpi.vol}</div>
-          <div class="wo-stat-lbl">Загальний<br/>об'єм</div>
         </div>
         <div class="wo-stat wo-stat-p">
           <div class="wo-stat-val" style="color:var(--purple)">${kpi.loss}</div>
@@ -943,7 +953,6 @@ function renderManager() {
     <!-- KPI -->
     <div class="wo-mgr-kpi">
       <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.count}</div><div class="wo-mk-lbl">Списань<br/>за день</div></div>
-      <div class="wo-mk"><div class="wo-mk-val" style="color:var(--amber)">${kpi.vol}</div><div class="wo-mk-lbl">Загальний<br/>об'єм</div></div>
       <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.loss}</div><div class="wo-mk-lbl">Збиток<br/>оціночно</div></div>
     </div>
 
@@ -1793,6 +1802,19 @@ export default {
         try { localStorage.setItem(`barops_wo_history_${vId}`, JSON.stringify(_sentHistory.slice(0, 20))); } catch {}
       }
     } catch { /* офлайн — лишаємо localStorage */ }
+
+    // Собівартість товарів із Syrve Office — для «Збиток оціночно»
+    try {
+      const pTok = localStorage.getItem('barops_token');
+      const pRes = await fetch(`${API}/api/pos/syrve-prices?venueId=${encodeURIComponent(vId)}`, {
+        headers: pTok ? { Authorization: `Bearer ${pTok}` } : {},
+      });
+      if (pRes.ok) {
+        const pd = await pRes.json();
+        _prices = {};
+        for (const p of (pd.prices || [])) _prices[p.productId] = p.unitPrice || 0;
+      }
+    } catch { /* без цін — збиток покаже «—» */ }
 
     try {
       const woToken = localStorage.getItem('barops_token');
