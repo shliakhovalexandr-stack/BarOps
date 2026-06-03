@@ -408,6 +408,11 @@ function woList() {
   return html || `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
 }
 
+function woTodayStr() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+}
+
 function renderBartender() {
   return `
   <div class="wo-topbar" style="flex-shrink:0">
@@ -418,7 +423,7 @@ function renderBartender() {
     </div>
     <div style="flex:1">
       <div class="wo-title">Списання</div>
-      <div class="wo-sub">${state.venue} · Зміна від 08.05.2026</div>
+      <div class="wo-sub">${state.venue} · Зміна від ${woTodayStr()}</div>
     </div>
     <div style="font-family:var(--font-h);font-size:12px;color:var(--red);font-weight:700">${_writeoffs.length} записів</div>
   </div>
@@ -472,19 +477,19 @@ function renderBartender() {
 
     <!-- Syrve send -->
     ${(() => {
-      const today = new Date(); today.setHours(0,0,0,0);
-      const todayWo = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
+      // Усі ненадіслані позиції з товаром (включно з попередніми змінами)
+      const sendWo = _writeoffs.filter(w => w.prodId);
       return `<div style="margin:12px 14px 0;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
         <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
         </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Акт списання</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:2px">${todayWo.length ? `${todayWo.length} поз. за сьогодні` : 'Немає списань з товаром за сьогодні'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${sendWo.length ? `${sendWo.length} поз. до надсилання` : 'Немає списань з товаром'}</div>
         </div>
         <button id="wo-syrve-btn" onclick="window.__wo.sendActToSyrve()"
-          ${!todayWo.length ? 'disabled' : ''}
-          style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${todayWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${todayWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${todayWo.length ? 'pointer' : 'default'};white-space:nowrap">
+          ${!sendWo.length ? 'disabled' : ''}
+          style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${sendWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${sendWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${sendWo.length ? 'pointer' : 'default'};white-space:nowrap">
           Надіслати
         </button>
       </div>`;
@@ -897,8 +902,7 @@ function summaryHTML() {
 function renderManager() {
   const kpi   = getMgrKpi(_mgrPeriod);
   const CHART_DATA = getChartData();
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayWo = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
+  const unsentWo = _writeoffs.filter(w => w.prodId);   // усі ненадіслані позиції з товаром
   const max   = Math.max(...CHART_DATA.map(d=>d.biy+d.psuv+d.deg+d.insh), 1);
   const days  = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
   const colors = { biy:'var(--red)', psuv:'var(--amber)', deg:'var(--green)', insh:'var(--purple)' };
@@ -955,18 +959,18 @@ function renderManager() {
       </div>
     </div>
 
-    <!-- Today unsent -->
+    <!-- Unsent -->
     ${(() => {
-      const allToday = _writeoffs.filter(w => new Date(w.ts || 0) >= today);
-      if (!allToday.length) return `
-        <div class="wo-sec">Списання сьогодні</div>
+      const unsent = [..._writeoffs].reverse();
+      if (!unsent.length) return `
+        <div class="wo-sec">Не відправлені</div>
         <div style="margin:0 14px 8px;padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
-          <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Списань за сьогодні немає</div>
+          <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Немає непроведених списань</div>
         </div>`;
       return `
-        <div class="wo-sec">Списання сьогодні <span style="color:var(--text3);font-weight:400;font-size:10px;letter-spacing:0;text-transform:none">(не відправлені в Syrve)</span></div>
+        <div class="wo-sec">Не відправлені в Syrve</div>
         <div class="wo-list" style="margin-bottom:8px">
-          ${allToday.map(w => `
+          ${unsent.map(w => `
           <div class="wo-swipe-wrap" data-id="${w.id}">
             <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -1015,14 +1019,14 @@ function renderManager() {
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Акт списання</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">${todayWo.length
-          ? `${todayWo.length} поз. за сьогодні · буде непроведеним`
-          : 'Немає списань з productId за сьогодні'}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${unsentWo.length
+          ? `${unsentWo.length} поз. до надсилання · буде непроведеним`
+          : 'Немає списань з товаром'}</div>
       </div>
       <button id="wo-syrve-btn"
         onclick="window.__wo.sendActToSyrve()"
-        ${!todayWo.length ? 'disabled' : ''}
-        style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${todayWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${todayWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${todayWo.length ? 'pointer' : 'default'};white-space:nowrap">
+        ${!unsentWo.length ? 'disabled' : ''}
+        style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${unsentWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${unsentWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${unsentWo.length ? 'pointer' : 'default'};white-space:nowrap">
         Надіслати
       </button>
     </div>
@@ -1463,9 +1467,9 @@ async function sendActToSyrve() {
   const token = localStorage.getItem('barops_token');
   if (!vId || !token) { alert('Немає авторизації або venueId'); return; }
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
-  if (!todayItems.length) { alert('Немає списань з productId за сьогодні'); return; }
+  // Усі ненадіслані позиції з товаром (включно з попередніми змінами)
+  const sendItems = _writeoffs.filter(w => w.prodId);
+  if (!sendItems.length) { alert('Немає списань з товаром для надсилання'); return; }
 
   // Завантажуємо збережені склади з бекенду
   try {
@@ -1482,7 +1486,7 @@ async function sendActToSyrve() {
   _selStoreId = _syrveStores.length === 1 ? _syrveStores[0].id : null;
 
   const byAccount = {};
-  for (const w of todayItems) {
+  for (const w of sendItems) {
     const key = w.accountId || '__auto__';
     if (!byAccount[key]) byAccount[key] = { accountId: w.accountId || null, accountName: w.accountName || 'авто', items: [] };
     byAccount[key].items.push(w);
@@ -1521,8 +1525,8 @@ async function doSendActToSyrve() {
   const token = localStorage.getItem('barops_token');
   if (!vId || !token || !groups.length) return;
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayItems = _writeoffs.filter(w => w.prodId && new Date(w.ts || 0) >= today);
+  // Позиції, що фактично надсилаються (усі з груп, включно з попередніми змінами)
+  const sentItems = groups.flatMap(g => g.items);
 
   const btn = document.getElementById('wo-syrve-btn');
   if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
@@ -1565,7 +1569,7 @@ async function doSendActToSyrve() {
       ts:        now.toISOString(),
       date:      `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')} · ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
       accounts:  results,
-      itemCount: todayItems.length,
+      itemCount: sentItems.length,
       acts: groups.map(g => ({
         accountName: g.accountName,
         items: Object.values(g.items.reduce((acc, w) => {
@@ -1585,11 +1589,12 @@ async function doSendActToSyrve() {
       await fetch(`${API}/api/writeoffs/acts/${vId}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ payload: histEntry, itemCount: todayItems.length }),
+        body:    JSON.stringify({ payload: histEntry, itemCount: sentItems.length }),
       });
     } catch (e) { /* офлайн — лишається в localStorage */ }
 
-    for (const w of todayItems) {
+    for (const w of sentItems) {
+      if (!w.id) continue;
       try {
         await fetch(`${API}/api/writeoffs/${w.id}`, {
           method: 'DELETE',
@@ -1598,7 +1603,8 @@ async function doSendActToSyrve() {
       } catch (e) { /* ігноруємо */ }
     }
 
-    _writeoffs = _writeoffs.filter(w => !w.prodId || new Date(w.ts || 0) < today);
+    // Прибираємо саме надіслані позиції (за посиланням), решта лишається
+    _writeoffs = _writeoffs.filter(w => !sentItems.includes(w));
     const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     raw[vId] = _writeoffs;
     localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
