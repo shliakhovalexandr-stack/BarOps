@@ -42,7 +42,8 @@ let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
 let _sentHistory = []; // [{ts, date, accounts, itemCount, acts}] — відправлені акти Syrve
 let _prices      = {}; // productId → собівартість (unitPrice) з Syrve Office
-let _detailAct   = null; // відкритий акт для перегляду
+let _detailAct   = null; // (застаріле) відкритий акт для перегляду
+let _detailDay   = null; // відкритий день історії (YYYY-MM-DD)
 let _syrveConfirmOpen   = false;
 let _syrveConfirmGroups = [];
 let _syrveResult        = null; // { isError, lines:[] }
@@ -109,6 +110,84 @@ function getMgrKpi(period, sentOnly) {
   const loss  = list.reduce((s,w) => s + itemLoss(w), 0);
   const lossR = Math.round(loss);
   return { count: list.length.toString(), loss: lossR>0 ? lossR+'₴' : '—' };
+}
+
+// ── Історія: групування надісланих по даті ───────────────────
+function fmtDayLabel(key) {
+  if (!key) return '';
+  if (key === woTodayStr('iso')) return 'Сьогодні';
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (key === y.toISOString().slice(0, 10)) return 'Вчора';
+  const d = new Date(key + 'T00:00:00');
+  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+}
+
+// Список історії (надіслані, згруповані по даті). list — масив надісланих списань
+function historyHTML(list, title) {
+  const byDay = {};
+  for (const w of list) { const k = (w.ts || '').slice(0, 10); if (!k) continue; (byDay[k] ||= []).push(w); }
+  const days = Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0]));
+  const inner = days.length ? days.map(([k, items]) => {
+    const loss = items.reduce((s, w) => s + itemLoss(w), 0);
+    return `<div class="wo-act-card" onclick="window.__wo.openDay('${k}')">
+      <div style="width:32px;height:32px;border-radius:9px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.6"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--text0);font-family:var(--font-b)">${fmtDayLabel(k)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${items.length} поз.</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px">
+        ${loss > 0 ? `<div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--purple)">${Math.round(loss)}₴</div>` : ''}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>`;
+  }).join('') : `<div style="padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center"><div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Немає надісланих списань</div></div>`;
+  return `<div class="wo-sec" style="padding-top:10px">${title || 'Історія'}</div>
+    <div class="wo-list" style="margin-bottom:16px">${inner}</div>`;
+}
+
+// Деталь одного дня (повний день з причиною/коментарем/автором)
+function dayDetailHTML() {
+  const open  = !!_detailDay;
+  const items = open
+    ? _writeoffs.filter(w => w.sentAt && (w.ts || '').slice(0, 10) === _detailDay)
+                .sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')))
+    : [];
+  const totalLoss = items.reduce((s, w) => s + itemLoss(w), 0);
+  return `<div class="wo-detail-overlay ${open ? 'open' : ''}" onclick="if(event.target===this)window.__wo.closeDay()">
+    <div class="wo-detail-sheet" onclick="event.stopPropagation()">
+      <div class="wo-sheet-handle"></div>
+      <div class="wo-sheet-hdr">
+        <div style="flex:1">
+          <div class="wo-sheet-title">Списання · ${open ? fmtDayLabel(_detailDay) : ''}</div>
+          <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${items.length} поз.${totalLoss > 0 ? ` · збиток ~${Math.round(totalLoss)}₴` : ''}</div>
+        </div>
+        <div class="wo-sheet-close" onclick="window.__wo.closeDay()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <div class="wo-detail-scroll">
+        ${items.map(w => {
+          const loss = itemLoss(w);
+          return `<div style="padding:11px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:12px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+              <div style="font-size:14px;color:var(--text0);font-family:var(--font-b);flex:1;min-width:0">${w.prod}</div>
+              <div style="font-family:var(--font-h);font-weight:700;font-size:14px;color:${CAT[w.cat]?.color||'var(--text0)'};flex-shrink:0">${w.vol||'—'}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:6px;line-height:1.6">
+              <span style="color:${CAT[w.cat]?.color||'var(--text2)'};font-weight:600">${CAT[w.cat]?.label||''}</span>
+              ${w.reason ? ` · причина: ${w.reason}` : ''}
+              ${w.note ? ` · коментар: ${w.note}` : ''}
+              ${w.time ? ` · ${w.time}` : ''}
+              ${w.author ? ` · ${w.author}` : ''}
+              ${loss > 0 ? ` · ${Math.round(loss)}₴` : ''}
+            </div>
+          </div>`;
+        }).join('') || '<div style="padding:20px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px">Порожньо</div>'}
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ════════════════════════
@@ -502,6 +581,9 @@ function renderBartender() {
         </button>
       </div>`;
     })()}
+
+    <!-- Історія (надіслані, по даті) -->
+    ${historyHTML(_writeoffs.filter(w => w.sentAt), 'Історія')}
 
     <div style="height:16px"></div>
   </div>
@@ -1037,64 +1119,8 @@ function renderManager() {
       </div>
     </div>
 
-    <!-- Списання за період (тільки надіслані) -->
-    ${(() => {
-      const periodSent = _writeoffs
-        .filter(w => w.sentAt && inPeriod(w.ts, _mgrPeriod))
-        .sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')));
-      const rows = periodSent.map(w => {
-        const loss = itemLoss(w);
-        return `<div class="wo-card" style="gap:10px">
-          <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
-            <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${w.reason ? `${CAT[w.cat]?.label||''} · ${w.reason}` : (CAT[w.cat]?.label||'')} · ${w.dateStr||''}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-family:var(--font-h);font-size:15px;font-weight:700;color:${CAT[w.cat]?.color||'var(--text0)'}">${w.vol||'—'}</div>
-            ${loss>0 ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${Math.round(loss)}₴</div>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-      return `
-      <div class="wo-sec" style="padding-top:10px">Списання за період</div>
-      <div class="wo-list" style="margin-bottom:16px">
-        ${rows || `<div style="padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center"><div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Немає надісланих списань за період</div></div>`}
-      </div>`;
-    })()}
-
-    <!-- Act detail overlay -->
-    <div class="wo-detail-overlay ${_detailAct ? 'open' : ''}" id="wo-detail-overlay"
-         onclick="if(event.target===this)window.__wo.closeActDetail()">
-      <div class="wo-detail-sheet" onclick="event.stopPropagation()">
-        <div class="wo-sheet-handle"></div>
-        <div class="wo-sheet-hdr">
-          <div style="flex:1">
-            <div class="wo-sheet-title">Акт списання</div>
-            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${_detailAct?.date || ''}</div>
-          </div>
-          <div class="wo-sheet-close" onclick="window.__wo.closeActDetail()">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </div>
-        </div>
-        <div class="wo-detail-scroll">
-          ${_detailAct?.acts?.map(a => `
-          <div style="margin-bottom:16px">
-            <div style="font-size:11px;color:var(--purple);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-              <div style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>
-              ${a.accountName}
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              ${a.items?.map(it => `
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
-                <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.prod}</div>
-                <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--purple);flex-shrink:0;margin-left:10px">−${it.amount.toFixed(2)} ${unitLabel(it.unitKey)}</div>
-              </div>`).join('') || ''}
-            </div>
-          </div>`).join('') || ''}
-        </div>
-      </div>
-    </div>
+    <!-- Історія (надіслані, по даті) -->
+    ${historyHTML(_writeoffs.filter(w => w.sentAt && inPeriod(w.ts, _mgrPeriod)), 'Історія')}
 
     <!-- Form overlay -->
     <div class="wo-form-overlay ${_formOpen?'open':''}" id="wo-form-overlay"
@@ -1286,7 +1312,7 @@ function renderManager() {
 ════════════════════════ */
 function buildHTML() {
   const body = _view === 'manager' ? renderManager() : renderBartender();
-  return `${CSS}<div class="wo-wrap">${body}</div>`;
+  return `${CSS}<div class="wo-wrap">${body}${dayDetailHTML()}</div>`;
 }
 function fullRender() {
   if (state.route !== 'writeoff') return;
@@ -1625,6 +1651,8 @@ async function doSendActToSyrve() {
 }
 function openActDetail(idx) { _detailAct = _sentHistory[idx] || null; fullRender(); }
 function closeActDetail()  { _detailAct = null; fullRender(); }
+function openDay(key) { _detailDay = key; fullRender(); }
+function closeDay()   { _detailDay = null; fullRender(); }
 
 function exportReport(t) {
   const m = { pdf:'📄 PDF-звіт сформовано', csv:'📊 Excel готовий', tg:'✈️ Відправлено в Telegram' };
@@ -1773,6 +1801,7 @@ export default {
     _mgrPeriod  = 'day';
     _mgrFilter  = 'all';
     _mgrFrom    = ''; _mgrTo = '';
+    _detailDay  = null;
     _succOpen   = false;
 
     // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
@@ -1850,6 +1879,8 @@ export default {
             dateStr:     `${dd} · ${hhmm}`,
             ts:          w.createdAt,
             sentAt:      w.sentAt || null,
+            note:        w.note || '',
+            author:      w.user?.name || '',
           };
         });
         // Оновлюємо кеш
@@ -1951,7 +1982,7 @@ export default {
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport,
       sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
-      openActDetail, closeActDetail,
+      openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
       deleteWriteoff,
     };
