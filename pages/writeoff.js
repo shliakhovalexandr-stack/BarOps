@@ -955,29 +955,6 @@ function renderManager() {
       </div>
     </div>
 
-    <!-- Category breakdown -->
-    ${(() => {
-      const total = _writeoffs.length;
-      if (!total) return '';
-      const cats = [['biy','💥','Бій','var(--red)'],['psuv','🍂','Псування','var(--amber)'],['deg','🍸','Дегустація','var(--green)'],['insh','📋','Інше','var(--purple)']];
-      const rows = cats.filter(([k]) => _writeoffs.some(w=>w.cat===k)).map(([k,icon,name,col]) => {
-        const cnt = _writeoffs.filter(w=>w.cat===k).length;
-        const w = Math.round(cnt/total*100);
-        return `<div class="wo-cb-row">
-          <div class="wo-cb-icon" style="background:${col}22">${icon}</div>
-          <div style="flex:1;min-width:0">
-            <div class="wo-cb-name">${name}</div>
-            <div class="wo-cb-bar-wrap"><div class="wo-cb-fill" style="width:${w}%;background:${col}"></div></div>
-          </div>
-          <div>
-            <div class="wo-cb-count" style="color:${col}">${cnt}</div>
-            <div class="wo-cb-pct">${w}%</div>
-          </div>
-        </div>`;
-      }).join('');
-      return rows ? `<div class="wo-sec">Розбивка за категоріями</div><div class="wo-cat-breakdown">${rows}</div>` : '';
-    })()}
-
     <!-- Today unsent -->
     ${(() => {
       const allToday = _writeoffs.filter(w => new Date(w.ts || 0) >= today);
