@@ -111,17 +111,6 @@ function getMgrKpi(period, sentOnly) {
   return { count: list.length.toString(), loss: lossR>0 ? lossR+'₴' : '—' };
 }
 
-/* Динамічний чарт (останні 7 днів) */
-function getChartData() {
-  return Array.from({length:7}, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (6-i));
-    const s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const e = new Date(s.getTime() + 86400000);
-    const day = _writeoffs.filter(w => { const t=new Date(w.ts||0); return t>=s&&t<e; });
-    return { biy:day.filter(w=>w.cat==='biy').length, psuv:day.filter(w=>w.cat==='psuv').length, deg:day.filter(w=>w.cat==='deg').length, insh:day.filter(w=>w.cat==='insh').length };
-  });
-}
-
 /* ════════════════════════
    CSS
 ════════════════════════ */
@@ -310,16 +299,6 @@ const CSS = `<style id="wo-css">
 .wo-mk-val{font-family:var(--font-h);font-size:20px;font-weight:700;line-height:1}
 .wo-mk-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;line-height:1.3}
 
-.wo-chart-card{margin:0 14px 4px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:16px}
-.wo-chart-title{font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);margin-bottom:12px}
-.wo-chart-bars{display:flex;align-items:flex-end;gap:4px;height:60px;margin-bottom:6px}
-.wo-cbar{flex:1;display:flex;flex-direction:column;justify-content:flex-end}
-.wo-cbar-inner{border-radius:4px 4px 0 0;overflow:hidden;display:flex;flex-direction:column}
-.wo-cbar-seg{flex:1}
-.wo-chart-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text2);font-family:var(--font-b)}
-.wo-chart-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
-.wo-cl{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);font-family:var(--font-b)}
-.wo-cl-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
 
 .wo-cat-breakdown{padding:0 14px;display:flex;flex-direction:column;gap:6px}
 .wo-cb-row{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px}
@@ -930,22 +909,7 @@ function summaryHTML() {
 ════════════════════════ */
 function renderManager() {
   const kpi   = getMgrKpi(_mgrPeriod, true);   // менеджер бачить лише надіслані за період
-  const CHART_DATA = getChartData();
   const unsentWo = _writeoffs.filter(w => w.prodId && !w.sentAt);   // ненадіслані позиції з товаром
-  const max   = Math.max(...CHART_DATA.map(d=>d.biy+d.psuv+d.deg+d.insh), 1);
-  const days  = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
-  const colors = { biy:'var(--red)', psuv:'var(--amber)', deg:'var(--green)', insh:'var(--purple)' };
-
-  const chartBars = CHART_DATA.map((d,i) => {
-    const total = d.biy+d.psuv+d.deg+d.insh;
-    const pct   = max > 0 ? total/max*100 : 0;
-    const segs  = ['biy','psuv','deg','insh'].filter(k=>d[k]>0)
-      .map(k=>`<div class="wo-cbar-seg" style="flex:${d[k]};background:${colors[k]};opacity:${i===5?1:.65}"></div>`)
-      .join('');
-    return `<div class="wo-cbar">
-      <div class="wo-cbar-inner" style="height:${pct}%;min-height:${pct>0?'4px':'0'}">${segs}</div>
-    </div>`;
-  }).join('');
 
   return `
   <div class="wo-topbar" style="flex-shrink:0">
@@ -983,18 +947,6 @@ function renderManager() {
     <div class="wo-mgr-kpi">
       <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.count}</div><div class="wo-mk-lbl">Списань<br/>за період</div></div>
       <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.loss}</div><div class="wo-mk-lbl">Збиток<br/>оціночно</div></div>
-    </div>
-
-    <!-- Chart -->
-    <div class="wo-sec" style="padding-top:10px">Динаміка за тиждень</div>
-    <div class="wo-chart-card">
-      <div class="wo-chart-title">Списання по категоріях</div>
-      <div class="wo-chart-bars">${chartBars}</div>
-      <div class="wo-chart-labels">${days.map(d=>`<span>${d}</span>`).join('')}</div>
-      <div class="wo-chart-legend">
-        ${[['var(--red)','Бій'],['var(--amber)','Псування'],['var(--green)','Дегустація'],['var(--purple)','Інше']]
-          .map(([c,l]) => `<div class="wo-cl"><div class="wo-cl-dot" style="background:${c}"></div>${l}</div>`).join('')}
-      </div>
     </div>
 
     <!-- Unsent -->
