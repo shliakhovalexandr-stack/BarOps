@@ -115,7 +115,9 @@ function waiterCard(w) {
         <div class="cs-table">
           <div class="cs-table-info">
             <div class="cs-table-zone" style="color:var(--text1)">${pmt.label}</div>
-            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${Math.round(pmt.orders)} ${chequeWord(pmt.orders)} · ${Math.round(pmt.guests)} ${guestWord(pmt.guests)}</div>
+            ${(pmt.orders > 0 || pmt.guests > 0)
+              ? `<div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${Math.round(pmt.orders)} ${chequeWord(pmt.orders)} · ${Math.round(pmt.guests)} ${guestWord(pmt.guests)}</div>`
+              : ''}
           </div>
           <div class="cs-table-sum">${money(pmt.sum)}</div>
         </div>`).join('')
