@@ -870,11 +870,11 @@ function buildListTab() {
       <div class="exc-kpi"><div class="exc-kpi-val" style="color:var(--text2)">${pending}</div><div class="exc-kpi-lbl">⏳ Чекає</div></div>
     </div>` : ''}
 
-    ${isMgr() ? `<button class="exc-cta" onclick="window.__exc.verify()" ${_verifying ? 'disabled' : ''} style="margin-bottom:12px">
+    <button class="exc-cta" onclick="window.__exc.verify()" ${_verifying ? 'disabled' : ''} style="margin-bottom:12px">
       ${_verifying
         ? '<span class="exc-spinner" style="width:18px;height:18px;border-width:2px;margin-right:8px"></span> Перевіряємо...'
         : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:8px"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Перевірити в Checkbox ПРРО'}
-    </button>` : ''}
+    </button>
 
     ${verifyBlock}
     ${marksList}
