@@ -693,8 +693,7 @@ function pickerRowHTML(supp, b) {
   const assignedId = sp?.id || '';
   const isOn = !!assignedId;
   const custom = sp?.customName && sp.customName !== b.name ? sp.customName : '';
-  const name = b.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `<div class="ord-pp-row" data-pid="${b.id}" onclick="window.__ord.toggleProduct('${supp.id}','${b.id}','${name}','${assignedId}',event)">
+  return `<div class="ord-pp-row" data-pid="${b.id}" onclick="window.__ord.toggleProduct('${supp.id}','${b.id}','${assignedId}',event)">
     <div class="ord-pp-check ${isOn ? 'on' : ''}">
       ${isOn ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
     </div>
@@ -1189,9 +1188,11 @@ function prodSearchChange(q) {
     : filtered.map(b => pickerRowHTML(supp, b)).join('');
 }
 
-async function toggleProduct(suppId, productId, productName, spId, ev) {
+async function toggleProduct(suppId, productId, spId, ev) {
   const supp = _suppliers.find(s => s.id === suppId);
   if (!supp) return;
+  // Назву беремо з балансу за productId (не передаємо через onclick, щоб не ламати лапками)
+  const productName = _balanceItems.find(x => x.id === productId)?.name || '';
   // Запам'ятовуємо рядок ДО await (потім event.currentTarget стане null)
   const row = ev && ev.currentTarget ? ev.currentTarget : null;
   const isAssigned = (supp.supplierProducts || []).some(sp => sp.productId === productId);
