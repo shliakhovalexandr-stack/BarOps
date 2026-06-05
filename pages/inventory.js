@@ -119,6 +119,12 @@ const CSS = `<style id="inv-css">
 .inv-sf-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase}
 .inv-sf-inp{height:44px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;padding:0 12px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;width:100%;transition:border-color .2s}
 .inv-sf-inp:focus{border-color:var(--green)}
+.inv-sf-date{position:relative;display:flex;align-items:center;gap:10px;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:11px;padding:0 14px;cursor:pointer;transition:border-color .2s}
+.inv-sf-date:focus-within{border-color:var(--green)}
+.inv-sf-cal{color:var(--text2);flex-shrink:0}
+.inv-sf-date-txt{font-size:15px;color:var(--text0);font-family:var(--font-b)}
+.inv-sf-date-txt.ph{color:var(--text2)}
+.inv-sf-date input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;margin:0;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none}
 .inv-sf-row{display:flex;gap:8px}
 .inv-sf-save{flex:1;height:40px;background:var(--green);border:none;border-radius:9px;font-size:13px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h)}
 .inv-sf-cancel{height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 16px}
@@ -657,8 +663,12 @@ function schedFormHTML() {
   return `
     <div class="inv-sched-form">
       <div class="inv-sf-lbl">Дата інвентаризації</div>
-      <input class="inv-sf-inp" type="date" id="inv-sched-date"
-        value="${_schedDate}" min="${new Date().toISOString().slice(0,10)}">
+      <label class="inv-sf-date">
+        <svg class="inv-sf-cal" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span class="inv-sf-date-txt${_schedDate ? '' : ' ph'}">${_schedDate ? fmtDate(_schedDate) : 'Оберіть дату'}</span>
+        <input type="date" id="inv-sched-date" data-a="sched-date"
+          value="${_schedDate}" min="${new Date().toISOString().slice(0,10)}">
+      </label>
       <div class="inv-sf-row">
         <button class="inv-sf-cancel" data-a="sched-toggle">Скасувати</button>
         <button class="inv-sf-save" data-a="sched-save" ${_saving ? 'disabled' : ''}>
@@ -863,6 +873,11 @@ function on(e) {
 
   /* ── MGR: schedule ── */
   if (a === 'sched-toggle') { _showSchedForm = !_showSchedForm; re(); return; }
+  if (a === 'sched-date') {
+    if (e.type === 'change') { _schedDate = t.value || ''; re(); }
+    else if (e.type === 'click') { try { t.showPicker?.(); } catch {} }
+    return;
+  }
   if (a === 'sched-save') {
     const inp = document.getElementById('inv-sched-date');
     _schedDate = inp?.value || '';
