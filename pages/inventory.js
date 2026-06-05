@@ -913,7 +913,7 @@ export default {
     // Ініціалізуємо стан тут — до того як init() викликається асинхронно
     _venueId       = state.venueId || localStorage.getItem('barops_venueId');
     _token         = state.token   || localStorage.getItem('barops_token');
-    _role          = state.role    || localStorage.getItem('barops_role');
+    _role          = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
     _view          = (_role === 'admin' || _role === 'accountant') ? 'mgr' : 'bar';
     _submitted     = false;
     _openPid       = null;
