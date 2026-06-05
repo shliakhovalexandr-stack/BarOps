@@ -34,6 +34,17 @@ let _pickerMonth = 0;            // 1-12
 // Перегляд фото марки
 let _photoView = null;           // { id, code, name, loading, url } | null
 
+// Досканування (черга на повторне сканування)
+let _rescanList    = [];
+let _rescanLoading = false;
+let _rowMenuId     = null;        // відкрите ⋮-меню в списку «Сьогодні»
+let _rsAddOpen     = false;       // форма ручного додавання в чергу
+let _rsPhotoFile   = null;
+let _rsPhotoUrl    = null;
+let _rsCode        = '';
+let _rsName        = '';
+let _rsSaving      = false;
+
 let _cbShow    = false;          // settings panel visible
 let _cbLogin   = '';
 let _cbPassword = '';
@@ -171,7 +182,7 @@ async function doVerify() {
 }
 
 async function openPhoto(id) {
-  const m = _marks.find(x => x.id === id);
+  const m = _marks.find(x => x.id === id) || _rescanList.find(x => x.id === id);
   _photoView = { id, code: m?.code || '', name: m?.productName || '', loading: true, url: '' };
   re();
   try {
@@ -190,6 +201,7 @@ async function openPhoto(id) {
 function closePhoto() { _photoView = null; re(); }
 
 async function doDeleteMark(id) {
+  _rowMenuId = null;
   _deletingIds.add(id); re();
   try {
     const res = await fetch(`${API}/api/excise/mark/${id}`, { method: 'DELETE', headers: hdrs() });
@@ -199,6 +211,89 @@ async function doDeleteMark(id) {
     }
   } catch {}
   _deletingIds.delete(id); re();
+}
+
+// ── досканування ──────────────────────────────────────────────
+async function loadRescan() {
+  _rescanLoading = true; re();
+  try {
+    const res = await fetch(`${API}/api/excise/rescan?venueId=${_venueId}`, { headers: hdrs() });
+    if (res.ok) { const d = await res.json(); _rescanList = d.marks || []; }
+  } catch {}
+  _rescanLoading = false; re();
+}
+
+async function sendToRescan(id) {
+  _rowMenuId = null; re();
+  try {
+    const res = await fetch(`${API}/api/excise/mark/${id}/rescan`, {
+      method: 'PATCH', headers: { ...hdrs(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rescan: true }),
+    });
+    if (res.ok) {
+      const moved = _marks.find(m => m.id === id);
+      _marks = _marks.filter(m => m.id !== id);
+      if (moved) _rescanList = [{ ...moved, rescan: true }, ..._rescanList];
+      _verifyResult = null;
+    }
+  } catch {}
+  re();
+}
+
+async function sendToToday(id) {
+  try {
+    const res = await fetch(`${API}/api/excise/mark/${id}/rescan`, {
+      method: 'PATCH', headers: { ...hdrs(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rescan: false }),
+    });
+    if (res.ok) _rescanList = _rescanList.filter(m => m.id !== id);
+  } catch {}
+  re();
+}
+
+async function deleteRescanItem(id) {
+  _deletingIds.add(id); re();
+  try {
+    const res = await fetch(`${API}/api/excise/mark/${id}`, { method: 'DELETE', headers: hdrs() });
+    if (res.ok) _rescanList = _rescanList.filter(m => m.id !== id);
+  } catch {}
+  _deletingIds.delete(id); re();
+}
+
+function rsHandleFile(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (_rsPhotoUrl) URL.revokeObjectURL(_rsPhotoUrl);
+  _rsPhotoFile = file;
+  _rsPhotoUrl  = URL.createObjectURL(file);
+  setTimeout(() => { input.value = ''; }, 100);
+  re();
+}
+
+async function saveRescanManual() {
+  const codeInp = document.getElementById('exc-rs-code');
+  const nameInp = document.getElementById('exc-rs-name');
+  _rsCode = (codeInp?.value || _rsCode).trim().toUpperCase().replace(/\s/g, '');
+  _rsName = (nameInp?.value || _rsName).trim();
+  if (!_rsCode || _rsCode.length < 6) { alert('Введіть код марки (мінімум 6 символів)'); return; }
+  _rsSaving = true; re();
+  try {
+    let photoData = '';
+    if (_rsPhotoFile) { try { photoData = await compressToBase64(_rsPhotoFile); } catch {} }
+    const res = await fetch(`${API}/api/excise/rescan`, {
+      method: 'POST', headers: { ...hdrs(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ venueId: _venueId, code: _rsCode, productName: _rsName, photoData }),
+    });
+    if (res.ok) {
+      if (_rsPhotoUrl) URL.revokeObjectURL(_rsPhotoUrl);
+      _rsPhotoFile = null; _rsPhotoUrl = null; _rsCode = ''; _rsName = ''; _rsAddOpen = false;
+      await loadRescan();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || 'Помилка збереження');
+    }
+  } catch { alert('Помилка збереження'); }
+  _rsSaving = false; re();
 }
 
 async function doSaveCb() {
@@ -505,6 +600,19 @@ const CSS = `<style id="exc-css">
 .exc-del-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text2);transition:all .12s}
 .exc-del-btn:active{background:var(--red-bg);border-color:var(--red);color:var(--red)}
 
+/* Row ⋮ menu (системний менеджер) */
+.exc-menu-wrap{position:relative;flex-shrink:0}
+.exc-menu-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2)}
+.exc-menu-btn:active{background:var(--bg3)}
+.exc-row-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:30;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.5);min-width:190px}
+.exc-row-menu-item{padding:11px 13px;font-size:13px;color:var(--text1);font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:0.5px solid var(--border)}
+.exc-row-menu-item:last-child{border-bottom:none}
+.exc-row-menu-item:active{background:rgba(255,255,255,.05)}
+.exc-row-menu-item.danger{color:var(--red,#e85555)}
+.exc-menu-overlay{position:fixed;inset:0;z-index:25}
+.exc-rs-send{height:32px;border-radius:9px;border:0.5px solid var(--green-border,#2d5c3a);background:var(--green-bg,#1a3320);color:var(--green);font-size:11px;font-weight:600;font-family:var(--font-b);cursor:pointer;padding:0 10px;flex-shrink:0}
+.exc-rs-send:active{opacity:.8}
+
 /* Product name required */
 .exc-manual-inp.pn-error{border-color:var(--red,#e85555)!important;background:var(--red-bg,#2a1212)}
 .exc-pn-err{font-size:11px;color:var(--red,#e85555);font-family:var(--font-b);text-align:center;margin-bottom:10px}
@@ -614,6 +722,9 @@ function buildPage() {
 
   <input class="exc-file" id="exc-cam-inp" type="file" accept="image/*" capture="environment" onchange="window.__exc.handleFile(this)"/>
   <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>
+  <input class="exc-file" id="exc-rs-cam" type="file" accept="image/*" capture="environment" onchange="window.__exc.rsHandleFile(this)"/>
+  <input class="exc-file" id="exc-rs-gal" type="file" accept="image/*" onchange="window.__exc.rsHandleFile(this)"/>
+  ${_rowMenuId ? `<div class="exc-menu-overlay" onclick="window.__exc.closeRowMenu()"></div>` : ''}
   ${_pickerOpen ? buildDatePicker() : ''}
   ${_photoView ? buildPhotoView() : ''}
 </div>`;
@@ -660,6 +771,8 @@ function buildSpinner() {
 }
 
 function buildScanTab() {
+  if (_scanStep === 'rescan') return buildRescanScreen();
+
   if (_scanStep === 'done' && _result) {
     return `<div class="exc-scroll">
       <div class="exc-result-card ok">
@@ -757,6 +870,96 @@ function buildScanTab() {
     <button class="exc-cta-sec" onclick="window.__exc.showManual()" style="margin-top:4px">
       Ввести код вручну
     </button>
+    <button class="exc-cta-sec" onclick="window.__exc.openRescan()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+      Досканування
+      ${_rescanList.length ? `<span style="background:var(--amber,#e0a23a);color:#000;border-radius:7px;padding:1px 7px;font-size:11px;font-weight:700">${_rescanList.length}</span>` : ''}
+    </button>
+  </div>`;
+}
+
+function buildRescanScreen() {
+  const admin = isSysMgr();
+  const items = _rescanList;
+
+  const list = _rescanLoading
+    ? `<div class="exc-spin-wrap" style="padding:40px 20px"><div class="exc-spinner"></div></div>`
+    : (items.length === 0
+        ? `<div class="exc-empty">Черга порожня${admin ? '<br><span style="font-size:11px">Відправте марку з «Сьогодні» через ⋮ або додайте вручну</span>' : ''}</div>`
+        : `<div style="border:0.5px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg1);padding:0 14px">
+            ${items.map(rescanRowHTML).join('')}
+          </div>`);
+
+  return `<div class="exc-scroll">
+    <div class="exc-date-row">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="exc-nav-btn" onclick="window.__exc.closeRescan()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="exc-date-lbl">Досканування${items.length ? ` · ${items.length}` : ''}</div>
+      </div>
+      <button class="exc-refresh-btn" onclick="window.__exc.loadRescan()" ${_rescanLoading ? 'disabled' : ''}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="${_rescanLoading ? 'animation:excSpin .7s linear infinite' : ''}"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+      </button>
+    </div>
+
+    ${admin ? (
+      _rsAddOpen
+        ? rsAddFormHTML()
+        : `<button class="exc-cta-sec" onclick="window.__exc.toggleRsAdd()" style="margin-bottom:14px">+ Додати вручну</button>`
+    ) : ''}
+
+    ${list}
+  </div>`;
+}
+
+function rsAddFormHTML() {
+  return `<div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px">
+    <div style="font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);margin-bottom:10px">Додати вручну в чергу</div>
+    ${_rsPhotoUrl
+      ? `<div class="exc-preview" style="margin-bottom:10px"><img src="${_rsPhotoUrl}" alt="Фото"><div class="exc-preview-btn" onclick="window.__exc.rsGallery()">Змінити</div></div>`
+      : `<div class="exc-btn-grid" style="margin-bottom:10px">
+           <button class="exc-btn" onclick="window.__exc.rsCamera()">
+             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+             Камера
+           </button>
+           <button class="exc-btn" onclick="window.__exc.rsGallery()">
+             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+             Галерея
+           </button>
+         </div>`}
+    <input class="exc-manual-inp" id="exc-rs-code" type="text" maxlength="12" autocapitalize="characters"
+      placeholder="Код (AIZT016199)" value="${_rsCode}" oninput="window.__exc.rsCodeInput(this.value)" style="height:48px;font-size:18px"/>
+    <input class="exc-manual-inp" id="exc-rs-name" type="text" maxlength="80"
+      placeholder="Назва товару" value="${_rsName}" oninput="window.__exc.rsNameInput(this.value)"
+      style="height:44px;font-size:14px;font-family:var(--font-b);font-weight:400;letter-spacing:0"/>
+    <button class="exc-cta" onclick="window.__exc.saveRescanManual()" ${_rsSaving ? 'disabled' : ''}>
+      ${_rsSaving ? '...' : 'Зберегти в чергу'}
+    </button>
+    <button class="exc-cta-sec" onclick="window.__exc.toggleRsAdd()">Скасувати</button>
+  </div>`;
+}
+
+function rescanRowHTML(m) {
+  const admin    = isSysMgr();
+  const deleting = _deletingIds.has(m.id);
+  const tap = m.hasPhoto
+    ? `onclick="window.__exc.openPhoto('${m.id}')" style="flex:1;min-width:0;cursor:pointer"`
+    : `style="flex:1;min-width:0"`;
+  return `<div class="exc-mark-row">
+    <div ${tap}>
+      <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
+      ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
+      <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
+    </div>
+    ${admin ? `
+      <button class="exc-rs-send" onclick="window.__exc.sendToToday('${m.id}')">→ Сьогодні</button>
+      <button class="exc-del-btn" onclick="window.__exc.deleteRescanItem('${m.id}')" ${deleting ? 'disabled' : ''}>
+        ${deleting
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
+          : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>'}
+      </button>
+    ` : ''}
   </div>`;
 }
 
@@ -833,11 +1036,28 @@ function buildListTab() {
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
           </div>
           <div class="exc-badge ${cls}">${label}</div>
+          ${isSysMgr() ? `
+            <div class="exc-menu-wrap">
+              <button class="exc-menu-btn" onclick="window.__exc.toggleRowMenu('${m.id}')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+              </button>
+              ${_rowMenuId === m.id ? `<div class="exc-row-menu">
+                <div class="exc-row-menu-item" onclick="window.__exc.sendToRescan('${m.id}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+                  Відправити на досканування
+                </div>
+                <div class="exc-row-menu-item danger" onclick="window.__exc.deleteMark('${m.id}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                  Видалити
+                </div>
+              </div>` : ''}
+            </div>
+          ` : `
           <button class="exc-del-btn" onclick="window.__exc.deleteMark('${m.id}')" ${deleting ? 'disabled' : ''}>
             ${deleting
               ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
               : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>'}
-          </button>
+          </button>`}
         </div>`;
       }).join('')}
     </div>`;
@@ -956,6 +1176,11 @@ export default {
     _deletingIds = new Set();
     _photoView = null;
     _pickerOpen = false;
+    _rescanList = []; _rescanLoading = false; _rowMenuId = null;
+    _rsAddOpen = false; _rsCode = ''; _rsName = ''; _rsSaving = false;
+    _rsPhotoFile = null;
+    if (_rsPhotoUrl) URL.revokeObjectURL(_rsPhotoUrl);
+    _rsPhotoUrl = null;
     _cbShow = false; _cbSaved = false; _cbVenueDdOpen = false;
     _cbVenuesLoaded = false; _cbVenues = []; _cbVenueId = ''; _cbVenueName = '';
     _cbLogin = ''; _cbPassword = ''; _cbPin = ''; _cbLicKey = '';
@@ -991,6 +1216,22 @@ export default {
       openPhoto:    openPhoto,
       closePhoto:   closePhoto,
       deleteMark:   doDeleteMark,
+      // ── досканування ──
+      openRescan:   () => { _scanStep = 'rescan'; _rsAddOpen = false; loadRescan(); re(); },
+      closeRescan:  () => { _scanStep = 'idle'; _rsAddOpen = false; re(); },
+      loadRescan:   loadRescan,
+      toggleRsAdd:  () => { _rsAddOpen = !_rsAddOpen; re(); },
+      rsCamera:     () => document.getElementById('exc-rs-cam')?.click(),
+      rsGallery:    () => document.getElementById('exc-rs-gal')?.click(),
+      rsHandleFile: rsHandleFile,
+      rsCodeInput:  (v) => { _rsCode = v; },
+      rsNameInput:  (v) => { _rsName = v; },
+      saveRescanManual: saveRescanManual,
+      sendToRescan: sendToRescan,
+      sendToToday:  sendToToday,
+      deleteRescanItem: deleteRescanItem,
+      toggleRowMenu: (id) => { _rowMenuId = _rowMenuId === id ? null : id; re(); },
+      closeRowMenu:  () => { _rowMenuId = null; re(); },
       toggleCb:     async () => {
         _cbShow = !_cbShow;
         _cbVenueDdOpen = false;
@@ -1015,10 +1256,13 @@ export default {
       },
       saveCb: doSaveCb,
     };
+
+    loadRescan();   // лічильник черги на кнопці «Досканування»
   },
 
   cleanup() {
-    if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
+    if (_photoUrl)   { URL.revokeObjectURL(_photoUrl);   _photoUrl = null; }
+    if (_rsPhotoUrl) { URL.revokeObjectURL(_rsPhotoUrl); _rsPhotoUrl = null; }
     window.__exc = null;
   },
 };
