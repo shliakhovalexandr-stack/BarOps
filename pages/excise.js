@@ -74,6 +74,17 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Дата + час, напр. «5 чер 22:09»
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const months = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${d.getDate()} ${months[d.getMonth()]} ${hh}:${mm}`;
+}
+
 // Стиснути фото у data URL (JPEG) перед відправкою — щоб не роздувати БД
 function compressToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -972,7 +983,7 @@ function rescanRowHTML(m) {
     <div ${tap}>
       <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
       ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
-      <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
+      <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
     </div>
     ${admin ? `
       <button class="exc-rs-send" onclick="window.__exc.sendToToday('${m.id}')">→ Сьогодні</button>
@@ -1055,7 +1066,8 @@ function buildListTab() {
           <div ${tap}>
             <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
-            <div class="exc-mark-meta">${m.scannedBy} · ${fmtTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
+            <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
+            ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Доскановано: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
           </div>
           <div class="exc-badge ${cls}">${label}</div>
           ${isSysMgr() ? `
