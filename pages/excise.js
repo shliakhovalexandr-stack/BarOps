@@ -600,16 +600,18 @@ const CSS = `<style id="exc-css">
 .exc-del-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text2);transition:all .12s}
 .exc-del-btn:active{background:var(--red-bg);border-color:var(--red);color:var(--red)}
 
-/* Row ⋮ menu (системний менеджер) */
-.exc-menu-wrap{position:relative;flex-shrink:0}
-.exc-menu-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2)}
+/* Row ⋮ menu (системний менеджер) → нижня шторка */
+.exc-menu-btn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);flex-shrink:0}
 .exc-menu-btn:active{background:var(--bg3)}
-.exc-row-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:30;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.5);min-width:190px}
-.exc-row-menu-item{padding:11px 13px;font-size:13px;color:var(--text1);font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:0.5px solid var(--border)}
-.exc-row-menu-item:last-child{border-bottom:none}
-.exc-row-menu-item:active{background:rgba(255,255,255,.05)}
-.exc-row-menu-item.danger{color:var(--red,#e85555)}
-.exc-menu-overlay{position:fixed;inset:0;z-index:25}
+.exc-as-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:940;display:flex;align-items:flex-end;justify-content:center}
+.exc-as-sheet{background:var(--bg1);border:0.5px solid var(--border);border-bottom:none;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:8px 14px calc(18px + env(safe-area-inset-bottom))}
+.exc-as-handle{width:36px;height:4px;border-radius:2px;background:var(--border);margin:10px auto 8px}
+.exc-as-title{font-family:var(--font-h);font-size:15px;font-weight:700;color:var(--text0);text-align:center;padding:4px 0 14px;letter-spacing:.03em}
+.exc-as-item{height:52px;border-radius:13px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;gap:9px;font-size:14px;font-family:var(--font-b);color:var(--text0);cursor:pointer;margin-bottom:8px}
+.exc-as-item:active{background:var(--bg3)}
+.exc-as-item.danger{color:var(--red,#e85555)}
+.exc-as-cancel{height:48px;border-radius:13px;background:var(--bg3);border:none;color:var(--text1);font-size:14px;font-weight:600;font-family:var(--font-b);cursor:pointer;width:100%;margin-top:2px}
+.exc-as-cancel:active{opacity:.8}
 .exc-rs-send{height:32px;border-radius:9px;border:0.5px solid var(--green-border,#2d5c3a);background:var(--green-bg,#1a3320);color:var(--green);font-size:11px;font-weight:600;font-family:var(--font-b);cursor:pointer;padding:0 10px;flex-shrink:0}
 .exc-rs-send:active{opacity:.8}
 
@@ -724,7 +726,7 @@ function buildPage() {
   <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>
   <input class="exc-file" id="exc-rs-cam" type="file" accept="image/*" capture="environment" onchange="window.__exc.rsHandleFile(this)"/>
   <input class="exc-file" id="exc-rs-gal" type="file" accept="image/*" onchange="window.__exc.rsHandleFile(this)"/>
-  ${_rowMenuId ? `<div class="exc-menu-overlay" onclick="window.__exc.closeRowMenu()"></div>` : ''}
+  ${_rowMenuId ? buildRowMenu() : ''}
   ${_pickerOpen ? buildDatePicker() : ''}
   ${_photoView ? buildPhotoView() : ''}
 </div>`;
@@ -749,6 +751,26 @@ function buildPhotoView() {
         </div>
       </div>
       ${inner}
+    </div>
+  </div>`;
+}
+
+function buildRowMenu() {
+  const m = _marks.find(x => x.id === _rowMenuId);
+  if (!m) return '';
+  return `<div class="exc-as-overlay" onclick="window.__exc.closeRowMenu()">
+    <div class="exc-as-sheet" onclick="event.stopPropagation()">
+      <div class="exc-as-handle"></div>
+      <div class="exc-as-title">${m.code}</div>
+      <div class="exc-as-item" onclick="window.__exc.sendToRescan('${m.id}')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+        Відправити на досканування
+      </div>
+      <div class="exc-as-item danger" onclick="window.__exc.deleteMark('${m.id}')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        Видалити
+      </div>
+      <button class="exc-as-cancel" onclick="window.__exc.closeRowMenu()">Скасувати</button>
     </div>
   </div>`;
 }
@@ -1037,21 +1059,9 @@ function buildListTab() {
           </div>
           <div class="exc-badge ${cls}">${label}</div>
           ${isSysMgr() ? `
-            <div class="exc-menu-wrap">
-              <button class="exc-menu-btn" onclick="window.__exc.toggleRowMenu('${m.id}')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
-              </button>
-              ${_rowMenuId === m.id ? `<div class="exc-row-menu">
-                <div class="exc-row-menu-item" onclick="window.__exc.sendToRescan('${m.id}')">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
-                  Відправити на досканування
-                </div>
-                <div class="exc-row-menu-item danger" onclick="window.__exc.deleteMark('${m.id}')">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-                  Видалити
-                </div>
-              </div>` : ''}
-            </div>
+            <button class="exc-menu-btn" onclick="window.__exc.toggleRowMenu('${m.id}')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+            </button>
           ` : `
           <button class="exc-del-btn" onclick="window.__exc.deleteMark('${m.id}')" ${deleting ? 'disabled' : ''}>
             ${deleting
