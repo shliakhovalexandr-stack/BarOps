@@ -25,6 +25,10 @@ let _rows          = [];     // { rawName, qty, unitsPerPack, unit, sum, vatPerc
 let _catalog       = { products: [], suppliers: [] };
 let _search        = null;   // { type:'product'|'supplier', row, q }
 let _result        = null;
+let _queue         = [];     // черга фото (пакетний режим)
+let _queueTotal    = 0;
+let _batchLearned  = 0;      // скільки зіставлень запам'ятано за пачку
+let _batchCount    = 0;      // скільки накладних опрацьовано
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function amountOf(r) { return Math.round((+r.qty || 0) * (+r.unitsPerPack || 1) * 1000) / 1000; }
@@ -91,6 +95,11 @@ const CSS = `<style id="invoc-css">
 .io-foot-sum-v{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0)}
 .io-send{height:48px;padding:0 22px;border-radius:13px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:700;font-family:var(--font-h);cursor:pointer}
 .io-send:disabled{opacity:.45}
+.io-learn{height:48px;padding:0 18px;border-radius:13px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:700;font-family:var(--font-h);cursor:pointer;flex-shrink:0}
+.io-learn:disabled{opacity:.45}
+.io-skip{height:48px;padding:0 14px;border-radius:13px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer;flex-shrink:0}
+.io-fullbtn{width:100%;height:46px;margin-top:10px;border-radius:13px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:14px;font-family:var(--font-b);cursor:pointer}
+.io-fullbtn:disabled{opacity:.4}
 
 .io-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:950;display:flex;align-items:flex-end;justify-content:center}
 .io-sheet{background:var(--bg1);border:0.5px solid var(--border);border-bottom:none;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:82vh;display:flex;flex-direction:column;padding:8px 14px calc(14px + env(safe-area-inset-bottom))}
@@ -136,7 +145,7 @@ function buildHTML() {
 
 function fileInputs() {
   return `<input class="io-file" id="io-cam" type="file" accept="image/*" capture="environment" onchange="window.__io.file(this)"/>
-    <input class="io-file" id="io-gal" type="file" accept="image/*" onchange="window.__io.file(this)"/>`;
+    <input class="io-file" id="io-gal" type="file" accept="image/*" multiple onchange="window.__io.file(this)"/>`;
 }
 
 function idleView() {
@@ -144,7 +153,7 @@ function idleView() {
     <div class="io-hero">
       <div class="io-hero-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6"><rect x="3" y="2" width="14" height="18" rx="2"/><path d="M7 7h7M7 11h7M7 15h4" stroke-linecap="round"/></svg></div>
       <div class="io-hero-t">Сфотографуйте накладну</div>
-      <div class="io-hero-d">AI розпізнає товари й суми та зіставить із Syrve.<br>Створиться <b>непроведена</b> накладна для бухгалтера.</div>
+      <div class="io-hero-d">AI розпізнає товари й зіставить із Syrve.<br>Галерея — можна обрати <b>кілька фото</b> для наповнення памʼяті (alias).</div>
     </div>
     <div class="io-btn-grid">
       <button class="io-btn" onclick="document.getElementById('io-cam').click()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Камера</button>
@@ -180,6 +189,8 @@ function reviewView() {
 
   const isAdmin = _role === 'admin';
   const ready = _supplier && _store && _rows.length && _rows.every(r => r.productId);
+  const learnReady = _supplier && matchedCount() >= 1;
+  const batch = _queueTotal > 1;
   return `<div class="io-scroll">
     <div class="io-card">
       <div class="io-lbl">Постачальник</div>
@@ -211,10 +222,15 @@ function reviewView() {
     </div>
     <div class="io-lbl" style="margin:4px 2px 8px">Позиції · зіставлено ${matchedCount()}/${_rows.length}</div>
     ${rows}
+    <button class="io-fullbtn" ${ready ? '' : 'disabled'} onclick="window.__io.submit(false)">Створити накладну в Syrve →</button>
   </div>
   <div class="io-foot">
-    <div class="io-foot-sum"><div class="io-foot-sum-l">Сума</div><div class="io-foot-sum-v">${money(totalSum())} ₴</div></div>
-    <button class="io-send" ${ready ? '' : 'disabled'} onclick="window.__io.submit()">Відправити →</button>
+    <div class="io-foot-sum">
+      <div class="io-foot-sum-l">${batch ? `Накладна ${_batchCount + 1}/${_queueTotal}` : 'Сума'}</div>
+      <div class="io-foot-sum-v">${batch ? `🧠 ${_batchLearned} запам.` : money(totalSum()) + ' ₴'}</div>
+    </div>
+    ${batch ? `<button class="io-skip" onclick="window.__io.skip()">Пропустити</button>` : ''}
+    <button class="io-learn" ${learnReady ? '' : 'disabled'} onclick="window.__io.submit(true)">💾 Запам'ятати</button>
   </div>`;
 }
 
@@ -242,6 +258,15 @@ function searchResults() {
 }
 
 function doneView() {
+  if (_result?.aliasesOnly) {
+    return `<div class="io-center">
+      <div class="io-c-ic ok"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+      <div class="io-c-t">Запам'ятано 🧠</div>
+      <div class="io-c-s">Збережено зіставлень: <b>${_result.learned || 0}</b>${_result.count ? ` · накладних: ${_result.count}` : ''}. Наступного разу ці товари підставлятимуться автоматично.</div>
+      <button class="io-c-btn" onclick="window.__io.reset()">Ще пачку</button>
+      <button class="io-c-btn2" onclick="window.__io.back()">На головний</button>
+    </div>`;
+  }
   return `<div class="io-center">
     <div class="io-c-ic ok"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     <div class="io-c-t">Накладну створено</div>
@@ -252,21 +277,39 @@ function doneView() {
 }
 
 function errorView() {
+  const batch = _queueTotal > 1;
   return `<div class="io-center">
     <div class="io-c-ic bad"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="var(--red,#e85555)" stroke-width="2.4" stroke-linecap="round"/></svg></div>
     <div class="io-c-t">Помилка</div>
     <div class="io-c-s">${_err || 'Не вдалося обробити накладну.'}</div>
-    <button class="io-c-btn" onclick="window.__io.reset()">Спробувати ще раз</button>
+    ${batch ? `<button class="io-c-btn" onclick="window.__io.skip()">Пропустити цю → далі</button>` : `<button class="io-c-btn" onclick="window.__io.reset()">Спробувати ще раз</button>`}
     <button class="io-c-btn2" onclick="window.__io.back()">На головний</button>
   </div>`;
 }
 
 // ── actions ──
-async function handleFile(input) {
-  const f = input.files?.[0]; if (!f) return; input.value = '';
+function handleFiles(input) {
+  const files = [...(input.files || [])]; input.value = '';
+  if (!files.length) return;
+  _queue = files; _queueTotal = files.length; _batchLearned = 0; _batchCount = 0;
+  if (!_catalog.products.length) loadCatalog();
+  processNext();
+}
+
+async function processNext() {
+  if (!_queue.length) {
+    _step = 'done';
+    _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount };
+    rerender(); return;
+  }
+  await processFile(_queue.shift());
+}
+
+async function processFile(f) {
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoUrl = URL.createObjectURL(f);
-  _step = 'scanning'; _scanMsg = 'Розпізнаю накладну…'; _err = ''; rerender();
+  _supplier = null; _supplierRaw = ''; _invoiceNumber = ''; _invoiceDate = ''; _rows = []; _err = '';
+  _step = 'scanning'; _scanMsg = 'Розпізнаю накладну…'; rerender();
   try {
     const fd = new FormData(); fd.append('photo', f);
     const ocrRes = await fetch(`${API}/api/invoices/ocr`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` }, body: fd });
@@ -303,7 +346,7 @@ async function handleFile(input) {
       };
     });
 
-    loadCatalog();
+    if (!_catalog.products.length) loadCatalog(); else { pickDefaultStore(); pickDefaultConception(); }
     _step = 'review'; rerender();
   } catch (e) { _err = e.message; _step = 'error'; rerender(); }
 }
@@ -347,31 +390,42 @@ function updateResults() {
   if (el) el.innerHTML = searchResults();
 }
 
-async function submit() {
+async function submit(aliasesOnly) {
   if (!_supplier) { alert('Оберіть постачальника'); return; }
   const items = _rows.filter(r => r.productId).map(r => ({
     rawName: r.rawName, productId: r.productId, productName: r.productName,
     amount: amountOf(r), sum: Number(r.sum) || 0, vatPercent: Number(r.vatPercent) || 0,
   }));
   if (!items.length) { alert('Жодного зіставленого товару'); return; }
+  if (!aliasesOnly && !_store) { alert('Оберіть склад'); return; }
   _step = 'sending'; rerender();
   try {
     const res = await fetch(`${API}/api/invoices/submit/${_venueId}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
       body: JSON.stringify({
         supplierRawName: _supplierRaw, supplierId: _supplier.id, supplierName: _supplier.name,
-        invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', conceptionId: _conception?.id || '', items,
+        invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', conceptionId: _conception?.id || '',
+        aliasesOnly: !!aliasesOnly, items,
       }),
     });
     const d = await res.json();
-    if (!res.ok || !d.success) throw new Error(d.error || (d.details ? `Syrve: ${typeof d.details === 'string' ? d.details.slice(0, 200) : ''}` : 'Не вдалося створити накладну'));
-    _result = d; _step = 'done'; rerender();
+    if (!res.ok || !d.success) throw new Error(d.error || (d.details ? `Syrve: ${typeof d.details === 'string' ? d.details.slice(0, 200) : ''}` : 'Не вдалося зберегти'));
+    _batchCount += 1;
+    if (aliasesOnly) _batchLearned += (d.learned || items.length);
+    if (_queue.length) { processNext(); }
+    else if (aliasesOnly) { _step = 'done'; _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount }; rerender(); }
+    else { _result = d; _step = 'done'; rerender(); }
   } catch (e) { _err = e.message; _step = 'error'; rerender(); }
+}
+
+function nextOrDone() {
+  if (_queue.length) { processNext(); }
+  else { _step = 'done'; _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount }; rerender(); }
 }
 
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
-  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null;
+  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
 }
@@ -382,16 +436,18 @@ export default {
     _token     = state.token   || localStorage.getItem('barops_token');
     _role      = (state.role   || localStorage.getItem('barops_role') || '').toLowerCase();
     _venueName = state.venue   || localStorage.getItem('barops_venue') || '';
-    _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = '';
+    _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
     _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _catalog = { products: [], suppliers: [] };
+    _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
     return buildHTML();
   },
   init() {
     window.__io = {
       back: () => navigate('dashboard'),
-      file: handleFile,
+      file: handleFiles,
       reset,
-      submit,
+      submit: (aliasesOnly) => submit(aliasesOnly),
+      skip: nextOrDone,
       edit: (i, k, v) => {
         if (!_rows[i]) return;
         _rows[i][k] = (k === 'qty' || k === 'unitsPerPack' || k === 'sum' || k === 'vatPercent') ? (parseFloat(v) || 0) : v;
