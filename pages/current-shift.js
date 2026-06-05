@@ -12,6 +12,8 @@ let _error   = '';
 let _data    = null;        // { waiters:[], totalOpenTables, totalSum, sectionsCount }
 let _openId  = null;        // розгорнутий офіціант (показ столів)
 let _venueId = '';
+let _wh      = null;        // статус вебхука живих столів (тест) | null
+let _whBusy  = false;
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function money(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA') + ' ₴'; }
@@ -83,6 +85,27 @@ function re() {
   if (root) root.innerHTML = body();
 }
 
+// ── Тест живих столів (вебхук) — лише системний менеджер ──
+function isWhAdmin() { return (state.role || '').toLowerCase() === 'admin'; }
+async function loadWh() {
+  if (!isWhAdmin()) return;
+  try {
+    const res = await fetch(`${API}/api/pos/syrve-webhook-status/${_venueId}`, { headers: { Authorization: `Bearer ${token()}` } });
+    _wh = res.ok ? await res.json() : { error: (await res.json().catch(() => ({}))).error || 'помилка' };
+  } catch { _wh = { error: 'немає звʼязку' }; }
+  re();
+}
+async function whToggle() {
+  if (_whBusy) return;
+  _whBusy = true; re();
+  const path = (_wh && _wh.connected) ? 'syrve-webhook-unregister' : 'syrve-webhook-register';
+  try {
+    await fetch(`${API}/api/pos/${path}/${_venueId}`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } });
+  } catch {}
+  _whBusy = false;
+  await loadWh();
+}
+
 function chequeWord(n) {
   const r = Math.round(n);
   return r === 1 ? 'чек' : (r >= 2 && r <= 4 ? 'чеки' : 'чеків');
@@ -126,6 +149,34 @@ function waiterCard(w) {
   </div>`;
 }
 
+function whCard() {
+  if (!isWhAdmin()) return '';
+  const w = _wh;
+  const connected = w && w.connected;
+  let statusLine;
+  if (!w) statusLine = 'Перевіряю…';
+  else if (w.error) statusLine = '⚠️ ' + w.error;
+  else if (connected) statusLine = `🟢 Підключено · подій: ${w.eventsReceived || 0} · столів: ${(w.openTables || []).length}`;
+  else statusLine = '⚪ Не підключено';
+  const tables = (w && w.openTables) || [];
+  const tablesHtml = tables.length
+    ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">${tables.map(t => `<div style="font-size:11px;color:var(--text1);font-family:var(--font-b)">Стіл ${Array.isArray(t.table) ? t.table.join(',') : (t.table || '?')} · ${t.status || ''} · ${t.sum != null ? money(t.sum) : ''}${t.waiter ? ' · ' + t.waiter : ''}</div>`).join('')}</div>`
+    : '';
+  return `<div style="background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="min-width:0">
+        <div style="font-size:12px;font-family:var(--font-h);font-weight:600;color:var(--text0)">Живі столи (тест)</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${statusLine}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="window.__cs.whReload()" style="height:30px;padding:0 10px;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:11px;font-family:var(--font-b);cursor:pointer">Оновити</button>
+        <button onclick="window.__cs.whToggle()" ${_whBusy ? 'disabled' : ''} style="height:30px;padding:0 12px;border-radius:9px;background:${connected ? 'var(--bg2)' : 'var(--purple-bg)'};border:0.5px solid ${connected ? 'var(--border)' : 'var(--purple-border)'};color:${connected ? 'var(--text1)' : 'var(--purple)'};font-size:11px;font-family:var(--font-b);cursor:pointer">${_whBusy ? '…' : (connected ? 'Вимкнути' : 'Увімкнути тест')}</button>
+      </div>
+    </div>
+    ${tablesHtml}
+  </div>`;
+}
+
 function body() {
   let inner;
   if (_loading) {
@@ -161,21 +212,24 @@ function body() {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>
     </div>
   </div>
-  <div class="cs-scroll">${inner}</div>`;
+  <div class="cs-scroll">${whCard()}${inner}</div>`;
 }
 
 export default {
   render() {
-    _loading = true; _error = ''; _data = null; _openId = null;
+    _loading = true; _error = ''; _data = null; _openId = null; _wh = null; _whBusy = false;
     return `${CSS}<div class="cs-wrap" id="cs-root">${body()}</div>`;
   },
   init() {
     window.__cs = {
-      back:   () => navigate('dashboard'),
-      reload: () => load(),
-      toggle: (id) => { _openId = _openId === id ? null : id; re(); },
+      back:    () => navigate('dashboard'),
+      reload:  () => load(),
+      toggle:  (id) => { _openId = _openId === id ? null : id; re(); },
+      whReload: () => loadWh(),
+      whToggle: () => whToggle(),
     };
     load();
+    loadWh();   // статус вебхука (лише для admin)
   },
   cleanup() { window.__cs = null; },
 };
