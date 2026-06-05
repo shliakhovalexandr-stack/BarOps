@@ -33,6 +33,7 @@ let _configDraft     = { mode: 'sht', emptyTareKg: '', fullTareKg: '', bottleVol
 let _cfgSaving       = false;
 let _cfgError        = '';
 let _submitted       = false;
+let _syrveMsg        = '';     // підтвердження створення документа в Syrve
 
 /* ════════════════════════ CSS ════════════════════════ */
 const CSS = `<style id="inv-css">
@@ -401,6 +402,21 @@ async function submitInventory() {
     });
     if (!saveRes.ok) throw new Error('Помилка збереження позицій');
 
+    // Створюємо документ інвентаризації в Syrve Office (чернетка, статус NEW)
+    const syrveItems = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
+    const invRes = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body: JSON.stringify({
+        items:   syrveItems,
+        date:    os.scheduledAt,
+        comment: `BarOps Інвентаризація ${fmtDate(os.scheduledAt)}`,
+      }),
+    });
+    const invD = await invRes.json().catch(() => ({}));
+    if (!invRes.ok || !invD.success) throw new Error(invD.error || 'Не вдалося створити документ у Syrve Office');
+    _syrveMsg = `Документ створено в Syrve Office · ${invD.itemCount} поз.`;
+
     await changeStatus(os.id, 'done');
     _submitted = true; _counts = {};
   } catch (err) {
@@ -484,7 +500,7 @@ function buildBar() {
           <svg width="36" height="36" fill="none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="inv-locked-title">Інвентаризацію завершено</div>
-        <div class="inv-locked-sub">Результати збережено. Дякуємо!</div>
+        <div class="inv-locked-sub">${_syrveMsg || 'Результати збережено. Дякуємо!'}</div>
       </div>
     `;
   }
@@ -997,6 +1013,7 @@ export default {
     _role          = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
     _view          = (_role === 'admin' || _role === 'accountant') ? 'mgr' : 'bar';
     _submitted     = false;
+    _syrveMsg      = '';
     _openPid       = null;
     _showSchedForm = false;
     _calOpen       = false;
