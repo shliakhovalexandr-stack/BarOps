@@ -20,6 +20,14 @@ let _error           = '';
 let _view            = 'bar';  // 'bar' | 'mgr'
 let _showSchedForm   = false;
 let _schedDate       = '';
+let _calOpen         = false;  // власний календар відкрито
+let _calY            = 0;      // рік місяця, що переглядається
+let _calM            = 0;      // місяць 0-11, що переглядається
+
+const UK_MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+const UK_WD     = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+const pad2 = n => String(n).padStart(2, '0');
+const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${pad2(n.getMonth()+1)}-${pad2(n.getDate())}`; };
 let _configPid       = null;   // продукт, що налаштовується
 let _configDraft     = { mode: 'sht', emptyTareKg: '', fullTareKg: '', bottleVolL: '' };
 let _cfgSaving       = false;
@@ -124,7 +132,25 @@ const CSS = `<style id="inv-css">
 .inv-sf-cal{color:var(--text2);flex-shrink:0}
 .inv-sf-date-txt{font-size:15px;color:var(--text0);font-family:var(--font-b)}
 .inv-sf-date-txt.ph{color:var(--text2)}
-.inv-sf-date input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;margin:0;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none}
+.inv-sf-chev{margin-left:auto;color:var(--text2);transition:transform .2s;flex-shrink:0}
+.inv-sf-chev.open{transform:rotate(180deg)}
+/* Власний календар */
+.inv-cal{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:10px}
+.inv-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.inv-cal-title{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)}
+.inv-cal-nav{width:30px;height:30px;border-radius:8px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inv-cal-nav:disabled{opacity:.3;cursor:default}
+.inv-cal-wd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.inv-cal-wd>div{text-align:center;font-size:10px;color:var(--text2);font-family:var(--font-b);padding:3px 0}
+.inv-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.inv-cal-cell{height:36px}
+.inv-cal-day{height:36px;width:100%;border-radius:9px;background:var(--bg2);border:0.5px solid transparent;color:var(--text0);font-size:14px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s;padding:0}
+.inv-cal-day:active{background:var(--bg3)}
+.inv-cal-day:disabled{opacity:.22;cursor:default;background:transparent}
+.inv-cal-day.today{border-color:var(--green-border)}
+.inv-cal-day.sel{background:var(--green);color:#000;font-weight:700;border-color:var(--green)}
+.inv-cal-foot{display:flex;justify-content:flex-end;margin-top:8px}
+.inv-cal-today{background:none;border:none;color:var(--green);font-size:13px;font-family:var(--font-b);cursor:pointer;padding:4px 6px}
 .inv-sf-row{display:flex;gap:8px}
 .inv-sf-save{flex:1;height:40px;background:var(--green);border:none;border-radius:9px;font-size:13px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h)}
 .inv-sf-cancel{height:40px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:9px;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 16px}
@@ -663,17 +689,52 @@ function schedFormHTML() {
   return `
     <div class="inv-sched-form">
       <div class="inv-sf-lbl">Дата інвентаризації</div>
-      <label class="inv-sf-date">
+      <button class="inv-sf-date" data-a="cal-open" type="button">
         <svg class="inv-sf-cal" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         <span class="inv-sf-date-txt${_schedDate ? '' : ' ph'}">${_schedDate ? fmtDate(_schedDate) : 'Оберіть дату'}</span>
-        <input type="date" id="inv-sched-date" data-a="sched-date"
-          value="${_schedDate}" min="${new Date().toISOString().slice(0,10)}">
-      </label>
+        <svg class="inv-sf-chev${_calOpen ? ' open' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      ${_calOpen ? calHTML() : ''}
       <div class="inv-sf-row">
         <button class="inv-sf-cancel" data-a="sched-toggle">Скасувати</button>
-        <button class="inv-sf-save" data-a="sched-save" ${_saving ? 'disabled' : ''}>
+        <button class="inv-sf-save" data-a="sched-save" ${_saving || !_schedDate ? 'disabled' : ''}>
           ${_saving ? '…' : 'Запланувати'}
         </button>
+      </div>
+    </div>
+  `;
+}
+
+function calHTML() {
+  const tStr   = todayStr();
+  const curY   = Number(tStr.slice(0, 4));
+  const curM   = Number(tStr.slice(5, 7)) - 1;
+  const atMin  = (_calY < curY) || (_calY === curY && _calM <= curM);
+  const firstWd = (new Date(_calY, _calM, 1).getDay() + 6) % 7; // Пн=0
+  const days    = new Date(_calY, _calM + 1, 0).getDate();
+
+  let cells = '';
+  for (let i = 0; i < firstWd; i++) cells += `<div class="inv-cal-cell"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const ds       = `${_calY}-${pad2(_calM + 1)}-${pad2(d)}`;
+    const disabled = ds < tStr;
+    const sel      = ds === _schedDate;
+    const isToday  = ds === tStr;
+    cells += `<button type="button" class="inv-cal-day${sel ? ' sel' : ''}${isToday ? ' today' : ''}" `
+           + (disabled ? 'disabled' : `data-a="cal-day" data-date="${ds}"`) + `>${d}</button>`;
+  }
+
+  return `
+    <div class="inv-cal">
+      <div class="inv-cal-head">
+        <button type="button" class="inv-cal-nav" ${atMin ? 'disabled' : 'data-a="cal-prev"'}>‹</button>
+        <div class="inv-cal-title">${UK_MONTHS[_calM]} ${_calY}</div>
+        <button type="button" class="inv-cal-nav" data-a="cal-next">›</button>
+      </div>
+      <div class="inv-cal-wd">${UK_WD.map(w => `<div>${w}</div>`).join('')}</div>
+      <div class="inv-cal-grid">${cells}</div>
+      <div class="inv-cal-foot">
+        <button type="button" class="inv-cal-today" data-a="cal-today">Сьогодні</button>
       </div>
     </div>
   `;
@@ -872,15 +933,20 @@ function on(e) {
   if (a === 'submit') { submitInventory(); return; }
 
   /* ── MGR: schedule ── */
-  if (a === 'sched-toggle') { _showSchedForm = !_showSchedForm; re(); return; }
-  if (a === 'sched-date') {
-    if (e.type === 'change') { _schedDate = t.value || ''; re(); }
-    else if (e.type === 'click') { try { t.showPicker?.(); } catch {} }
-    return;
+  if (a === 'sched-toggle') { _showSchedForm = !_showSchedForm; _calOpen = false; re(); return; }
+  if (a === 'cal-open') {
+    _calOpen = !_calOpen;
+    if (_calOpen) {
+      const base = _schedDate ? new Date(_schedDate) : new Date();
+      _calY = base.getFullYear(); _calM = base.getMonth();
+    }
+    re(); return;
   }
+  if (a === 'cal-prev') { _calM--; if (_calM < 0)  { _calM = 11; _calY--; } re(); return; }
+  if (a === 'cal-next') { _calM++; if (_calM > 11) { _calM = 0;  _calY++; } re(); return; }
+  if (a === 'cal-day')  { _schedDate = t.dataset.date; _calOpen = false; re(); return; }
+  if (a === 'cal-today'){ _schedDate = todayStr(); _calOpen = false; re(); return; }
   if (a === 'sched-save') {
-    const inp = document.getElementById('inv-sched-date');
-    _schedDate = inp?.value || '';
     if (!_schedDate) return;
     scheduleSession();
     return;
@@ -933,6 +999,7 @@ export default {
     _submitted     = false;
     _openPid       = null;
     _showSchedForm = false;
+    _calOpen       = false;
     _error         = '';
     _loading       = true;
     return `<div id="inv-root" style="flex:1;display:flex;flex-direction:column;overflow:hidden">${buildPage()}</div>`;
