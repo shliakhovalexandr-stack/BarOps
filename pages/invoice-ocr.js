@@ -20,6 +20,7 @@ let _invoiceDate   = '';
 let _supplier      = null;   // { id, name }
 let _supplierSug   = [];
 let _store         = null;   // { id, name } — склад приходу
+let _conception    = null;   // { id, name } — концепція (Тераса/Хочу: «Ресторан»)
 let _rows          = [];     // { rawName, qty, unitsPerPack, unit, sum, vatPercent, productId, productName, confidence, source, suggestions }
 let _catalog       = { products: [], suppliers: [] };
 let _search        = null;   // { type:'product'|'supplier', row, q }
@@ -197,6 +198,13 @@ function reviewView() {
         ${isAdmin ? `<svg class="io-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>` : ''}
       </div>
     </div>
+    ${(_catalog.conceptions && _catalog.conceptions.length) ? `<div class="io-card">
+      <div class="io-lbl">Концепція</div>
+      <div class="io-sup" ${isAdmin ? `onclick="window.__io.openSearch('conception',-1)"` : ''}>
+        <div style="flex:1;min-width:0"><div class="io-sup-name${_conception ? '' : ' ph'}">${_conception ? _conception.name : 'Без концепції'}</div></div>
+        ${isAdmin ? `<svg class="io-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>` : ''}
+      </div>
+    </div>` : ''}
     <div class="io-meta-row">
       <div class="io-meta"><div class="io-meta-l">№ накладної</div><input value="${_invoiceNumber}" onchange="window.__io.metaNum(this.value)"></div>
       <div class="io-meta"><div class="io-meta-l">Дата</div><input value="${_invoiceDate}" placeholder="YYYY-MM-DD" onchange="window.__io.metaDate(this.value)"></div>
@@ -211,7 +219,7 @@ function reviewView() {
 }
 
 function searchSheet() {
-  const title = _search.type === 'supplier' ? 'Постачальник' : _search.type === 'store' ? 'Склад' : 'Товар Syrve';
+  const title = _search.type === 'supplier' ? 'Постачальник' : _search.type === 'store' ? 'Склад' : _search.type === 'conception' ? 'Концепція' : 'Товар Syrve';
   return `<div class="io-ov" onclick="window.__io.closeSearch()">
     <div class="io-sheet" onclick="event.stopPropagation()">
       <div class="io-sheet-h"></div>
@@ -223,7 +231,7 @@ function searchSheet() {
 
 function searchResults() {
   const q = (_search.q || '').toLowerCase().trim();
-  const list = _search.type === 'supplier' ? _catalog.suppliers : _search.type === 'store' ? _catalog.stores : _catalog.products;
+  const list = _search.type === 'supplier' ? _catalog.suppliers : _search.type === 'store' ? _catalog.stores : _search.type === 'conception' ? _catalog.conceptions : _catalog.products;
   let arr = list;
   if (q) {
     const ts = q.split(/\s+/).filter(Boolean);
@@ -305,8 +313,9 @@ async function loadCatalog() {
     const res = await fetch(`${API}/api/invoices/catalog/${_venueId}`, { headers: { Authorization: `Bearer ${_token}` } });
     const d = await res.json();
     if (res.ok) {
-      _catalog = { products: d.products || [], suppliers: d.suppliers || [], stores: d.stores || [], defaultStoreId: d.defaultStoreId || null };
+      _catalog = { products: d.products || [], suppliers: d.suppliers || [], stores: d.stores || [], defaultStoreId: d.defaultStoreId || null, conceptions: d.conceptions || [], conceptionId: d.conceptionId || null };
       pickDefaultStore();
+      pickDefaultConception();
       if (_search) updateResults();
       if (_step === 'review') rerender();
     }
@@ -323,6 +332,14 @@ function pickDefaultStore() {
   if (!s && _catalog.defaultStoreId) s = stores.find(x => x.id === _catalog.defaultStoreId);
   if (!s) s = stores[0];
   if (s) _store = { id: s.id, name: s.name };
+}
+
+function pickDefaultConception() {
+  if (_conception) return;
+  const list = _catalog.conceptions || [];
+  if (!list.length || !_catalog.conceptionId) return;
+  const c = list.find(x => x.id === _catalog.conceptionId);
+  if (c) _conception = { id: c.id, name: c.name };
 }
 
 function updateResults() {
@@ -343,7 +360,7 @@ async function submit() {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
       body: JSON.stringify({
         supplierRawName: _supplierRaw, supplierId: _supplier.id, supplierName: _supplier.name,
-        invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', items,
+        invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', conceptionId: _conception?.id || '', items,
       }),
     });
     const d = await res.json();
@@ -353,7 +370,7 @@ async function submit() {
 }
 
 function reset() {
-  _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null;
+  _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
   _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
@@ -394,6 +411,9 @@ export default {
         } else if (_search.type === 'store') {
           const s = _catalog.stores.find(x => x.id === id);
           if (s) _store = { id: s.id, name: s.name };
+        } else if (_search.type === 'conception') {
+          const c = _catalog.conceptions.find(x => x.id === id);
+          if (c) _conception = { id: c.id, name: c.name };
         } else {
           const p = _catalog.products.find(x => x.id === id);
           const r = _rows[_search.row];
