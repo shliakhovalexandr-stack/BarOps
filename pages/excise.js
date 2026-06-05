@@ -359,6 +359,7 @@ async function doScan() {
     const form = new FormData();
     form.append('photo', _photoFile);
     form.append('productName', _productName);
+    form.append('venueId', _venueId || '');
     // Стиснена копія для перегляду в картці (OCR отримує оригінал вище)
     try { const pd = await compressToBase64(_photoFile); if (pd) form.append('photoData', pd); } catch {}
     const res  = await fetch(`${API}/api/excise/scan`, { method: 'POST', headers: hdrs(), body: form });
@@ -402,7 +403,7 @@ async function doManualSave() {
     const res  = await fetch(`${API}/api/excise/manual`, {
       method: 'POST',
       headers: { ...hdrs(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, productName: _productName }),
+      body: JSON.stringify({ code, productName: _productName, venueId: _venueId }),
     });
     const data = await res.json();
     if (res.ok) {
