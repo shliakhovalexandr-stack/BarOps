@@ -42,6 +42,7 @@ let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
 let _sentHistory = []; // [{ts, date, accounts, itemCount, acts}] — відправлені акти Syrve
 let _prices      = {}; // productId → собівартість (unitPrice) з Syrve Office
+let _priceSyncMsg = ''; // статус синхронізації цін
 let _detailAct   = null; // (застаріле) відкритий акт для перегляду
 let _detailDay   = null; // відкритий день історії (YYYY-MM-DD)
 let _syrveConfirmOpen   = false;
@@ -86,6 +87,40 @@ function itemLoss(w) {
   if (!price) return 0;
   return toBaseQty(w.volNum, w.unitKey) * price;
 }
+
+// Завантажити собівартість (ціни) з Syrve Office для закладу
+async function loadPrices(vId) {
+  try {
+    const tok = localStorage.getItem('barops_token');
+    const res = await fetch(`${API}/api/pos/syrve-prices?venueId=${encodeURIComponent(vId)}`, {
+      headers: tok ? { Authorization: `Bearer ${tok}` } : {},
+    });
+    if (res.ok) {
+      const d = await res.json();
+      _prices = {};
+      for (const p of (d.prices || [])) _prices[p.productId] = p.unitPrice || 0;
+    }
+  } catch {}
+}
+
+// Запустити синхронізацію цін із Syrve (для збитку), потім перезавантажити
+async function syncPricesWo() {
+  const vId = state.venueId || localStorage.getItem('barops_venueId') || '';
+  const tok = localStorage.getItem('barops_token');
+  _priceSyncMsg = 'Синхронізую ціни… (~2 хв)';
+  fullRender();
+  try {
+    await fetch(`${API}/api/pos/sync-prices/${vId}`, { method: 'POST', headers: tok ? { Authorization: `Bearer ${tok}` } : {} });
+  } catch {}
+  setTimeout(async () => {
+    await loadPrices(vId);
+    const has = Object.values(_prices).some(v => v > 0);
+    _priceSyncMsg = has ? '' : 'Ціни не знайдено в Syrve';
+    fullRender();
+  }, 2 * 60 * 1000);
+}
+
+function priceCount() { return Object.values(_prices).filter(v => v > 0).length; }
 
 // Діапазон [since, until) для періоду (календарний тиждень Пн-Нд / місяць / діапазон)
 function periodRange(period) {
@@ -1031,6 +1066,19 @@ function renderManager() {
       <div class="wo-mk"><div class="wo-mk-val" style="color:var(--red)">${kpi.loss}</div><div class="wo-mk-lbl">Збиток<br/>оціночно</div></div>
     </div>
 
+    <!-- Синхронізація собівартості (для збитку) -->
+    <div style="margin:0 14px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);min-width:0">
+        ${_priceSyncMsg
+          ? _priceSyncMsg
+          : (priceCount() > 0 ? `Собівартість: ${priceCount()} позицій із Syrve` : '⚠️ Собівартість не синхронізована — збиток не рахується')}
+      </div>
+      <button onclick="window.__wo.syncPrices()" ${_priceSyncMsg.startsWith('Синхронізую') ? 'disabled' : ''}
+        style="flex-shrink:0;height:30px;padding:0 12px;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:11px;font-family:var(--font-b);cursor:pointer">
+        ↻ Оновити ціни
+      </button>
+    </div>
+
     <!-- Unsent -->
     ${(() => {
       const unsent = [..._writeoffs].filter(w => !w.sentAt).reverse();
@@ -1802,6 +1850,7 @@ export default {
     _mgrFilter  = 'all';
     _mgrFrom    = ''; _mgrTo = '';
     _detailDay  = null;
+    _priceSyncMsg = '';
     _succOpen   = false;
 
     // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
@@ -1828,17 +1877,7 @@ export default {
     } catch { /* офлайн — лишаємо localStorage */ }
 
     // Собівартість товарів із Syrve Office — для «Збиток оціночно»
-    try {
-      const pTok = localStorage.getItem('barops_token');
-      const pRes = await fetch(`${API}/api/pos/syrve-prices?venueId=${encodeURIComponent(vId)}`, {
-        headers: pTok ? { Authorization: `Bearer ${pTok}` } : {},
-      });
-      if (pRes.ok) {
-        const pd = await pRes.json();
-        _prices = {};
-        for (const p of (pd.prices || [])) _prices[p.productId] = p.unitPrice || 0;
-      }
-    } catch { /* без цін — збиток покаже «—» */ }
+    await loadPrices(vId);
 
     try {
       const woToken = localStorage.getItem('barops_token');
@@ -1980,7 +2019,7 @@ export default {
       selectCat, searchProds, selectProd,
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
-      setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport,
+      setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport, syncPrices: syncPricesWo,
       sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
