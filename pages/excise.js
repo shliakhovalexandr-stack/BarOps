@@ -986,8 +986,8 @@ function rescanRowHTML(m) {
       ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
       <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
     </div>
+    <button class="exc-rs-send" onclick="window.__exc.sendToToday('${m.id}')">→ Сьогодні</button>
     ${admin ? `
-      <button class="exc-rs-send" onclick="window.__exc.sendToToday('${m.id}')">→ Сьогодні</button>
       <button class="exc-del-btn" onclick="window.__exc.deleteRescanItem('${m.id}')" ${deleting ? 'disabled' : ''}>
         ${deleting
           ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
