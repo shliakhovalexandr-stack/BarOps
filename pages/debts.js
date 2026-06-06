@@ -176,32 +176,50 @@ async function loadProducts() {
   if (_pickerOpen) refreshPickerList();   // підставити товари після завантаження
 }
 
-// Перемальовує лише список пікера (не чіпає поле пошуку — фокус зберігається)
-function refreshPickerList() {
-  const listEl = document.getElementById('dbt-picker-list');
-  if (!listEl) return;
-  const q = _pickerSearch.toLowerCase();
-  const filtered = _products.filter(p => !q || (p.name || '').toLowerCase().includes(q));
-  const rows = filtered.map(p => {
+// Усі рядки товарів (рендеряться раз; фільтр — через показ/приховування)
+function pickerRowsHTML() {
+  if (!_products.length) {
+    const msg = _productsLoading ? 'Завантаження залишків Syrve…' : 'Залишки Syrve не завантажені. Введіть назву вручну вище.';
+    return `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">${msg}</div>`;
+  }
+  const rows = _products.map(p => {
     const safeName = (p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
+    const ds = (p.name || '').toLowerCase().replace(/"/g, '&quot;');
+    return `<div class="dbt-picker-row" data-s="${ds}" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
       <div class="dbt-picker-name">${p.name}</div>
       ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
     </div>`;
   }).join('');
+  return rows + `<div id="dbt-picker-none" style="display:none;padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`;
+}
+
+// Фільтр без перебудови DOM — лише показ/приховування рядків
+function applyPickerFilter() {
+  const listEl = document.getElementById('dbt-picker-list');
+  if (!listEl) return;
+  const q = _pickerSearch.toLowerCase().trim();
+  let shown = 0;
+  listEl.querySelectorAll('.dbt-picker-row').forEach(row => {
+    const match = !q || (row.getAttribute('data-s') || '').includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  const none = document.getElementById('dbt-picker-none');
+  if (none) none.style.display = (shown === 0 && _products.length) ? 'block' : 'none';
+}
+
+// Повна перебудова списку (після завантаження товарів), із збереженням фільтра
+function refreshPickerList() {
+  const listEl = document.getElementById('dbt-picker-list');
+  if (!listEl) return;
   const manualEl = listEl.querySelector('.dbt-picker-manual');
   const manualHTML = manualEl ? manualEl.outerHTML : '';
-  const msg = _products.length === 0
-    ? (_productsLoading ? 'Завантаження залишків Syrve…' : 'Залишки Syrve не завантажені. Введіть назву вручну вище.')
-    : 'Нічого не знайдено';
-  const empty = `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">${msg}</div>`;
-  listEl.innerHTML = manualHTML + (rows || empty);
+  listEl.innerHTML = manualHTML + pickerRowsHTML();
+  applyPickerFilter();
 }
 
 function pickerHTML() {
-  const q       = _pickerSearch.toLowerCase();
-  const list    = _products.filter(p => !q || (p.name || '').toLowerCase().includes(q));
   const manVal  = _form.item;
   return `
   <div class="dbt-picker-ov">
@@ -223,21 +241,7 @@ function pickerHTML() {
           value="${manVal}" oninput="window.__dbt.f('item',this.value)"
           onkeydown="if(event.key==='Enter')window.__dbt.closePicker()"/>
       </div>
-      ${_products.length === 0
-        ? (_productsLoading
-            ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Завантаження залишків Syrve…</div>`
-            : `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Залишки Syrve не завантажені.<br>Введіть назву вручну вище.</div>`)
-        : list.length === 0
-          ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`
-          : list.map(p => {
-              const safeName = (p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-              const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-              return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
-                <div class="dbt-picker-name">${p.name}</div>
-                ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
-              </div>`;
-            }).join('')
-      }
+      ${pickerRowsHTML()}
     </div>
   </div>`;
 }
@@ -489,7 +493,7 @@ export default {
       },
       pickerSearch(q) {
         _pickerSearch = q;
-        refreshPickerList();
+        applyPickerFilter();
       },
       save:         saveForm,
       markReturned: markReturned,
