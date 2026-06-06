@@ -36,7 +36,7 @@ function matchedCount() { return _rows.filter(r => r.productId).length; }
 function totalSum() { return _rows.reduce((s, r) => s + (+r.sum || 0), 0); }
 
 const CSS = `<style id="invoc-css">
-.io-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.io-wrap{position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
 .io-top{display:flex;align-items:center;gap:12px;padding:10px 16px 6px;flex-shrink:0}
 .io-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .io-back:active{background:var(--bg3)}
