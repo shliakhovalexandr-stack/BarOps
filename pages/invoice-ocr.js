@@ -82,6 +82,7 @@ const CSS = `<style id="invoc-css">
 .io-badge{font-size:9px;font-weight:700;font-family:var(--font-b);padding:2px 6px;border-radius:6px;flex-shrink:0}
 .io-badge.ai{background:var(--purple-bg,#241b3a);color:#A88BFF}
 .io-badge.alias{background:var(--green-bg);color:var(--green)}
+.io-badge.aprx{background:var(--amber-bg,#2e2410);color:var(--amber,#E0A93B)}
 .io-badge.man{background:var(--bg3);color:var(--text1)}
 .io-nums{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
 .io-num{background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:5px 8px}
@@ -166,6 +167,7 @@ function reviewView() {
   const supName = _supplier ? _supplier.name : 'Оберіть постачальника';
   const rows = _rows.map((r, i) => {
     const badge = r.source === 'alias' ? '<span class="io-badge alias">памʼять</span>'
+      : r.source === 'alias~' ? `<span class="io-badge aprx">памʼять≈ ${r.confidence || ''}%</span>`
       : r.source === 'ai' ? `<span class="io-badge ai">AI ${r.confidence || ''}%</span>`
       : r.source === 'manual' ? '<span class="io-badge man">обрано</span>' : '';
     return `<div class="io-row${r.productId ? '' : ' unm'}">
