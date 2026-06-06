@@ -88,6 +88,15 @@ const CSS = `
 .rb-photo-btn{flex:1;padding:10px;background:var(--bg2);border:0.5px dashed var(--border);border-radius:10px;font-size:13px;color:var(--text1);font-family:var(--font-b);cursor:pointer;text-align:center;display:block;box-sizing:border-box}
 .rb-photo-remove{padding:10px 14px;background:rgba(255,80,80,.08);border:0.5px solid rgba(255,80,80,.3);border-radius:10px;font-size:13px;color:#ff5c5c;font-family:var(--font-b);cursor:pointer;flex-shrink:0}
 .rb-recipe-photo{width:100%;border-radius:12px;object-fit:cover;max-height:320px;display:block;margin-top:8px}
+.rb-crop-ov{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.92);display:flex;flex-direction:column}
+.rb-crop-stage{flex:1;position:relative;margin:16px;overflow:hidden;touch-action:none}
+.rb-crop-stage img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.rb-crop-box{position:absolute;border:1.5px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.5);box-sizing:border-box;cursor:move}
+.rb-crop-h{position:absolute;width:24px;height:24px;background:var(--green);border:2px solid #fff;border-radius:50%;box-sizing:border-box;touch-action:none}
+.rb-crop-h.tl{left:-12px;top:-12px}.rb-crop-h.tr{right:-12px;top:-12px}.rb-crop-h.bl{left:-12px;bottom:-12px}.rb-crop-h.br{right:-12px;bottom:-12px}
+.rb-crop-btns{display:flex;gap:10px;padding:0 16px calc(20px + env(safe-area-inset-bottom))}
+.rb-crop-cancel{flex:1;height:50px;background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.25);border-radius:13px;color:#fff;font-size:15px;font-family:var(--font-b);cursor:pointer}
+.rb-crop-apply{flex:1;height:50px;background:var(--green);border:none;border-radius:13px;color:#000;font-size:15px;font-weight:700;font-family:var(--font-h);cursor:pointer}
 .rb-drag-handle{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:30px;height:30px;margin:-4px 2px -4px -4px;color:var(--text2);cursor:grab;touch-action:none}
 .rb-drag-handle:active{cursor:grabbing}
 .rb-card.rb-dragging{opacity:.96;box-shadow:0 12px 32px rgba(0,0,0,.55);z-index:1000}
@@ -140,6 +149,97 @@ function compressToBase64(file) {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
     img.src = url;
   });
+}
+
+/* ── Обрізка фото (інтерактивний оверлей) ─────────── */
+function openCropOverlay(srcUrl, onApply) {
+  const ov = document.createElement('div');
+  ov.className = 'rb-crop-ov';
+  ov.innerHTML = `
+    <div class="rb-crop-stage" id="rb-crop-stage">
+      <img id="rb-crop-img" src="${srcUrl}" alt="">
+      <div class="rb-crop-box" id="rb-crop-box">
+        <div class="rb-crop-h tl" data-h="tl"></div><div class="rb-crop-h tr" data-h="tr"></div>
+        <div class="rb-crop-h bl" data-h="bl"></div><div class="rb-crop-h br" data-h="br"></div>
+      </div>
+    </div>
+    <div class="rb-crop-btns">
+      <button class="rb-crop-cancel" id="rb-crop-cancel">Скасувати</button>
+      <button class="rb-crop-apply" id="rb-crop-apply">Застосувати</button>
+    </div>`;
+  document.body.appendChild(ov);
+  const img = ov.querySelector('#rb-crop-img');
+  const stage = ov.querySelector('#rb-crop-stage');
+  const box = ov.querySelector('#rb-crop-box');
+  let R = null;  // габарит відображеного фото (object-fit:contain) у координатах stage
+
+  const setBox = (x, y, w, h) => { box.style.left = x + 'px'; box.style.top = y + 'px'; box.style.width = w + 'px'; box.style.height = h + 'px'; };
+  const getBox = () => ({ x: box.offsetLeft, y: box.offsetTop, w: box.offsetWidth, h: box.offsetHeight });
+  function clamp(x, y, w, h) {
+    const min = 36;
+    w = Math.min(Math.max(min, w), R.width); h = Math.min(Math.max(min, h), R.height);
+    x = Math.min(Math.max(R.left, x), R.left + R.width - w);
+    y = Math.min(Math.max(R.top, y), R.top + R.height - h);
+    return { x, y, w, h };
+  }
+  function layout() {
+    const sw = stage.clientWidth, sh = stage.clientHeight, nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!nw) return;
+    const scale = Math.min(sw / nw, sh / nh);
+    const dw = nw * scale, dh = nh * scale;
+    R = { left: (sw - dw) / 2, top: (sh - dh) / 2, width: dw, height: dh, scale };
+    const c = clamp(R.left + dw * 0.1, R.top + dh * 0.1, dw * 0.8, dh * 0.8);
+    setBox(c.x, c.y, c.w, c.h);
+  }
+
+  let drag = null;
+  const pt = (e) => { const t = e.touches ? e.touches[0] : e; const r = stage.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; };
+  function down(e, handle) {
+    e.preventDefault();
+    drag = { handle, p: pt(e), b: getBox() };
+    window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
+  }
+  function move(e) {
+    if (!drag) return; e.preventDefault();
+    const p = pt(e), dx = p.x - drag.p.x, dy = p.y - drag.p.y, b = drag.b;
+    let x = b.x, y = b.y, w = b.w, h = b.h;
+    if (drag.handle === 'move') { x = b.x + dx; y = b.y + dy; }
+    else {
+      if (drag.handle.includes('l')) { x = b.x + dx; w = b.w - dx; }
+      if (drag.handle.includes('r')) { w = b.w + dx; }
+      if (drag.handle.includes('t')) { y = b.y + dy; h = b.h - dy; }
+      if (drag.handle.includes('b')) { h = b.h + dy; }
+    }
+    const c = clamp(x, y, w, h); setBox(c.x, c.y, c.w, c.h);
+  }
+  function up() {
+    drag = null;
+    window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up);
+    window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up);
+  }
+  box.addEventListener('mousedown', (e) => { if (e.target === box) down(e, 'move'); });
+  box.addEventListener('touchstart', (e) => { if (e.target === box) down(e, 'move'); }, { passive: false });
+  ov.querySelectorAll('.rb-crop-h').forEach(h => {
+    h.addEventListener('mousedown', (e) => { e.stopPropagation(); down(e, h.dataset.h); });
+    h.addEventListener('touchstart', (e) => { e.stopPropagation(); down(e, h.dataset.h); }, { passive: false });
+  });
+
+  const close = () => ov.remove();
+  ov.querySelector('#rb-crop-cancel').onclick = close;
+  ov.querySelector('#rb-crop-apply').onclick = () => {
+    const b = getBox();
+    const sx = (b.x - R.left) / R.scale, sy = (b.y - R.top) / R.scale;
+    const sw = b.w / R.scale, sh = b.h / R.scale;
+    let ow = sw, oh = sh; const MAX = 800;
+    if (ow > MAX || oh > MAX) { if (ow > oh) { oh = Math.round(oh * MAX / ow); ow = MAX; } else { ow = Math.round(ow * MAX / oh); oh = MAX; } }
+    const c = document.createElement('canvas');
+    c.width = Math.round(ow); c.height = Math.round(oh);
+    c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, ow, oh);
+    close(); onApply(c.toDataURL('image/jpeg', 0.72));
+  };
+
+  if (img.complete && img.naturalWidth) layout(); else img.onload = layout;
 }
 
 /* ── HTML builders ───────────────────────────────── */
@@ -302,7 +402,8 @@ function buildEditRecipeScreen() {
       ${_editPhotoUrl ? `
         <img class="rb-photo-preview" src="${_editPhotoUrl}" alt="">
         <div class="rb-photo-actions">
-          <label class="rb-photo-btn" for="rb-photo-inp">Замінити фото</label>
+          <button class="rb-photo-btn" onclick="window.__rb.cropPhoto()">✂ Обрізати</button>
+          <label class="rb-photo-btn" for="rb-photo-inp">Замінити</label>
           <button class="rb-photo-remove" onclick="window.__rb.removePhoto()">Видалити</button>
         </div>
       ` : `<label class="rb-photo-btn" for="rb-photo-inp">📷 Додати фото</label>`}
@@ -544,6 +645,8 @@ window.__rb = {
   },
 
   removePhoto() { _editPhotoUrl = ''; fullRender(); },
+
+  cropPhoto() { if (_editPhotoUrl) openCropOverlay(_editPhotoUrl, (url) => { _editPhotoUrl = url; fullRender(); }); },
 
   onGroupName(v)  { _editGroupName = v; },
   onRecipeName(v) { _editName = v; },

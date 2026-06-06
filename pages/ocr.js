@@ -15,6 +15,9 @@ let _ocrTgChatId  = '';
 let _ocrTgTopicId = '';
 let _ocrTgSaving  = false;
 let _ocrTgSaved   = false;
+let _file     = null;  // обране фото (до відправки)
+let _photoUrl = '';    // object URL для прев'ю
+let _rot      = 0;     // поворот прев'ю, градуси (0/90/180/270)
 
 /* ════════════════════════
    CSS
@@ -139,6 +142,15 @@ const CSS = `<style id="ocr-css">
 .ocr-tg-save{height:36px;padding:0 16px;background:var(--green);border:none;border-radius:9px;font-size:12px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .ocr-tg-save.saved{background:var(--bg3);color:var(--green);border:0.5px solid var(--green)}
 .ocr-tg-save:active{opacity:.8}
+
+/* preview + rotate */
+.ocr-prev-box{margin:0 20px 14px;border-radius:18px;background:var(--bg2);border:0.5px solid var(--border);height:340px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.ocr-prev-box img{display:block;transition:transform .2s ease}
+.ocr-prev-btns{padding:0 20px 12px;display:flex;gap:10px}
+.ocr-rot-btn{width:56px;height:52px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text1)}
+.ocr-rot-btn:active{background:rgba(255,255,255,.08)}
+.ocr-prev-send{flex:1;height:52px;background:var(--green);border:none;border-radius:13px;font-size:15px;font-weight:600;color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.ocr-prev-send:active{opacity:.85}
 </style>`;
 
 /* ════════════════════════
@@ -268,6 +280,35 @@ function ocrIntakeBtn() {
   </div>`;
 }
 
+function renderPreview() {
+  return `
+  <div class="ocr-topbar">
+    <div class="ocr-back" onclick="window.__ocr.reset()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div>
+      <div class="ocr-title">Перевірте фото</div>
+      <div class="ocr-sub">Поверніть, якщо боком — і надішліть</div>
+    </div>
+  </div>
+  <div class="ocr-scroll">
+    <div class="ocr-prev-box"><img id="ocr-prev-img" src="${_photoUrl}" alt="" onload="window.__ocr.fit(this)"></div>
+    <div class="ocr-prev-btns">
+      <div class="ocr-rot-btn" onclick="window.__ocr.rotate(-1)" title="Вліво">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7v6h6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 13a9 9 0 1 0 2.6-6.4L3 9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="ocr-rot-btn" onclick="window.__ocr.rotate(1)" title="Вправо">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="transform:scaleX(-1)"><path d="M3 7v6h6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 13a9 9 0 1 0 2.6-6.4L3 9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <button class="ocr-prev-send" onclick="window.__ocr.send()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.8"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Надіслати в Telegram
+      </button>
+    </div>
+    <div style="padding:0 20px 14px"><button class="ocr-btn-secondary" onclick="window.__ocr.reset()">Інше фото</button></div>
+  </div>`;
+}
+
 function renderSending() {
   return `
   <div class="ocr-topbar" style="justify-content:center">
@@ -326,7 +367,8 @@ function renderError() {
 }
 
 function buildHTML() {
-  const body = _state === 'sending' ? renderSending()
+  const body = _state === 'preview' ? renderPreview()
+    : _state === 'sending'          ? renderSending()
     : _state === 'done'             ? renderDone()
     : _state === 'error'            ? renderError()
     :                                 renderIdle();
@@ -342,22 +384,75 @@ function rerender() {
 /* ════════════════════════
    ACTIONS
 ════════════════════════ */
-async function handleFile(input) {
+function handleFile(input) {
   const file = input.files?.[0];
   if (!file) return;
   input.value = '';
+  if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+  _file = file;
+  _photoUrl = URL.createObjectURL(file);
+  _rot = 0;
+  _state = 'preview';
+  rerender();
+}
 
+// Підігнати прев'ю під рамку з урахуванням повороту
+function fitPreview(img) {
+  const wrap = img.parentElement;
+  if (!wrap || !img.naturalWidth) return;
+  const nw = img.naturalWidth, nh = img.naturalHeight;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  const rotated = _rot % 180 !== 0;
+  const bw = rotated ? nh : nw, bh = rotated ? nw : nh;  // габарит після повороту
+  const scale = Math.min(cw / bw, ch / bh, 1);
+  img.style.width  = (nw * scale) + 'px';
+  img.style.height = (nh * scale) + 'px';
+  img.style.transform = `rotate(${_rot}deg)`;
+}
+
+function rotatePreview(dir) {
+  _rot = (((_rot + dir * 90) % 360) + 360) % 360;
+  const im = document.getElementById('ocr-prev-img');
+  if (im) fitPreview(im);
+}
+
+// Застосувати поворот до файлу через canvas (для відправки)
+function rotatedBlob(file, deg) {
+  if (!deg) return Promise.resolve(file);
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const rad = deg * Math.PI / 180;
+      const swap = deg % 180 !== 0;
+      const c = document.createElement('canvas');
+      c.width  = swap ? img.naturalHeight : img.naturalWidth;
+      c.height = swap ? img.naturalWidth  : img.naturalHeight;
+      const ctx = c.getContext('2d');
+      ctx.translate(c.width / 2, c.height / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      c.toBlob(b => resolve(b || file), 'image/jpeg', 0.9);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+async function sendPhoto() {
+  if (!_file) return;
   _state = 'sending';
   rerender();
-
   try {
     const token     = localStorage.getItem('barops_token') || '';
     const venueName = localStorage.getItem('barops_venue')  || '';
     if (!token) throw new Error('Не авторизований');
 
+    const blob = await rotatedBlob(_file, _rot);
     const API_URL  = 'https://barops-backend-production.up.railway.app';
     const formData = new FormData();
-    formData.append('photo',     file);
+    formData.append('photo',     blob, 'invoice.jpg');
     formData.append('venueName', venueName);
 
     const res = await fetch(`${API_URL}/api/ocr/notify`, {
@@ -377,6 +472,8 @@ async function handleFile(input) {
 }
 
 function reset() {
+  if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = ''; }
+  _file = null; _rot = 0;
   _state    = 'idle';
   _errorMsg = '';
   rerender();
@@ -439,6 +536,8 @@ async function saveOcrTg() {
 ════════════════════════ */
 export default {
   render() {
+    if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = ''; }
+    _file = null; _rot = 0;
     _state    = 'idle';
     _errorMsg = '';
     _ocrTgSaved = false;
@@ -455,6 +554,9 @@ export default {
     window.__ocr = {
       handleFile,
       reset,
+      rotate: rotatePreview,
+      fit: fitPreview,
+      send: sendPhoto,
       saveTg: saveOcrTg,
       tgChanged: () => {
         _ocrTgSaved = false;
