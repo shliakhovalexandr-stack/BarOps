@@ -31,7 +31,25 @@ let _batchLearned  = 0;      // скільки зіставлень запам'�
 let _batchCount    = 0;      // скільки накладних опрацьовано
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function amountOf(r) { return Math.round((+r.qty || 0) * (+r.unitsPerPack || 1) * 1000) / 1000; }
+// базова одиниця товару Syrve (з каталогу за productId; запасний — одиниця з OCR)
+function baseUnitOf(r) { const p = _catalog.products.find(x => x.id === r.productId); return (((p && p.unit) || r.unit || '')).trim(); }
+function isLiterRow(r) { return baseUnitOf(r) === 'л'; }
+// об'єм однієї одиниці в літрах: з OCR (volumeL) або парсимо з назви
+function parseVolL(s) {
+  s = (s || '').toString().toLowerCase().replace(/,/g, '.');
+  let m = s.match(/(\d{1,3}(?:\.\d{1,3})?)\s*л(?![а-яёa-z])/);   // 30л, 1.0л, 0.75 л, 24л
+  if (m) return parseFloat(m[1]);
+  m = s.match(/(?:^|[^.\d%])(0\.\d{2,3}|1\.0)(?![\d%])/);        // 0.75 / 0.5 / 0.33 / 0.25 / 1.0 (не %)
+  if (m) return parseFloat(m[1]);
+  return 0;
+}
+function volOf(r) { return (+r.volumeL > 0) ? +r.volumeL : parseVolL(r.rawName); }
+// amount у БАЗОВІЙ одиниці: для «л» = к-сть × об'єм; інакше = к-сть (× в уп для штучних пачок)
+function amountOf(r) {
+  const q = +r.qty || 0;
+  const f = isLiterRow(r) ? (volOf(r) || 1) : (+r.unitsPerPack || 1);
+  return Math.round(q * f * 1000) / 1000;
+}
 function matchedCount() { return _rows.filter(r => r.productId).length; }
 function totalSum() { return _rows.reduce((s, r) => s + (+r.sum || 0), 0); }
 
@@ -179,8 +197,10 @@ function reviewView() {
       </div>
       <div class="io-nums">
         <div class="io-num"><div class="io-num-l">К-сть</div><input type="number" inputmode="decimal" value="${r.qty}" onchange="window.__io.edit(${i},'qty',this.value)"></div>
-        <div class="io-num"><div class="io-num-l">× в уп</div><input type="number" inputmode="decimal" value="${r.unitsPerPack}" onchange="window.__io.edit(${i},'unitsPerPack',this.value)"></div>
-        <div class="io-num"><div class="io-num-l">= шт</div><div class="ro" id="io-amt-${i}">${amountOf(r)}</div></div>
+        ${isLiterRow(r)
+          ? `<div class="io-num"><div class="io-num-l">× об'єм л</div><input type="number" inputmode="decimal" value="${volOf(r) || ''}" onchange="window.__io.edit(${i},'volumeL',this.value)"></div>`
+          : `<div class="io-num"><div class="io-num-l">× в уп</div><input type="number" inputmode="decimal" value="${r.unitsPerPack}" onchange="window.__io.edit(${i},'unitsPerPack',this.value)"></div>`}
+        <div class="io-num"><div class="io-num-l">= ${baseUnitOf(r) || 'шт'}</div><div class="ro" id="io-amt-${i}">${amountOf(r)}</div></div>
       </div>
       <div class="io-nums" style="margin-top:6px">
         <div class="io-num" style="grid-column:span 2"><div class="io-num-l">Сума, грн</div><input type="number" inputmode="decimal" value="${r.sum}" onchange="window.__io.edit(${i},'sum',this.value)"></div>
@@ -341,6 +361,7 @@ async function processFile(f) {
       const sum = Number(it.sum) || (Number(it.pricePerUnit) || 0) * qty || 0;
       return {
         rawName: it.rawName, qty, unitsPerPack: Number(it.unitsPerPack) || 1, unit: it.unit || '',
+        volumeL: Number(it.volumeL) || 0,
         sum, vatPercent: Number(it.vatPercent) || 0,
         productId: m.match?.productId || '', productName: m.match?.name || '',
         confidence: m.match?.confidence || 0, source: m.match?.source || '',
@@ -452,8 +473,8 @@ export default {
       skip: nextOrDone,
       edit: (i, k, v) => {
         if (!_rows[i]) return;
-        _rows[i][k] = (k === 'qty' || k === 'unitsPerPack' || k === 'sum' || k === 'vatPercent') ? (parseFloat(v) || 0) : v;
-        if (k === 'qty' || k === 'unitsPerPack') { const el = document.getElementById(`io-amt-${i}`); if (el) el.textContent = amountOf(_rows[i]); }
+        _rows[i][k] = (k === 'qty' || k === 'unitsPerPack' || k === 'volumeL' || k === 'sum' || k === 'vatPercent') ? (parseFloat(v) || 0) : v;
+        if (k === 'qty' || k === 'unitsPerPack' || k === 'volumeL') { const el = document.getElementById(`io-amt-${i}`); if (el) el.textContent = amountOf(_rows[i]); }
         if (k === 'sum') { const f = document.querySelector('.io-foot-sum-v'); if (f) f.textContent = money(totalSum()) + ' ₴'; }
       },
       metaNum: (v) => { _invoiceNumber = v; },
