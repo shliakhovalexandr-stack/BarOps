@@ -21,6 +21,7 @@ const _expanded = new Set(); // ids розгорнутих повернутих 
 let _form     = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'пляш.', price:'', note:'' };
 let _products        = [];
 let _productsLoaded  = false;
+let _productsLoading  = false;
 let _pickerOpen      = false;
 let _pickerSearch    = '';
 
@@ -150,29 +151,57 @@ async function loadVenues() {
 }
 
 async function loadProducts() {
-  if (_productsLoaded) return;
+  if (_productsLoaded || _productsLoading) return;
   const venueId = localStorage.getItem('barops_venueId') || '';
   if (!venueId) return;
+  _productsLoading = true;
+  if (_pickerOpen) refreshPickerList();   // показати «Завантаження…»
   try {
     const d = await apiFetch(`/api/pos/balance/${venueId}`);
     const seen = new Set();
     const flat = [];
     for (const store of (d.stores || [])) {
       for (const item of (store.items || [])) {
-        if (!seen.has(item.name)) {
-          seen.add(item.name);
-          flat.push({ id: item.id, name: item.name, qty: Math.round((Number(item.amount)||0)*100)/100, unit: item.unit || '' });
+        const nm = (item.name || '').trim();
+        if (nm && !seen.has(nm)) {
+          seen.add(nm);
+          flat.push({ id: item.id, name: nm, qty: Math.round((Number(item.amount)||0)*100)/100, unit: item.unit || '' });
         }
       }
     }
     _products = flat.sort((a, b) => a.name.localeCompare(b.name, 'uk'));
     _productsLoaded = true;
   } catch { _products = []; }
+  _productsLoading = false;
+  if (_pickerOpen) refreshPickerList();   // підставити товари після завантаження
+}
+
+// Перемальовує лише список пікера (не чіпає поле пошуку — фокус зберігається)
+function refreshPickerList() {
+  const listEl = document.getElementById('dbt-picker-list');
+  if (!listEl) return;
+  const q = _pickerSearch.toLowerCase();
+  const filtered = _products.filter(p => !q || (p.name || '').toLowerCase().includes(q));
+  const rows = filtered.map(p => {
+    const safeName = (p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
+      <div class="dbt-picker-name">${p.name}</div>
+      ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
+    </div>`;
+  }).join('');
+  const manualEl = listEl.querySelector('.dbt-picker-manual');
+  const manualHTML = manualEl ? manualEl.outerHTML : '';
+  const msg = _products.length === 0
+    ? (_productsLoading ? 'Завантаження залишків Syrve…' : 'Залишки Syrve не завантажені. Введіть назву вручну вище.')
+    : 'Нічого не знайдено';
+  const empty = `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">${msg}</div>`;
+  listEl.innerHTML = manualHTML + (rows || empty);
 }
 
 function pickerHTML() {
   const q       = _pickerSearch.toLowerCase();
-  const list    = _products.filter(p => !q || p.name.toLowerCase().includes(q));
+  const list    = _products.filter(p => !q || (p.name || '').toLowerCase().includes(q));
   const manVal  = _form.item;
   return `
   <div class="dbt-picker-ov">
@@ -195,11 +224,13 @@ function pickerHTML() {
           onkeydown="if(event.key==='Enter')window.__dbt.closePicker()"/>
       </div>
       ${_products.length === 0
-        ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Залишки Syrve не завантажені.<br>Введіть назву вручну вище.</div>`
+        ? (_productsLoading
+            ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Завантаження залишків Syrve…</div>`
+            : `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Залишки Syrve не завантажені.<br>Введіть назву вручну вище.</div>`)
         : list.length === 0
           ? `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`
           : list.map(p => {
-              const safeName = p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+              const safeName = (p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
               const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
               return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
                 <div class="dbt-picker-name">${p.name}</div>
@@ -416,7 +447,7 @@ export default {
 
   init() {
     _tab = 'debt'; _filter = 'all'; _debts = []; _formOpen = false;
-    _products = []; _productsLoaded = false;
+    _products = []; _productsLoaded = false; _productsLoading = false;
     _form = { fromVenueId:'', toVenueId:'', item:'', qty:'1', unit:'шт', price:'', note:'' };
 
     window.__dbt = {
@@ -442,6 +473,7 @@ export default {
       openPicker() {
         _pickerOpen = true; _pickerSearch = '';
         renderPickerOverlay();
+        loadProducts();   // якщо ще не завантажено — підтягне й оновить список
       },
       closePicker() {
         _pickerOpen = false;
@@ -457,20 +489,7 @@ export default {
       },
       pickerSearch(q) {
         _pickerSearch = q;
-        const list = document.getElementById('dbt-picker-list');
-        if (!list) return;
-        const filtered = _products.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
-        const rows = filtered.map(p => {
-          const safeName = p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          return `<div class="dbt-picker-row" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
-            <div class="dbt-picker-name">${p.name}</div>
-            ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
-          </div>`;
-        }).join('');
-        const manualEl = list.querySelector('.dbt-picker-manual');
-        const manualHTML = manualEl ? manualEl.outerHTML : '';
-        list.innerHTML = manualHTML + (rows || `<div style="padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`);
+        refreshPickerList();
       },
       save:         saveForm,
       markReturned: markReturned,
