@@ -305,6 +305,8 @@ async function saveForm() {
 function debtCard(d) {
   const done     = d.returned;
   const isSale   = d.type === 'sale';
+  const role     = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
+  const canCloseSale = role === 'admin' || role === 'accountant';  // «Продано» — лише системний менеджер + бухгалтер
   const badge    = done ? 'done' : d.type;
   const badgeTxt = done ? (isSale ? 'Продано' : 'Повернуто') : (isSale ? 'Продаж' : 'Борг');
   const doneLabel = isSale ? 'Продано' : 'Повернуто';
@@ -343,7 +345,11 @@ function debtCard(d) {
     ${d.userName?`<div class="dbt-card-date" style="margin-top:2px">Вніс: ${d.userName}</div>`:''}
     ${d.note?`<div class="dbt-card-note">${d.note}</div>`:''}
     ${done?`<div class="dbt-card-returned">✓ ${doneLabel} ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+d.returnedByName:''}</div>`:''}
-    ${!done?`<button class="dbt-return-btn" onclick="window.__dbt.markReturned('${d.id}')">${btnLabel}</button>`:''}
+    ${!done ? (
+        (isSale && !canCloseSale)
+          ? `<div class="dbt-card-note" style="text-align:center;color:var(--text3);font-style:italic">Закриває системний менеджер або бухгалтер</div>`
+          : `<button class="dbt-return-btn" onclick="window.__dbt.markReturned('${d.id}')">${btnLabel}</button>`
+      ) : ''}
   </div>`;
 }
 
