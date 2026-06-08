@@ -652,10 +652,12 @@ const CSS = `<style id="sch-css">
 /* ── Grid table ── */
 .sch-grid-wrap{margin:0 18px 16px;overflow-x:auto}.sch-grid-wrap::-webkit-scrollbar{height:3px;background:transparent}
 .sch-grid-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
-.sch-table{border-collapse:collapse;width:100%}
+.sch-table{border-collapse:separate;border-spacing:0;width:100%}
 .sch-table th{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.04em;text-align:center;padding:0 3px 8px;vertical-align:bottom;white-space:nowrap}
 .sch-table th.wk{color:#A88BFF}.sch-table th.td{color:#A88BFF;font-weight:700}
 .sch-table td{padding:2px 3px;vertical-align:middle}
+.sch-table th:first-child,.sch-table td:first-child{position:sticky;left:0;z-index:2;background:#0A0A0A;padding-right:8px}
+.sch-table th:first-child{z-index:3}
 .sch-gname{display:flex;align-items:center;gap:6px;padding-right:8px;min-width:80px}
 .sch-gini{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;flex-shrink:0}
 .sch-gtext{font-size:11px;font-weight:500;color:#A1A1AA;white-space:nowrap;overflow:hidden;max-width:72px;text-overflow:ellipsis}
@@ -926,7 +928,7 @@ function renderRoleView(roleKey) {
         }).join('');
         const editDrag = canEdit() && _mode === 'edit';
         return `<tr data-pid="${p.id}">
-          <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle">
+          <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle;position:sticky;left:0;z-index:2;background:#000">
             <div style="display:flex;align-items:center;gap:7px">
               ${editDrag ? `<svg class="sch-drag-h" width="13" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:#52525B;flex-shrink:0;cursor:grab;touch-action:none"><circle cx="9" cy="5" r="1.7"/><circle cx="15" cy="5" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="19" r="1.7"/><circle cx="15" cy="19" r="1.7"/></svg>` : ''}
               <div style="min-width:0">
@@ -1041,9 +1043,9 @@ function renderRoleView(roleKey) {
       </div>
       ${defaultsSection}
       <div id="sch-grid-scroll" data-sk="role" style="margin:0 18px 16px;overflow-x:auto">
-        <table style="border-collapse:collapse;min-width:100%">
+        <table style="border-collapse:separate;border-spacing:0;min-width:100%">
           <thead><tr>
-            <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:#52525B;letter-spacing:.06em;min-width:84px">${colHdr}</th>
+            <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:#52525B;letter-spacing:.06em;min-width:84px;position:sticky;left:0;z-index:3;background:#000">${colHdr}</th>
             ${thCells}
           </tr></thead>
           <tbody id="sch-tbody-${roleKey}">${bodyRows}</tbody>
