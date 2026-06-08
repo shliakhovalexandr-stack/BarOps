@@ -190,19 +190,13 @@ async function loadRosters() {
 
   _rosters = {};
   for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
-    const people = teamMembers
-      .filter(m => cfg.apiRoles.includes((m.role || '').toLowerCase()))
-      .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: (m.role || '').toLowerCase() }));
-
-    // Бармени мережі, додані вручну з інших закладів
-    if (key === 'bartenders' && _extraBar.length) {
-      const have = new Set(people.map(p => p.id));
-      for (const e of _extraBar) {
-        if (e && e.id && !have.has(e.id)) {
-          people.push({ id: e.id, i: ini(e.n || '?'), n: e.n || 'Бармен', role: (e.role || 'bartender'), extra: true, venueName: e.venueName || '' });
-        }
-      }
-    }
+    // Бармени: весь список формує менеджер по іменах (без авто-підтягування з Команди).
+    // Решта підрозділів — зі складу команди закладу.
+    const people = key === 'bartenders'
+      ? _extraBar.map(e => ({ id: e.id, i: ini(e.n || '?'), n: e.n || 'Бармен', role: (e.role || 'bartender'), extra: true }))
+      : teamMembers
+          .filter(m => cfg.apiRoles.includes((m.role || '').toLowerCase()))
+          .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: (m.role || '').toLowerCase() }));
 
     const grid = people.map(p => {
       const emp = vData[p.id] || {};
@@ -790,7 +784,7 @@ function renderRoleView(roleKey) {
 
   // Table body rows
   const bodyRows = r.people.length === 0
-    ? `<tr><td colspan="8"><div style="padding:24px 0;color:#3F3F46;font-size:12px;text-align:center">Немає співробітників.<br>Додайте у розділі «Команда».</div></td></tr>`
+    ? `<tr><td colspan="8"><div style="padding:24px 0;color:#3F3F46;font-size:12px;text-align:center">${roleKey === 'bartenders' ? 'Список порожній.<br>Додайте барменів кнопкою нижче.' : 'Немає співробітників.<br>Додайте у розділі «Команда».'}</div></td></tr>`
     : r.people.map((p, pi) => {
         const subtitle = ROLE_LABEL[p.role] || 'Співробітник';
         const cells = r.grid[pi].map((cell, di) => {
