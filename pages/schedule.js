@@ -935,7 +935,7 @@ function renderRoleView(roleKey) {
         </table>
       </div>
       ${(roleKey === 'bartenders' && canEdit() && _mode === 'edit')
-        ? `<button class="sch-add" onclick="window.__sch.openBarPicker()">+ Додати бармена з іншого закладу</button>` : ''}
+        ? `<button class="sch-add" style="margin:2px 18px 16px" onclick="window.__sch.openBarPicker()">+ Додати бармена з іншого закладу</button>` : ''}
       <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
       ${procChips}
       ${coverageSection}
