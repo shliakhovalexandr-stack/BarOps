@@ -48,6 +48,12 @@ const PALETTE = [
 ];
 function stClr(idx) { return PALETTE[idx % PALETTE.length]; }
 function hashIdx(s, n) { let h = 0; const t = String(s || ''); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h % n; }
+// Вміст клітинки зміни: зона (станція/заклад) + час. Якщо зони нема — лише час.
+function cellInner(zone, time) {
+  return zone
+    ? `<span style="font-size:10px;font-weight:700;line-height:1.15;white-space:nowrap">${zone}</span><span style="font-size:9px;font-weight:600;opacity:.82;line-height:1.1">${time}</span>`
+    : `<span style="font-size:11px;font-weight:600">${time}</span>`;
+}
 
 /* ════════════════════════════════════════
    DEFAULTS — стандартні години зміни
@@ -362,16 +368,18 @@ async function loadNetwork() {
     (byUser[s.userId] ||= { id: s.userId, n: s.userName || '—', cells: {} });
     byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null };
   }
-  const people = Object.values(byUser)
+  let people = Object.values(byUser)
     .map(p => ({ id: p.id, n: p.n, i: ini(p.n), cells: p.cells }))
     .sort((a, b) => a.n.localeCompare(b.n));
+  people = applyOrder(myKey, people);   // порядок, який виставив менеджер
   const grid = people.map(p => weekDates.map(w => p.cells[ymd(w.date)] || null));
   _networkRoster = { people, grid };
 }
 
 async function reloadData() {
+  _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
   if (canEdit()) await loadRosters();
-  else           await loadNetwork();
+  else { await loadStations(); await loadRosterOrders(); await loadNetwork(); }   // станції+порядок — щоб збігалось з менеджером
 }
 
 async function patchDayOff(id, status) {
@@ -515,21 +523,22 @@ function renderDeptTable(roleKey) {
             return `<td><div class="sch-cell-dayoff${_mode === 'edit' ? ' editable' : ''}" ${onclick}>Вих</div></td>`;
           }
           let bg = r.bgIcon, bd = r.bdIcon, tx = r.color;
-          let label = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
+          const time = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
+          let zone = '';
           if (cell.station && stnColorMap[cell.station]) {
             const c = stnColorMap[cell.station];
             bg = c.bg; bd = c.bd; tx = c.tx;
             const stn = stns.find(s => s.id === cell.station);
-            label = stn ? stn.label.slice(0,12) : (cell.stationName ? cell.stationName.slice(0,12) : label);
+            zone = stn ? stn.label : (cell.stationName || '');
           } else if (cell.stationName) {
-            label = cell.stationName.slice(0,12);
+            zone = cell.stationName;
             const c = stClr(hashIdx(cell.stationName, PALETTE.length));
             bg = c.bg; bd = c.bd; tx = c.tx;
           }
           const onclick = _mode === 'edit'
             ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`
             : `onclick="window.__sch.showCellInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}','${cell.station||''}')"`;
-          return `<td><div class="sch-cell-btn" style="background:${bg};border:0.5px solid ${bd};color:${tx}" ${onclick}>${label}</div></td>`;
+          return `<td><div class="sch-cell-btn" style="background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;flex-direction:column;align-items:center;justify-content:center;height:auto;min-height:34px;padding:2px 6px;line-height:1.15" ${onclick}>${cellInner(zone.slice(0,11), time)}</div></td>`;
         }).join('');
         return `<tr>
           <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div><span class="sch-gtext">${p.n.split(' ')[0]}</span></div></td>
@@ -552,6 +561,10 @@ function renderDeptTable(roleKey) {
 function renderNetworkGrid() {
   const r         = _networkRoster;
   const weekDates = getWeekDates(_weekOffset);
+  const myKey     = roleKeyForRole(resolveRole());
+  const stns      = _stations[myKey] || [];
+  const stnColorMap = {};
+  stns.forEach((s, i) => { stnColorMap[s.id] = stClr(i); });
   const thCells = weekDates.map(w => {
     const cls = [w.weekend ? 'wk' : '', isToday(w.date) ? 'td' : ''].filter(Boolean).join(' ');
     return `<th class="${cls}">${w.d}<br><span style="font-size:10px;font-weight:400">${w.n}</span></th>`;
@@ -563,7 +576,11 @@ function renderNetworkGrid() {
           if (!cell) return `<td><div class="sch-cell-off"><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
           const place = (cell.stationName || cell.venueName || '').trim();   // де працює (станція=заклад), інакше заклад-публікатор
           const time  = `${(cell.s||'').slice(0,2)}–${(cell.e||'').slice(0,2)}`;
-          return `<td><div class="sch-net-cell" title="${place}"><span class="sch-net-venue">${place.slice(0,10)}</span><span class="sch-net-time">${time}</span></div></td>`;
+          const c  = (cell.station && stnColorMap[cell.station]) ? stnColorMap[cell.station] : (place ? stClr(hashIdx(place, PALETTE.length)) : null);
+          const cs = c ? ` style="background:${c.bg};border-color:${c.bd}"` : '';
+          const vs = c ? ` style="color:${c.tx}"` : '';
+          const ts = c ? ` style="color:${c.tx};opacity:.82"` : '';
+          return `<td><div class="sch-net-cell"${cs} title="${place}"><span class="sch-net-venue"${vs}>${place.slice(0,10)}</span><span class="sch-net-time"${ts}>${time}</span></div></td>`;
         }).join('');
         return `<tr>
           <td><div class="sch-gname"><div class="sch-gini" style="background:rgba(168,139,255,0.10);color:#A88BFF">${p.i}</div><span class="sch-gtext">${p.n.split(' ')[0]}</span></div></td>
@@ -890,22 +907,22 @@ function renderRoleView(roleKey) {
             return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:rgba(251,113,133,0.08);border:0.5px dashed rgba(251,113,133,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#FB7185;cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>Вих</div></td>`;
           }
           let bg = r.bgIcon, bd = r.bdIcon, tx = r.color;
-          let label = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
+          const time = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
+          let zone = '';
           if (cell.station && stnColorMap[cell.station]) {
             const c = stnColorMap[cell.station];
             bg = c.bg; bd = c.bd; tx = c.tx;
             const stn = stns.find(s => s.id === cell.station);
-            if (stn) label = stn.label;
-            else if (cell.stationName) label = cell.stationName;
+            zone = stn ? stn.label : (cell.stationName || '');
           } else if (cell.stationName) {
-            label = cell.stationName;
+            zone = cell.stationName;
             const c = stClr(hashIdx(cell.stationName, PALETTE.length));
             bg = c.bg; bd = c.bd; tx = c.tx;
           }
           const onclick = _mode === 'edit'
             ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`
             : `onclick="window.__sch.showCellInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}','${cell.station||''}')"`;
-          return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;white-space:nowrap;padding:0 7px;cursor:pointer" ${onclick}>${label}</div></td>`;
+          return `<td style="padding:2px"><div style="min-width:46px;min-height:34px;border-radius:8px;background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 6px;line-height:1.15;cursor:pointer" ${onclick}>${cellInner(zone, time)}</div></td>`;
         }).join('');
         const editDrag = canEdit() && _mode === 'edit';
         return `<tr data-pid="${p.id}">
