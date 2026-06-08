@@ -147,66 +147,56 @@ let _myDayoff      = [];  // власні запити на вихідні (дл
 ════════════════════════════════════════ */
 async function loadRosters() {
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
-  await loadBartenderRoster();
-  await loadRosterOrders();
   const token     = localStorage.getItem('barops_token');
   const weekDates = getWeekDates(_weekOffset);
+  const wkStart   = ymd(weekDates[0].date);
+  const H = token ? { Authorization: `Bearer ${token}` } : {};
 
-  let teamMembers = [];
-  try {
-    const url  = _venueId ? `${API}/api/auth/team?venueId=${_venueId}` : `${API}/api/auth/team`;
-    const res  = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    const data = await res.json();
-    if (Array.isArray(data.team)) teamMembers = data.team;
-    console.log('[Schedule] team:', teamMembers.length, '| venueId:', _venueId,
-      '|', teamMembers.map(m => `${m.name}(${m.role})`).join(', '));
-  } catch (err) { console.warn('[Schedule] team error:', err); }
+  let teamMembers    = [];
+  const dayoffByRole = {};
+  const pubByUser    = {};
 
-  // Load stations (спільні, з сервера; localStorage — кеш/seed)
-  await loadStations();
+  // Усі запити ПАРАЛЕЛЬНО (раніше йшли послідовно → довге перемикання тижня)
+  await Promise.all([
+    loadBartenderRoster(),
+    loadRosterOrders(),
+    loadStations(),
+    (async () => {
+      try {
+        const url  = _venueId ? `${API}/api/auth/team?venueId=${_venueId}` : `${API}/api/auth/team`;
+        const data = await (await fetch(url, { headers: H })).json();
+        if (Array.isArray(data.team)) teamMembers = data.team;
+      } catch (err) { console.warn('[Schedule] team error:', err); }
+    })(),
+    (async () => {
+      try {
+        const dUrl = _venueId ? `${API}/api/dayoff?venueId=${_venueId}` : `${API}/api/dayoff`;
+        const dRes = await fetch(dUrl, { headers: H });
+        if (dRes.ok) {
+          for (const rq of ((await dRes.json()).requests || [])) {
+            const rk = roleKeyForRole(rq.role);
+            if (!rk) continue;
+            (dayoffByRole[rk] ||= []).push({ id: rq.id, who: rq.userName || 'Співробітник', day: formatReqDates(rq.dates), note: rq.note || '', status: rq.status || 'pending', userId: rq.userId || '', dates: rq.dates || [] });
+          }
+        }
+      } catch (err) { console.warn('[Schedule] dayoff error:', err); }
+    })(),
+    (async () => {
+      // опубліковані зміни (залежить від тижня) — щоб графік було видно на будь-якому пристрої
+      try {
+        const pubRes = await fetch(`${API}/api/schedule/network?weekStart=${wkStart}`, { headers: H });
+        if (pubRes.ok) {
+          for (const s of ((await pubRes.json()).shifts || [])) {
+            (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null, stationName: s.stationName || '', venueId: s.venueId };
+          }
+        }
+      } catch {}
+    })(),
+  ]);
 
-  // Load schedule
   const stored = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
   const vData  = stored[_venueId] || {};
-  // Підтверджені вихідні (окреме сховище за ymd, щоб без зсуву дат)
   const approvedOff = (JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}')[_venueId]) || {};
-
-  // Load day-off requests (тільки manager/admin; решта отримує 403 → пропускаємо)
-  const dayoffByRole = {};
-  try {
-    const dUrl = _venueId ? `${API}/api/dayoff?venueId=${_venueId}` : `${API}/api/dayoff`;
-    const dRes = await fetch(dUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (dRes.ok) {
-      const dData = await dRes.json();
-      for (const rq of (dData.requests || [])) {
-        const rk = roleKeyForRole(rq.role);
-        if (!rk) continue;
-        (dayoffByRole[rk] ||= []).push({
-          id: rq.id,
-          who: rq.userName || 'Співробітник',
-          day: formatReqDates(rq.dates),
-          note: rq.note || '',
-          status: rq.status || 'pending',
-          userId: rq.userId || '',
-          dates: rq.dates || [],
-        });
-      }
-    }
-  } catch (err) { console.warn('[Schedule] dayoff error:', err); }
-
-  // Опубліковані зміни цього закладу — щоб графік було видно на БУДЬ-ЯКОМУ пристрої,
-  // не лише там, де редагували (localStorage). localStorage-правки мають пріоритет.
-  const pubByUser = {};
-  try {
-    const wkStart = ymd(weekDates[0].date);
-    const pubRes = await fetch(`${API}/api/schedule/network?weekStart=${wkStart}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (pubRes.ok) {
-      const pubData = await pubRes.json();
-      for (const s of (pubData.shifts || [])) {
-        (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null, stationName: s.stationName || '', venueId: s.venueId };
-      }
-    }
-  } catch {}
 
   _rosters = {};
   for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
@@ -391,7 +381,7 @@ async function loadNetwork() {
 async function reloadData() {
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
   if (canEdit()) await loadRosters();
-  else { await loadStations(); await loadRosterOrders(); await loadNetwork(); }   // станції+порядок — щоб збігалось з менеджером
+  else { await Promise.all([loadStations(), loadRosterOrders()]); await loadNetwork(); }   // станції+порядок паралельно
 }
 
 async function patchDayOff(id, status) {
