@@ -695,17 +695,6 @@ function renderHub() {
     </div>
     <div class="sch-scroll">
       ${canEdit() ? `
-      <div class="sch-sum">
-        <div class="sch-sum-row">
-          <div class="sch-sum-cell"><div class="sch-sum-val">${stats.total}</div><div class="sch-sum-lbl">Людей</div></div>
-          <div class="sch-sum-div"></div>
-          <div class="sch-sum-cell"><div class="sch-sum-val" style="color:#86EFAC">${stats.onShift}</div><div class="sch-sum-lbl">На зміні</div></div>
-          <div class="sch-sum-div"></div>
-          <div class="sch-sum-cell"><div class="sch-sum-val"${stats.gaps?` style="color:#FB7185"`:''}>${stats.gaps}</div><div class="sch-sum-lbl">Дірок</div></div>
-          <div class="sch-sum-div"></div>
-          <div class="sch-sum-cell"><div class="sch-sum-val"${stats.pending?` style="color:#FBBF24"`:''}>${stats.pending}</div><div class="sch-sum-lbl">Запитів</div></div>
-        </div>
-      </div>
       <div class="sch-seg">
         <button class="sch-seg-btn${_mode==='view'?' on':''}" onclick="window.__sch.setMode('view')">Переглянути</button>
         <button class="sch-seg-btn${_mode==='edit'?' on':''}" onclick="window.__sch.setMode('edit')">Редагувати</button>
