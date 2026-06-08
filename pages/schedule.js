@@ -47,6 +47,7 @@ const PALETTE = [
   { bg:'rgba(52,211,153,.18)',  bd:'rgba(52,211,153,.35)',  tx:'#34D399' },
 ];
 function stClr(idx) { return PALETTE[idx % PALETTE.length]; }
+function hashIdx(s, n) { let h = 0; const t = String(s || ''); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h % n; }
 
 /* ════════════════════════════════════════
    DEFAULTS — стандартні години зміни
@@ -199,7 +200,7 @@ async function loadRosters() {
     if (pubRes.ok) {
       const pubData = await pubRes.json();
       for (const s of (pubData.shifts || [])) {
-        (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null, venueId: s.venueId };
+        (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null, stationName: s.stationName || '', venueId: s.venueId };
       }
     }
   } catch {}
@@ -225,7 +226,7 @@ async function loadRosters() {
         if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
         // бармени — мережево (будь-який заклад); решта — лише свій заклад
         const ps = pub[ymd(w.date)];
-        if (ps && (key === 'bartenders' || ps.venueId === _venueId)) return { s: ps.s, e: ps.e, station: ps.station || null };
+        if (ps && (key === 'bartenders' || ps.venueId === _venueId)) return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '' };
         return null;
       });
     });
@@ -487,7 +488,11 @@ function renderDeptTable(roleKey) {
             const c = stnColorMap[cell.station];
             bg = c.bg; bd = c.bd; tx = c.tx;
             const stn = stns.find(s => s.id === cell.station);
-            label = stn ? stn.label.slice(0,12) : label;
+            label = stn ? stn.label.slice(0,12) : (cell.stationName ? cell.stationName.slice(0,12) : label);
+          } else if (cell.stationName) {
+            label = cell.stationName.slice(0,12);
+            const c = stClr(hashIdx(cell.stationName, PALETTE.length));
+            bg = c.bg; bd = c.bd; tx = c.tx;
           }
           const onclick = _mode === 'edit'
             ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`
@@ -859,6 +864,11 @@ function renderRoleView(roleKey) {
             bg = c.bg; bd = c.bd; tx = c.tx;
             const stn = stns.find(s => s.id === cell.station);
             if (stn) label = stn.label;
+            else if (cell.stationName) label = cell.stationName;
+          } else if (cell.stationName) {
+            label = cell.stationName;
+            const c = stClr(hashIdx(cell.stationName, PALETTE.length));
+            bg = c.bg; bd = c.bd; tx = c.tx;
           }
           const onclick = _mode === 'edit'
             ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`
