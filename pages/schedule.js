@@ -892,8 +892,8 @@ function renderRoleView(roleKey) {
   const stns        = _stations[roleKey] || [];
   const venueName   = state.venue || localStorage.getItem('barops_venue') || 'Bar Noir';
   const totalPeople = r.people.length;
-  const totalShifts = r.grid.reduce((a, row) => a + row.filter(c => c !== null).length, 0);
-  const totalOff    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
+  const totalShifts = r.grid.reduce((a, row) => a + row.filter(c => c && c.s).length, 0);       // робочі зміни (є час)
+  const totalOff    = r.grid.reduce((a, row) => a + row.filter(c => c && c.dayOff).length, 0);   // реальні вихідні («Вих»)
 
   // Station color map
   const stnColorMap = {};
@@ -911,7 +911,8 @@ function renderRoleView(roleKey) {
   }).join('');
 
   // Column header label (singularize Ukrainian plural)
-  const colHdr = r.label.toUpperCase().replace(/[ІИ]$/, '');
+  const colHdr   = r.label.toUpperCase().replace(/[ІИ]$/, '');
+  const peopleLbl = colHdr + 'ІВ';   // родовий множини: БАРМЕНІВ / КУХАРІВ / ОФІЦІАНТІВ
 
   // Table body rows
   const bodyRows = r.people.length === 0
@@ -1056,10 +1057,11 @@ function renderRoleView(roleKey) {
       <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </div>
     <div class="sch-scroll">
+      <div style="font-size:10px;font-weight:600;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 8px">Зведення за тиждень</div>
       <div class="sch-kpi" style="margin:0 18px 16px">
-        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalPeople}</div><div class="sch-kpi-lbl">${colHdr}</div></div>
-        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalShifts}</div><div class="sch-kpi-lbl">ЗМІН</div></div>
-        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalOff}</div><div class="sch-kpi-lbl">ВИХІДНИХ</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalPeople}</div><div class="sch-kpi-lbl">${peopleLbl}</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val" style="color:#86EFAC">${totalShifts}</div><div class="sch-kpi-lbl">Робочих змін</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val" style="color:#FB7185">${totalOff}</div><div class="sch-kpi-lbl">Вихідних</div></div>
       </div>
       ${defaultsSection}
       <div id="sch-grid-scroll" data-sk="role" style="margin:0 18px 16px;overflow-x:auto">
