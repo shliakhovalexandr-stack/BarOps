@@ -1372,12 +1372,19 @@ function re() {
   // запам'ятати горизонтальний скрол усіх гридів (хаб має кілька, по одному на підрозділ)
   const sm = {};
   v.querySelectorAll('[data-sk]').forEach(el => { sm[el.dataset.sk] = el.scrollLeft; });
+  // запам'ятати вертикальний скрол сторінки, щоб не стрибало вгору після перемальовування
+  const prevSc = v.querySelector('.sch-scroll');
+  const vy = prevSc ? prevSc.scrollTop : 0;
   if (_view === 'hub')          v.innerHTML = renderHub();
   else if (_view === 'role')    { v.innerHTML = renderRoleView(_role); attachRowDrag(_role); }
   else if (_view === 'booking') v.innerHTML = renderBooking();
-  const restore = () => v.querySelectorAll('[data-sk]').forEach(el => {
-    const sx = sm[el.dataset.sk]; if (sx) el.scrollLeft = sx;
-  });
+  const restore = () => {
+    v.querySelectorAll('[data-sk]').forEach(el => {
+      const sx = sm[el.dataset.sk]; if (sx) el.scrollLeft = sx;
+    });
+    const sc = v.querySelector('.sch-scroll');
+    if (sc && vy) sc.scrollTop = vy;
+  };
   restore(); requestAnimationFrame(restore);
 }
 
@@ -1468,7 +1475,7 @@ export function init() {
     openCellSheet(roleKey, pi, di) {
       const cell = _rosters[roleKey].grid[+pi][+di];
       _cellSheet = { roleKey, pi: +pi, di: +di, station: cell?.station || null };
-      _cellMode  = cell ? 'shift' : 'shift';
+      _cellMode  = cell?.dayOff ? 'off' : 'shift';   // відкривати у поточному стані клітинки
       const wrap = document.querySelector('.sch-wrap');
       if (!wrap) return;
       document.getElementById('sch-cell-ov')?.remove();
