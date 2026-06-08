@@ -237,6 +237,18 @@ async function loadRosters() {
       });
     });
 
+    // Накласти ПІДТВЕРДЖЕНІ запити на вихідні в грід (за іменем — ростер барменів по іменах,
+    // тому userId акаунта не збігається з id рядка). Працює ретроспективно й на будь-якому пристрої.
+    for (const rq of (dayoffByRole[key] || [])) {
+      if (rq.status !== 'approved' || !Array.isArray(rq.dates) || !rq.dates.length) continue;
+      const nm = (rq.who || '').trim().toLowerCase();
+      let pi = people.findIndex(p => p.id === rq.userId);
+      if (pi < 0 && nm) pi = people.findIndex(p => (p.n || '').trim().toLowerCase() === nm);
+      if (pi < 0 && nm) { const sur = nm.split(/\s+/)[0]; pi = people.findIndex(p => (p.n || '').trim().toLowerCase().split(/\s+/)[0] === sur); }
+      if (pi < 0) continue;
+      weekDates.forEach((w, di) => { if (rq.dates.includes(ymd(w.date)) && !grid[pi][di]) grid[pi][di] = { dayOff: true }; });
+    }
+
     _rosters[key] = { ...cfg, sub: `${cfg.label} · ${people.length} люд`, people, grid, requests: dayoffByRole[key] || [] };
   }
 }
@@ -415,13 +427,26 @@ function findReqById(id) {
   }
   return null;
 }
+// id рядка ростера для запиту: за userId, інакше за іменем/прізвищем
+// (ростер барменів — по іменах, тому userId акаунта не збігається з id рядка)
+function resolveReqPersonId(req) {
+  if (!req) return '';
+  for (const r of Object.values(_rosters)) { const p = r.people.find(x => x.id === req.userId); if (p) return p.id; }
+  const nm  = (req.who || '').trim().toLowerCase();
+  const sur = nm.split(/\s+/)[0];
+  for (const r of Object.values(_rosters)) { const p = r.people.find(x => (x.n || '').trim().toLowerCase() === nm); if (p) return p.id; }
+  if (sur) for (const r of Object.values(_rosters)) { const p = r.people.find(x => (x.n || '').trim().toLowerCase().split(/\s+/)[0] === sur); if (p) return p.id; }
+  return req.userId || '';
+}
 // Підтверджений запит → позначаємо дати як вихідні у графіку (окреме сховище за ymd)
 function markApprovedOff(req) {
-  if (!req || !req.userId || !Array.isArray(req.dates) || !req.dates.length) return;
+  if (!req || !Array.isArray(req.dates) || !req.dates.length) return;
+  const uid = resolveReqPersonId(req);
+  if (!uid) return;
   const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
   if (!raw[_venueId]) raw[_venueId] = {};
-  if (!raw[_venueId][req.userId]) raw[_venueId][req.userId] = {};
-  for (const d of req.dates) raw[_venueId][req.userId][d] = true;
+  if (!raw[_venueId][uid]) raw[_venueId][uid] = {};
+  for (const d of req.dates) raw[_venueId][uid][d] = true;
   localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
 }
 
