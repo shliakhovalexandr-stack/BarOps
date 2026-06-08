@@ -190,6 +190,21 @@ async function loadRosters() {
     }
   } catch (err) { console.warn('[Schedule] dayoff error:', err); }
 
+  // Опубліковані зміни цього закладу — щоб графік було видно на БУДЬ-ЯКОМУ пристрої,
+  // не лише там, де редагували (localStorage). localStorage-правки мають пріоритет.
+  const pubByUser = {};
+  try {
+    const wkStart = ymd(weekDates[0].date);
+    const pubRes = await fetch(`${API}/api/schedule/network?weekStart=${wkStart}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (pubRes.ok) {
+      const pubData = await pubRes.json();
+      for (const s of (pubData.shifts || [])) {
+        if (s.venueId !== _venueId) continue;
+        (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null };
+      }
+    }
+  } catch {}
+
   _rosters = {};
   for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
     // Бармени: весь список формує менеджер по іменах (без авто-підтягування з Команди).
@@ -204,10 +219,13 @@ async function loadRosters() {
     const grid = people.map(p => {
       const emp = vData[p.id] || {};
       const off = approvedOff[p.id] || {};
+      const pub = pubByUser[p.id] || {};
       return weekDates.map(w => {
         const slot = emp[dateKey(w.date)];
         if (slot) return { s: slot.start, e: slot.end, station: slot.station || null };
         if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
+        const ps = pub[ymd(w.date)];
+        if (ps) return { s: ps.s, e: ps.e, station: ps.station || null };   // опубліковане з сервера
         return null;
       });
     });
@@ -483,7 +501,7 @@ function renderDeptTable(roleKey) {
       }).join('');
 
   return `
-    <div class="sch-grid-wrap">
+    <div class="sch-grid-wrap" data-sk="${roleKey}">
       <table class="sch-table">
         <thead><tr><th style="text-align:left;color:#52525B;padding-right:6px">Хто</th>${thCells}</tr></thead>
         <tbody>${bodyRows}</tbody>
@@ -963,7 +981,7 @@ function renderRoleView(roleKey) {
         <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalOff}</div><div class="sch-kpi-lbl">ВИХІДНИХ</div></div>
       </div>
       ${defaultsSection}
-      <div id="sch-grid-scroll" style="margin:0 18px 16px;overflow-x:auto">
+      <div id="sch-grid-scroll" data-sk="role" style="margin:0 18px 16px;overflow-x:auto">
         <table style="border-collapse:collapse;min-width:100%">
           <thead><tr>
             <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:#52525B;letter-spacing:.06em;min-width:84px">${colHdr}</th>
@@ -1268,17 +1286,16 @@ async function persistRosterOrder(roleKey, ids) {
 function re() {
   const v = document.getElementById('app-view');
   if (!v) return;
+  // запам'ятати горизонтальний скрол усіх гридів (хаб має кілька, по одному на підрозділ)
+  const sm = {};
+  v.querySelectorAll('[data-sk]').forEach(el => { sm[el.dataset.sk] = el.scrollLeft; });
   if (_view === 'hub')          v.innerHTML = renderHub();
-  else if (_view === 'role')    {
-    const sx = document.getElementById('sch-grid-scroll')?.scrollLeft || 0;
-    v.innerHTML = renderRoleView(_role);
-    attachRowDrag(_role);
-    if (sx) {
-      const el = document.getElementById('sch-grid-scroll');
-      if (el) { el.scrollLeft = sx; requestAnimationFrame(() => { el.scrollLeft = sx; }); }
-    }
-  }
+  else if (_view === 'role')    { v.innerHTML = renderRoleView(_role); attachRowDrag(_role); }
   else if (_view === 'booking') v.innerHTML = renderBooking();
+  const restore = () => v.querySelectorAll('[data-sk]').forEach(el => {
+    const sx = sm[el.dataset.sk]; if (sx) el.scrollLeft = sx;
+  });
+  restore(); requestAnimationFrame(restore);
 }
 
 /* ════════════════════════════════════════
