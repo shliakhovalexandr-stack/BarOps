@@ -855,10 +855,6 @@ function renderHub() {
     </div>
     <div class="sch-scroll">
       ${canEdit() ? `
-      <div class="sch-seg">
-        <button class="sch-seg-btn${_mode==='view'?' on':''}" onclick="window.__sch.setMode('view')">Переглянути</button>
-        <button class="sch-seg-btn${_mode==='edit'?' on':''}" onclick="window.__sch.setMode('edit')">Редагувати</button>
-      </div>
       ${deptSections}
       ${reqSection}
       ` : (netKey ? `
@@ -1389,7 +1385,7 @@ function re() {
 export async function render() {
   _view       = 'hub';
   _role       = 'cooks';
-  _mode       = canEdit() ? (localStorage.getItem('barops_sch_mode') || 'view') : 'view';
+  _mode       = 'view';   // хаб завжди відкривається в перегляді; редагування — зі стрілки підрозділу
   _selDays    = new Set();
   _cellSheet  = null;
   _weekOffset = 0;
@@ -1400,8 +1396,12 @@ export async function render() {
 
 export function init() {
   window.__sch = {
-    goHub()     { _view = 'hub';     re(); },
-    goRole(key) { _role = key; _view = 'role'; re(); },
+    goHub()     { _view = 'hub'; _mode = 'view'; re(); },
+    goRole(key) {
+      _role = key; _view = 'role';
+      if (canEdit()) { _mode = 'edit'; localStorage.setItem('barops_sch_mode', 'edit'); }  // стрілка → одразу редагування
+      re();
+    },
     async goBooking() { _view = 'booking'; _bookOffset = 0; _selDays = new Set(); re(); await loadMyDayoff(); re(); },
     prevMonth() { _bookOffset--; re(); },
     nextMonth() { _bookOffset++; re(); },
