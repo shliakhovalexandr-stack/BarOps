@@ -562,8 +562,9 @@ function renderDeptTable(roleKey) {
             : `onclick="window.__sch.showCellInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}','${cell.station||''}')"`;
           return `<td><div class="sch-cell-btn" style="background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;flex-direction:column;align-items:center;justify-content:center;height:auto;min-height:34px;padding:2px 6px;line-height:1.15" ${onclick}>${cellInner(zone.slice(0,11), time)}</div></td>`;
         }).join('');
+        const shiftCount = (r.grid[pi] || []).filter(c => c && c.s).length;
         return `<tr>
-          <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div><span class="sch-gtext">${p.n.split(' ')[0]}</span></div></td>
+          <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div><div style="display:flex;flex-direction:column;min-width:0"><span class="sch-gtext">${p.n.split(' ')[0]}</span><span style="font-size:9px;font-weight:600;line-height:1.1;color:${shiftCount ? r.color : '#52525B'}">${shiftCount} ${pluralShifts(shiftCount)}</span></div></div></td>
           ${cells}
         </tr>`;
       }).join('');
