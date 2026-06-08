@@ -139,7 +139,7 @@ let _myDayoff      = [];  // власні запити на вихідні (дл
 ════════════════════════════════════════ */
 async function loadRosters() {
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
-  loadExtraBar();
+  await loadBartenderRoster();
   const token     = localStorage.getItem('barops_token');
   const weekDates = getWeekDates(_weekOffset);
 
@@ -233,16 +233,16 @@ function saveStations(roleKey) {
   localStorage.setItem('barops_stations_v1', JSON.stringify(raw));
 }
 
-// Додані бармени з інших закладів (зберігаються по закладу)
-function loadExtraBar() {
-  try { _extraBar = (JSON.parse(localStorage.getItem('barops_sch_extra_v1') || '{}')[_venueId]) || []; }
-  catch { _extraBar = []; }
-}
-function saveExtraBar() {
+// Спільний список барменів — із сервера (один на мережу, для всіх менеджерів)
+async function loadBartenderRoster() {
+  _extraBar = [];
   try {
-    const raw = JSON.parse(localStorage.getItem('barops_sch_extra_v1') || '{}');
-    if (_extraBar.length) raw[_venueId] = _extraBar; else delete raw[_venueId];
-    localStorage.setItem('barops_sch_extra_v1', JSON.stringify(raw));
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`${API}/api/schedule/bartender-roster?venueId=${_venueId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.ok) {
+      const data = await res.json();
+      _extraBar = (data.bartenders || []).map(b => ({ id: b.id, n: b.name }));
+    }
   } catch {}
 }
 
@@ -1269,8 +1269,15 @@ export function init() {
       const inp  = document.getElementById('sch-bar-name');
       const name = (inp?.value || '').trim();
       if (!name) { inp?.focus(); return; }
-      _extraBar.push({ id: 'local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), n: name, role: 'bartender', extra: true });
-      saveExtraBar();
+      if (inp) inp.value = '';
+      try {
+        const token = localStorage.getItem('barops_token');
+        await fetch(`${API}/api/schedule/bartender-roster`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body:    JSON.stringify({ venueId: _venueId, name }),
+        });
+      } catch {}
       await loadRosters();
       re();
       const wrap = document.querySelector('.sch-wrap');
@@ -1278,9 +1285,13 @@ export function init() {
       setTimeout(() => document.getElementById('sch-bar-name')?.focus(), 60);
     },
     async removeBarFromSchedule(id) {
-      const i = _extraBar.findIndex(e => e.id === id);
-      if (i >= 0) _extraBar.splice(i, 1);
-      saveExtraBar();
+      try {
+        const token = localStorage.getItem('barops_token');
+        await fetch(`${API}/api/schedule/bartender-roster/${id}`, {
+          method:  'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+      } catch {}
       await loadRosters();
       re();
       const wrap = document.querySelector('.sch-wrap');
