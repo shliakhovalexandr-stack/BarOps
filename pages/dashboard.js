@@ -14,6 +14,8 @@ let _activeVenueId   = '';   // id активного закладу
 let _activeVenueName = '';   // назва активного закладу
 let _venues          = [];   // список закладів з сервера
 let _stats           = null; // дані з /api/stats
+let _syrveStats      = null; // дані з /api/stats/syrve (виторг + накладні) — повільне довантаження
+let _syrveLoading    = false;
 let _loading         = true;
 let _venueSheetOpen  = false;
 let _notifOpen       = false;
@@ -323,6 +325,29 @@ async function loadStats() {
   fullRender();
 }
 
+function isMgrRole() {
+  return ['admin', 'manager', 'director'].includes(state.role);
+}
+
+// Повільні метрики з Syrve (виторг + накладні) — окремий запит зі скелетоном
+async function loadSyrveStats() {
+  if (!isMgrRole() || !_activeVenueId) return;
+  _syrveLoading = true;
+  fullRender();
+  try {
+    const res  = await fetch(`${API}/api/stats/syrve/${_activeVenueId}`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    });
+    const data = await res.json();
+    _syrveStats = data.success ? data : null;
+  } catch (e) {
+    console.error('[Dash] loadSyrveStats:', e);
+    _syrveStats = null;
+  }
+  _syrveLoading = false;
+  fullRender();
+}
+
 /* ════════════════════════
    BUILD HTML
 ════════════════════════ */
@@ -507,34 +532,47 @@ ${CSS}
     </div>`}` : ''}
 
     <!-- Manager analytics -->
-    ${isMgr && s ? `
+    ${isMgr && s ? (() => {
+      const syr      = _syrveStats;
+      const syrReady = !!syr;                              // відповідь Syrve прийшла
+      const revReady = syrReady && syr.revenue  != null;  // є виторг
+      const invReady = syrReady && syr.invoices != null;  // є накладні
+      const skel     = `<div class="d-skel" style="height:26px;width:72%;border-radius:7px;margin:1px 0 3px"></div>`;
+      const posNote  = syr?.posBusy ? 'POS зайнятий · оновіть' : syr?.posOff ? 'POS не підключено' : '';
+      const woCount  = s.writeoffs?.count ?? 0;
+      const woWord   = woCount === 1 ? 'акт' : (woCount >= 2 && woCount <= 4) ? 'акти' : 'актів';
+      const woCats   = Object.entries(s.writeoffs?.byCategory || {}).map(([k,v])=>`${k}: ${v}`).join(' · ');
+      return `
     <div class="d-sec" style="padding-top:16px">Аналітика зміни</div>
     <div class="d-mgr-grid">
       <div class="d-mgr-card">
+        <div class="d-mgr-card-title">Виторг · сьогодні</div>
+        ${revReady ? `<div class="d-mgr-num" style="color:var(--green)">${fmtMoney(syr.revenue)}</div>`
+          : syrReady ? `<div class="d-mgr-num" style="color:var(--text2);font-size:20px">—</div>` : skel}
+        <div class="d-mgr-sub">${revReady ? 'продажі за день' : (posNote || 'продажі за день')}</div>
+      </div>
+      <div class="d-mgr-card">
         <div class="d-mgr-card-title">Накладні · сьогодні</div>
-        <div class="d-mgr-num" style="color:var(--green)">${fmtMoney(s.invoices?.total)}</div>
-        <div class="d-mgr-sub">${s.invoices?.count ?? 0} накладних</div>
+        ${invReady ? `<div class="d-mgr-num" style="color:var(--text0)">${fmtMoney(syr.invoices.total)}</div>`
+          : syrReady ? `<div class="d-mgr-num" style="color:var(--text2);font-size:20px">—</div>` : skel}
+        <div class="d-mgr-sub">${invReady ? `${syr.invoices.count} накладних` : (posNote || 'прибуткові накладні')}</div>
+      </div>
+      <div class="d-mgr-card">
+        <div class="d-mgr-card-title">Списання · сьогодні</div>
+        <div class="d-mgr-num" style="color:${woCount > 0 ? 'var(--red)' : 'var(--green)'};font-size:22px">${fmtMoney(s.writeoffs?.total)}</div>
+        <div class="d-mgr-sub">${woCount > 0 ? `${woCount} ${woWord}${woCats ? ' · ' + woCats : ''}` : 'немає'}</div>
+        ${woCount > 0 ? `<div style="margin-top:8px;display:flex;gap:4px">
+          ${Object.entries(s.writeoffs?.byCategory || {}).map(([,v],i)=>`
+          <div style="flex:${v};height:6px;border-radius:3px;background:${['var(--red)','var(--amber)','var(--purple)'][i%3]}"></div>`).join('')}
+        </div>` : ''}
       </div>
       <div class="d-mgr-card">
         <div class="d-mgr-card-title">Команда закладу</div>
         <div class="d-mgr-num">${s.teamCount ?? '—'}</div>
-        <div class="d-mgr-sub">активних барменів</div>
+        <div class="d-mgr-sub">у команді закладу</div>
       </div>
-      <div class="d-mgr-card">
-        <div class="d-mgr-card-title">Списання</div>
-        <div class="d-mgr-num" style="color:${s.writeoffs?.count > 0 ? 'var(--red)' : 'var(--green)'}">${s.writeoffs?.count ?? 0}</div>
-        <div class="d-mgr-sub">${Object.entries(s.writeoffs?.byCategory || {}).map(([k,v])=>`${k}: ${v}`).join(' · ') || 'немає'}</div>
-        <div style="margin-top:8px;display:flex;gap:4px">
-          ${Object.entries(s.writeoffs?.byCategory || {}).map(([,v],i)=>`
-          <div style="flex:${v};height:6px;border-radius:3px;background:${['var(--red)','var(--amber)','var(--purple)'][i%3]}"></div>`).join('')}
-        </div>
-      </div>
-      <div class="d-mgr-card">
-        <div class="d-mgr-card-title">Вартість запасів</div>
-        <div class="d-mgr-num" style="color:var(--amber);font-size:20px">${fmtMoney(s.stockValue)}</div>
-        <div class="d-mgr-sub">поточний залишок</div>
-      </div>
-    </div>` : ''}
+    </div>`;
+    })() : ''}
 
     <!-- Критичні залишки -->
     ${s?.critical?.length ? `
@@ -652,7 +690,9 @@ function selectVenue(id, name) {
   state.venueId    = id;
   localStorage.setItem('barops_venue',   name);
   localStorage.setItem('barops_venueId', id);
+  _syrveStats = null;          // скинути дані попереднього закладу
   loadStats();
+  loadSyrveStats();            // паралельно довантажити виторг/накладні нового закладу
 }
 
 async function openShift() {
@@ -685,6 +725,7 @@ export default {
     _venueSheetOpen = false;
     _pendingOrders  = [];
     _pendingDayoff  = [];
+    _syrveStats     = null;
     return buildHTML();
   },
   async init() {
@@ -713,7 +754,7 @@ export default {
     // Завантажуємо заклади і статистику
     await loadVenues();
     await loadStats();
-    if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') { loadPendingOrders(); loadPendingDayoff(); }
+    if (isMgrRole()) { loadSyrveStats(); loadPendingOrders(); loadPendingDayoff(); }
   },
 };
 
