@@ -223,7 +223,10 @@ async function loadRosters() {
         if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
         // бармени — мережево (будь-який заклад); решта — лише свій заклад
         const ps = pub[ymd(w.date)];
-        if (ps && (key === 'bartenders' || ps.venueId === _venueId)) return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '' };
+        if (ps && (key === 'bartenders' || ps.venueId === _venueId)) {
+          if (ps.s === 'OFF') return { dayOff: true };
+          return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '' };
+        }
         return null;
       });
     });
@@ -354,6 +357,7 @@ async function loadNetwork() {
   const byUser = {};
   for (const s of shifts) {
     if (!deptRoles.includes((s.role || '').toLowerCase())) continue;
+    if (s.start === 'OFF') continue;                         // вихідні в мережевому вигляді не показуємо
     if (!networkWide && s.venueId !== _venueId) continue;    // не-бармени — лише свій заклад
     (byUser[s.userId] ||= { id: s.userId, n: s.userName || '—', cells: {} });
     byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null };
@@ -1378,7 +1382,7 @@ export function init() {
         const stns = _stations[roleKey] || [];
         r.people.forEach((p, pi) => {
           (r.grid[pi] || []).forEach((cell, di) => {
-            if (cell && cell.s) {   // лише реальні зміни (не вихідні)
+            if (cell && cell.s) {   // реальна зміна
               const stn = stns.find(x => x.id === cell.station);
               shifts.push({
                 userId: p.id, userName: p.n, role: p.role,
@@ -1386,6 +1390,12 @@ export function init() {
                 start: cell.s, end: cell.e,
                 station: cell.station || null,
                 stationName: stn ? stn.label : '',
+              });
+            } else if (cell && cell.dayOff) {   // вихідний — публікуємо маркером OFF
+              shifts.push({
+                userId: p.id, userName: p.n, role: p.role,
+                date: ymd(weekDates[di].date),
+                start: 'OFF', end: '', station: null, stationName: '',
               });
             }
           });
