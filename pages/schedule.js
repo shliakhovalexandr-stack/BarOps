@@ -53,7 +53,7 @@ function stClr(idx) { return PALETTE[idx % PALETTE.length]; }
 ════════════════════════════════════════ */
 const DEFAULTS = {
   cooks:      { s: '08:00', e: '18:00' },
-  bartenders: { s: '17:00', e: '02:00' },
+  bartenders: { s: '09:00', e: '23:00' },
   waiters:    { s: '11:00', e: '23:00' },
   cleaners:   { s: '06:00', e: '14:00' },
 };
