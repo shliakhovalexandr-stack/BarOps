@@ -199,8 +199,7 @@ async function loadRosters() {
     if (pubRes.ok) {
       const pubData = await pubRes.json();
       for (const s of (pubData.shifts || [])) {
-        if (s.venueId !== _venueId) continue;
-        (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null };
+        (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null, venueId: s.venueId };
       }
     }
   } catch {}
@@ -224,8 +223,9 @@ async function loadRosters() {
         const slot = emp[dateKey(w.date)];
         if (slot) return { s: slot.start, e: slot.end, station: slot.station || null };
         if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
+        // бармени — мережево (будь-який заклад); решта — лише свій заклад
         const ps = pub[ymd(w.date)];
-        if (ps) return { s: ps.s, e: ps.e, station: ps.station || null };   // опубліковане з сервера
+        if (ps && (key === 'bartenders' || ps.venueId === _venueId)) return { s: ps.s, e: ps.e, station: ps.station || null };
         return null;
       });
     });
