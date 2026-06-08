@@ -122,6 +122,9 @@ let _mode          = 'view';
 let _selDays       = new Set();
 let _defaultsSheet = null;
 let _cellSheet     = null;   // { roleKey, pi, di }
+let _extraBar      = [];     // бармени з інших закладів мережі, додані в графік (per venue)
+let _networkBar    = [];     // кеш барменів мережі (для пікера)
+let _barPickerLoad = false;
 let _cellMode      = 'shift';
 let _weekOffset    = 0;
 let _bookOffset    = 0;
@@ -136,6 +139,7 @@ let _myDayoff      = [];  // власні запити на вихідні (дл
 ════════════════════════════════════════ */
 async function loadRosters() {
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+  loadExtraBar();
   const token     = localStorage.getItem('barops_token');
   const weekDates = getWeekDates(_weekOffset);
 
@@ -190,6 +194,16 @@ async function loadRosters() {
       .filter(m => cfg.apiRoles.includes((m.role || '').toLowerCase()))
       .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: (m.role || '').toLowerCase() }));
 
+    // Бармени мережі, додані вручну з інших закладів
+    if (key === 'bartenders' && _extraBar.length) {
+      const have = new Set(people.map(p => p.id));
+      for (const e of _extraBar) {
+        if (e && e.id && !have.has(e.id)) {
+          people.push({ id: e.id, i: ini(e.n || '?'), n: e.n || 'Бармен', role: (e.role || 'bartender'), extra: true, venueName: e.venueName || '' });
+        }
+      }
+    }
+
     const grid = people.map(p => {
       const emp = vData[p.id] || {};
       const off = approvedOff[p.id] || {};
@@ -223,6 +237,19 @@ function saveStations(roleKey) {
   if (!raw[_venueId]) raw[_venueId] = {};
   raw[_venueId][roleKey] = _stations[roleKey] || [];
   localStorage.setItem('barops_stations_v1', JSON.stringify(raw));
+}
+
+// Додані бармени з інших закладів (зберігаються по закладу)
+function loadExtraBar() {
+  try { _extraBar = (JSON.parse(localStorage.getItem('barops_sch_extra_v1') || '{}')[_venueId]) || []; }
+  catch { _extraBar = []; }
+}
+function saveExtraBar() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('barops_sch_extra_v1') || '{}');
+    if (_extraBar.length) raw[_venueId] = _extraBar; else delete raw[_venueId];
+    localStorage.setItem('barops_sch_extra_v1', JSON.stringify(raw));
+  } catch {}
 }
 
 // Мережевий графік барменів (усі заклади) — для не-менеджерів.
@@ -504,6 +531,10 @@ const CSS = `<style id="sch-css">
 .sch-dc-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
 .sch-add{margin:10px 18px 0;height:48px;border-radius:14px;border:0.5px dashed rgba(255,255,255,0.14);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:#52525B;gap:8px}
 .sch-add:active{background:#0A0A0A}
+.sch-bp-row{display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:0.5px solid rgba(255,255,255,0.06);cursor:pointer}
+.sch-bp-row:active{background:rgba(255,255,255,0.03)}
+.sch-bp-check{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);color:#A1A1AA}
+.sch-bp-check.on{background:rgba(168,139,255,0.15);border-color:rgba(168,139,255,0.40);color:#A88BFF}
 .sch-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px}
 .sch-qcard{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:10px}
 .sch-qcard:active{background:#141416}
@@ -903,6 +934,8 @@ function renderRoleView(roleKey) {
           <tbody>${bodyRows}</tbody>
         </table>
       </div>
+      ${(roleKey === 'bartenders' && canEdit() && _mode === 'edit')
+        ? `<button class="sch-add" onclick="window.__sch.openBarPicker()">+ Додати бармена з іншого закладу</button>` : ''}
       <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
       ${procChips}
       ${coverageSection}
@@ -1105,6 +1138,35 @@ function renderDefaultsSheet(roleKey) {
   </div>`;
 }
 
+function renderBarPicker() {
+  const ownIds   = new Set((_rosters.bartenders?.people || []).filter(p => !p.extra).map(p => p.id)); // власні з команди закладу
+  const extraIds = new Set(_extraBar.map(e => e.id));
+  const list = _networkBar.filter(b => !ownIds.has(b.id));   // свої вже у гріді
+  const body = _barPickerLoad
+    ? `<div style="padding:28px;text-align:center;color:#52525B;font-size:13px">Завантаження…</div>`
+    : (list.length === 0
+        ? `<div style="padding:28px;text-align:center;color:#52525B;font-size:13px">Немає барменів з інших закладів мережі</div>`
+        : list.map(b => {
+            const added = extraIds.has(b.id);
+            return `<div class="sch-bp-row" onclick="window.__sch.toggleBarInSchedule('${b.id}')">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:600;color:#fff">${b.name}</div>
+                <div style="font-size:11px;color:#71717A">${b.venueName || ''}</div>
+              </div>
+              <div class="sch-bp-check${added ? ' on' : ''}">${added ? '✓' : '+'}</div>
+            </div>`;
+          }).join(''));
+  return `
+  <div class="sch-ov" id="sch-bar-ov" onclick="window.__sch.closeBarOv(event)">
+    <div class="sch-sheet">
+      <div class="sch-sh-handle"></div>
+      <div class="sch-sh-title">Додати бармена у графік</div>
+      <div class="sch-sh-sub">Бармени з інших закладів мережі</div>
+      <div style="padding:6px 14px 10px">${body}</div>
+    </div>
+  </div>`;
+}
+
 /* ════════════════════════════════════════
    RE-RENDER
 ════════════════════════════════════════ */
@@ -1201,6 +1263,40 @@ export function init() {
     },
     closeCellOv(e) { if (e?.target?.id === 'sch-cell-ov') this.closeCellSheet(); },
     closeCellSheet() { _cellSheet = null; document.getElementById('sch-cell-ov')?.remove(); },
+
+    // ── Додати бармена у графік (з мережі) ──
+    async openBarPicker() {
+      _barPickerLoad = true;
+      const inject = () => {
+        const wrap = document.querySelector('.sch-wrap');
+        if (!wrap) return;
+        document.getElementById('sch-bar-ov')?.remove();
+        wrap.insertAdjacentHTML('beforeend', renderBarPicker());
+      };
+      inject();
+      try {
+        const token = localStorage.getItem('barops_token');
+        const res   = await fetch(`${API}/api/auth/network-bartenders?venueId=${_venueId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const data  = await res.json();
+        _networkBar = Array.isArray(data.bartenders) ? data.bartenders : [];
+      } catch { _networkBar = []; }
+      _barPickerLoad = false;
+      if (document.getElementById('sch-bar-ov')) inject();
+    },
+    closeBarOv(e) { if (e?.target?.id === 'sch-bar-ov') document.getElementById('sch-bar-ov')?.remove(); },
+    async toggleBarInSchedule(id) {
+      const i = _extraBar.findIndex(e => e.id === id);
+      if (i >= 0) _extraBar.splice(i, 1);
+      else {
+        const b = _networkBar.find(x => x.id === id);
+        if (b) _extraBar.push({ id: b.id, n: b.name, role: b.role || 'bartender', venueName: b.venueName || '' });
+      }
+      saveExtraBar();
+      await loadRosters();
+      re();
+      const wrap = document.querySelector('.sch-wrap');
+      if (wrap) wrap.insertAdjacentHTML('beforeend', renderBarPicker());
+    },
 
     toggleCellMode() {
       _cellMode = _cellMode === 'shift' ? 'off' : 'shift';
