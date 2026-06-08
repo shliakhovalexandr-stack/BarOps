@@ -935,7 +935,7 @@ function renderRoleView(roleKey) {
         </table>
       </div>
       ${(roleKey === 'bartenders' && canEdit() && _mode === 'edit')
-        ? `<button class="sch-add" style="width:calc(100% - 36px);box-sizing:border-box;margin:2px 18px 16px" onclick="window.__sch.openBarPicker()">+ Додати бармена з іншого закладу</button>` : ''}
+        ? `<button class="sch-add" style="width:calc(100% - 36px);box-sizing:border-box;margin:2px 18px 16px" onclick="window.__sch.openBarPicker()">+ Додати бармена у графік</button>` : ''}
       <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
       ${procChips}
       ${coverageSection}
@@ -1139,30 +1139,28 @@ function renderDefaultsSheet(roleKey) {
 }
 
 function renderBarPicker() {
-  const ownIds   = new Set((_rosters.bartenders?.people || []).filter(p => !p.extra).map(p => p.id)); // власні з команди закладу
-  const extraIds = new Set(_extraBar.map(e => e.id));
-  const list = _networkBar.filter(b => !ownIds.has(b.id));   // свої вже у гріді
-  const body = _barPickerLoad
-    ? `<div style="padding:28px;text-align:center;color:#52525B;font-size:13px">Завантаження…</div>`
-    : (list.length === 0
-        ? `<div style="padding:28px;text-align:center;color:#52525B;font-size:13px">Немає барменів з інших закладів мережі</div>`
-        : list.map(b => {
-            const added = extraIds.has(b.id);
-            return `<div class="sch-bp-row" onclick="window.__sch.toggleBarInSchedule('${b.id}')">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:14px;font-weight:600;color:#fff">${b.name}</div>
-                <div style="font-size:11px;color:#71717A">${b.venueName || ''}</div>
-              </div>
-              <div class="sch-bp-check${added ? ' on' : ''}">${added ? '✓' : '+'}</div>
-            </div>`;
-          }).join(''));
+  const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const added = _extraBar.length
+    ? _extraBar.map(e => `<div class="sch-bp-row">
+        <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:#fff">${esc(e.n)}</div></div>
+        <div class="sch-bp-check on" style="cursor:pointer" onclick="window.__sch.removeBarFromSchedule('${e.id}')">✕</div>
+      </div>`).join('')
+    : `<div style="padding:14px 8px;color:#52525B;font-size:12px">Ще нікого не додано</div>`;
   return `
   <div class="sch-ov" id="sch-bar-ov" onclick="window.__sch.closeBarOv(event)">
     <div class="sch-sheet">
       <div class="sch-sh-handle"></div>
       <div class="sch-sh-title">Додати бармена у графік</div>
-      <div class="sch-sh-sub">Бармени з інших закладів мережі</div>
-      <div style="padding:6px 14px 10px">${body}</div>
+      <div class="sch-sh-sub">Введіть ім'я — без прив'язки до акаунта</div>
+      <div style="display:flex;gap:8px;padding:8px 14px 12px">
+        <input id="sch-bar-name" placeholder="Ім'я бармена" autocomplete="off"
+          style="flex:1;background:#1F1F22;border:0.5px solid rgba(168,139,255,0.30);border-radius:10px;padding:0 12px;height:44px;font-size:15px;color:#fff;outline:none;font-family:inherit"
+          onkeydown="if(event.key==='Enter')window.__sch.addBarByName()">
+        <button onclick="window.__sch.addBarByName()"
+          style="height:44px;padding:0 18px;border-radius:10px;background:#A88BFF;border:none;font-size:14px;font-weight:600;color:#000;cursor:pointer;font-family:inherit">Додати</button>
+      </div>
+      <div style="padding:0 14px 4px;font-size:10px;color:#52525B;text-transform:uppercase;letter-spacing:.06em">Додані в графік</div>
+      <div style="padding:0 14px 10px">${added}</div>
     </div>
   </div>`;
 }
@@ -1265,32 +1263,29 @@ export function init() {
     closeCellSheet() { _cellSheet = null; document.getElementById('sch-cell-ov')?.remove(); },
 
     // ── Додати бармена у графік (з мережі) ──
-    async openBarPicker() {
-      _barPickerLoad = true;
-      const inject = () => {
-        const wrap = document.querySelector('.sch-wrap');
-        if (!wrap) return;
-        document.getElementById('sch-bar-ov')?.remove();
-        wrap.insertAdjacentHTML('beforeend', renderBarPicker());
-      };
-      inject();
-      try {
-        const token = localStorage.getItem('barops_token');
-        const res   = await fetch(`${API}/api/auth/network-bartenders?venueId=${_venueId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-        const data  = await res.json();
-        _networkBar = Array.isArray(data.bartenders) ? data.bartenders : [];
-      } catch { _networkBar = []; }
-      _barPickerLoad = false;
-      if (document.getElementById('sch-bar-ov')) inject();
+    openBarPicker() {
+      const wrap = document.querySelector('.sch-wrap');
+      if (!wrap) return;
+      document.getElementById('sch-bar-ov')?.remove();
+      wrap.insertAdjacentHTML('beforeend', renderBarPicker());
+      setTimeout(() => document.getElementById('sch-bar-name')?.focus(), 60);
     },
     closeBarOv(e) { if (e?.target?.id === 'sch-bar-ov') document.getElementById('sch-bar-ov')?.remove(); },
-    async toggleBarInSchedule(id) {
+    async addBarByName() {
+      const inp  = document.getElementById('sch-bar-name');
+      const name = (inp?.value || '').trim();
+      if (!name) { inp?.focus(); return; }
+      _extraBar.push({ id: 'local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), n: name, role: 'bartender', extra: true });
+      saveExtraBar();
+      await loadRosters();
+      re();
+      const wrap = document.querySelector('.sch-wrap');
+      if (wrap) wrap.insertAdjacentHTML('beforeend', renderBarPicker());
+      setTimeout(() => document.getElementById('sch-bar-name')?.focus(), 60);
+    },
+    async removeBarFromSchedule(id) {
       const i = _extraBar.findIndex(e => e.id === id);
       if (i >= 0) _extraBar.splice(i, 1);
-      else {
-        const b = _networkBar.find(x => x.id === id);
-        if (b) _extraBar.push({ id: b.id, n: b.name, role: b.role || 'bartender', venueName: b.venueName || '' });
-      }
       saveExtraBar();
       await loadRosters();
       re();
