@@ -1269,7 +1269,7 @@ export function init() {
       const inp  = document.getElementById('sch-bar-name');
       const name = (inp?.value || '').trim();
       if (!name) { inp?.focus(); return; }
-      if (inp) inp.value = '';
+      document.getElementById('sch-bar-ov')?.remove();   // закрити вікно одразу після додавання
       try {
         const token = localStorage.getItem('barops_token');
         await fetch(`${API}/api/schedule/bartender-roster`, {
@@ -1280,9 +1280,6 @@ export function init() {
       } catch {}
       await loadRosters();
       re();
-      const wrap = document.querySelector('.sch-wrap');
-      if (wrap) wrap.insertAdjacentHTML('beforeend', renderBarPicker());
-      setTimeout(() => document.getElementById('sch-bar-name')?.focus(), 60);
     },
     async removeBarFromSchedule(id) {
       try {
