@@ -963,7 +963,7 @@ function renderRoleView(roleKey) {
         <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalOff}</div><div class="sch-kpi-lbl">ВИХІДНИХ</div></div>
       </div>
       ${defaultsSection}
-      <div style="margin:0 18px 16px;overflow-x:auto">
+      <div id="sch-grid-scroll" style="margin:0 18px 16px;overflow-x:auto">
         <table style="border-collapse:collapse;min-width:100%">
           <thead><tr>
             <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:#52525B;letter-spacing:.06em;min-width:84px">${colHdr}</th>
@@ -1269,7 +1269,12 @@ function re() {
   const v = document.getElementById('app-view');
   if (!v) return;
   if (_view === 'hub')          v.innerHTML = renderHub();
-  else if (_view === 'role')    { v.innerHTML = renderRoleView(_role); attachRowDrag(_role); }
+  else if (_view === 'role')    {
+    const sx = document.getElementById('sch-grid-scroll')?.scrollLeft || 0;
+    v.innerHTML = renderRoleView(_role);
+    attachRowDrag(_role);
+    if (sx) { const el = document.getElementById('sch-grid-scroll'); if (el) el.scrollLeft = sx; }
+  }
   else if (_view === 'booking') v.innerHTML = renderBooking();
 }
 
