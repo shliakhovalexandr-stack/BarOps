@@ -1229,17 +1229,17 @@ function renderCellSheet() {
         <span class="sch-tsep">—</span>
         <input id="sch-t-end"   type="time" class="sch-tinp" value="${endDef}"   oninput="window.__sch.updateTimePreview()">
       </div>
-      ${isShift ? `<div style="text-align:right;padding:0 20px 12px"><button onclick="window.__sch.resetToDefault()" style="background:transparent;border:none;font-size:11px;color:#71717A;cursor:pointer;font-family:inherit">↺ Стандарт (${def.s}–${def.e})</button></div>` : ''}
+      <div id="sch-reset-row" style="text-align:right;padding:0 20px 12px;display:${isShift?'block':'none'}"><button onclick="window.__sch.resetToDefault()" style="background:transparent;border:none;font-size:11px;color:#71717A;cursor:pointer;font-family:inherit">↺ Стандарт (${def.s}–${def.e})</button></div>
 
       <div class="sch-off-row" onclick="window.__sch.toggleCellMode()">
         <div style="width:32px;height:32px;border-radius:9px;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isShift?'#52525B':'#FB7185'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          <svg id="sch-off-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isShift?'#52525B':'#FB7185'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </div>
         <div>
-          <div style="font-size:13px;font-weight:600;color:${isShift?'#71717A':'#FB7185'}">Вихідний</div>
+          <div id="sch-off-txt" style="font-size:13px;font-weight:600;color:${isShift?'#71717A':'#FB7185'}">Вихідний</div>
           <div style="font-size:11px;color:#52525B;margin-top:1px">День відпочинку</div>
         </div>
-        ${!isShift?`<svg style="margin-left:auto;flex-shrink:0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`:''}
+        <svg id="sch-off-check" style="margin-left:auto;flex-shrink:0;display:${isShift?'none':'block'}" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
       </div>
 
       <div class="sch-sh-btns">
@@ -1518,17 +1518,20 @@ export function init() {
 
     toggleCellMode() {
       _cellMode = _cellMode === 'shift' ? 'off' : 'shift';
-      const isShift  = _cellMode === 'shift';
+      const isShift = _cellMode === 'shift';
+      // Оновлюємо лише потрібні елементи на місці — без перемальовування листа
       const timeRow  = document.getElementById('sch-time-row');
       const timeLbl  = document.getElementById('sch-time-label');
-      if (timeRow) timeRow.style.display = isShift ? 'flex' : 'none';
-      if (timeLbl) timeLbl.style.display = isShift ? 'block' : 'none';
-      // Re-render just the off-row button (simpler: full overlay re-render)
-      if (_cellSheet) {
-        document.getElementById('sch-cell-ov')?.remove();
-        const wrap = document.querySelector('.sch-wrap');
-        if (wrap) wrap.insertAdjacentHTML('beforeend', renderCellSheet());
-      }
+      const resetRow = document.getElementById('sch-reset-row');
+      const icon     = document.getElementById('sch-off-icon');
+      const txt      = document.getElementById('sch-off-txt');
+      const chk      = document.getElementById('sch-off-check');
+      if (timeRow)  timeRow.style.display  = isShift ? 'flex'  : 'none';
+      if (timeLbl)  timeLbl.style.display  = isShift ? 'block' : 'none';
+      if (resetRow) resetRow.style.display = isShift ? 'block' : 'none';
+      if (icon)     icon.setAttribute('stroke', isShift ? '#52525B' : '#FB7185');
+      if (txt)      txt.style.color        = isShift ? '#71717A' : '#FB7185';
+      if (chk)      chk.style.display       = isShift ? 'none'  : 'block';
     },
 
     selectStation(stationId) {
