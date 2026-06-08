@@ -1273,7 +1273,10 @@ function re() {
     const sx = document.getElementById('sch-grid-scroll')?.scrollLeft || 0;
     v.innerHTML = renderRoleView(_role);
     attachRowDrag(_role);
-    if (sx) { const el = document.getElementById('sch-grid-scroll'); if (el) el.scrollLeft = sx; }
+    if (sx) {
+      const el = document.getElementById('sch-grid-scroll');
+      if (el) { el.scrollLeft = sx; requestAnimationFrame(() => { el.scrollLeft = sx; }); }
+    }
   }
   else if (_view === 'booking') v.innerHTML = renderBooking();
 }
