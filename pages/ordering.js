@@ -431,7 +431,8 @@ function renderBartender() {
       : `<button class="ord-btn ord-btn-teal" onclick="window.__ord.submitOrder()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h10M8 4l4 4-4 4" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Відправити заявку менеджеру
-        </button>`}
+        </button>
+        ${totalItems > 0 ? `<button class="ord-btn ord-btn-ghost" style="margin-top:8px" onclick="window.__ord.clearOrderConfirm()">Очистити заявку</button>` : ''}`}
   </div>`;
 }
 
@@ -903,6 +904,7 @@ function toggleProdCard(productId) {
 
 function setUnit(productId, unit) {
   _barUnits[productId] = unit;
+  saveDraft();
   // Оновлюємо пілюлі без повного ре-рендеру
   const wrap = document.querySelector(`.ord-prod-wrap [onclick*="toggleProdCard('${productId}')"]`)
                ?.closest('.ord-prod-wrap');
@@ -926,6 +928,7 @@ function setUnit(productId, unit) {
 function changeQty(productId, delta) {
   if (_submitted) return;
   _barQtys[productId] = Math.max(0, (_barQtys[productId] || 0) + delta);
+  saveDraft();
   const el = document.getElementById(`bq-${productId}`);
   if (el) el.value = _barQtys[productId];
   // Оновлюємо бейдж
@@ -938,12 +941,45 @@ function setQty(productId, value) {
   if (_submitted) return;
   const n = Math.max(0, parseInt(value, 10) || 0);
   _barQtys[productId] = n;
+  saveDraft();
   const el = document.getElementById(`bq-${productId}`);
   if (el) el.value = n;
 }
 
 function setComment(productId, value) {
   _barComments[productId] = value.trim() ? value : '';
+  saveDraft();
+}
+
+/* ── Чернетка заявки: зберігається локально, переживає вихід/закриття ── */
+function draftKey() { return `barops_order_draft_${_venueId || localStorage.getItem('barops_venueId') || ''}`; }
+function saveDraft() {
+  try {
+    const hasData = Object.values(_barQtys).some(q => q > 0) || Object.values(_barComments).some(c => c);
+    if (hasData) localStorage.setItem(draftKey(), JSON.stringify({ qtys: _barQtys, comments: _barComments, units: _barUnits }));
+    else localStorage.removeItem(draftKey());
+  } catch {}
+}
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(draftKey());
+    if (!raw) return;
+    const d = JSON.parse(raw) || {};
+    _barQtys     = d.qtys     || {};
+    _barComments = d.comments || {};
+    _barUnits    = d.units    || {};
+  } catch {}
+}
+function clearDraftStorage() { try { localStorage.removeItem(draftKey()); } catch {} }
+function clearDraft() { _barQtys = {}; _barComments = {}; _barUnits = {}; clearDraftStorage(); }
+function clearOrderConfirm() {
+  openConfirm({
+    title:        'Очистити заявку?',
+    message:      'Усі введені кількості та коментарі буде видалено.',
+    confirmLabel: 'Очистити',
+    danger:       true,
+    action:       () => { clearDraft(); fullRender(); },
+  });
 }
 
 async function submitOrder() {
@@ -972,6 +1008,7 @@ async function submitOrder() {
     const data = await res.json();
     if (!data.success) { alert(data.error || 'Помилка'); return; }
     _submitted = true;
+    clearDraftStorage();   // після відправки чернетка більше не відновлюється
     fullRender();
   } catch (e) {
     alert('Мережева помилка: ' + e.message);
@@ -1305,7 +1342,7 @@ export default {
   },
   init() {
     window.__ord = {
-      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
+      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, clearOrderConfirm, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
       setMgrTab,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       closeConfirm, confirmYes,
@@ -1315,6 +1352,7 @@ export default {
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
+    loadDraft();   // відновити збережену чернетку заявки
     loadData();
     if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') loadOrders();
   },
