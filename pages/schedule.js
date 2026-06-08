@@ -48,6 +48,13 @@ const PALETTE = [
 ];
 function stClr(idx) { return PALETTE[idx % PALETTE.length]; }
 function hashIdx(s, n) { let h = 0; const t = String(s || ''); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h % n; }
+// Відмінювання «зміна» (1 зміна, 2 зміни, 5 змін)
+function pluralShifts(n) {
+  const d = n % 10, h = n % 100;
+  if (d === 1 && h !== 11) return 'зміна';
+  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return 'зміни';
+  return 'змін';
+}
 // Вміст клітинки зміни: зона (станція/заклад) + час. Якщо зони нема — лише час.
 function cellInner(zone, time) {
   return zone
@@ -942,13 +949,14 @@ function renderRoleView(roleKey) {
           return `<td style="padding:2px"><div style="min-width:46px;min-height:34px;border-radius:8px;background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 6px;line-height:1.15;cursor:pointer" ${onclick}>${cellInner(zone, time)}</div></td>`;
         }).join('');
         const editDrag = canEdit() && _mode === 'edit';
+        const shiftCount = (r.grid[pi] || []).filter(c => c && c.s).length;
         return `<tr data-pid="${p.id}">
           <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle;position:sticky;left:0;z-index:2;background:#000">
             <div style="display:flex;align-items:center;gap:7px">
               ${editDrag ? `<svg class="sch-drag-h" width="13" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:#52525B;flex-shrink:0;cursor:grab;touch-action:none"><circle cx="9" cy="5" r="1.7"/><circle cx="15" cy="5" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="19" r="1.7"/><circle cx="15" cy="19" r="1.7"/></svg>` : ''}
               <div style="min-width:0">
                 <div style="font-size:12px;font-weight:600;color:#fff;line-height:1.2;white-space:nowrap">${shortName(p.n)}</div>
-                <div style="font-size:10px;color:#52525B;margin-top:1px">${subtitle}</div>
+                <div style="font-size:10px;margin-top:1px;font-weight:600;color:${shiftCount ? r.color : '#52525B'}">${shiftCount} ${pluralShifts(shiftCount)}</div>
               </div>
             </div>
           </td>
