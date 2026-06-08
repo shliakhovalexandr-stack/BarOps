@@ -125,6 +125,7 @@ let _cellSheet     = null;   // { roleKey, pi, di }
 let _extraBar      = [];     // бармени з інших закладів мережі, додані в графік (per venue)
 let _networkBar    = [];     // кеш барменів мережі (для пікера)
 let _barPickerLoad = false;
+let _rosterOrders  = {};     // збережений порядок працівників: { roleKey: [ids] }
 let _cellMode      = 'shift';
 let _weekOffset    = 0;
 let _bookOffset    = 0;
@@ -140,6 +141,7 @@ let _myDayoff      = [];  // власні запити на вихідні (дл
 async function loadRosters() {
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
   await loadBartenderRoster();
+  await loadRosterOrders();
   const token     = localStorage.getItem('barops_token');
   const weekDates = getWeekDates(_weekOffset);
 
@@ -192,11 +194,12 @@ async function loadRosters() {
   for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
     // Бармени: весь список формує менеджер по іменах (без авто-підтягування з Команди).
     // Решта підрозділів — зі складу команди закладу.
-    const people = key === 'bartenders'
+    const basePeople = key === 'bartenders'
       ? _extraBar.map(e => ({ id: e.id, i: ini(e.n || '?'), n: e.n || 'Бармен', role: (e.role || 'bartender'), extra: true }))
       : teamMembers
           .filter(m => cfg.apiRoles.includes((m.role || '').toLowerCase()))
           .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: (m.role || '').toLowerCase() }));
+    const people = applyOrder(key, basePeople);
 
     const grid = people.map(p => {
       const emp = vData[p.id] || {};
@@ -258,6 +261,27 @@ async function loadBartenderRoster() {
       _extraBar = (data.bartenders || []).map(b => ({ id: b.id, n: b.name }));
     }
   } catch {}
+}
+
+// Збережений порядок працівників (drag-reorder) для всіх ролей закладу
+async function loadRosterOrders() {
+  _rosterOrders = {};
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`${API}/api/schedule/roster-order?venueId=${_venueId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.ok) { const data = await res.json(); _rosterOrders = data.orders || {}; }
+  } catch {}
+}
+
+// Сортує людей за збереженим порядком (нові — у кінець, стабільно)
+function applyOrder(roleKey, people) {
+  const ord = _rosterOrders[roleKey];
+  if (!ord || !ord.length) return people;
+  const pos = new Map(ord.map((id, i) => [id, i]));
+  return people
+    .map((p, i) => ({ p, k: pos.has(p.id) ? pos.get(p.id) : 1e9 + i }))
+    .sort((a, b) => a.k - b.k)
+    .map(x => x.p);
 }
 
 // Мережевий графік барменів (усі заклади) — для не-менеджерів.
@@ -823,10 +847,16 @@ function renderRoleView(roleKey) {
             : `onclick="window.__sch.showCellInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}','${cell.station||''}')"`;
           return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;white-space:nowrap;padding:0 7px;cursor:pointer" ${onclick}>${label}</div></td>`;
         }).join('');
-        return `<tr>
+        const editDrag = canEdit() && _mode === 'edit';
+        return `<tr data-pid="${p.id}">
           <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle">
-            <div style="font-size:12px;font-weight:600;color:#fff;line-height:1.2;white-space:nowrap">${shortName(p.n)}</div>
-            <div style="font-size:10px;color:#52525B;margin-top:1px">${subtitle}</div>
+            <div style="display:flex;align-items:center;gap:7px">
+              ${editDrag ? `<svg class="sch-drag-h" width="13" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:#52525B;flex-shrink:0;cursor:grab;touch-action:none"><circle cx="9" cy="5" r="1.7"/><circle cx="15" cy="5" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="19" r="1.7"/><circle cx="15" cy="19" r="1.7"/></svg>` : ''}
+              <div style="min-width:0">
+                <div style="font-size:12px;font-weight:600;color:#fff;line-height:1.2;white-space:nowrap">${shortName(p.n)}</div>
+                <div style="font-size:10px;color:#52525B;margin-top:1px">${subtitle}</div>
+              </div>
+            </div>
           </td>
           ${cells}
         </tr>`;
@@ -939,7 +969,7 @@ function renderRoleView(roleKey) {
             <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:#52525B;letter-spacing:.06em;min-width:84px">${colHdr}</th>
             ${thCells}
           </tr></thead>
-          <tbody>${bodyRows}</tbody>
+          <tbody id="sch-tbody-${roleKey}">${bodyRows}</tbody>
         </table>
       </div>
       ${(roleKey === 'bartenders' && canEdit() && _mode === 'edit')
@@ -1173,6 +1203,65 @@ function renderBarPicker() {
   </div>`;
 }
 
+// Drag-reorder рядків гріда (будь-яка роль, режим редагування)
+function attachRowDrag(roleKey) {
+  if (!canEdit() || _mode !== 'edit') return;
+  const tbody = document.getElementById(`sch-tbody-${roleKey}`);
+  if (!tbody) return;
+  tbody.querySelectorAll('.sch-drag-h').forEach(h => {
+    const start = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const row = h.closest('tr');
+      if (!row) return;
+      row.style.opacity = '0.55';
+      const move = (ev) => {
+        ev.preventDefault();
+        const y = (ev.touches ? ev.touches[0] : ev).clientY;
+        const others = [...tbody.querySelectorAll('tr')].filter(r => r !== row);
+        for (const r of others) {
+          const b = r.getBoundingClientRect();
+          if (y >= b.top && y <= b.bottom) {
+            tbody.insertBefore(row, y < b.top + b.height / 2 ? r : r.nextSibling);
+            break;
+          }
+        }
+      };
+      const end = () => {
+        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', end);
+        document.removeEventListener('touchmove', move); document.removeEventListener('touchend', end);
+        row.style.opacity = '';
+        const ids = [...tbody.querySelectorAll('tr')].map(r => r.dataset.pid).filter(Boolean);
+        persistRosterOrder(roleKey, ids);
+      };
+      document.addEventListener('mousemove', move); document.addEventListener('mouseup', end);
+      document.addEventListener('touchmove', move, { passive: false }); document.addEventListener('touchend', end);
+    };
+    h.addEventListener('mousedown', start);
+    h.addEventListener('touchstart', start, { passive: false });
+  });
+}
+
+async function persistRosterOrder(roleKey, ids) {
+  _rosterOrders[roleKey] = ids;
+  const r = _rosters[roleKey];
+  if (r) {
+    const pos = new Map(ids.map((id, i) => [id, i]));
+    const pairs = r.people.map((p, i) => ({ p, g: r.grid[i], k: pos.has(p.id) ? pos.get(p.id) : 1e9 + i }));
+    pairs.sort((a, b) => a.k - b.k);
+    r.people = pairs.map(x => x.p);
+    r.grid   = pairs.map(x => x.g);
+  }
+  re();
+  try {
+    const token = localStorage.getItem('barops_token');
+    await fetch(`${API}/api/schedule/roster-order`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body:    JSON.stringify({ venueId: _venueId, roleKey, ids }),
+    });
+  } catch {}
+}
+
 /* ════════════════════════════════════════
    RE-RENDER
 ════════════════════════════════════════ */
@@ -1180,7 +1269,7 @@ function re() {
   const v = document.getElementById('app-view');
   if (!v) return;
   if (_view === 'hub')          v.innerHTML = renderHub();
-  else if (_view === 'role')    v.innerHTML = renderRoleView(_role);
+  else if (_view === 'role')    { v.innerHTML = renderRoleView(_role); attachRowDrag(_role); }
   else if (_view === 'booking') v.innerHTML = renderBooking();
 }
 
