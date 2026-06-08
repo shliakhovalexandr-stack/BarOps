@@ -226,6 +226,20 @@ function saveShiftToStorage(roleKey, pi, di, value) {
   localStorage.setItem('barops_schedule_v1', JSON.stringify(raw));
 }
 
+// Вихідний (день відпочинку) — окреме сховище за ymd
+function saveDayOffToStorage(roleKey, pi, di, on) {
+  const weekDates = getWeekDates(_weekOffset);
+  const yk    = ymd(weekDates[di].date);
+  const empId = _rosters[roleKey]?.people[pi]?.id;
+  if (!empId || !_venueId) return;
+  const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
+  if (!raw[_venueId]) raw[_venueId] = {};
+  if (!raw[_venueId][empId]) raw[_venueId][empId] = {};
+  if (on) raw[_venueId][empId][yk] = true;
+  else    delete raw[_venueId][empId][yk];
+  localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
+}
+
 function saveStations(roleKey) {
   const raw = JSON.parse(localStorage.getItem('barops_stations_v1') || '{}');
   if (!raw[_venueId]) raw[_venueId] = {};
@@ -1339,13 +1353,15 @@ export function init() {
     saveCell() {
       if (!_cellSheet) return;
       const { roleKey, pi, di, station } = _cellSheet;
-      const value = _cellMode === 'off' ? null : {
-        s: document.getElementById('sch-t-start')?.value || DEFAULTS[roleKey].s,
-        e: document.getElementById('sch-t-end')?.value   || DEFAULTS[roleKey].e,
-        station: station || null,
-      };
+      const isOff = _cellMode === 'off';
+      const value = isOff
+        ? { dayOff: true }
+        : { s: document.getElementById('sch-t-start')?.value || DEFAULTS[roleKey].s,
+            e: document.getElementById('sch-t-end')?.value   || DEFAULTS[roleKey].e,
+            station: station || null };
       _rosters[roleKey].grid[pi][di] = value;
-      saveShiftToStorage(roleKey, pi, di, value);
+      saveShiftToStorage(roleKey, pi, di, isOff ? null : value);   // зняти зміну, якщо вихідний
+      saveDayOffToStorage(roleKey, pi, di, isOff);                  // поставити/зняти вихідний
       _cellSheet = null;
       document.getElementById('sch-cell-ov')?.remove();
       re();
