@@ -156,11 +156,8 @@ async function loadRosters() {
       '|', teamMembers.map(m => `${m.name}(${m.role})`).join(', '));
   } catch (err) { console.warn('[Schedule] team error:', err); }
 
-  // Load stations
-  const stRaw = JSON.parse(localStorage.getItem('barops_stations_v1') || '{}');
-  for (const key of Object.keys(ROLE_CONFIG)) {
-    _stations[key] = (stRaw[_venueId]?.[key]) || [];
-  }
+  // Load stations (спільні, з сервера; localStorage — кеш/seed)
+  await loadStations();
 
   // Load schedule
   const stored = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
@@ -262,11 +259,42 @@ function saveDayOffToStorage(roleKey, pi, di, on) {
   localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
 }
 
+// Спільні станції з сервера; якщо сервер порожній, а локально є — засіваємо (з пристрою, де редагували)
+async function loadStations() {
+  const stRaw = JSON.parse(localStorage.getItem('barops_stations_v1') || '{}');
+  const local = stRaw[_venueId] || {};
+  for (const key of Object.keys(ROLE_CONFIG)) _stations[key] = local[key] || [];
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`${API}/api/schedule/stations?venueId=${_venueId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.ok) {
+      const srv = (await res.json()).stations || {};
+      for (const key of Object.keys(ROLE_CONFIG)) {
+        if (Array.isArray(srv[key]) && srv[key].length) _stations[key] = srv[key];   // сервер — джерело правди
+        else if ((_stations[key] || []).length) saveStations(key);                   // засіяти сервер
+      }
+      const raw = JSON.parse(localStorage.getItem('barops_stations_v1') || '{}');
+      raw[_venueId] = {};
+      for (const key of Object.keys(ROLE_CONFIG)) raw[_venueId][key] = _stations[key] || [];
+      localStorage.setItem('barops_stations_v1', JSON.stringify(raw));
+    }
+  } catch {}
+}
+
 function saveStations(roleKey) {
   const raw = JSON.parse(localStorage.getItem('barops_stations_v1') || '{}');
   if (!raw[_venueId]) raw[_venueId] = {};
   raw[_venueId][roleKey] = _stations[roleKey] || [];
   localStorage.setItem('barops_stations_v1', JSON.stringify(raw));
+  // спільне сховище на сервері
+  try {
+    const token = localStorage.getItem('barops_token');
+    fetch(`${API}/api/schedule/stations`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body:    JSON.stringify({ venueId: _venueId, roleKey, stations: _stations[roleKey] || [] }),
+    }).catch(() => {});
+  } catch {}
 }
 
 // Спільний список барменів — із сервера (один на мережу, для всіх менеджерів)
