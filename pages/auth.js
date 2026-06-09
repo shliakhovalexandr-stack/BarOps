@@ -26,16 +26,12 @@ let _otpError   = '';
 
 
 const BOTTLE_SVG = `<svg width="44" height="76" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <line x1="18" y1="4"  x2="34" y2="4"  stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-  <line x1="18" y1="9"  x2="34" y2="9"  stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-  <line x1="18" y1="14" x2="34" y2="14" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="M19 14 L19 28" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="M33 14 L33 28" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="M19 28 L11 40" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="M33 28 L41 40" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="M11 40 L10 74 Q10 88 26 88 Q42 88 42 74 L41 40 Z" stroke="white" stroke-width="2.2" fill="none"/>
-  <rect x="12" y="56" width="28" height="22" rx="4.5" fill="#A88BFF"/>
-  <text x="26" y="72.5" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,system-ui,sans-serif" font-size="14" font-weight="800" fill="#0A0A0A">B</text>
+  <rect x="18" y="1" width="16" height="9" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
+  <line x1="21" y1="4.5" x2="33" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="21" y1="7.5" x2="33" y2="7.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M18 10 h16 v10 c0 0 8 8 8 20 v40 a6 6 0 01-6 6 h-20 a6 6 0 01-6-6 V40 c0-12 8-20 8-20 V10" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="12" y="52" width="28" height="22" rx="4" fill="#A88BFF"/>
+  <text x="26" y="68" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,system-ui,sans-serif" font-size="14" font-weight="800" fill="#0A0A0A">B</text>
 </svg>`;
 
 const BACK_SVG = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
