@@ -30,6 +30,7 @@ const pad2 = n => String(n).padStart(2, '0');
 const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${pad2(n.getMonth()+1)}-${pad2(n.getDate())}`; };
 let _configPid       = null;   // продукт, що налаштовується
 let _configDraft     = { mode: 'sht', emptyTareKg: '', fullTareKg: '', bottleVolL: '' };
+let _cfgFilter       = 'all';  // 'all' | 'unset' — фільтр списку налаштувань
 let _cfgSaving       = false;
 let _cfgError        = '';
 let _submitted       = false;
@@ -202,6 +203,13 @@ function computeL(pid, full, partial) {
   const fullL   = (full || 0) * v;
   const partialL = Math.max(0, ((parseFloat(partial) || 0) - e) / diff * v);
   return Math.max(0, fullL + partialL);
+}
+
+// Товар у режимі тари, але вага пустої/повної (чи об'єм) не введені
+function tareMissing(p) {
+  if (modeOf(p.id) !== 'kg_to_l') return false;
+  const cfg = _configs[p.id] || {};
+  return !((+cfg.emptyTareKg) > 0 && (+cfg.fullTareKg) > 0 && (+cfg.bottleVolL) > 0);
 }
 
 function modeOf(pid) {
@@ -831,17 +839,27 @@ function sessionCardHTML(s) {
 }
 
 function productConfigHTML() {
+  const missing = _balance.filter(tareMissing).length;
+  const list = _cfgFilter === 'unset' ? _balance.filter(tareMissing) : _balance;
+  const header = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 18px 10px;gap:10px">
+      <div style="font-size:12px;font-family:var(--font-b);min-width:0">
+        ${missing ? `<span style="color:var(--amber)">⚠ ${missing} товар(ів) без тари</span>` : `<span style="color:var(--green)">✓ Тара задана всюди</span>`}
+      </div>
+      ${missing ? `<button data-a="cfg-filter" style="flex-shrink:0;height:30px;padding:0 12px;border-radius:9px;border:0.5px solid ${_cfgFilter === 'unset' ? 'var(--amber-border)' : 'var(--border)'};background:${_cfgFilter === 'unset' ? 'var(--amber-bg)' : 'var(--bg2)'};color:${_cfgFilter === 'unset' ? 'var(--amber)' : 'var(--text1)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${_cfgFilter === 'unset' ? 'Показати всі' : 'Лише без тари'}</button>` : ''}
+    </div>`;
   return `
+    ${header}
     <div class="inv-cfg-list">
-      ${_balance.map(p => {
-        const m   = modeOf(p.id);
-        const cfg = _configs[p.id];
+      ${list.map(p => {
+        const m    = modeOf(p.id);
+        const miss = tareMissing(p);
         const hasGear = m === 'kg_to_l';
         return `
-          <div class="inv-cfg-row">
+          <div class="inv-cfg-row" style="${miss ? 'border-color:var(--amber-border);background:var(--amber-bg)' : ''}">
             <div style="flex:1;min-width:0">
               <div class="inv-cfg-name">${p.name}</div>
-              <div class="inv-cfg-sub">${p.unit || ''} · ${p.category || ''}</div>
+              <div class="inv-cfg-sub">${miss ? '<span style="color:var(--amber)">⚠ вага пустої/повної не введена</span>' : `${p.unit || ''} · ${p.category || ''}`}</div>
             </div>
             <div class="inv-mode-group">
               <button class="inv-mode-btn${m === 'kg_to_l' ? ' act' : ''}"
@@ -852,10 +870,10 @@ function productConfigHTML() {
                 data-a="mode-set" data-pid="${p.id}" data-mode="sht">шт</button>
             </div>
             ${hasGear ? `
-              <button class="inv-gear-btn" data-a="cfg-open" data-pid="${p.id}" title="Налаштувати тару">
+              <button class="inv-gear-btn" data-a="cfg-open" data-pid="${p.id}" title="Налаштувати тару" style="${miss ? 'border-color:var(--amber-border);background:rgba(251,191,36,.14)' : ''}">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                  <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="var(--text2)" stroke-width="1.5"/>
-                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="var(--text2)" stroke-width="1.5"/>
+                  <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="${miss ? 'var(--amber)' : 'var(--text2)'}" stroke-width="1.5"/>
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="${miss ? 'var(--amber)' : 'var(--text2)'}" stroke-width="1.5"/>
                 </svg>
               </button>
             ` : ''}
@@ -933,6 +951,7 @@ function on(e) {
 
   if (a === 'tab-bar') { _view = 'bar'; re(); return; }
   if (a === 'tab-mgr') { _view = 'mgr'; re(); return; }
+  if (a === 'cfg-filter') { _cfgFilter = _cfgFilter === 'unset' ? 'all' : 'unset'; re(); return; }
 
   /* ── BAR: accordion ── */
   if (a === 'toggle-prod') {
