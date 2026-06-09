@@ -62,6 +62,20 @@ let _formMode   = 'writeoff';  // 'writeoff' | 'transfer' — режим фор�
 let _transferDir = 'bar2kitchen'; // напрямок для admin: 'bar2kitchen' | 'kitchen2bar'
 let _transferConfirmOpen = false; // стилізоване підтвердження надсилання переміщення
 let _transferResult = null;       // { sending } | { ok, msg }
+let _prodTab      = 'goods';      // 'goods' | 'prep' — вкладка пікера товарів
+let _preps        = [];           // напівфабрикати з /api/pos/preparations
+let _prepsLoading = false;
+let _prepsLoaded  = false;
+
+// Зона ролі для складу списання: кухар→кухня, решта→бар
+function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
+// Які scope ПФ показувати: бармен бар+загальні, кухар кухня+загальні, менеджер усі
+function prepScopesForRole() {
+  const r = (state.role || '').toLowerCase();
+  if (r === 'cook' || r === 'chef')                     return ['kitchen', 'general'];
+  if (['admin', 'manager', 'director'].includes(r))     return ['bar', 'kitchen', 'general'];
+  return ['bar', 'general'];
+}
 
 // Напрямок переміщення: кухар кухня→бар; admin обирає сам (_transferDir); решта (бармен) бар→кухня
 function transferDir() {
@@ -736,15 +750,19 @@ function renderBartender() {
 
         <!-- Step 2: Product -->
         <div class="wo-fstep ${_formStep===2?'act':''}" id="wfstep2">
+          <div style="display:flex;gap:6px;margin-bottom:12px">
+            <button onclick="window.__wo.setProdTab('goods')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab!=='prep'?'var(--purple)':'var(--border)'};background:${_prodTab!=='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab!=='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Товари</button>
+            <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Напівфабрикати</button>
+          </div>
           <div class="wo-prod-search-wrap">
             <svg class="wo-prod-search-ico" width="14" height="14" viewBox="0 0 14 14" fill="none">
               <circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/>
               <path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
-            <input class="wo-prod-inp" id="wo-prod-search" placeholder="Пошук товару…"
+            <input class="wo-prod-inp" id="wo-prod-search" placeholder="${_prodTab==='prep'?'Пошук напівфабрикату…':'Пошук товару…'}"
               value="${_prodSearch}" oninput="window.__wo.searchProds(this.value)"/>
           </div>
-          <div class="wo-prod-list" id="wo-prod-list">${prodListHTML()}</div>
+          <div class="wo-prod-list" id="wo-prod-list">${_prodTab==='prep'?prepListHTML():prodListHTML()}</div>
         </div>
 
         <!-- Step 3: Volume -->
@@ -1466,7 +1484,53 @@ function refreshList() {
 }
 function refreshProdList() {
   const el = document.getElementById('wo-prod-list');
-  if (el) el.innerHTML = prodListHTML();
+  if (el) el.innerHTML = (_prodTab === 'prep') ? prepListHTML() : prodListHTML();
+}
+
+/* ── Напівфабрикати (PREPARED) ── */
+function prepListHTML() {
+  if (_prepsLoading) {
+    return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px"><span class="auth-spinner" style="width:18px;height:18px;border-width:2px;vertical-align:middle"></span> Завантаження напівфабрикатів…</div>`;
+  }
+  const scopes = prepScopesForRole();
+  const q = _prodSearch.toLowerCase();
+  const list = _preps.filter(p => scopes.includes(p.scope) && (!q || (p.name || '').toLowerCase().includes(q)));
+  if (!list.length) {
+    return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_preps.length === 0 ? 'Немає напівфабрикатів' : 'Нічого не знайдено'}</div>`;
+  }
+  const zoneLbl = { bar: 'Бар', kitchen: 'Кухня', general: 'Загальні' };
+  return list.map(p => `
+    <div class="wo-prod-item ${_selProd?.id === p.id ? 'sel' : ''}" onclick="window.__wo.selectProd('${p.id}')">
+      <div class="wo-pi-emoji">🧪</div>
+      <div style="flex:1;min-width:0">
+        <div class="wo-pi-name">${p.name} <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span></div>
+        <div class="wo-pi-stock">${zoneLbl[p.scope] || ''} · Залишок: ${typeof p.stock === 'number' ? p.stock : 0} ${p.unit || ''}</div>
+      </div>
+      <div class="wo-pi-check">
+        ${_selProd?.id === p.id ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function loadPreps() {
+  if (_prepsLoaded || _prepsLoading) return;
+  _prepsLoading = true;
+  refreshProdList();
+  const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
+  const tok = localStorage.getItem('barops_token');
+  try {
+    const r = await fetch(`${API}/api/pos/preparations/${vId}`, { headers: tok ? { Authorization: `Bearer ${tok}` } : {} });
+    const d = await r.json();
+    if (d.success) { _preps = d.preparations || []; _prepsLoaded = true; }
+  } catch (e) { console.warn('[Preps]', e.message); }
+  _prepsLoading = false;
+  refreshProdList();
+}
+
+function setProdTab(tab) {
+  _prodTab = (tab === 'prep') ? 'prep' : 'goods';
+  if (_prodTab === 'prep') loadPreps();
+  fullRender();
 }
 
 /* ════════════════════════
@@ -1479,6 +1543,7 @@ function openForm(mode)  {
   _formMode = (mode === 'transfer') ? 'transfer' : 'writeoff';
   _formOpen=true; _formStep = _formMode==='transfer' ? 2 : 1;
   _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch='';
+  _prodTab='goods';
   if (_formMode !== 'transfer') autoSelectAccount();
   fullRender();
 }
@@ -1491,7 +1556,17 @@ function selectCat(cat) {
   setTimeout(() => { _formStep = 2; fullRender(); }, 180);
 }
 function searchProds(q) { _prodSearch = q; refreshProdList(); }
-function selectProd(id) { _selProd = _prods.find(p=>p.id===id); _selUnit = _selProd?.unit || 'l'; refreshProdList(); updateNextBtn(); }
+function selectProd(id) {
+  let p = _prods.find(x => x.id === id);
+  if (!p) {
+    const pr = _preps.find(x => x.id === id);   // напівфабрикат
+    if (pr) p = { id: pr.id, name: pr.name, unit: normalizeUnit(pr.unit), stock: pr.stock, isPrep: true, scope: pr.scope };
+  }
+  _selProd = p;
+  _selUnit = _selProd?.unit || 'l';
+  refreshProdList();
+  updateNextBtn();
+}
 
 function setVol(v) {
   _selVol = v;
@@ -1580,6 +1655,10 @@ async function submitForm() {
     vol:     `−${vol}${uLbl}`,
     volNum:  vol,
     unitKey: unit,
+    isPrep:  !!_selProd?.isPrep,
+    scope:   _selProd?.isPrep
+               ? (_selProd.scope === 'kitchen' ? 'kitchen' : _selProd.scope === 'bar' ? 'bar' : roleZone())
+               : 'bar',                 // звичайні товари — зі складу бару (баланс)
     valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
     accountId:   _selAccount?.id   || null,
@@ -1886,30 +1965,36 @@ async function doSendActToSyrve() {
   const results = [];
   const errors  = [];
   for (const g of groups) {
-    const grouped = {};
-    for (const w of g.items) {
-      if (!grouped[w.prodId]) grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
-      grouped[w.prodId].amount += w.volNum || 0;
-    }
-    const items = Object.values(grouped);
-    try {
-      const reasons = [...new Set(g.items.filter(w => w.reason).map(w => w.reason))].join('; ');
-      const body = { items, comment: reasons || undefined };
-      if (g.accountId) body.accountId = g.accountId;
-      if (_selStoreId) body.storeId = _selStoreId;
-      const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      const data = await resp.json();
-      if (!resp.ok) {
-        const det = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : '';
-        throw new Error(det || data.error || 'Помилка');
+    // розбиваємо позиції рахунку за складом (bar/kitchen) — ПФ кухні йдуть на склад кухні
+    const byScope = {};
+    for (const w of g.items) { const sc = w.scope || 'bar'; (byScope[sc] = byScope[sc] || []).push(w); }
+    for (const [scope, witems] of Object.entries(byScope)) {
+      const grouped = {};
+      for (const w of witems) {
+        if (!grouped[w.prodId]) grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
+        grouped[w.prodId].amount += w.volNum || 0;
       }
-      results.push(`✓ ${g.accountName}: ${data.itemCount} позицій${data.syrveDocId ? ` · Syrve ID: ${data.syrveDocId.slice(0,8)}…` : ''}`);
-    } catch (err) {
-      errors.push(`✗ ${g.accountName}: ${err.message}`);
+      const items = Object.values(grouped);
+      const tag   = scope === 'kitchen' ? ' (кухня)' : '';
+      try {
+        const reasons = [...new Set(witems.filter(w => w.reason).map(w => w.reason))].join('; ');
+        const body = { items, comment: reasons || undefined, scope };
+        if (g.accountId) body.accountId = g.accountId;
+        if (_selStoreId && scope === 'bar') body.storeId = _selStoreId;   // ручний вибір складу — лише для бару
+        const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          const det = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : '';
+          throw new Error(det || data.error || 'Помилка');
+        }
+        results.push(`✓ ${g.accountName}${tag}: ${data.itemCount} позицій${data.syrveDocId ? ` · Syrve ID: ${data.syrveDocId.slice(0,8)}…` : ''}`);
+      } catch (err) {
+        errors.push(`✗ ${g.accountName}${tag}: ${err.message}`);
+      }
     }
   }
 
@@ -2129,6 +2214,8 @@ export default {
     _succOpen   = false;
     _transferConfirmOpen = false;
     _transferResult      = null;
+    _prodTab    = 'goods';
+    _preps      = []; _prepsLoaded = false; _prepsLoading = false;
 
     // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
     const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
@@ -2305,6 +2392,7 @@ export default {
       deleteWriteoff,
       sendTransferToSyrve, deleteTransfer, setTransferDir,
       closeTransferConfirm, doSendTransfer, closeTransferResult,
+      setProdTab,
     };
     initSwipe();
     initContextMenu();
