@@ -57,6 +57,14 @@ let _mgrFilter  = 'all';
 let _mgrFrom    = ''; // YYYY-MM-DD для періоду «Обрати»
 let _mgrTo      = '';
 let _succOpen   = false;
+let _transfers  = [];          // переміщення бар↔кухня (localStorage barops_transfers_v1)
+let _formMode   = 'writeoff';  // 'writeoff' | 'transfer' — режим форми
+
+// Напрямок переміщення за роллю: кухар кухня→бар; решта (бармен) бар→кухня
+function transferDir() {
+  const r = (state.role || '').toLowerCase();
+  return (r === 'cook' || r === 'chef') ? { from: 'Кухня', to: 'Бар' } : { from: 'Бар', to: 'Кухня' };
+}
 
 /* ── Unit helpers ── */
 function normalizeUnit(u) {
@@ -597,6 +605,42 @@ function renderBartender() {
       </div>
     </div>
 
+    <!-- Add transfer button -->
+    <div style="padding:8px 14px 0">
+      <div class="wo-add" style="border-color:var(--teal-border,rgba(45,212,191,.35))" onclick="window.__wo.openForm('transfer')">
+        <div class="wo-add-icon" style="background:var(--teal-bg,rgba(45,212,191,.12))">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 6h8M8 3l3 3-3 3M13 10H5M8 13l-3-3 3-3" stroke="var(--teal,#2DD4BF)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="wo-add-text">Зафіксувати переміщення</div>
+          <div class="wo-add-sub">${transferDir().from} → ${transferDir().to} (внутрішнє)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transfers list + send -->
+    ${(() => {
+      const pend = _transfers.filter(t => t.prodId && !t.sentAt);
+      const dir  = transferDir();
+      if (!_transfers.length) return '';
+      return `
+      <div class="wo-sec" style="padding-top:14px">Переміщення · ${dir.from} → ${dir.to}</div>
+      <div class="wo-list">${transferListHTML()}</div>
+      <div style="margin:10px 14px 0;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--teal-bg,rgba(45,212,191,.12));border:0.5px solid var(--teal-border,rgba(45,212,191,.35));display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 7h9M9 4l3 3-3 3M15 11H6M9 14l-3-3 3-3" stroke="var(--teal,#2DD4BF)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Переміщення на Syrve</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${pend.length ? `${pend.length} поз. · ${dir.from} → ${dir.to}` : 'Немає нових позицій'}</div>
+        </div>
+        <button id="wo-transfer-btn" onclick="window.__wo.sendTransferToSyrve()" ${!pend.length ? 'disabled' : ''}
+          style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--teal-border,rgba(45,212,191,.35));background:${pend.length ? 'var(--teal-bg,rgba(45,212,191,.12))' : 'var(--bg2)'};color:${pend.length ? 'var(--teal,#2DD4BF)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${pend.length ? 'pointer' : 'default'};white-space:nowrap">
+          Надіслати
+        </button>
+      </div>`;
+    })()}
+
     <!-- Syrve send -->
     ${(() => {
       // Ненадіслані позиції з товаром
@@ -629,7 +673,7 @@ function renderBartender() {
     <div class="wo-sheet" onclick="event.stopPropagation()">
       <div class="wo-sheet-handle"></div>
       <div class="wo-sheet-hdr">
-        <div class="wo-sheet-title" id="wo-sheet-title">Нове списання</div>
+        <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : 'Нове списання'}</div>
         <div class="wo-sheet-close" onclick="window.__wo.closeForm()">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
@@ -792,7 +836,9 @@ function renderBartender() {
         </div>
         <button class="wo-fnext" id="wo-fnext" onclick="window.__wo.nextStep()"
           ${((_formStep===1&&(getWoAccounts().length?!_selAccount:!_selCat))||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol))?'disabled style="opacity:.35"':''}>
-          ${_formStep===4
+          ${(_formMode==='transfer' && _formStep===3)
+            ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Зафіксувати переміщення`
+            : _formStep===4
             ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Зафіксувати списання`
             : `Далі <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 11l6-4-6-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
         </button>
@@ -807,7 +853,7 @@ function renderBartender() {
         <path d="M9 17l6 6 12-12" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
-    <div class="wo-succ-title">Списання зафіксовано</div>
+    <div class="wo-succ-title" id="wo-succ-title">Списання зафіксовано</div>
     <div class="wo-succ-sub" id="wo-succ-sub">Запис збережено</div>
     <div class="wo-succ-pill" id="wo-succ-pill">—</div>
     <button class="wo-succ-btn" onclick="window.__wo.closeSuccess()">
@@ -1176,7 +1222,7 @@ function renderManager() {
       <div class="wo-sheet" onclick="event.stopPropagation()">
         <div class="wo-sheet-handle"></div>
         <div class="wo-sheet-hdr">
-          <div class="wo-sheet-title" id="wo-sheet-title">Нове списання</div>
+          <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : 'Нове списання'}</div>
           <div class="wo-sheet-close" onclick="window.__wo.closeForm()">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
           </div>
@@ -1339,7 +1385,7 @@ function renderManager() {
           <path d="M9 17l6 6 12-12" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="wo-succ-title">Списання зафіксовано</div>
+      <div class="wo-succ-title" id="wo-succ-title">Списання зафіксовано</div>
       <div class="wo-succ-sub" id="wo-succ-sub">Запис збережено</div>
       <div class="wo-succ-pill" id="wo-succ-pill">—</div>
       <button class="wo-succ-btn" onclick="window.__wo.closeSuccess()">
@@ -1382,7 +1428,13 @@ function refreshProdList() {
 function setCatFilter(cat) { _catFilter = cat; refreshList(); fullRender(); }
 
 /* form */
-function openForm()  { _formOpen=true; _formStep=1; _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch=''; autoSelectAccount(); fullRender(); }
+function openForm(mode)  {
+  _formMode = (mode === 'transfer') ? 'transfer' : 'writeoff';
+  _formOpen=true; _formStep = _formMode==='transfer' ? 2 : 1;
+  _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch='';
+  if (_formMode !== 'transfer') autoSelectAccount();
+  fullRender();
+}
 function closeForm() { _formOpen=false; fullRender(); }
 function maybeClose(e) { if (e.target===document.getElementById('wo-form-overlay')) closeForm(); }
 
@@ -1446,15 +1498,20 @@ function updateCustomReason(v) {
 }
 
 function nextStep() {
+  if (_formMode==='transfer' && _formStep===3) { submitForm(); return; }  // переміщення: 2 кроки
   if (_formStep===4) { submitForm(); return; }
   const step1invalid = getWoAccounts().length ? !_selAccount : !_selCat;
   if ((_formStep===1&&step1invalid)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol)) return;
   _formStep++;
   fullRender();
 }
-function prevStep() { if (_formStep>1) { _formStep--; fullRender(); } }
+function prevStep() {
+  if (_formMode==='transfer' && _formStep<=2) { closeForm(); return; }   // перший крок переміщення → закрити
+  if (_formStep>1) { _formStep--; fullRender(); }
+}
 
 async function submitForm() {
+  if (_formMode === 'transfer') return submitTransfer();
   // Читаємо причину прямо з DOM (надійніше ніж покладатися тільки на _selReason)
   const taVal = (document.getElementById('wo-reason-custom')?.value || '').trim();
   if (taVal) _selReason = taVal;
@@ -1522,8 +1579,101 @@ async function submitForm() {
   if (pillEl) pillEl.textContent = `${entry.prod} · −${vol}${uLbl} · ${CAT[finalCat]?.label||''}`;
   fullRender();
 }
-function closeSuccess()     { _succOpen=false; openForm(); }
+function closeSuccess()     { _succOpen=false; openForm(_formMode); }
 function closeSuccessExit() { _succOpen=false; _formOpen=false; fullRender(); }
+
+/* ── Переміщення бар↔кухня ── */
+function saveTransfers() {
+  const vId = localStorage.getItem('barops_venueId') || '';
+  const raw = JSON.parse(localStorage.getItem('barops_transfers_v1') || '{}');
+  raw[vId] = _transfers;
+  localStorage.setItem('barops_transfers_v1', JSON.stringify(raw));
+}
+
+function transferListHTML() {
+  const list = _transfers.filter(t => !t.sentAt);
+  if (!list.length) return `<div style="text-align:center;padding:14px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">Немає позицій</div>`;
+  return list.map(t => `
+    <div class="wo-card" data-id="${t.id}" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;margin:0 14px 6px">
+      <div style="width:30px;height:30px;border-radius:8px;background:var(--teal-bg,rgba(45,212,191,.12));display:flex;align-items:center;justify-content:center;flex-shrink:0">🔁</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.prod}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">${t.dateStr}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;color:var(--teal,#2DD4BF);font-family:var(--font-h);font-weight:700">${t.vol}</div>
+        <div onclick="window.__wo.deleteTransfer('${t.id}')" style="font-size:10px;color:var(--text3);cursor:pointer;margin-top:2px">видалити</div>
+      </div>
+    </div>`).join('');
+}
+
+function deleteTransfer(id) {
+  const i = _transfers.findIndex(t => t.id === id);
+  if (i === -1) return;
+  _transfers.splice(i, 1);
+  saveTransfers();
+  fullRender();
+}
+
+async function submitTransfer() {
+  const vol  = _selVol || 0;
+  const unit = _selUnit || _selProd?.unit || 'l';
+  const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[unit] || 'л';
+  if (!_selProd || !(vol > 0)) return;
+  const now  = new Date();
+  const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const dd   = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}`;
+  const dir  = transferDir();
+  const entry = {
+    id: 't' + Date.now().toString(36),
+    prod: _selProd?.name || 'Товар', prodId: _selProd?.id || null,
+    volNum: vol, unitKey: unit, vol: `${vol}${uLbl}`,
+    time: hhmm, dateStr: `${dd} · ${hhmm}`, ts: now.toISOString(), sentAt: null,
+  };
+  _transfers.push(entry);
+  saveTransfers();
+  _formOpen = false; _succOpen = true;
+  fullRender();
+  const titleEl = document.getElementById('wo-succ-title');
+  const subEl   = document.getElementById('wo-succ-sub');
+  const pillEl  = document.getElementById('wo-succ-pill');
+  if (titleEl) titleEl.textContent = 'Переміщення зафіксовано';
+  if (subEl)   subEl.textContent   = `${entry.prod} · ${dir.from} → ${dir.to}`;
+  if (pillEl)  pillEl.textContent  = `${entry.prod} · ${vol}${uLbl} · ${dir.from}→${dir.to}`;
+}
+
+async function sendTransferToSyrve() {
+  const vId   = localStorage.getItem('barops_venueId') || state.venueId || '';
+  const token = localStorage.getItem('barops_token');
+  if (!vId || !token) { alert('Немає авторизації'); return; }
+  const pend = _transfers.filter(t => t.prodId && !t.sentAt);
+  if (!pend.length) { alert('Немає позицій для переміщення'); return; }
+  const dir = transferDir();
+  if (!confirm(`Надіслати переміщення ${dir.from} → ${dir.to} · ${pend.length} поз. у Syrve?\nДокумент створиться як чернетка — бухгалтер проведе в Office.`)) return;
+  const btn = document.getElementById('wo-transfer-btn');
+  if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
+  try {
+    const res = await fetch(`${API}/api/pos/transfer-act/${vId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ items: pend.map(t => ({ productId: t.prodId, amount: t.volNum, unitKey: t.unitKey })) }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok && d.success) {
+      const ts = new Date().toISOString();
+      pend.forEach(t => { t.sentAt = ts; });
+      saveTransfers();
+      fullRender();
+      alert(`Переміщення надіслано у Syrve · ${d.itemCount} поз.\nЧернетка — проведіть у Syrve Office.`);
+    } else {
+      alert('Помилка: ' + (d.error || ('HTTP ' + res.status)));
+      if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+    }
+  } catch (e) {
+    alert('Мережева помилка: ' + e.message);
+    if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+  }
+}
 
 /* manager */
 function setPeriod(p) {
@@ -1858,6 +2008,8 @@ export default {
     try { _sentHistory = JSON.parse(localStorage.getItem(`barops_wo_history_${vId}`) || '[]'); } catch { _sentHistory = []; }
     const stored = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
     _writeoffs = stored[vId] || [];
+    _formMode  = 'writeoff';
+    try { const ts = JSON.parse(localStorage.getItem('barops_transfers_v1') || '{}'); _transfers = ts[vId] || []; } catch { _transfers = []; }
 
     // Історія актів — головне джерело сервер, localStorage лише офлайн-кеш
     try {
@@ -2024,6 +2176,7 @@ export default {
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
       deleteWriteoff,
+      sendTransferToSyrve, deleteTransfer,
     };
     initSwipe();
     initContextMenu();
