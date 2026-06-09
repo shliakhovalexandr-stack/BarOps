@@ -1341,15 +1341,19 @@ function renderManager() {
 
           <!-- Step 2: Product -->
           <div class="wo-fstep ${_formStep===2?'act':''}" id="wfstep2">
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+              <button onclick="window.__wo.setProdTab('goods')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab!=='prep'?'var(--purple)':'var(--border)'};background:${_prodTab!=='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab!=='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Товари</button>
+              <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Напівфабрикати</button>
+            </div>
             <div class="wo-prod-search-wrap">
               <svg class="wo-prod-search-ico" width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/>
                 <path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/>
               </svg>
-              <input class="wo-prod-inp" id="wo-prod-search" placeholder="Пошук товару…"
+              <input class="wo-prod-inp" id="wo-prod-search" placeholder="${_prodTab==='prep'?'Пошук напівфабрикату…':'Пошук товару…'}"
                 value="${_prodSearch}" oninput="window.__wo.searchProds(this.value)"/>
             </div>
-            <div class="wo-prod-list" id="wo-prod-list">${prodListHTML()}</div>
+            <div class="wo-prod-list" id="wo-prod-list">${_prodTab==='prep'?prepListHTML():prodListHTML()}</div>
           </div>
 
           <!-- Step 3: Volume -->
