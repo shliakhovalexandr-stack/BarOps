@@ -31,6 +31,29 @@ const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${pad2
 let _configPid       = null;   // продукт, що налаштовується
 let _configDraft     = { mode: 'sht', emptyTareKg: '', fullTareKg: '', bottleVolL: '' };
 let _cfgFilter       = 'all';  // 'all' | 'unset' — фільтр списку налаштувань
+let _search          = '';     // пошук товару
+
+// Які scope ПФ показувати за роллю (бар/кухня/загальні)
+function prepScopesForRole() {
+  const r = (_role || '').toLowerCase();
+  if (r === 'cook' || r === 'chef') return ['kitchen', 'general'];
+  if (['admin', 'manager', 'director', 'accountant'].includes(r)) return ['bar', 'kitchen', 'general'];
+  return ['bar', 'general'];
+}
+function matchSearch(p) {
+  const q = _search.trim().toLowerCase();
+  return !q || (p.name || '').toLowerCase().includes(q);
+}
+function searchBoxHTML() {
+  return `<div style="padding:0 18px 10px">
+    <div style="position:relative">
+      <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%)" width="15" height="15" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/><path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <input id="inv-search" type="text" placeholder="Пошук товару…" value="${(_search || '').replace(/"/g, '&quot;')}"
+        style="width:100%;height:44px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:0 36px 0 36px;font-size:15px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box">
+      ${_search ? `<div data-a="search-clear" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg></div>` : ''}
+    </div>
+  </div>`;
+}
 let _cfgSaving       = false;
 let _cfgError        = '';
 let _submitted       = false;
@@ -277,6 +300,12 @@ function bindLiveInputs() {
       updateConvDisplay(pid);
     };
   });
+  const se = document.getElementById('inv-search');
+  if (se) se.oninput = e => {
+    _search = e.target.value; re();
+    const s2 = document.getElementById('inv-search');
+    if (s2) { s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); }
+  };
 }
 
 function updateConvDisplay(pid) {
@@ -294,10 +323,11 @@ async function loadAll() {
   _loading = true; _error = ''; re();
   try {
     const h = { Authorization: `Bearer ${_token}` };
-    const [sessRes, balRes, cfgRes] = await Promise.all([
+    const [sessRes, balRes, cfgRes, prepRes] = await Promise.all([
       fetch(`${API}/api/inventory/sessions?venueId=${_venueId}`, { headers: h }),
       fetch(`${API}/api/pos/balance/${_venueId}`, { headers: h }),
       fetch(`${API}/api/inventory/config?venueId=${_venueId}`, { headers: h }),
+      fetch(`${API}/api/pos/preparations/${_venueId}`, { headers: h }).catch(() => null),
     ]);
 
     if (sessRes.ok) {
@@ -315,6 +345,19 @@ async function loadAll() {
           }
         }
       }
+    }
+
+    // Напівфабрикати (PREPARED) — за роллю (бар/кухня/загальні)
+    if (prepRes && prepRes.ok) {
+      try {
+        const d = await prepRes.json();
+        const scopes = prepScopesForRole();
+        for (const p of (d.preparations || [])) {
+          if (!scopes.includes(p.scope)) continue;
+          if (_balance.find(x => x.id === p.id)) continue;
+          _balance.push({ id: p.id, name: p.name, unit: p.unit || '', amount: p.stock || 0, category: 'Напівфабрикат', isPrep: true });
+        }
+      } catch {}
     }
 
     if (cfgRes.ok) {
@@ -569,8 +612,13 @@ function buildBar() {
     ${_error ? `<div class="inv-alert">${_error}</div>` : ''}
     ${total === 0 ? `<div style="padding:20px 18px;font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center">Залишки Syrve не завантажено. Перевірте підключення.</div>` : ''}
 
+    ${searchBoxHTML()}
     <div class="inv-prod-list">
-      ${_balance.map(p => productRowHTML(p)).join('')}
+      ${(() => {
+        const list = _balance.filter(matchSearch);
+        return list.length ? list.map(p => productRowHTML(p)).join('')
+          : `<div style="text-align:center;padding:20px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
+      })()}
     </div>
 
     <div class="inv-actions">
@@ -604,7 +652,7 @@ function productRowHTML(p) {
       <div class="inv-prod-row" data-a="toggle-prod" data-pid="${p.id}">
         <div class="inv-pbar" style="background:${barColor}"></div>
         <div style="flex:1;min-width:0">
-          <div class="inv-pname">${p.name}</div>
+          <div class="inv-pname">${p.name}${p.isPrep ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
           <div class="inv-pmeta">Норма ≥ ${p.amount != null ? p.amount.toFixed(1) : '—'} ${p.unit || ''}</div>
         </div>
         ${counted
@@ -840,8 +888,11 @@ function sessionCardHTML(s) {
 
 function productConfigHTML() {
   const missing = _balance.filter(tareMissing).length;
-  const list = _cfgFilter === 'unset' ? _balance.filter(tareMissing) : _balance;
+  const base = _cfgFilter === 'unset' ? _balance.filter(tareMissing) : _balance;
+  const list = base.filter(matchSearch);
   const header = `
+    ${searchBoxHTML()}`;
+  const header2 = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 18px 10px;gap:10px">
       <div style="font-size:12px;font-family:var(--font-b);min-width:0">
         ${missing ? `<span style="color:var(--amber)">⚠ ${missing} товар(ів) без тари</span>` : `<span style="color:var(--green)">✓ Тара задана всюди</span>`}
@@ -850,7 +901,9 @@ function productConfigHTML() {
     </div>`;
   return `
     ${header}
+    ${header2}
     <div class="inv-cfg-list">
+      ${list.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>` : ''}
       ${list.map(p => {
         const m    = modeOf(p.id);
         const miss = tareMissing(p);
@@ -858,7 +911,7 @@ function productConfigHTML() {
         return `
           <div class="inv-cfg-row" style="${miss ? 'border-color:var(--amber-border);background:var(--amber-bg)' : ''}">
             <div style="flex:1;min-width:0">
-              <div class="inv-cfg-name">${p.name}</div>
+              <div class="inv-cfg-name">${p.name}${p.isPrep ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
               <div class="inv-cfg-sub">${miss ? '<span style="color:var(--amber)">⚠ вага пустої/повної не введена</span>' : `${p.unit || ''} · ${p.category || ''}`}</div>
             </div>
             <div class="inv-mode-group">
@@ -952,6 +1005,7 @@ function on(e) {
   if (a === 'tab-bar') { _view = 'bar'; re(); return; }
   if (a === 'tab-mgr') { _view = 'mgr'; re(); return; }
   if (a === 'cfg-filter') { _cfgFilter = _cfgFilter === 'unset' ? 'all' : 'unset'; re(); return; }
+  if (a === 'search-clear') { _search = ''; re(); return; }
 
   /* ── BAR: accordion ── */
   if (a === 'toggle-prod') {
