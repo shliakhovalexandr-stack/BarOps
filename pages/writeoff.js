@@ -60,6 +60,8 @@ let _succOpen   = false;
 let _transfers  = [];          // переміщення бар↔кухня (localStorage barops_transfers_v1)
 let _formMode   = 'writeoff';  // 'writeoff' | 'transfer' — режим форми
 let _transferDir = 'bar2kitchen'; // напрямок для admin: 'bar2kitchen' | 'kitchen2bar'
+let _transferConfirmOpen = false; // стилізоване підтвердження надсилання переміщення
+let _transferResult = null;       // { sending } | { ok, msg }
 
 // Напрямок переміщення: кухар кухня→бар; admin обирає сам (_transferDir); решта (бармен) бар→кухня
 function transferDir() {
@@ -865,7 +867,9 @@ function renderBartender() {
     <button class="wo-succ-ghost" onclick="window.__wo.closeSuccessExit()">Готово</button>
   </div>
   ${syrveConfirmHTML()}
-  ${syrveResultHTML()}`;
+  ${syrveResultHTML()}
+  ${transferConfirmHTML()}
+  ${transferResultHTML()}`;
 }
 
 function prodListHTML() {
@@ -1439,7 +1443,9 @@ function renderManager() {
     <div style="height:16px"></div>
   </div>
   ${syrveConfirmHTML()}
-  ${syrveResultHTML()}`;
+  ${syrveResultHTML()}
+  ${transferConfirmHTML()}
+  ${transferResultHTML()}`;
 }
 
 /* ════════════════════════
@@ -1685,19 +1691,26 @@ async function submitTransfer() {
   if (pillEl)  pillEl.textContent  = `${entry.prod} · ${vol}${uLbl} · ${dir.from}→${dir.to}`;
 }
 
-async function sendTransferToSyrve() {
+function sendTransferToSyrve() {
+  const pend = _transfers.filter(t => t.prodId && !t.sentAt);
+  if (!pend.length) return;
+  _transferConfirmOpen = true;
+  fullRender();
+}
+function closeTransferConfirm() { _transferConfirmOpen = false; fullRender(); }
+function closeTransferResult()  { _transferResult = null; fullRender(); }
+
+async function doSendTransfer() {
   const vId   = localStorage.getItem('barops_venueId') || state.venueId || '';
   const token = localStorage.getItem('barops_token');
-  if (!vId || !token) { alert('Немає авторизації'); return; }
-  const pend = _transfers.filter(t => t.prodId && !t.sentAt);
-  if (!pend.length) { alert('Немає позицій для переміщення'); return; }
-  const dir = transferDir();
-  if (!confirm(`Надіслати переміщення ${dir.from} → ${dir.to} · ${pend.length} поз. у Syrve?\nДокумент створиться як чернетка — бухгалтер проведе в Office.`)) return;
-  const btn = document.getElementById('wo-transfer-btn');
-  if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
+  const pend  = _transfers.filter(t => t.prodId && !t.sentAt);
+  _transferConfirmOpen = false;
+  if (!vId || !token || !pend.length) { _transferResult = { ok: false, msg: 'Немає авторизації або позицій' }; fullRender(); return; }
+  _transferResult = { sending: true };           // показуємо спінер у стилізованому вікні
+  fullRender();
   try {
     const payload = { items: pend.map(t => ({ productId: t.prodId, amount: t.volNum, unitKey: t.unitKey })) };
-    if ((state.role || '').toLowerCase() === 'admin') payload.dir = _transferDir;  // admin обирає напрямок
+    if ((state.role || '').toLowerCase() === 'admin') payload.dir = _transferDir;
     const res = await fetch(`${API}/api/pos/transfer-act/${vId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1708,16 +1721,83 @@ async function sendTransferToSyrve() {
       const ts = new Date().toISOString();
       pend.forEach(t => { t.sentAt = ts; });
       saveTransfers();
-      fullRender();
-      alert(`Переміщення надіслано у Syrve · ${d.itemCount} поз.\nЧернетка — проведіть у Syrve Office.`);
+      const dir = transferDir();
+      _transferResult = { ok: true, msg: `${d.itemCount} поз. · ${dir.from} → ${dir.to}. Чернетка — проведіть у Syrve Office.` };
     } else {
-      alert('Помилка: ' + (d.error || ('HTTP ' + res.status)));
-      if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+      _transferResult = { ok: false, msg: d.error || ('Помилка ' + res.status) };
     }
   } catch (e) {
-    alert('Мережева помилка: ' + e.message);
-    if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+    _transferResult = { ok: false, msg: 'Мережева помилка: ' + e.message };
   }
+  fullRender();
+}
+
+// Стилізоване підтвердження надсилання переміщення
+function transferConfirmHTML() {
+  if (!_transferConfirmOpen) return '';
+  const pend = _transfers.filter(t => t.prodId && !t.sentAt);
+  const dir  = transferDir();
+  return `
+  <div class="wo-syrve-conf-overlay open" onclick="if(event.target===this)window.__wo.closeTransferConfirm()">
+    <div class="wo-syrve-conf-sheet" onclick="event.stopPropagation()">
+      <div class="wo-sheet-handle"></div>
+      <div class="wo-sheet-hdr">
+        <div>
+          <div class="wo-sheet-title">Надіслати переміщення?</div>
+          <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${dir.from} → ${dir.to} · ${pend.length} поз.</div>
+        </div>
+        <div class="wo-sheet-close" onclick="window.__wo.closeTransferConfirm()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <div class="wo-syrve-conf-scroll">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${pend.map(t => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
+            <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.prod}</div>
+            <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:#2DD4BF;flex-shrink:0;margin-left:10px">${t.vol}</div>
+          </div>`).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:12px;line-height:1.5">Документ створиться як <b style="color:var(--text1)">чернетка</b> — бухгалтер проведе в Syrve Office.</div>
+      </div>
+      <div class="wo-fnav" style="padding-top:8px">
+        <button onclick="window.__wo.closeTransferConfirm()"
+          style="flex:1;height:52px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:14px;font-size:14px;color:var(--text1);cursor:pointer;font-family:var(--font-h)">Скасувати</button>
+        <button onclick="window.__wo.doSendTransfer()"
+          style="flex:2;height:52px;background:#2DD4BF;border:none;border-radius:14px;font-size:15px;font-weight:600;color:#04221e;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M7 2l5.5 5L7 12" stroke="#04221e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Надіслати
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Стилізований результат (спінер → успіх/помилка)
+function transferResultHTML() {
+  if (!_transferResult) return '';
+  if (_transferResult.sending) {
+    return `
+    <div class="wo-succ-overlay open" style="z-index:62">
+      <div class="wo-succ-icon" style="background:var(--bg2);border-color:var(--border)">
+        <span class="auth-spinner" style="width:28px;height:28px;border-width:3px"></span>
+      </div>
+      <div class="wo-succ-title">Надсилаю у Syrve…</div>
+      <div class="wo-succ-sub">Створюю документ переміщення</div>
+    </div>`;
+  }
+  const ok = _transferResult.ok;
+  return `
+  <div class="wo-succ-overlay open" style="z-index:62">
+    <div class="wo-succ-icon" style="background:${ok ? 'rgba(45,212,191,.12)' : 'var(--red-bg)'};border-color:${ok ? 'rgba(45,212,191,.4)' : 'var(--red-border)'}">
+      ${ok
+        ? `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M9 17l6 6 12-12" stroke="#2DD4BF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M10 10l12 12M22 10L10 22" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round"/></svg>`}
+    </div>
+    <div class="wo-succ-title">${ok ? 'Переміщення надіслано' : 'Не вдалося надіслати'}</div>
+    <div class="wo-succ-sub">${_transferResult.msg}</div>
+    <button class="wo-succ-btn" style="background:${ok ? '#2DD4BF' : 'var(--red)'};color:${ok ? '#04221e' : '#fff'};max-width:280px;margin-top:14px" onclick="window.__wo.closeTransferResult()">OK</button>
+  </div>`;
 }
 
 /* manager */
@@ -2047,6 +2127,8 @@ export default {
     _detailDay  = null;
     _priceSyncMsg = '';
     _succOpen   = false;
+    _transferConfirmOpen = false;
+    _transferResult      = null;
 
     // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
     const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
@@ -2222,6 +2304,7 @@ export default {
       addCustomReason, removeReason,
       deleteWriteoff,
       sendTransferToSyrve, deleteTransfer, setTransferDir,
+      closeTransferConfirm, doSendTransfer, closeTransferResult,
     };
     initSwipe();
     initContextMenu();
