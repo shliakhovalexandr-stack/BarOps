@@ -512,8 +512,8 @@ ${CSS}
     <div class="d-sec">Швидкі дії</div>
     <div class="d-quick">${quickGrid(quick)}</div>
 
-    <!-- KPI (приховано для бухгалтера) -->
-    ${!isAcc ? `
+    <!-- KPI «Зміна сьогодні» — лише для барменів; у менеджерів натомість «Аналітика зміни» -->
+    ${(!isAcc && !isMgr) ? `
     <div class="d-sec" style="padding-top:16px">Зміна сьогодні</div>
     ${_loading ? `
     <div style="padding:0 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
