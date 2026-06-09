@@ -40,6 +40,9 @@ let _grpName      = '';
 let _grpFrom      = '';
 let _grpTo        = '';
 let _openGroup    = null;   // розгорнута група (groupId)
+// Власний date-picker
+let _dpField      = null;   // 'addFrom' | 'addTo' | 'grpFrom' | 'grpTo'
+let _dpMonth      = '';     // 'YYYY-MM' відображуваний місяць
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function hdrs()  { return { Authorization: `Bearer ${token()}` }; }
@@ -409,7 +412,8 @@ function body() {
   </div>
   ${_addOpen ? addSheet() : ''}
   ${histSheet()}
-  ${grpSheet()}`;
+  ${grpSheet()}
+  ${datePicker()}`;
 }
 
 function addSheet() {
@@ -427,14 +431,14 @@ function addSheet() {
         <div style="padding:16px 16px 24px">
           <div style="font-size:16px;font-weight:600;color:var(--text0);font-family:var(--font-h);margin-bottom:16px">${_addDish}</div>
           <div style="display:flex;gap:10px">
-            <label style="flex:1">
+            <div style="flex:1">
               <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">Відстежувати з</div>
-              <input type="date" value="${_addFrom}" onchange="window.__pl.setFrom(this.value)" style="${inp}"/>
-            </label>
-            <label style="flex:1">
+              ${dpTrigger('addFrom', _addFrom, 'Оберіть')}
+            </div>
+            <div style="flex:1">
               <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">По (необовʼязково)</div>
-              <input type="date" value="${_addTo}" min="${_addFrom}" onchange="window.__pl.setTo(this.value)" style="${inp}"/>
-            </label>
+              ${dpTrigger('addTo', _addTo, 'Не задано')}
+            </div>
           </div>
           <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin:8px 0 18px;line-height:1.5">Порожнє «По» = безстроково, поки не приберете вручну. Після завершення страва перейде в Історію, де можна скопіювати продажі.</div>
           <button onclick="window.__pl.confirmAdd()" ${_busy ? 'disabled' : ''} style="width:100%;height:52px;background:var(--purple);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#fff;font-family:var(--font-h);cursor:pointer;opacity:${_busy ? '.6' : '1'}">${_busy ? 'Додаю…' : 'Додати в плей-лист'}</button>
@@ -611,13 +615,73 @@ function grpSheet() {
         <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">Назва групи</div>
         <input id="pl-grp-name" type="text" placeholder="Напр. Промо Aperol" value="${_grpName.replace(/"/g, '&quot;')}" oninput="window.__pl.grpName(this.value)" style="${inp};margin-bottom:14px"/>
         <div style="display:flex;gap:10px">
-          <label style="flex:1"><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">Відстежувати з</div>
-            <input type="date" value="${_grpFrom}" onchange="window.__pl.grpFrom(this.value)" style="${inp}"/></label>
-          <label style="flex:1"><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">По (необовʼязково)</div>
-            <input type="date" value="${_grpTo}" min="${_grpFrom}" onchange="window.__pl.grpTo(this.value)" style="${inp}"/></label>
+          <div style="flex:1"><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">Відстежувати з</div>
+            ${dpTrigger('grpFrom', _grpFrom, 'Оберіть')}</div>
+          <div style="flex:1"><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">По (необовʼязково)</div>
+            ${dpTrigger('grpTo', _grpTo, 'Не задано')}</div>
         </div>
         <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin:8px 0 18px;line-height:1.5">Спільний період для всіх страв набору. Після завершення група перейде в Історію зі зведеним звітом.</div>
         <button onclick="window.__pl.createGroup()" ${(_busy || !_grpName.trim()) ? 'disabled' : ''} style="width:100%;height:52px;background:var(--purple);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#fff;font-family:var(--font-h);cursor:pointer;opacity:${(_busy || !_grpName.trim()) ? '.55' : '1'}">${_busy ? 'Створюю…' : 'Створити групу'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── Власний date-picker ── */
+const DP_MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+function dpVal(field)        { return ({ addFrom: _addFrom, addTo: _addTo, grpFrom: _grpFrom, grpTo: _grpTo })[field] || ''; }
+function dpSet(field, v) {
+  if (field === 'addFrom') { _addFrom = v; if (_addTo && _addTo < v) _addTo = ''; }
+  else if (field === 'addTo')  { _addTo = v; }
+  else if (field === 'grpFrom'){ _grpFrom = v; if (_grpTo && _grpTo < v) _grpTo = ''; }
+  else if (field === 'grpTo')  { _grpTo = v; }
+}
+function openDp(field) { _dpField = field; _dpMonth = (dpVal(field) || todayKyiv()).slice(0, 7); re(); }
+function dpShift(delta) {
+  const [y, m] = _dpMonth.split('-').map(Number);
+  _dpMonth = new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+  re();
+}
+
+function dpTrigger(field, value, placeholder) {
+  return `<div onclick="window.__pl.openDp('${field}')" style="width:100%;height:48px;background:var(--bg2);border:0.5px solid ${value ? 'var(--purple-border)' : 'var(--border)'};border-radius:12px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;cursor:pointer;box-sizing:border-box">
+    <span style="font-size:15px;font-family:var(--font-h);color:${value ? 'var(--text0)' : 'var(--text3)'}">${value ? fmtDate(value) : placeholder}</span>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg>
+  </div>`;
+}
+
+function datePicker() {
+  if (!_dpField) return '';
+  const [y, m] = _dpMonth.split('-').map(Number);
+  const firstDow    = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7; // Пн=0
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const today  = todayKyiv();
+  const sel    = dpVal(_dpField);
+  const minD   = _dpField === 'addTo' ? _addFrom : _dpField === 'grpTo' ? _grpFrom : '';
+  const optional = _dpField === 'addTo' || _dpField === 'grpTo';
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<div></div>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds  = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isS = ds === sel, isT = ds === today, dis = minD && ds < minD;
+    cells.push(`<div ${dis ? '' : `onclick="window.__pl.dpPick('${ds}')"`} style="height:38px;display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:14px;font-family:var(--font-h);cursor:${dis ? 'default' : 'pointer'};
+      background:${isS ? 'var(--purple)' : 'transparent'};color:${dis ? 'var(--text3)' : isS ? '#fff' : 'var(--text0)'};
+      ${!isS && isT ? 'box-shadow:inset 0 0 0 1px var(--purple)' : ''}">${d}</div>`);
+  }
+  return `<div class="pl-ov" style="z-index:90;align-items:center;justify-content:center" onclick="window.__pl.dpClose()">
+    <div onclick="event.stopPropagation()" style="background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:14px;width:300px;max-width:88vw;box-shadow:0 20px 60px rgba(0,0,0,.55)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div onclick="window.__pl.dpPrev()" style="width:34px;height:34px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div style="font-size:15px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${DP_MONTHS[m - 1]} ${y}</div>
+        <div onclick="window.__pl.dpNext()" style="width:34px;height:34px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+        ${['Пн','Вт','Ср','Чт','Пт','Сб','Нд'].map(x => `<div style="height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2);font-family:var(--font-b)">${x}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">${cells.join('')}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)">
+        <button onclick="window.__pl.dpToday()" style="background:none;border:none;color:var(--purple);font-size:14px;font-weight:600;font-family:var(--font-h);cursor:pointer">Сьогодні</button>
+        ${optional ? `<button onclick="window.__pl.dpClear()" style="background:none;border:none;color:var(--text2);font-size:14px;font-family:var(--font-b);cursor:pointer">Очистити</button>` : ''}
       </div>
     </div>
   </div>`;
@@ -631,6 +695,7 @@ export default {
     _addDish = null; _addFrom = ''; _addTo = '';
     _histOpen = false; _history = []; _histLoading = false; _report = null;
     _selectMode = false; _selected = new Set(); _grpOpen = false; _grpName = ''; _grpFrom = ''; _grpTo = ''; _openGroup = null;
+    _dpField = null; _dpMonth = '';
     return `${CSS}<div class="pl-wrap" id="pl-root">${body()}</div>`;
   },
   init() {
@@ -669,6 +734,14 @@ export default {
       grpFrom:    (v) => { _grpFrom = v; if (_grpTo && _grpTo < v) _grpTo = ''; },
       grpTo:      (v) => { _grpTo = v; },
       createGroup:() => createGroup(),
+      // date-picker
+      openDp:    (f) => openDp(f),
+      dpClose:   () => { _dpField = null; re(); },
+      dpPick:    (ds) => { dpSet(_dpField, ds); _dpField = null; re(); },
+      dpClear:   () => { dpSet(_dpField, ''); _dpField = null; re(); },
+      dpToday:   () => { dpSet(_dpField, todayKyiv()); _dpField = null; re(); },
+      dpPrev:    () => dpShift(-1),
+      dpNext:    () => dpShift(1),
       add:       (name) => addDish(name),
       remove:    (id) => removeItem(id),
     };
