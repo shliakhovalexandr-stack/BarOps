@@ -24,6 +24,14 @@ let _dishesLoading = false;
 let _dishesErr    = '';
 let _query        = '';
 let _busy         = false;  // додавання/видалення в процесі
+let _addDish      = null;   // обрана страва (крок 2 — дати)
+let _addFrom      = '';
+let _addTo        = '';
+// Історія (завершені страви) + звіт
+let _histOpen     = false;
+let _history      = [];
+let _histLoading  = false;
+let _report       = null;   // { loading } | { data: {...} }
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function hdrs()  { return { Authorization: `Bearer ${token()}` }; }
@@ -154,17 +162,74 @@ async function loadDishes() {
   _dishesLoading = false; re();
 }
 
-async function addDish(name) {
+function selectAddDish(name) {
+  _addDish = name;
+  _addFrom = todayKyiv();
+  _addTo   = '';
+  re();
+}
+
+async function addDish(name, from, to) {
   if (_busy) return;
   _busy = true; re();
   try {
     await fetch(`${API}/api/playlist/${_venueId}`, {
       method: 'POST', headers: { ...hdrs(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dishName: name }),
+      body: JSON.stringify({ dishName: name, trackFrom: from || undefined, trackTo: to || undefined }),
     });
   } catch {}
-  _busy = false; _addOpen = false; _query = '';
+  _busy = false; _addOpen = false; _addDish = null; _query = '';
   await load();
+}
+
+/* ── Історія + звіт ── */
+async function loadHistory() {
+  _histLoading = true; re();
+  try {
+    const r = await fetch(`${API}/api/playlist/${_venueId}/history`, { headers: hdrs() });
+    const d = await r.json();
+    _history = d.items || [];
+  } catch { _history = []; }
+  _histLoading = false; re();
+}
+
+async function openReport(id) {
+  _report = { loading: true }; re();
+  try {
+    const r = await fetch(`${API}/api/playlist/item/${id}/report`, { headers: hdrs() });
+    const d = await r.json();
+    if (r.ok && !d.error) _report = { data: d };
+    else _report = { error: d.error || 'Помилка' };
+  } catch (e) { _report = { error: 'Мережева помилка' }; }
+  re();
+}
+
+function reportText(d) {
+  const lines = [];
+  lines.push(`🎯 ${d.dishName}`);
+  lines.push(`Період: ${fmtDate(d.from)} – ${fmtDate(d.to)}`);
+  lines.push(`Продано: ${Math.round(d.totalQty)} шт · ${money(d.totalSum)}`);
+  if (d.waiters && d.waiters.length) {
+    lines.push('');
+    lines.push('По офіціантах:');
+    for (const w of d.waiters) lines.push(`• ${w.name}: ${Math.round(w.qty)} шт · ${money(w.sum)}`);
+  }
+  return lines.join('\n');
+}
+
+async function copyReport() {
+  if (!_report?.data) return;
+  const txt = reportText(_report.data);
+  try {
+    await navigator.clipboard.writeText(txt);
+    const el = document.getElementById('pl-copy-btn');
+    if (el) { el.textContent = '✓ Скопійовано'; setTimeout(() => { const e2 = document.getElementById('pl-copy-btn'); if (e2) e2.textContent = 'Копіювати'; }, 1800); }
+  } catch {
+    // fallback
+    const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta);
+  }
 }
 
 async function removeItem(id) {
@@ -266,6 +331,9 @@ function body() {
       <div class="pl-title">Плей-лист</div>
       <div class="pl-sub">${state.venue || ''}${_data && _data.fetchedAt ? ` · оновлено о ${fmtTime(_data.fetchedAt)}` : (isToday ? ' · продажі за сьогодні' : '')}</div>
     </div>
+    <div class="pl-refresh" onclick="window.__pl.openHist()" title="Історія" style="margin-right:8px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    </div>
     <div class="pl-refresh" onclick="window.__pl.reload()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>
     </div>
@@ -282,10 +350,41 @@ function body() {
     </div>
     ${inner}
   </div>
-  ${_addOpen ? addSheet() : ''}`;
+  ${_addOpen ? addSheet() : ''}
+  ${histSheet()}`;
 }
 
 function addSheet() {
+  // Крок 2 — діапазон дат для обраної страви
+  if (_addDish) {
+    const inp = `width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;color:var(--text0);font-size:15px;padding:0 12px;box-sizing:border-box;font-family:var(--font-h);outline:none`;
+    return `<div class="pl-ov" onclick="window.__pl.closeAdd()">
+      <div class="pl-sheet" onclick="event.stopPropagation()">
+        <div class="pl-sheet-h">
+          <div class="pl-close" onclick="window.__pl.backAdd()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="pl-sheet-t">Період відстеження</div>
+        </div>
+        <div style="padding:16px 16px 24px">
+          <div style="font-size:16px;font-weight:600;color:var(--text0);font-family:var(--font-h);margin-bottom:16px">${_addDish}</div>
+          <div style="display:flex;gap:10px">
+            <label style="flex:1">
+              <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">Відстежувати з</div>
+              <input type="date" value="${_addFrom}" onchange="window.__pl.setFrom(this.value)" style="${inp}"/>
+            </label>
+            <label style="flex:1">
+              <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">По (необовʼязково)</div>
+              <input type="date" value="${_addTo}" min="${_addFrom}" onchange="window.__pl.setTo(this.value)" style="${inp}"/>
+            </label>
+          </div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin:8px 0 18px;line-height:1.5">Порожнє «По» = безстроково, поки не приберете вручну. Після завершення страва перейде в Історію, де можна скопіювати продажі.</div>
+          <button onclick="window.__pl.confirmAdd()" ${_busy ? 'disabled' : ''} style="width:100%;height:52px;background:var(--purple);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#fff;font-family:var(--font-h);cursor:pointer;opacity:${_busy ? '.6' : '1'}">${_busy ? 'Додаю…' : 'Додати в плей-лист'}</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   const q = _query.trim().toLowerCase();
   const existing = new Set((_data?.items || []).map(i => (i.dishName || '').toLowerCase()));
   const list = (_dishes || [])
@@ -298,7 +397,7 @@ function addSheet() {
   else if (!list.length) listHtml = `<div class="pl-empty"><div class="pl-empty-t">${q ? 'Нічого не знайдено' : 'Список страв порожній'}</div></div>`;
   else listHtml = list.map(d => {
     const added = existing.has(d.name.toLowerCase());
-    return `<div class="pl-dish" onclick="${added ? '' : `window.__pl.add('${d.name.replace(/'/g, "\\'")}')`}" style="${added ? 'opacity:.45' : ''}">
+    return `<div class="pl-dish" onclick="${added ? '' : `window.__pl.pick('${d.name.replace(/'/g, "\\'")}')`}" style="${added ? 'opacity:.45' : ''}">
       <div class="pl-dish-n">${d.name}</div>
       <div class="pl-dish-q">${Math.round(d.qty)} ${qtyWord(d.qty)}/60дн</div>
       <div class="pl-dish-plus">${added ? '✓' : '+'}</div>
@@ -320,11 +419,79 @@ function addSheet() {
   </div>`;
 }
 
+function histSheet() {
+  if (!_histOpen) return '';
+  let listHtml;
+  if (_histLoading) listHtml = `<div class="pl-spin"></div>`;
+  else if (!_history.length) listHtml = `<div class="pl-empty"><div class="pl-empty-t">Історія порожня.<br>Тут зʼявляться страви, період яких завершився.</div></div>`;
+  else listHtml = _history.map(it => `
+    <div class="pl-dish" onclick="window.__pl.report('${it.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="pl-dish-n">${it.dishName}</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${it.trackFrom ? fmtDate(it.trackFrom) : '—'} – ${it.trackTo ? fmtDate(it.trackTo) : '—'}</div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+    </div>`).join('');
+  return `<div class="pl-ov" onclick="window.__pl.closeHist()">
+    <div class="pl-sheet" onclick="event.stopPropagation()">
+      <div class="pl-sheet-h">
+        <div class="pl-close" onclick="window.__pl.closeHist()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+        <div class="pl-sheet-t">Історія плей-листів</div>
+      </div>
+      <div class="pl-dishlist">${listHtml}</div>
+    </div>
+  </div>${reportSheet()}`;
+}
+
+function reportSheet() {
+  if (!_report) return '';
+  let inner;
+  if (_report.loading)    inner = `<div class="pl-spin"></div>`;
+  else if (_report.error) inner = `<div class="pl-err" style="margin:12px 16px">${_report.error}</div>`;
+  else {
+    const d = _report.data;
+    inner = `<div style="padding:4px 16px 20px">
+      <div style="font-size:17px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${d.dishName}</div>
+      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${fmtDate(d.from)} – ${fmtDate(d.to)}</div>
+      <div style="display:flex;gap:10px;margin:14px 0">
+        <div style="flex:1;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--font-h)">${Math.round(d.totalQty)}</div>
+          <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">ШТ ПРОДАНО</div>
+        </div>
+        <div style="flex:1;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${money(d.totalSum)}</div>
+          <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">СУМА</div>
+        </div>
+      </div>
+      ${d.waiters && d.waiters.length ? `
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:8px;letter-spacing:.05em">ПО ОФІЦІАНТАХ</div>
+      ${d.waiters.map(w => `<div class="pl-wrow"><div class="pl-av">${initials(w.name)}</div><div class="pl-wname">${w.name}</div><div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(w.sum)}</div></div>`).join('')}
+      ` : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Продажів за цей період не знайдено</div>`}
+      <button id="pl-copy-btn" onclick="window.__pl.copy()" style="width:100%;height:50px;margin-top:18px;background:var(--purple);border:none;border-radius:14px;font-size:14px;font-weight:600;color:#fff;font-family:var(--font-h);cursor:pointer">Копіювати</button>
+    </div>`;
+  }
+  return `<div class="pl-ov" style="z-index:80" onclick="window.__pl.closeReport()">
+    <div class="pl-sheet" onclick="event.stopPropagation()">
+      <div class="pl-sheet-h">
+        <div class="pl-close" onclick="window.__pl.closeReport()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+        <div class="pl-sheet-t">Звіт продажів</div>
+      </div>
+      ${inner}
+    </div>
+  </div>`;
+}
+
 export default {
   render() {
     _loading = true; _error = ''; _data = null; _openDish = null;
     _date = todayKyiv();
     _addOpen = false; _dishes = []; _dishesLoaded = false; _dishesLoading = false; _dishesErr = ''; _query = ''; _busy = false;
+    _addDish = null; _addFrom = ''; _addTo = '';
+    _histOpen = false; _history = []; _histLoading = false; _report = null;
     return `${CSS}<div class="pl-wrap" id="pl-root">${body()}</div>`;
   },
   init() {
@@ -334,15 +501,25 @@ export default {
       toggle:  (k) => { _openDish = _openDish === k ? null : k; re(); },
       prevDay: () => { const min = shiftDate(todayKyiv(), -60); if (_date > min) { _date = shiftDate(_date, -1); _openDish = null; load(); } },
       nextDay: () => { if (_date < todayKyiv()) { _date = shiftDate(_date, 1); _openDish = null; load(); } },
-      openAdd: () => { _addOpen = true; re(); loadDishes(); },
-      closeAdd:() => { _addOpen = false; _query = ''; re(); },
+      openAdd: () => { _addOpen = true; _addDish = null; re(); loadDishes(); },
+      closeAdd:() => { _addOpen = false; _addDish = null; _query = ''; re(); },
       search:  (v) => {
         _query = v; re();
         const inp = document.getElementById('pl-search');
         if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
       },
-      add:     (name) => addDish(name),
-      remove:  (id) => removeItem(id),
+      pick:    (name) => selectAddDish(name),
+      backAdd: () => { _addDish = null; re(); },
+      setFrom: (v) => { _addFrom = v; if (_addTo && _addTo < v) _addTo = ''; },
+      setTo:   (v) => { _addTo = v; },
+      confirmAdd: () => addDish(_addDish, _addFrom, _addTo),
+      openHist:  () => { _histOpen = true; re(); loadHistory(); },
+      closeHist: () => { _histOpen = false; _report = null; re(); },
+      report:    (id) => openReport(id),
+      closeReport: () => { _report = null; re(); },
+      copy:      () => copyReport(),
+      add:       (name) => addDish(name),
+      remove:    (id) => removeItem(id),
     };
     load();
   },
