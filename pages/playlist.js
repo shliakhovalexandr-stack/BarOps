@@ -31,7 +31,15 @@ let _addTo        = '';
 let _histOpen     = false;
 let _history      = [];
 let _histLoading  = false;
-let _report       = null;   // { loading } | { data: {...} }
+let _report       = null;   // { loading } | { data, group? } | { error }
+// Групування
+let _selectMode   = false;
+let _selected     = new Set();
+let _grpOpen      = false;  // лист створення групи
+let _grpName      = '';
+let _grpFrom      = '';
+let _grpTo        = '';
+let _openGroup    = null;   // розгорнута група (groupId)
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function hdrs()  { return { Authorization: `Bearer ${token()}` }; }
@@ -204,22 +212,62 @@ async function openReport(id) {
   re();
 }
 
-function reportText(d) {
+function reportText(d, isGroup) {
   const lines = [];
-  lines.push(`🎯 ${d.dishName}`);
-  lines.push(`Період: ${fmtDate(d.from)} – ${fmtDate(d.to)}`);
-  lines.push(`Продано: ${Math.round(d.totalQty)} шт · ${money(d.totalSum)}`);
-  if (d.waiters && d.waiters.length) {
-    lines.push('');
-    lines.push('По офіціантах:');
-    for (const w of d.waiters) lines.push(`• ${w.name}: ${Math.round(w.qty)} шт · ${money(w.sum)}`);
+  if (isGroup) {
+    lines.push(`📦 ${d.groupName}`);
+    lines.push(`Період: ${fmtDate(d.from)} – ${fmtDate(d.to)}`);
+    lines.push(`Разом: ${Math.round(d.totalQty)} шт · ${money(d.totalSum)}`);
+    if (d.dishes && d.dishes.length) { lines.push(''); for (const x of d.dishes) lines.push(`• ${x.dishName}: ${Math.round(x.qty)} шт · ${money(x.sum)}`); }
+  } else {
+    lines.push(`🎯 ${d.dishName}`);
+    lines.push(`Період: ${fmtDate(d.from)} – ${fmtDate(d.to)}`);
+    lines.push(`Продано: ${Math.round(d.totalQty)} шт · ${money(d.totalSum)}`);
+    if (d.waiters && d.waiters.length) { lines.push(''); lines.push('По офіціантах:'); for (const w of d.waiters) lines.push(`• ${w.name}: ${Math.round(w.qty)} шт · ${money(w.sum)}`); }
   }
   return lines.join('\n');
 }
 
+// ── Групування ──
+function toggleSelectMode() { _selectMode = !_selectMode; _selected = new Set(); re(); }
+function toggleSelect(id)   { if (_selected.has(id)) _selected.delete(id); else _selected.add(id); re(); }
+function openGroupSheet()   { if (!_selected.size) return; _grpOpen = true; _grpName = ''; _grpFrom = todayKyiv(); _grpTo = ''; re(); }
+
+async function createGroup() {
+  const ids = [..._selected];
+  if (!_grpName.trim() || !ids.length || _busy) return;
+  _busy = true; re();
+  try {
+    await fetch(`${API}/api/playlist/${_venueId}/group`, {
+      method: 'POST', headers: { ...hdrs(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: _grpName.trim(), itemIds: ids, trackFrom: _grpFrom || undefined, trackTo: _grpTo || undefined }),
+    });
+  } catch {}
+  _busy = false; _grpOpen = false; _selectMode = false; _selected = new Set();
+  await load();
+}
+
+async function ungroup(groupId) {
+  if (_busy) return;
+  _busy = true; re();
+  try { await fetch(`${API}/api/playlist/${_venueId}/group/${groupId}`, { method: 'DELETE', headers: hdrs() }); } catch {}
+  _busy = false; _openGroup = null;
+  await load();
+}
+
+async function openGroupReport(groupId) {
+  _report = { loading: true, group: true }; re();
+  try {
+    const r = await fetch(`${API}/api/playlist/${_venueId}/group/${groupId}/report`, { headers: hdrs() });
+    const d = await r.json();
+    _report = (r.ok && !d.error) ? { data: d, group: true } : { error: d.error || 'Помилка' };
+  } catch { _report = { error: 'Мережева помилка' }; }
+  re();
+}
+
 async function copyReport() {
   if (!_report?.data) return;
-  const txt = reportText(_report.data);
+  const txt = reportText(_report.data, !!_report.group);
   try {
     await navigator.clipboard.writeText(txt);
     const el = document.getElementById('pl-copy-btn');
@@ -287,14 +335,23 @@ function body() {
     inner = `<div class="pl-err">${_error}</div>`;
   } else {
     const d = _data || { items: [], leaderboard: [] };
-    const addBtn = isToday
-      ? `<button class="pl-add" onclick="window.__pl.openAdd()">
+    const ungroupedCount = (d.items || []).filter(it => !it.groupId && it.id).length;
+    const addBtn = !isToday ? '' : (_selectMode
+      ? `<div style="display:flex;gap:8px;margin-bottom:10px">
+           <button class="pl-add" style="flex:1;background:var(--bg2)" onclick="window.__pl.selectMode()">Скасувати</button>
+           <button class="pl-add" style="flex:1;${_selected.size ? '' : 'opacity:.5'}" ${_selected.size ? '' : 'disabled'} onclick="window.__pl.openGrp()">Згрупувати (${_selected.size})</button>
+         </div>`
+      : `<button class="pl-add" onclick="window.__pl.openAdd()">
            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
            Додати страву
-         </button>` : '';
+         </button>
+         ${ungroupedCount >= 2 ? `<button class="pl-add" style="background:var(--bg2);margin-top:8px" onclick="window.__pl.selectMode()">
+           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+           Згрупувати страви
+         </button>` : ''}`);
 
     const itemsBlock = (d.items || []).length
-      ? d.items.map(itemCard).join('')
+      ? renderItems(d.items)
       : `<div class="pl-empty">
            <div class="pl-empty-i">🎯</div>
            <div class="pl-empty-t">${isToday
@@ -302,7 +359,7 @@ function body() {
               : 'Цього дня не було позицій у плей-листі.'}</div>
          </div>`;
 
-    const lb = (d.items || []).length && (d.leaderboard || []).length
+    const lb = !_selectMode && (d.items || []).length && (d.leaderboard || []).length
       ? `<div class="pl-sec">Лідери продажів плей-листа</div>
          <div class="pl-lb">
            ${d.leaderboard.map((w, i) => `<div class="pl-lbrow">
@@ -351,7 +408,8 @@ function body() {
     ${inner}
   </div>
   ${_addOpen ? addSheet() : ''}
-  ${histSheet()}`;
+  ${histSheet()}
+  ${grpSheet()}`;
 }
 
 function addSheet() {
@@ -424,14 +482,22 @@ function histSheet() {
   let listHtml;
   if (_histLoading) listHtml = `<div class="pl-spin"></div>`;
   else if (!_history.length) listHtml = `<div class="pl-empty"><div class="pl-empty-t">Історія порожня.<br>Тут зʼявляться страви, період яких завершився.</div></div>`;
-  else listHtml = _history.map(it => `
-    <div class="pl-dish" onclick="window.__pl.report('${it.id}')">
-      <div style="flex:1;min-width:0">
-        <div class="pl-dish-n">${it.dishName}</div>
-        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${it.trackFrom ? fmtDate(it.trackFrom) : '—'} – ${it.trackTo ? fmtDate(it.trackTo) : '—'}</div>
-      </div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
-    </div>`).join('');
+  else {
+    const grp = new Map(); const solo = [];
+    for (const it of _history) {
+      if (it.groupId) { if (!grp.has(it.groupId)) grp.set(it.groupId, { id: it.groupId, name: it.groupName || 'Група', from: it.trackFrom, to: it.trackTo, count: 0 }); grp.get(it.groupId).count++; }
+      else solo.push(it);
+    }
+    const chev = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>`;
+    const dates = (f, t) => `${f ? fmtDate(f) : '—'} – ${t ? fmtDate(t) : '—'}`;
+    listHtml =
+      [...grp.values()].map(g => `<div class="pl-dish" onclick="window.__pl.groupReport('${g.id}')">
+        <div style="flex:1;min-width:0"><div class="pl-dish-n">📦 ${g.name}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${g.count} страв · ${dates(g.from, g.to)}</div></div>${chev}
+      </div>`).join('')
+      + solo.map(it => `<div class="pl-dish" onclick="window.__pl.report('${it.id}')">
+        <div style="flex:1;min-width:0"><div class="pl-dish-n">${it.dishName}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${dates(it.trackFrom, it.trackTo)}</div></div>${chev}
+      </div>`).join('');
+  }
   return `<div class="pl-ov" onclick="window.__pl.closeHist()">
     <div class="pl-sheet" onclick="event.stopPropagation()">
       <div class="pl-sheet-h">
@@ -452,8 +518,9 @@ function reportSheet() {
   else if (_report.error) inner = `<div class="pl-err" style="margin:12px 16px">${_report.error}</div>`;
   else {
     const d = _report.data;
+    const isG = !!_report.group;
     inner = `<div style="padding:4px 16px 20px">
-      <div style="font-size:17px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${d.dishName}</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${isG ? '📦 ' + d.groupName : d.dishName}</div>
       <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${fmtDate(d.from)} – ${fmtDate(d.to)}</div>
       <div style="display:flex;gap:10px;margin:14px 0">
         <div style="flex:1;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:12px;text-align:center">
@@ -465,10 +532,11 @@ function reportSheet() {
           <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">СУМА</div>
         </div>
       </div>
-      ${d.waiters && d.waiters.length ? `
-      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:8px;letter-spacing:.05em">ПО ОФІЦІАНТАХ</div>
-      ${d.waiters.map(w => `<div class="pl-wrow"><div class="pl-av">${initials(w.name)}</div><div class="pl-wname">${w.name}</div><div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(w.sum)}</div></div>`).join('')}
-      ` : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Продажів за цей період не знайдено</div>`}
+      ${isG
+        ? `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:8px;letter-spacing:.05em">ПО СТРАВАХ</div>${(d.dishes || []).map(x => `<div class="pl-wrow"><div class="pl-wname" style="margin-left:0">${x.dishName}</div><div class="pl-wqty">${Math.round(x.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(x.sum)}</div></div>`).join('')}`
+        : (d.waiters && d.waiters.length
+            ? `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:8px;letter-spacing:.05em">ПО ОФІЦІАНТАХ</div>${d.waiters.map(w => `<div class="pl-wrow"><div class="pl-av">${initials(w.name)}</div><div class="pl-wname">${w.name}</div><div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(w.sum)}</div></div>`).join('')}`
+            : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Продажів за цей період не знайдено</div>`)}
       <button id="pl-copy-btn" onclick="window.__pl.copy()" style="width:100%;height:50px;margin-top:18px;background:var(--purple);border:none;border-radius:14px;font-size:14px;font-weight:600;color:#fff;font-family:var(--font-h);cursor:pointer">Копіювати</button>
     </div>`;
   }
@@ -485,6 +553,76 @@ function reportSheet() {
   </div>`;
 }
 
+function renderItems(items) {
+  const isToday = _date === todayKyiv();
+  const groupMap = new Map();
+  const standalone = [];
+  for (const it of items) {
+    if (it.groupId) {
+      if (!groupMap.has(it.groupId)) groupMap.set(it.groupId, { id: it.groupId, name: it.groupName || 'Група', items: [] });
+      groupMap.get(it.groupId).items.push(it);
+    } else standalone.push(it);
+  }
+  let html = '';
+  for (const g of groupMap.values()) {
+    const totQty = g.items.reduce((s, x) => s + (x.soldQty || 0), 0);
+    const totSum = g.items.reduce((s, x) => s + (x.soldSum || 0), 0);
+    const open = _openGroup === g.id;
+    html += `<div class="pl-card" style="border:0.5px solid var(--purple-border);background:rgba(168,139,255,.05)">
+      <div class="pl-row" onclick="window.__pl.toggleGroup('${g.id}')">
+        <div style="flex:1;min-width:0">
+          <div class="pl-name">📦 ${g.name}</div>
+          <div class="pl-meta">${g.items.length} страв · ${money(totSum)}</div>
+        </div>
+        <div><div class="pl-qty">${Math.round(totQty)}</div><div class="pl-qty-lbl">шт продано</div></div>
+        ${isToday ? `<div class="pl-del" onclick="event.stopPropagation();window.__pl.ungroup('${g.id}')" title="Розгрупувати"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>` : ''}
+        <svg class="pl-chev ${open ? 'open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+      ${open ? `<div style="padding:2px 6px 8px;display:flex;flex-direction:column;gap:4px">
+        ${g.items.map(it => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:10px">
+          <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.dishName}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${Math.round(it.soldQty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div>
+        </div>`).join('')}
+      </div>` : ''}
+    </div>`;
+  }
+  if (_selectMode) {
+    html += standalone.filter(it => it.id).map(it => `<div class="pl-card"><div class="pl-row" onclick="window.__pl.selRow('${it.id}')" style="cursor:pointer">
+      <div style="width:22px;height:22px;border-radius:7px;border:2px solid ${_selected.has(it.id) ? 'var(--purple)' : 'var(--border2)'};background:${_selected.has(it.id) ? 'var(--purple)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px">${_selected.has(it.id) ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>' : ''}</div>
+      <div style="flex:1;min-width:0"><div class="pl-name">${it.dishName}</div></div>
+      <div class="pl-qty">${Math.round(it.soldQty)}</div>
+    </div></div>`).join('');
+  } else {
+    html += standalone.map(it => itemCard(it)).join('');
+  }
+  return html;
+}
+
+function grpSheet() {
+  if (!_grpOpen) return '';
+  const inp = `width:100%;height:48px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;color:var(--text0);font-size:15px;padding:0 12px;box-sizing:border-box;font-family:var(--font-h);outline:none`;
+  return `<div class="pl-ov" style="z-index:80" onclick="window.__pl.closeGrp()">
+    <div class="pl-sheet" onclick="event.stopPropagation()">
+      <div class="pl-sheet-h">
+        <div class="pl-close" onclick="window.__pl.closeGrp()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        <div class="pl-sheet-t">Нова група · ${_selected.size} страв</div>
+      </div>
+      <div style="padding:16px 16px 24px">
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">Назва групи</div>
+        <input id="pl-grp-name" type="text" placeholder="Напр. Промо Aperol" value="${_grpName.replace(/"/g, '&quot;')}" oninput="window.__pl.grpName(this.value)" style="${inp};margin-bottom:14px"/>
+        <div style="display:flex;gap:10px">
+          <label style="flex:1"><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">Відстежувати з</div>
+            <input type="date" value="${_grpFrom}" onchange="window.__pl.grpFrom(this.value)" style="${inp}"/></label>
+          <label style="flex:1"><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:5px">По (необовʼязково)</div>
+            <input type="date" value="${_grpTo}" min="${_grpFrom}" onchange="window.__pl.grpTo(this.value)" style="${inp}"/></label>
+        </div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin:8px 0 18px;line-height:1.5">Спільний період для всіх страв набору. Після завершення група перейде в Історію зі зведеним звітом.</div>
+        <button onclick="window.__pl.createGroup()" ${(_busy || !_grpName.trim()) ? 'disabled' : ''} style="width:100%;height:52px;background:var(--purple);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#fff;font-family:var(--font-h);cursor:pointer;opacity:${(_busy || !_grpName.trim()) ? '.55' : '1'}">${_busy ? 'Створюю…' : 'Створити групу'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 export default {
   render() {
     _loading = true; _error = ''; _data = null; _openDish = null;
@@ -492,6 +630,7 @@ export default {
     _addOpen = false; _dishes = []; _dishesLoaded = false; _dishesLoading = false; _dishesErr = ''; _query = ''; _busy = false;
     _addDish = null; _addFrom = ''; _addTo = '';
     _histOpen = false; _history = []; _histLoading = false; _report = null;
+    _selectMode = false; _selected = new Set(); _grpOpen = false; _grpName = ''; _grpFrom = ''; _grpTo = ''; _openGroup = null;
     return `${CSS}<div class="pl-wrap" id="pl-root">${body()}</div>`;
   },
   init() {
@@ -516,8 +655,20 @@ export default {
       openHist:  () => { _histOpen = true; re(); loadHistory(); },
       closeHist: () => { _histOpen = false; _report = null; re(); },
       report:    (id) => openReport(id),
+      groupReport: (gid) => openGroupReport(gid),
       closeReport: () => { _report = null; re(); },
       copy:      () => copyReport(),
+      // групування
+      selectMode: () => toggleSelectMode(),
+      selRow:     (id) => toggleSelect(id),
+      toggleGroup:(gid) => { _openGroup = _openGroup === gid ? null : gid; re(); },
+      ungroup:    (gid) => ungroup(gid),
+      openGrp:    () => openGroupSheet(),
+      closeGrp:   () => { _grpOpen = false; re(); },
+      grpName:    (v) => { _grpName = v; },
+      grpFrom:    (v) => { _grpFrom = v; if (_grpTo && _grpTo < v) _grpTo = ''; },
+      grpTo:      (v) => { _grpTo = v; },
+      createGroup:() => createGroup(),
       add:       (name) => addDish(name),
       remove:    (id) => removeItem(id),
     };
