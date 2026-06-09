@@ -59,10 +59,12 @@ let _mgrTo      = '';
 let _succOpen   = false;
 let _transfers  = [];          // переміщення бар↔кухня (localStorage barops_transfers_v1)
 let _formMode   = 'writeoff';  // 'writeoff' | 'transfer' — режим форми
+let _transferDir = 'bar2kitchen'; // напрямок для admin: 'bar2kitchen' | 'kitchen2bar'
 
-// Напрямок переміщення за роллю: кухар кухня→бар; решта (бармен) бар→кухня
+// Напрямок переміщення: кухар кухня→бар; admin обирає сам (_transferDir); решта (бармен) бар→кухня
 function transferDir() {
   const r = (state.role || '').toLowerCase();
+  if (r === 'admin') return _transferDir === 'kitchen2bar' ? { from: 'Кухня', to: 'Бар' } : { from: 'Бар', to: 'Кухня' };
   return (r === 'cook' || r === 'chef') ? { from: 'Кухня', to: 'Бар' } : { from: 'Бар', to: 'Кухня' };
 }
 
@@ -1177,6 +1179,45 @@ function renderManager() {
       </div>
     </div>
 
+    <!-- Переміщення бар↔кухня (менеджер/адмін) -->
+    <div class="wo-sec" style="padding-top:14px">Переміщення бар↔кухня</div>
+    <div style="padding:0 14px">
+      ${(state.role||'').toLowerCase()==='admin' ? `
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button onclick="window.__wo.setTransferDir('bar2kitchen')" style="flex:1;height:34px;border-radius:10px;border:0.5px solid ${_transferDir!=='kitchen2bar'?'var(--teal,#2DD4BF)':'var(--border)'};background:${_transferDir!=='kitchen2bar'?'var(--teal-bg,rgba(45,212,191,.12))':'transparent'};color:${_transferDir!=='kitchen2bar'?'var(--teal,#2DD4BF)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Бар → Кухня</button>
+        <button onclick="window.__wo.setTransferDir('kitchen2bar')" style="flex:1;height:34px;border-radius:10px;border:0.5px solid ${_transferDir==='kitchen2bar'?'var(--teal,#2DD4BF)':'var(--border)'};background:${_transferDir==='kitchen2bar'?'var(--teal-bg,rgba(45,212,191,.12))':'transparent'};color:${_transferDir==='kitchen2bar'?'var(--teal,#2DD4BF)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Кухня → Бар</button>
+      </div>` : ''}
+      <div class="wo-add" style="border-color:var(--teal-border,rgba(45,212,191,.35))" onclick="window.__wo.openForm('transfer')">
+        <div class="wo-add-icon" style="background:var(--teal-bg,rgba(45,212,191,.12))">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 6h8M8 3l3 3-3 3M13 10H5M8 13l-3-3 3-3" stroke="var(--teal,#2DD4BF)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="wo-add-text">Зафіксувати переміщення</div>
+          <div class="wo-add-sub">${transferDir().from} → ${transferDir().to} (внутрішнє)</div>
+        </div>
+      </div>
+    </div>
+    ${(() => {
+      const pend = _transfers.filter(t => t.prodId && !t.sentAt);
+      const dir  = transferDir();
+      if (!_transfers.length) return '';
+      return `
+      <div class="wo-list" style="margin-top:8px">${transferListHTML()}</div>
+      <div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--teal-bg,rgba(45,212,191,.12));border:0.5px solid var(--teal-border,rgba(45,212,191,.35));display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 7h9M9 4l3 3-3 3M15 11H6M9 14l-3-3 3-3" stroke="var(--teal,#2DD4BF)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Переміщення на Syrve</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${pend.length ? `${pend.length} поз. · ${dir.from} → ${dir.to}` : 'Немає нових позицій'}</div>
+        </div>
+        <button id="wo-transfer-btn" onclick="window.__wo.sendTransferToSyrve()" ${!pend.length ? 'disabled' : ''}
+          style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--teal-border,rgba(45,212,191,.35));background:${pend.length ? 'var(--teal-bg,rgba(45,212,191,.12))' : 'var(--bg2)'};color:${pend.length ? 'var(--teal,#2DD4BF)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${pend.length ? 'pointer' : 'default'};white-space:nowrap">
+          Надіслати
+        </button>
+      </div>`;
+    })()}
+
     <!-- Syrve Office -->
     <div class="wo-sec" style="padding-top:14px">Syrve Office</div>
     <div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
@@ -1615,6 +1656,8 @@ function deleteTransfer(id) {
   fullRender();
 }
 
+function setTransferDir(d) { _transferDir = (d === 'kitchen2bar') ? 'kitchen2bar' : 'bar2kitchen'; fullRender(); }
+
 async function submitTransfer() {
   const vol  = _selVol || 0;
   const unit = _selUnit || _selProd?.unit || 'l';
@@ -1653,10 +1696,12 @@ async function sendTransferToSyrve() {
   const btn = document.getElementById('wo-transfer-btn');
   if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
   try {
+    const payload = { items: pend.map(t => ({ productId: t.prodId, amount: t.volNum, unitKey: t.unitKey })) };
+    if ((state.role || '').toLowerCase() === 'admin') payload.dir = _transferDir;  // admin обирає напрямок
     const res = await fetch(`${API}/api/pos/transfer-act/${vId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ items: pend.map(t => ({ productId: t.prodId, amount: t.volNum, unitKey: t.unitKey })) }),
+      body: JSON.stringify(payload),
     });
     const d = await res.json().catch(() => ({}));
     if (res.ok && d.success) {
@@ -2176,7 +2221,7 @@ export default {
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
       deleteWriteoff,
-      sendTransferToSyrve, deleteTransfer,
+      sendTransferToSyrve, deleteTransfer, setTransferDir,
     };
     initSwipe();
     initContextMenu();
