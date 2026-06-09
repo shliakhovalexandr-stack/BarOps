@@ -535,13 +535,14 @@ ${CSS}
     ${isMgr && s ? (() => {
       const syr      = _syrveStats;
       const syrReady = !!syr;                              // відповідь Syrve прийшла
-      const revReady = syrReady && syr.revenue  != null;  // є виторг
-      const invReady = syrReady && syr.invoices != null;  // є накладні
+      const revReady = syrReady && syr.revenue != null;   // є виторг
       const skel     = `<div class="d-skel" style="height:26px;width:72%;border-radius:7px;margin:1px 0 3px"></div>`;
       const posNote  = syr?.posBusy ? 'POS зайнятий · оновіть' : syr?.posOff ? 'POS не підключено' : '';
       const woCount  = s.writeoffs?.count ?? 0;
       const woWord   = woCount === 1 ? 'акт' : (woCount >= 2 && woCount <= 4) ? 'акти' : 'актів';
       const woCats   = Object.entries(s.writeoffs?.byCategory || {}).map(([k,v])=>`${k}: ${v}`).join(' · ');
+      const invCount = s.invoices?.count ?? 0;
+      const invWord  = invCount === 1 ? 'накладна' : (invCount >= 2 && invCount <= 4) ? 'накладні' : 'накладних';
       return `
     <div class="d-sec" style="padding-top:16px">Аналітика зміни</div>
     <div class="d-mgr-grid">
@@ -553,9 +554,8 @@ ${CSS}
       </div>
       <div class="d-mgr-card">
         <div class="d-mgr-card-title">Накладні · сьогодні</div>
-        ${invReady ? `<div class="d-mgr-num" style="color:var(--text0)">${fmtMoney(syr.invoices.total)}</div>`
-          : syrReady ? `<div class="d-mgr-num" style="color:var(--text2);font-size:20px">—</div>` : skel}
-        <div class="d-mgr-sub">${invReady ? `${syr.invoices.count} накладних` : (posNote || 'прибуткові накладні')}</div>
+        <div class="d-mgr-num" style="color:var(--text0)">${fmtMoney(s.invoices?.total)}</div>
+        <div class="d-mgr-sub">${invCount > 0 ? `${invCount} ${invWord} · через BarOps` : 'через BarOps'}</div>
       </div>
       <div class="d-mgr-card">
         <div class="d-mgr-card-title">Списання · сьогодні</div>
