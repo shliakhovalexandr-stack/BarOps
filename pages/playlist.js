@@ -33,6 +33,8 @@ let _history      = [];
 let _histLoading  = false;
 let _report       = null;   // { loading } | { data, group? } | { error }
 let _repTab       = 'dishes'; // вкладка звіту групи: 'dishes' | 'waiters' | 'days'
+let _groupTab     = 'dishes'; // швидкий перемикач у розгорнутій активній групі
+let _openDay      = null;     // розгорнутий день у вкладці «Дні»
 // Групування
 let _selectMode   = false;
 let _selected     = new Set();
@@ -269,7 +271,7 @@ async function ungroup(groupId) {
 }
 
 async function openGroupReport(groupId) {
-  _repTab = 'dishes';
+  _repTab = 'dishes'; _openDay = null;
   _report = { loading: true, group: true }; re();
   try {
     const r = await fetch(`${API}/api/playlist/${_venueId}/group/${groupId}/report`, { headers: hdrs() });
@@ -536,7 +538,19 @@ function groupTabContent(d) {
   if (_repTab === 'days') {
     const ds = d.days || [];
     if (!ds.length) return lbl('ПО ДНЯХ') + `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Немає продажів по днях</div>`;
-    return lbl('ПО ДНЯХ') + ds.map(x => `<div class="pl-wrow"><div class="pl-wname" style="margin-left:0">${fmtDate(x.date)}</div><div class="pl-wqty">${Math.round(x.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(x.sum)}</div></div>`).join('');
+    return lbl('ПО ДНЯХ (тап — деталі)') + ds.map(x => {
+      const dop = _openDay === x.date;
+      return `<div>
+        <div class="pl-wrow" onclick="window.__pl.toggleDay('${x.date}')" style="cursor:pointer">
+          <div class="pl-wname" style="margin-left:0">${fmtDate(x.date)}</div>
+          <div class="pl-wqty">${Math.round(x.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(x.sum)}</div>
+          <svg class="pl-chev ${dop ? 'open' : ''}" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" style="margin-left:6px"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        ${dop ? `<div style="padding:2px 4px 8px;display:flex;flex-direction:column;gap:3px">${(x.waiters || []).length
+          ? x.waiters.map((w, i) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 9px;background:var(--bg2);border-radius:8px;font-size:12px;font-family:var(--font-b)"><span style="color:var(--text1)">${i === 0 ? '🥇 ' : ''}${w.name}</span><span style="color:var(--text0);font-weight:600;font-family:var(--font-h)">${Math.round(w.qty)} шт · ${money(w.sum)}</span></div>`).join('')
+          : '<div style="font-size:11px;color:var(--text2);padding:4px 9px">Без офіціанта</div>'}</div>` : ''}
+      </div>`;
+    }).join('');
   }
   const xs = d.dishes || [];
   return lbl('ПО СТРАВАХ') + xs.map(x => `<div class="pl-wrow"><div class="pl-wname" style="margin-left:0">${x.dishName}</div><div class="pl-wqty">${Math.round(x.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(x.sum)}</div></div>`).join('');
@@ -611,14 +625,33 @@ function renderItems(items) {
         ${isToday ? `<div class="pl-del" onclick="event.stopPropagation();window.__pl.ungroup('${g.id}')" title="Розгрупувати"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>` : ''}
         <svg class="pl-chev ${open ? 'open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
       </div>
-      ${open ? `<div style="padding:2px 6px 10px;display:flex;flex-direction:column;gap:4px">
-        ${g.items.map(it => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:10px">
-          <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.dishName}</div>
-          <div style="font-size:13px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${Math.round(it.soldQty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div>
-        </div>`).join('')}
-        <button onclick="window.__pl.groupReport('${g.id}')" style="margin-top:6px;height:42px;background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:11px;color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-h);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg> Звіт продажів · офіціанти, дні
-        </button>
+      ${open ? `<div style="padding:2px 6px 10px">
+        <div style="display:flex;gap:4px;margin-bottom:8px;background:var(--bg2);border-radius:9px;padding:3px">
+          <button onclick="event.stopPropagation();window.__pl.groupTab('dishes')" style="flex:1;height:30px;border-radius:7px;border:none;font-size:12px;font-family:var(--font-b);cursor:pointer;background:${_groupTab !== 'waiters' ? 'var(--purple)' : 'transparent'};color:${_groupTab !== 'waiters' ? '#fff' : 'var(--text2)'}">Страви</button>
+          <button onclick="event.stopPropagation();window.__pl.groupTab('waiters')" style="flex:1;height:30px;border-radius:7px;border:none;font-size:12px;font-family:var(--font-b);cursor:pointer;background:${_groupTab === 'waiters' ? 'var(--purple)' : 'transparent'};color:${_groupTab === 'waiters' ? '#fff' : 'var(--text2)'}">Офіціанти</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${_groupTab === 'waiters'
+            ? (() => {
+                const wmap = {};
+                for (const it of g.items) for (const w of (it.byWaiter || [])) { const e = wmap[w.name] || { name: w.name, qty: 0, sum: 0 }; e.qty += w.qty; e.sum += (w.sum || 0); wmap[w.name] = e; }
+                const ws = Object.values(wmap).sort((a, b) => b.qty - a.qty);
+                return ws.length
+                  ? ws.map((w, i) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:10px">
+                      <div style="width:20px;text-align:center;font-size:13px">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}</div>
+                      <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.name}</div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div>
+                    </div>`).join('')
+                  : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:4px 2px">Ще ніхто не продав із набору ${isToday ? 'сьогодні' : 'цього дня'}</div>`;
+              })()
+            : g.items.map(it => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:10px">
+                <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.dishName}</div>
+                <div style="font-size:13px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${Math.round(it.soldQty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div>
+              </div>`).join('')}
+          <button onclick="window.__pl.groupReport('${g.id}')" style="margin-top:6px;height:42px;background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:11px;color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-h);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg> Повний звіт за період
+          </button>
+        </div>
       </div>` : ''}
     </div>`;
   }
@@ -728,6 +761,7 @@ export default {
     _histOpen = false; _history = []; _histLoading = false; _report = null;
     _selectMode = false; _selected = new Set(); _grpOpen = false; _grpName = ''; _grpFrom = ''; _grpTo = ''; _openGroup = null;
     _dpField = null; _dpMonth = '';
+    _repTab = 'dishes'; _groupTab = 'dishes'; _openDay = null;
     return `${CSS}<div class="pl-wrap" id="pl-root">${body()}</div>`;
   },
   init() {
@@ -753,13 +787,15 @@ export default {
       closeHist: () => { _histOpen = false; _report = null; re(); },
       report:    (id) => openReport(id),
       groupReport: (gid) => openGroupReport(gid),
-      repTab:    (t) => { _repTab = t; re(); },
+      repTab:    (t) => { _repTab = t; _openDay = null; re(); },
       closeReport: () => { _report = null; re(); },
       copy:      () => copyReport(),
       // групування
       selectMode: () => toggleSelectMode(),
       selRow:     (id) => toggleSelect(id),
-      toggleGroup:(gid) => { _openGroup = _openGroup === gid ? null : gid; re(); },
+      toggleGroup:(gid) => { _openGroup = _openGroup === gid ? null : gid; _groupTab = 'dishes'; re(); },
+      groupTab:   (t) => { _groupTab = t; re(); },
+      toggleDay:  (ds) => { _openDay = _openDay === ds ? null : ds; re(); },
       ungroup:    (gid) => ungroup(gid),
       openGrp:    () => openGroupSheet(),
       closeGrp:   () => { _grpOpen = false; re(); },
