@@ -204,13 +204,20 @@ function computeL(pid, full, partial) {
   return Math.max(0, fullL + partialL);
 }
 
-function modeOf(pid) { return _configs[pid]?.mode || 'sht'; }
+function modeOf(pid) {
+  if (_configs[pid]?.mode) return _configs[pid].mode;
+  const p = _balance.find(x => x.id === pid);
+  const u = (p?.unit || '').toLowerCase();
+  if (u === 'шт' || u === 'sht' || /порц|штук/.test(u)) return 'sht';  // штучні
+  return 'ml';   // рідина без налаштувань → ручний ввід мл
+}
 
 function isCounted(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
   if (m === 'kg_to_l') return (c.full || 0) > 0 || (c.partial || '') !== '';
   if (m === 'kg')      return (c.kg || '') !== '';
+  if (m === 'ml')      return (c.ml || '') !== '';
   return (c.sht || 0) > 0;
 }
 
@@ -219,6 +226,7 @@ function getResult(pid) {
   const m = modeOf(pid);
   if (m === 'kg_to_l') return computeL(pid, c.full || 0, c.partial || '');
   if (m === 'kg')      return parseFloat(c.kg) || 0;
+  if (m === 'ml')      return (parseFloat(c.ml) || 0) / 1000;   // мл → л
   return (c.sht || 0);
 }
 
@@ -265,7 +273,9 @@ function bindLiveInputs() {
 
 function updateConvDisplay(pid) {
   const c   = _counts[pid] || {};
-  const res = computeL(pid, c.full || 0, c.partial || '');
+  const res = modeOf(pid) === 'ml'
+    ? (parseFloat(c.ml) || 0) / 1000
+    : computeL(pid, c.full || 0, c.partial || '');
   const el  = document.getElementById(`inv-conv-res-${pid}`);
   if (el) el.textContent = res.toFixed(3);
 }
@@ -576,6 +586,7 @@ function productRowHTML(p) {
 
   let resultLabel = counted
     ? (m === 'kg_to_l' ? `${result.toFixed(2)} л`
+       : m === 'ml'    ? `${result.toFixed(2)} л`
        : m === 'kg'    ? `${result.toFixed(3)} кг`
                        : `${result} шт`)
     : null;
@@ -605,6 +616,7 @@ function modePillsHTML(pid, m) {
   return `
     <div class="inv-mode-pills">
       <button class="inv-mode-pill${m==='sht'?' act':''}" data-a="mode-sht" data-pid="${pid}">пляшки</button>
+      <button class="inv-mode-pill${m==='ml'?' act':''}"  data-a="mode-ml"  data-pid="${pid}">вручну</button>
       <button class="inv-mode-pill${m==='kg'?' act':''}"  data-a="mode-kg"  data-pid="${pid}">грами</button>
       <button class="inv-mode-pill${m==='kg_to_l'?' act':''}" data-a="mode-kg_to_l" data-pid="${pid}">літри</button>
     </div>
@@ -654,6 +666,27 @@ function inputPanelHTML(p, c, m) {
         <input class="inv-field" type="number" inputmode="decimal" step="0.001"
           placeholder="0.000" value="${c.kg || ''}"
           data-live-inp="kg" data-pid="${p.id}">
+        ${modePillsHTML(p.id, m)}
+        <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
+      </div>
+    `;
+  }
+
+  if (m === 'ml') {
+    const result = (parseFloat(c.ml) || 0) / 1000;
+    return `
+      <div class="inv-ipanel">
+        <div class="inv-inp-lbl">Залишок (мл)</div>
+        <input class="inv-field" type="number" inputmode="decimal" step="1"
+          placeholder="0" value="${c.ml || ''}"
+          data-live-inp="ml" data-pid="${p.id}">
+        <div class="inv-conv">
+          <div class="inv-conv-formula">Ручний ввід · без зважування й тари</div>
+          <div style="text-align:right">
+            <div class="inv-conv-result" id="inv-conv-res-${p.id}">${result.toFixed(3)}</div>
+            <div class="inv-conv-unit">літрів</div>
+          </div>
+        </div>
         ${modePillsHTML(p.id, m)}
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
@@ -974,6 +1007,7 @@ function on(e) {
 
   /* ── BAR: mode pills ── */
   if (a === 'mode-sht')    { quickMode(pid, 'sht');    return; }
+  if (a === 'mode-ml')     { quickMode(pid, 'ml');     return; }
   if (a === 'mode-kg')     { quickMode(pid, 'kg');     return; }
   if (a === 'mode-kg_to_l'){ quickMode(pid, 'kg_to_l'); return; }
 
