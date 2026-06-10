@@ -359,7 +359,12 @@ function nextScheduled() {
 
 function re() {
   const el = document.getElementById('inv-root');
-  if (el) el.innerHTML = buildPage();
+  if (!el) return;
+  const prev = document.getElementById('inv-scroll');
+  const top  = prev ? prev.scrollTop : 0;   // зберігаємо вертикальний скрол через перемальовку
+  el.innerHTML = buildPage();
+  const next = document.getElementById('inv-scroll');
+  if (next) next.scrollTop = top;
   bindLiveInputs();
 }
 
