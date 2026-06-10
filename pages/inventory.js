@@ -1143,7 +1143,7 @@ function confirmDialogHTML() {
   const c = _confirm;
   return `
     <div class="inv-cfm-overlay" data-a="confirm-cancel">
-      <div class="inv-cfm" onclick="event.stopPropagation()">
+      <div class="inv-cfm" data-a="confirm-keep">
         <div class="inv-cfm-title">${c.title || 'Підтвердження'}</div>
         <div class="inv-cfm-msg">${c.msg || ''}</div>
         <div class="inv-cfm-row">
@@ -1247,6 +1247,7 @@ function on(e) {
   /* ── MGR: session actions ── */
   if (a === 'sess-open')   { _confirm = { title: 'Відкрити сесію', msg: 'Відкрити сесію для рахунку? Бармени зможуть вводити дані.', okLabel: 'Відкрити', run: () => changeStatus(sid, 'open') }; re(); return; }
   if (a === 'sess-delete') { _confirm = { title: 'Видалити сесію', msg: 'Видалити сесію? Введені дані рахунку буде втрачено.', okLabel: 'Видалити', danger: true, run: () => deleteSession(sid) }; re(); return; }
+  if (a === 'confirm-keep')   { return; }   // клік усередині вікна — нічого не робимо (закриває лише тло/кнопки)
   if (a === 'confirm-cancel') { _confirm = null; re(); return; }
   if (a === 'confirm-ok')     { const run = _confirm?.run; _confirm = null; re(); if (run) run(); return; }
 
