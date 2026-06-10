@@ -117,14 +117,12 @@ const CSS = `<style id="inv-css">
 .inv-stbtn{width:44px;height:44px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;font-size:20px;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
 .inv-stbtn:active{background:rgba(255,255,255,.08)}
 .inv-stdisp{flex:1;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
-.inv-mode-pills{display:flex;gap:6px}
-.inv-mode-pill{flex:1;padding:7px 0;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer}
-.inv-mode-pill.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .inv-save-next{width:100%;height:42px;border-radius:11px;background:var(--green);color:#000;border:none;font-size:13px;font-weight:600;cursor:pointer}
 .inv-conv{background:var(--bg2);border:0.5px solid var(--green-border);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
 .inv-conv-formula{font-size:11px;color:var(--text2);line-height:1.4}
 .inv-conv-result{font-size:20px;font-weight:700;color:var(--green)}
 .inv-conv-unit{font-size:11px;color:var(--text2);margin-top:2px;text-align:right}
+.inv-syrve-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);text-align:center}
 
 /* Actions */
 .inv-actions{padding:8px 20px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
@@ -287,7 +285,7 @@ function getResult(pid) {
   const m = modeOf(pid);
   if (m === 'kg_to_l') return computeL(pid, c.full || 0, c.partial || '');
   if (m === 'kg')      return parseFloat(c.kg) || 0;
-  if (m === 'ml')      return (parseFloat(c.ml) || 0) / 1000;   // мл → л
+  if (m === 'ml')      return parseFloat(c.ml) || 0;            // ручний ввід одразу в літрах
   return (c.sht || 0);
 }
 
@@ -339,10 +337,9 @@ function bindLiveInputs() {
 }
 
 function updateConvDisplay(pid) {
+  if (modeOf(pid) !== 'kg_to_l') return;   // лише режим зважування з тарою має live-перерахунок
   const c   = _counts[pid] || {};
-  const res = modeOf(pid) === 'ml'
-    ? (parseFloat(c.ml) || 0) / 1000
-    : computeL(pid, c.full || 0, c.partial || '');
+  const res = computeL(pid, c.full || 0, c.partial || '');
   const el  = document.getElementById(`inv-conv-res-${pid}`);
   if (el) el.textContent = res.toFixed(3);
 }
@@ -410,6 +407,7 @@ async function loadAll() {
           if (!_counts[item.productId]) {
             if (m === 'kg_to_l') _counts[item.productId] = { full: 0, partial: '' };
             else if (m === 'kg') _counts[item.productId] = { kg: item.countedQty ? String(item.countedQty) : '' };
+            else if (m === 'ml') _counts[item.productId] = { ml: item.countedQty ? String(item.countedQty) : '' };
             else                 _counts[item.productId] = { sht: item.countedQty || 0 };
           }
         }
@@ -721,19 +719,8 @@ function productRowHTML(p) {
   `;
 }
 
-function modePillsHTML(pid, m) {
-  const u = (_balance.find(x => x.id === pid) || {}).unit || '';
-  return `
-    ${u ? `<div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:8px 0 5px">Одиниця в Syrve: <b style="color:var(--text2)">${u}</b></div>` : ''}
-    <div class="inv-mode-pills">
-      <button class="inv-mode-pill${m==='sht'?' act':''}" data-a="mode-sht" data-pid="${pid}">пляшки</button>
-      <button class="inv-mode-pill${m==='ml'?' act':''}"  data-a="mode-ml"  data-pid="${pid}">вручну</button>
-      <button class="inv-mode-pill${m==='kg'?' act':''}"  data-a="mode-kg"  data-pid="${pid}">грами</button>
-      <button class="inv-mode-pill${m==='kg_to_l'?' act':''}" data-a="mode-kg_to_l" data-pid="${pid}">літри</button>
-    </div>
-  `;
-}
-
+// Ввід у вкладці «Рахунок». Спосіб (mode) задає менеджер у «Одиниці» — тут перемикача немає,
+// бармен бачить лише потрібне поле в одиниці Syrve. Рідина → одразу в літрах.
 function inputPanelHTML(p, c, m) {
   if (m === 'kg_to_l') {
     const cfg = _configs[p.id] || {};
@@ -741,30 +728,26 @@ function inputPanelHTML(p, c, m) {
     const hasCfg = cfg.bottleVolL > 0;
     return `
       <div class="inv-ipanel">
-        <div class="inv-inp-lbl">Цілі пляшки</div>
+        <div class="inv-inp-lbl">Цілі пляшки (шт)</div>
         <div class="inv-stepper">
           <button class="inv-stbtn" data-a="full-dec" data-pid="${p.id}">−</button>
           <div class="inv-stdisp" id="inv-full-${p.id}">${c.full || 0}</div>
           <button class="inv-stbtn" data-a="full-inc" data-pid="${p.id}">+</button>
         </div>
-        <div class="inv-inp-lbl">Залишок (кг)</div>
+        <div class="inv-inp-lbl">Відкрита тара — зважити (кг)</div>
         <input class="inv-field" type="text" inputmode="decimal"
           placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг` : '0.000'}"
           value="${c.partial || ''}"
           data-live-inp="partial" data-pid="${p.id}">
         <div class="inv-conv">
           <div class="inv-conv-formula">
-            ${hasCfg
-              ? `(${c.full||0} × ${cfg.bottleVolL} л) + формула`
-              : `<span style="color:var(--amber)">⚠ Налаштуйте тару</span>`
-            }
+            ${hasCfg ? `Зважування з тарою → літри` : `<span style="color:var(--amber)">⚠ Тару задає менеджер</span>`}
           </div>
           <div style="text-align:right">
             <div class="inv-conv-result" id="inv-conv-res-${p.id}">${result.toFixed(3)}</div>
-            <div class="inv-conv-unit">літрів</div>
+            <div class="inv-conv-unit">→ в Syrve, л</div>
           </div>
         </div>
-        ${modePillsHTML(p.id, m)}
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
     `;
@@ -773,32 +756,24 @@ function inputPanelHTML(p, c, m) {
   if (m === 'kg') {
     return `
       <div class="inv-ipanel">
-        <div class="inv-inp-lbl">Вага (кг)</div>
+        <div class="inv-inp-lbl">Скільки залишилось, кг</div>
         <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0.000" value="${c.kg || ''}"
           data-live-inp="kg" data-pid="${p.id}">
-        ${modePillsHTML(p.id, m)}
+        <div class="inv-syrve-hint">↳ так і піде в Syrve (кг)</div>
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
     `;
   }
 
-  if (m === 'ml') {
-    const result = (parseFloat(c.ml) || 0) / 1000;
+  if (m === 'ml') {   // ручний ввід одразу в ЛІТРАХ (база Syrve для рідини)
     return `
       <div class="inv-ipanel">
-        <div class="inv-inp-lbl">Залишок (мл)</div>
+        <div class="inv-inp-lbl">Скільки залишилось, л</div>
         <input class="inv-field" type="text" inputmode="decimal"
-          placeholder="0" value="${c.ml || ''}"
+          placeholder="0.000" value="${c.ml || ''}"
           data-live-inp="ml" data-pid="${p.id}">
-        <div class="inv-conv">
-          <div class="inv-conv-formula">Ручний ввід · без зважування й тари</div>
-          <div style="text-align:right">
-            <div class="inv-conv-result" id="inv-conv-res-${p.id}">${result.toFixed(3)}</div>
-            <div class="inv-conv-unit">літрів</div>
-          </div>
-        </div>
-        ${modePillsHTML(p.id, m)}
+        <div class="inv-syrve-hint">↳ так і піде в Syrve (л)</div>
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
     `;
@@ -806,13 +781,13 @@ function inputPanelHTML(p, c, m) {
 
   return `
     <div class="inv-ipanel">
-      <div class="inv-inp-lbl">Кількість (шт)</div>
+      <div class="inv-inp-lbl">Скільки штук</div>
       <div class="inv-stepper">
         <button class="inv-stbtn" data-a="sht-dec" data-pid="${p.id}">−</button>
         <div class="inv-stdisp" id="inv-sht-${p.id}">${c.sht || 0}</div>
         <button class="inv-stbtn" data-a="sht-inc" data-pid="${p.id}">+</button>
       </div>
-      ${modePillsHTML(p.id, m)}
+      <div class="inv-syrve-hint">↳ так і піде в Syrve (шт)</div>
       <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
     </div>
   `;
@@ -1160,12 +1135,6 @@ function on(e) {
   if (a === 'sess-delete') { _confirm = { title: 'Видалити сесію', msg: 'Видалити заплановану сесію? Дію не можна скасувати.', okLabel: 'Видалити', danger: true, run: () => deleteSession(sid) }; re(); return; }
   if (a === 'confirm-cancel') { _confirm = null; re(); return; }
   if (a === 'confirm-ok')     { const run = _confirm?.run; _confirm = null; re(); if (run) run(); return; }
-
-  /* ── BAR: mode pills ── */
-  if (a === 'mode-sht')    { quickMode(pid, 'sht');    return; }
-  if (a === 'mode-ml')     { quickMode(pid, 'ml');     return; }
-  if (a === 'mode-kg')     { quickMode(pid, 'kg');     return; }
-  if (a === 'mode-kg_to_l'){ quickMode(pid, 'kg_to_l'); return; }
 
   /* ── MGR: mode toggle ── */
   if (a === 'mode-set') { quickMode(pid, t.dataset.mode); return; }
