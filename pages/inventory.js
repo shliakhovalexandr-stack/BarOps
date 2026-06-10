@@ -58,6 +58,7 @@ let _cfgSaving       = false;
 let _cfgError        = '';
 let _submitted       = false;
 let _syrveMsg        = '';     // підтвердження створення документа в Syrve
+let _testMsg         = '';     // результат dry-run перевірки (нічого не створює)
 
 /* ════════════════════════ CSS ════════════════════════ */
 const CSS = `<style id="inv-css">
@@ -129,6 +130,9 @@ const CSS = `<style id="inv-css">
 .inv-btn-green{width:100%;height:52px;background:var(--green);border:none;border-radius:14px;font-size:15px;font-weight:600;color:#000;cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px}
 .inv-btn-green:active{opacity:.85}
 .inv-btn-green:disabled{opacity:.45;cursor:default}
+.inv-btn-test{width:100%;height:46px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:14px;font-size:14px;font-weight:600;color:var(--text1);cursor:pointer;font-family:var(--font-h);display:flex;align-items:center;justify-content:center;gap:8px}
+.inv-btn-test:active{opacity:.85}
+.inv-btn-test:disabled{opacity:.45;cursor:default}
 
 /* Manager sections */
 .inv-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 20px 8px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
@@ -454,33 +458,35 @@ async function deleteSession(sessionId) {
   re();
 }
 
-async function submitInventory() {
+async function submitInventory(dryRun) {
   const os = openSession();
   if (!os) return;
-  _saving = true; re();
+  _saving = true; _testMsg = ''; _error = ''; re();
   try {
-    const items = _balance.map(p => {
-      const m          = modeOf(p.id);
-      const countedQty = getResult(p.id);
-      const sysQty     = p.amount || 0;
-      return {
-        productId:   p.id,
-        productName: p.name,
-        countedQty,
-        systemQty:   sysQty,
-        fillPct:     sysQty > 0 ? Math.round(countedQty / sysQty * 100) : 0,
-        method:      m,
-      };
-    });
+    // dry-run: НЕ зберігаємо позиції в нашу БД — лише валідуємо документ у Syrve
+    if (!dryRun) {
+      const items = _balance.map(p => {
+        const m          = modeOf(p.id);
+        const countedQty = getResult(p.id);
+        const sysQty     = p.amount || 0;
+        return {
+          productId:   p.id,
+          productName: p.name,
+          countedQty,
+          systemQty:   sysQty,
+          fillPct:     sysQty > 0 ? Math.round(countedQty / sysQty * 100) : 0,
+          method:      m,
+        };
+      });
+      const saveRes = await fetch(`${API}/api/inventory/sessions/${os.id}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+        body: JSON.stringify({ items }),
+      });
+      if (!saveRes.ok) throw new Error('Помилка збереження позицій');
+    }
 
-    const saveRes = await fetch(`${API}/api/inventory/sessions/${os.id}/items`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-      body: JSON.stringify({ items }),
-    });
-    if (!saveRes.ok) throw new Error('Помилка збереження позицій');
-
-    // Створюємо документ інвентаризації в Syrve Office (чернетка, статус NEW)
+    // Документ інвентаризації в Syrve Office. dryRun=true → check (валідує, нічого не створює)
     const syrveItems = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
     const invRes = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
       method: 'POST',
@@ -489,12 +495,19 @@ async function submitInventory() {
         items:   syrveItems,
         date:    os.scheduledAt,
         comment: `BarOps Інвентаризація ${fmtDate(os.scheduledAt)}`,
+        dryRun:  !!dryRun,
       }),
     });
     const invD = await invRes.json().catch(() => ({}));
-    if (!invRes.ok || !invD.success) throw new Error(invD.error || 'Не вдалося створити документ у Syrve Office');
-    _syrveMsg = `Документ створено в Syrve Office · ${invD.itemCount} поз.`;
+    if (!invRes.ok || !invD.success) throw new Error(invD.error || (dryRun ? 'Перевірка не пройшла' : 'Не вдалося створити документ у Syrve Office'));
 
+    if (dryRun) {
+      _testMsg = `✓ Перевірка пройшла: Syrve прийме документ · ${invD.itemCount} поз. Нічого не створено.`;
+      _saving = false; re();
+      return;
+    }
+
+    _syrveMsg = `Документ створено в Syrve Office · ${invD.itemCount} поз.`;
     await changeStatus(os.id, 'done');
     _submitted = true; _counts = {};
   } catch (err) {
@@ -633,6 +646,7 @@ function buildBar() {
     </div>
 
     ${_error ? `<div class="inv-alert">${_error}</div>` : ''}
+    ${_testMsg ? `<div class="inv-alert" style="background:var(--green-bg);border-color:var(--green-border);color:var(--green)">${_testMsg}</div>` : ''}
     ${total === 0 ? `<div style="padding:20px 18px;font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center">Залишки Syrve не завантажено. Перевірте підключення.</div>` : ''}
 
     ${searchBoxHTML()}
@@ -645,6 +659,9 @@ function buildBar() {
     </div>
 
     <div class="inv-actions">
+      <button class="inv-btn-test" data-a="test-submit" ${_saving ? 'disabled' : ''}>
+        🧪 Тест відправки (нічого не створює)
+      </button>
       <button class="inv-btn-green" data-a="submit" ${_saving ? 'disabled' : ''}>
         ${_saving
           ? '<div class="spin-sm"></div> Зберігаємо…'
@@ -1086,6 +1103,7 @@ function on(e) {
   }
 
   /* ── BAR: submit ── */
+  if (a === 'test-submit') { submitInventory(true); return; }
   if (a === 'submit') { submitInventory(); return; }
 
   /* ── MGR: schedule ── */
@@ -1156,6 +1174,7 @@ export default {
     _view          = (_role === 'admin' || _role === 'accountant') ? 'mgr' : 'bar';
     _submitted     = false;
     _syrveMsg      = '';
+    _testMsg       = '';
     _openPid       = null;
     _showSchedForm = false;
     _calOpen       = false;
