@@ -337,11 +337,12 @@ async function loadAll() {
   _loading = true; _error = ''; re();
   try {
     const h = { Authorization: `Bearer ${_token}` };
-    const [sessRes, balRes, cfgRes, prepRes] = await Promise.all([
+    // balance — єдиний із цих, що бʼє в Syrve. ПФ вантажимо ОКРЕМО після нього (нижче),
+    // бо Syrve self-hosted має одне REST-зʼєднання → паралельний auth ПФ програє гонку й падає.
+    const [sessRes, balRes, cfgRes] = await Promise.all([
       fetch(`${API}/api/inventory/sessions?venueId=${_venueId}`, { headers: h }),
       fetch(`${API}/api/pos/balance/${_venueId}`, { headers: h }),
       fetch(`${API}/api/inventory/config?venueId=${_venueId}`, { headers: h }),
-      fetch(`${API}/api/pos/preparations/${_venueId}`, { headers: h }).catch(() => null),
     ]);
 
     if (sessRes.ok) {
@@ -361,7 +362,15 @@ async function loadAll() {
       }
     }
 
-    // Напівфабрикати (PREPARED) — за роллю (бар/кухня/загальні)
+    if (cfgRes.ok) {
+      const d = await cfgRes.json();
+      _configs = {};
+      for (const cfg of (d.configs || [])) _configs[cfg.productId] = cfg;
+    }
+
+    // Напівфабрикати (PREPARED) — окремим запитом ПІСЛЯ balance (Syrve-конекшн звільнився),
+    // інакше через одне REST-зʼєднання Syrve self-hosted запит падає й ПФ не зʼявляються.
+    const prepRes = await fetch(`${API}/api/pos/preparations/${_venueId}`, { headers: h }).catch(() => null);
     if (prepRes && prepRes.ok) {
       try {
         const d = await prepRes.json();
@@ -372,12 +381,6 @@ async function loadAll() {
           _balance.push({ id: p.id, name: p.name, unit: p.unit || '', amount: p.stock || 0, category: 'Напівфабрикат', isPrep: true });
         }
       } catch {}
-    }
-
-    if (cfgRes.ok) {
-      const d = await cfgRes.json();
-      _configs = {};
-      for (const cfg of (d.configs || [])) _configs[cfg.productId] = cfg;
     }
 
     // Якщо є відкрита сесія — завантажуємо збережені позиції
