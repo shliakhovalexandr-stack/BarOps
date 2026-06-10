@@ -250,10 +250,11 @@ function modeOf(pid) {
 }
 
 // Збережений режим суперечить одиниці Syrve (стара ручна помилка). kg_to_l не чіпаємо — свідомий режим із тарою.
-function modeMismatch(pid) {
-  const cfg = _configs[pid];
+// Приймає обʼєкт товару (як tareMissing), бо викликається через _balance.filter(modeMismatch).
+function modeMismatch(p) {
+  const cfg = _configs[p.id];
   if (!cfg?.mode || cfg.mode === 'kg_to_l') return false;
-  return cfg.mode !== syrveDefaultMode(pid);
+  return cfg.mode !== syrveDefaultMode(p.id);
 }
 
 function isCounted(pid) {
