@@ -511,12 +511,15 @@ async function changeStatus(sessionId, status) {
 }
 
 async function deleteSession(sessionId) {
+  const wasOpen = _sessions.find(s => s.id === sessionId)?.status === 'open';
   try {
     await fetch(`${API}/api/inventory/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${_token}` },
     });
     _sessions = _sessions.filter(s => s.id !== sessionId);
+    try { localStorage.removeItem(`barops_inv_draft_${_venueId}_${sessionId}`); } catch {}
+    if (wasOpen) _counts = {};   // активну видалили — скидаємо введений рахунок
   } catch (err) {
     _error = err.message;
   }
@@ -1001,7 +1004,10 @@ function sessionCardHTML(s) {
       <button class="inv-sess-btn danger" data-a="sess-delete" data-sid="${s.id}">✕</button>
     `;
   } else if (s.status === 'open') {
-    btn = `<button class="inv-sess-btn" data-a="tab-bar">→ Рахунок</button>`;
+    btn = `
+      <button class="inv-sess-btn" data-a="tab-bar">→ Рахунок</button>
+      <button class="inv-sess-btn danger" data-a="sess-delete" data-sid="${s.id}">✕</button>
+    `;
   }
 
   return `
@@ -1240,7 +1246,7 @@ function on(e) {
 
   /* ── MGR: session actions ── */
   if (a === 'sess-open')   { _confirm = { title: 'Відкрити сесію', msg: 'Відкрити сесію для рахунку? Бармени зможуть вводити дані.', okLabel: 'Відкрити', run: () => changeStatus(sid, 'open') }; re(); return; }
-  if (a === 'sess-delete') { _confirm = { title: 'Видалити сесію', msg: 'Видалити заплановану сесію? Дію не можна скасувати.', okLabel: 'Видалити', danger: true, run: () => deleteSession(sid) }; re(); return; }
+  if (a === 'sess-delete') { _confirm = { title: 'Видалити сесію', msg: 'Видалити сесію? Введені дані рахунку буде втрачено.', okLabel: 'Видалити', danger: true, run: () => deleteSession(sid) }; re(); return; }
   if (a === 'confirm-cancel') { _confirm = null; re(); return; }
   if (a === 'confirm-ok')     { const run = _confirm?.run; _confirm = null; re(); if (run) run(); return; }
 
