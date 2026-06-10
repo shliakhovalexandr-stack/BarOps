@@ -555,7 +555,7 @@ async function submitInventory(dryRun) {
     }
 
     // Документ інвентаризації в Syrve Office. dryRun=true → check (валідує, нічого не створює)
-    const syrveItems = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
+    const syrveItems = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id), isPrep: !!p.isPrep }));
     const invRes = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
