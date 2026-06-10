@@ -235,13 +235,25 @@ function tareMissing(p) {
   return !((+cfg.emptyTareKg) > 0 && (+cfg.fullTareKg) > 0 && (+cfg.bottleVolL) > 0);
 }
 
-function modeOf(pid) {
-  if (_configs[pid]?.mode) return _configs[pid].mode;
+// Дефолтний режим суто за базовою одиницею товару в Syrve (без урахування збереженого конфігу)
+function syrveDefaultMode(pid) {
   const p = _balance.find(x => x.id === pid);
   const u = (p?.unit || '').toLowerCase().trim();
   if (/шт|порц|штук|sht|pc/.test(u))  return 'sht';   // штучні (шт/порц) → лічильник
   if (/кг|kg|^г$|^гр$|грам/.test(u))  return 'kg';    // вагові (кг/г) → у кг (як у Syrve)
   return 'ml';                                         // рідина (л/мл) → ручний мл → літри
+}
+
+function modeOf(pid) {
+  if (_configs[pid]?.mode) return _configs[pid].mode;
+  return syrveDefaultMode(pid);
+}
+
+// Збережений режим суперечить одиниці Syrve (стара ручна помилка). kg_to_l не чіпаємо — свідомий режим із тарою.
+function modeMismatch(pid) {
+  const cfg = _configs[pid];
+  if (!cfg?.mode || cfg.mode === 'kg_to_l') return false;
+  return cfg.mode !== syrveDefaultMode(pid);
 }
 
 function isCounted(pid) {
@@ -504,6 +516,12 @@ async function saveConfig() {
     _cfgError = err.message;
   }
   _cfgSaving = false; re();
+}
+
+// Скидає режим товарів, де він суперечить одиниці Syrve, назад до Syrve-дефолту (тару не чіпає)
+async function resetMismatched() {
+  const ids = _balance.filter(modeMismatch).map(p => p.id);
+  for (const pid of ids) await quickMode(pid, syrveDefaultMode(pid));
 }
 
 async function quickMode(pid, mode) {
@@ -891,6 +909,7 @@ function sessionCardHTML(s) {
 
 function productConfigHTML() {
   const missing = _balance.filter(tareMissing).length;
+  const mism    = _balance.filter(modeMismatch).length;
   const base = _cfgFilter === 'unset' ? _balance.filter(tareMissing) : _balance;
   const list = base.filter(matchSearch);
   const header = `
@@ -902,9 +921,15 @@ function productConfigHTML() {
       </div>
       ${missing ? `<button data-a="cfg-filter" style="flex-shrink:0;height:30px;padding:0 12px;border-radius:9px;border:0.5px solid ${_cfgFilter === 'unset' ? 'var(--amber-border)' : 'var(--border)'};background:${_cfgFilter === 'unset' ? 'var(--amber-bg)' : 'var(--bg2)'};color:${_cfgFilter === 'unset' ? 'var(--amber)' : 'var(--text1)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${_cfgFilter === 'unset' ? 'Показати всі' : 'Лише без тари'}</button>` : ''}
     </div>`;
+  const header3 = mism ? `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 18px 10px;gap:10px">
+      <div style="font-size:12px;font-family:var(--font-b);color:var(--amber);min-width:0">⚠ ${mism}: режим ≠ одиниці Syrve</div>
+      <button data-a="reset-syrve" style="flex-shrink:0;height:30px;padding:0 12px;border-radius:9px;border:0.5px solid var(--green-border);background:var(--green-bg);color:var(--green);font-size:12px;font-family:var(--font-b);cursor:pointer">↺ Скинути до Syrve</button>
+    </div>` : '';
   return `
     ${header}
     ${header2}
+    ${header3}
     <div class="inv-cfg-list">
       ${list.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>` : ''}
       ${list.map(p => {
@@ -920,6 +945,8 @@ function productConfigHTML() {
             <div class="inv-mode-group">
               <button class="inv-mode-btn${m === 'kg_to_l' ? ' act' : ''}"
                 data-a="mode-set" data-pid="${p.id}" data-mode="kg_to_l">кг→л</button>
+              <button class="inv-mode-btn${m === 'ml' ? ' act' : ''}"
+                data-a="mode-set" data-pid="${p.id}" data-mode="ml">л</button>
               <button class="inv-mode-btn${m === 'kg' ? ' act' : ''}"
                 data-a="mode-set" data-pid="${p.id}" data-mode="kg">кг</button>
               <button class="inv-mode-btn${m === 'sht' ? ' act' : ''}"
@@ -1089,6 +1116,7 @@ function on(e) {
 
   /* ── MGR: mode toggle ── */
   if (a === 'mode-set') { quickMode(pid, t.dataset.mode); return; }
+  if (a === 'reset-syrve') { resetMismatched(); return; }
 
   /* ── MGR: config sheet ── */
   if (a === 'cfg-open') {
