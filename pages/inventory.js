@@ -238,9 +238,10 @@ function tareMissing(p) {
 function modeOf(pid) {
   if (_configs[pid]?.mode) return _configs[pid].mode;
   const p = _balance.find(x => x.id === pid);
-  const u = (p?.unit || '').toLowerCase();
-  if (u === 'шт' || u === 'sht' || /порц|штук/.test(u)) return 'sht';  // штучні
-  return 'ml';   // рідина без налаштувань → ручний ввід мл
+  const u = (p?.unit || '').toLowerCase().trim();
+  if (/шт|порц|штук|sht|pc/.test(u))  return 'sht';   // штучні (шт/порц) → лічильник
+  if (/кг|kg|^г$|^гр$|грам/.test(u))  return 'kg';    // вагові (кг/г) → у кг (як у Syrve)
+  return 'ml';                                         // рідина (л/мл) → ручний мл → літри
 }
 
 function isCounted(pid) {
@@ -643,8 +644,8 @@ function productRowHTML(p) {
   let resultLabel = counted
     ? (m === 'kg_to_l' ? `${result.toFixed(2)} л`
        : m === 'ml'    ? `${result.toFixed(2)} л`
-       : m === 'kg'    ? `${result.toFixed(3)} кг`
-                       : `${result} шт`)
+       : m === 'kg'    ? `${result.toFixed(3)} ${p.unit || 'кг'}`
+                       : `${result} ${p.unit || 'шт'}`)
     : null;
 
   return `
@@ -669,7 +670,9 @@ function productRowHTML(p) {
 }
 
 function modePillsHTML(pid, m) {
+  const u = (_balance.find(x => x.id === pid) || {}).unit || '';
   return `
+    ${u ? `<div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:8px 0 5px">Одиниця в Syrve: <b style="color:var(--text2)">${u}</b></div>` : ''}
     <div class="inv-mode-pills">
       <button class="inv-mode-pill${m==='sht'?' act':''}" data-a="mode-sht" data-pid="${pid}">пляшки</button>
       <button class="inv-mode-pill${m==='ml'?' act':''}"  data-a="mode-ml"  data-pid="${pid}">вручну</button>
