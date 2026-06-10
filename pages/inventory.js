@@ -435,20 +435,9 @@ async function loadAll() {
       for (const cfg of (d.configs || [])) _configs[cfg.productId] = cfg;
     }
 
-    // Напівфабрикати (PREPARED) — окремим запитом ПІСЛЯ balance (Syrve-конекшн звільнився),
-    // інакше через одне REST-зʼєднання Syrve self-hosted запит падає й ПФ не зʼявляються.
-    const prepRes = await fetch(`${API}/api/pos/preparations/${_venueId}`, { headers: h }).catch(() => null);
-    if (prepRes && prepRes.ok) {
-      try {
-        const d = await prepRes.json();
-        const scopes = prepScopesForRole();
-        for (const p of (d.preparations || [])) {
-          if (!scopes.includes(p.scope)) continue;
-          if (_balance.find(x => x.id === p.id)) continue;
-          _balance.push({ id: p.id, name: p.name, unit: p.unit || '', amount: p.stock || 0, category: 'Напівфабрикат', isPrep: true });
-        }
-      } catch {}
-    }
+    // Напівфабрикати в інвентаризацію BarOps НЕ підтягуємо: Syrve-API кладе їх лише в Крок 2
+    // (сток, без декомпозиції), що псує облік. НФ рахуються окремо (на папері / рідною
+    // мобільною інвентаризацією Syrve, яка вміє Крок 1). Тут — лише товари (Крок 2).
 
     // Якщо є відкрита сесія — завантажуємо збережені позиції
     const os = openSession();
@@ -556,7 +545,7 @@ async function submitInventory(dryRun) {
     }
 
     // Документ інвентаризації в Syrve Office. dryRun=true → check (валідує, нічого не створює)
-    const syrveItems = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id), isPrep: !!p.isPrep }));
+    const syrveItems = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
     const invRes = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
