@@ -67,6 +67,7 @@ let _testMsg         = '';     // результат dry-run перевірки 
 let _confirm         = null;   // { title, msg, okLabel, danger, run } — власне вікно підтвердження
 let _histOpenId      = null;   // яка завершена сесія розгорнута в історії
 let _histItems       = {};     // sessionId → позиції (lazy з бекенду) | 'loading'
+let _histMenuId      = null;   // на якій картці історії відкрите ⋮-меню
 
 /* ════════════════════════ CSS ════════════════════════ */
 const CSS = `<style id="inv-css">
@@ -895,16 +896,26 @@ function historyHTML() {
         const dStr = when.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
         const tStr = when.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
         const items = _histItems[s.id];
+        const menuOpen = _histMenuId === s.id;
         return `
           <div class="inv-sess-item" style="flex-direction:column;align-items:stretch;gap:8px">
-            <div data-a="hist-toggle" data-sid="${s.id}" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <div data-a="hist-toggle" data-sid="${s.id}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
               <div style="flex:1;min-width:0">
                 <div class="inv-sess-date">${dStr}, ${tStr}</div>
                 <div class="inv-sess-who">${s.user?.name || ''}</div>
               </div>
               <span class="inv-badge inv-badge-done">✓ Відправлено</span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" style="transform:rotate(${open ? 180 : 0}deg);transition:transform .2s;flex-shrink:0"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div data-a="hist-menu" data-sid="${s.id}" style="width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;${menuOpen ? 'background:var(--bg3)' : ''}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--text2)"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+              </div>
             </div>
+            ${menuOpen ? `<div style="display:flex;justify-content:flex-end">
+              <button data-a="hist-del" data-sid="${s.id}" style="height:34px;padding:0 13px;border-radius:9px;border:0.5px solid var(--red-border);background:var(--red-bg,#2a1212);color:var(--red);font-size:13px;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:6px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Видалити з історії
+              </button>
+            </div>` : ''}
             ${open ? `<div style="border-top:0.5px solid var(--border);padding-top:8px">
               ${items === 'loading'
                 ? '<div style="display:flex;justify-content:center;padding:8px"><div class="spin-sm" style="border-top-color:var(--green)"></div></div>'
@@ -1173,6 +1184,12 @@ function on(e) {
     if (_histOpenId && _histItems[sid] === undefined) loadHistItems(sid);
     re(); return;
   }
+  if (a === 'hist-menu') { const sid = t.dataset.sid; _histMenuId = (_histMenuId === sid ? null : sid); re(); return; }
+  if (a === 'hist-del')  {
+    const sid = t.dataset.sid; _histMenuId = null;
+    _confirm = { title: 'Видалити з історії', msg: 'Видалити цей запис інвентаризації з історії? Дію не можна скасувати.', okLabel: 'Видалити', danger: true, run: () => deleteSession(sid) };
+    re(); return;
+  }
 
   /* ── BAR: accordion ── */
   if (a === 'toggle-prod') {
@@ -1294,6 +1311,7 @@ export default {
     _confirm       = null;
     _histOpenId    = null;
     _histItems     = {};
+    _histMenuId    = null;
     _openPid       = null;
     _showSchedForm = false;
     _calOpen       = false;
