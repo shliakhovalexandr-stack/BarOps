@@ -44,6 +44,11 @@ function matchSearch(p) {
   const q = _search.trim().toLowerCase();
   return !q || (p.name || '').toLowerCase().includes(q);
 }
+// Облікову (системну) кількість бачать лише керівні ролі — барменам/кухарям ховаємо,
+// щоб не «підганяли» рахунок під системну цифру.
+function canSeeSystemQty() {
+  return ['admin', 'manager', 'director', 'accountant'].includes((_role || '').toLowerCase());
+}
 function searchBoxHTML() {
   return `<div style="padding:0 18px 10px">
     <div style="position:relative">
@@ -750,7 +755,7 @@ function productRowHTML(p) {
         <div class="inv-pbar" style="background:${barColor}"></div>
         <div style="flex:1;min-width:0">
           <div class="inv-pname">${p.name}${p.isPrep ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
-          <div class="inv-pmeta">Норма ≥ ${p.amount != null ? p.amount.toFixed(1) : '—'} ${p.unit || ''}</div>
+          ${canSeeSystemQty() ? `<div class="inv-pmeta">У системі: ${p.amount != null ? p.amount.toFixed(1) : '—'} ${p.unit || ''}</div>` : ''}
         </div>
         ${counted
           ? `<div style="text-align:right;flex-shrink:0">
