@@ -60,8 +60,8 @@ let _submitted       = false;
 let _syrveMsg        = '';     // підтвердження створення документа в Syrve
 let _testMsg         = '';     // результат dry-run перевірки (нічого не створює)
 let _confirm         = null;   // { title, msg, okLabel, danger, run } — власне вікно підтвердження
-let _history         = [];     // історія відправлених інвентаризацій (localStorage, per-venue)
-let _histOpenIdx     = -1;     // який запис історії розгорнутий
+let _histOpenId      = null;   // яка завершена сесія розгорнута в історії
+let _histItems       = {};     // sessionId → позиції (lazy з бекенду) | 'loading'
 
 /* ════════════════════════ CSS ════════════════════════ */
 const CSS = `<style id="inv-css">
@@ -291,12 +291,11 @@ function getResult(pid) {
   return (c.sht || 0);
 }
 
-// одиниця, в якій результат піде в Syrve (для підписів/історії)
-function resultUnit(p) {
-  const m = modeOf(p.id);
+// одиниця за способом обліку (для підписів/історії)
+function methodUnit(m) {
   if (m === 'kg_to_l' || m === 'ml') return 'л';
-  if (m === 'kg') return p.unit || 'кг';
-  return p.unit || 'шт';
+  if (m === 'kg') return 'кг';
+  return 'шт';
 }
 
 /* ── Чернетка (localStorage, per-сесія) — щоб дані не зникали до відправки ── */
@@ -321,18 +320,15 @@ function loadDraft() {
 }
 function clearDraftStorage() { try { localStorage.removeItem(draftKey()); } catch {} }
 
-/* ── Історія відправлених (localStorage, per-venue) ── */
-function histKey() { return `barops_inv_history_${_venueId || ''}`; }
-function loadHistory() {
-  try { _history = JSON.parse(localStorage.getItem(histKey()) || '[]') || []; } catch { _history = []; }
-}
-function pushHistory(rec) {
+/* ── Історія відправлених = завершені сесії з бекенду (крос-девайс) ── */
+async function loadHistItems(sid) {
+  _histItems[sid] = 'loading'; re();
   try {
-    loadHistory();
-    _history.unshift(rec);
-    _history = _history.slice(0, 30);
-    localStorage.setItem(histKey(), JSON.stringify(_history));
-  } catch {}
+    const res = await fetch(`${API}/api/inventory/sessions/${sid}/items`, { headers: { Authorization: `Bearer ${_token}` } });
+    const d = await res.json();
+    _histItems[sid] = res.ok ? (d.items || []) : [];
+  } catch { _histItems[sid] = []; }
+  re();
 }
 
 function fmtDate(d) {
@@ -461,7 +457,6 @@ async function loadAll() {
       }
     }
 
-    loadHistory();   // історія відправлених
     loadDraft();     // відновити незавершену чернетку (введені залишки до відправки)
   } catch (err) {
     _error = err.message;
@@ -568,16 +563,8 @@ async function submitInventory(dryRun) {
     }
 
     _syrveMsg = `Документ створено в Syrve Office · ${invD.itemCount} поз.`;
-    // Запис в історію + чистимо чернетку, поки сесія ще open (draftKey коректний)
-    const counted = _balance.filter(p => isCounted(p.id))
-      .map(p => ({ name: p.name, qty: getResult(p.id), unit: resultUnit(p), isPrep: !!p.isPrep }));
-    pushHistory({
-      at: new Date().toISOString(), date: os.scheduledAt,
-      total: _balance.length, counted: counted.length, itemCount: invD.itemCount,
-      syrveMsg: _syrveMsg, items: counted,
-    });
-    clearDraftStorage();
-    await changeStatus(os.id, 'done');
+    clearDraftStorage();            // чистимо чернетку, поки сесія ще open (draftKey коректний)
+    await changeStatus(os.id, 'done');   // сесія стає «завершеною» → зʼявиться в Історії (бекенд)
     _submitted = true; _counts = {};
   } catch (err) {
     _error = err.message;
@@ -883,29 +870,39 @@ function buildMgr() {
 }
 
 function historyHTML() {
-  if (!_history.length) {
+  const done = _sessions.filter(s => s.status === 'done').slice(0, 20);
+  if (!done.length) {
     return `<div style="padding:0 18px 12px;font-size:13px;color:var(--text2);font-family:var(--font-b)">Ще нічого не відправляли.</div>`;
   }
   return `
     <div class="inv-sess-list">
-      ${_history.map((h, i) => {
-        const open = _histOpenIdx === i;
-        const when = new Date(h.at || h.date);
+      ${done.map(s => {
+        const open = _histOpenId === s.id;
+        const when = new Date(s.closedAt || s.scheduledAt);
         const dStr = when.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
         const tStr = when.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
-        const items = h.items || [];
+        const items = _histItems[s.id];
         return `
           <div class="inv-sess-item" style="flex-direction:column;align-items:stretch;gap:8px">
-            <div data-a="hist-toggle" data-idx="${i}" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <div data-a="hist-toggle" data-sid="${s.id}" style="display:flex;align-items:center;gap:10px;cursor:pointer">
               <div style="flex:1;min-width:0">
                 <div class="inv-sess-date">${dStr}, ${tStr}</div>
-                <div class="inv-sess-who">${h.counted} з ${h.total} позицій · ${h.itemCount} у Syrve</div>
+                <div class="inv-sess-who">${s.user?.name || ''}</div>
               </div>
               <span class="inv-badge inv-badge-done">✓ Відправлено</span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" style="transform:rotate(${open ? 180 : 0}deg);transition:transform .2s;flex-shrink:0"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
-            ${open ? `<div style="border-top:0.5px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:5px">
-              ${items.length ? items.map(it => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;font-family:var(--font-b)"><span style="color:var(--text1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}${it.isPrep ? ' <span style="color:var(--purple);font-size:9px">ПФ</span>' : ''}</span><span style="color:var(--green);flex-shrink:0">${(+it.qty || 0).toFixed(it.unit === 'шт' ? 0 : 3)} ${it.unit || ''}</span></div>`).join('') : '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Без порахованих позицій</div>'}
+            ${open ? `<div style="border-top:0.5px solid var(--border);padding-top:8px">
+              ${items === 'loading'
+                ? '<div style="display:flex;justify-content:center;padding:8px"><div class="spin-sm" style="border-top-color:var(--green)"></div></div>'
+                : (() => {
+                    const counted = (items || []).filter(it => (+it.countedQty) > 0);
+                    if (!counted.length) return '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Без порахованих позицій</div>';
+                    return `<div style="display:flex;flex-direction:column;gap:5px">${counted.map(it => {
+                      const u = methodUnit(it.method);
+                      return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;font-family:var(--font-b)"><span style="color:var(--text1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.productName || '—'}</span><span style="color:var(--green);flex-shrink:0">${(+it.countedQty || 0).toFixed(u === 'шт' ? 0 : 3)} ${u}</span></div>`;
+                    }).join('')}</div>`;
+                  })()}
             </div>` : ''}
           </div>`;
       }).join('')}
@@ -968,12 +965,13 @@ function calHTML() {
 }
 
 function sessionsHTML() {
-  if (_sessions.length === 0) {
-    return `<div style="padding:0 18px 12px;font-size:13px;color:var(--text2);font-family:var(--font-b)">Сесій ще немає. Заплануйте першу.</div>`;
+  const active = _sessions.filter(s => s.status === 'scheduled' || s.status === 'open');
+  if (!active.length) {
+    return `<div style="padding:0 18px 12px;font-size:13px;color:var(--text2);font-family:var(--font-b)">Немає активних сесій. Заплануйте нову.</div>`;
   }
   return `
     <div class="inv-sess-list">
-      ${_sessions.slice(0, 10).map(s => sessionCardHTML(s)).join('')}
+      ${active.slice(0, 10).map(s => sessionCardHTML(s)).join('')}
     </div>
   `;
 }
@@ -1153,7 +1151,12 @@ function on(e) {
   if (a === 'tab-mgr') { _view = 'mgr'; re(); return; }
   if (a === 'cfg-filter') { _cfgFilter = _cfgFilter === 'unset' ? 'all' : 'unset'; re(); return; }
   if (a === 'search-clear') { _search = ''; re(); return; }
-  if (a === 'hist-toggle') { const i = +t.dataset.idx; _histOpenIdx = (_histOpenIdx === i ? -1 : i); re(); return; }
+  if (a === 'hist-toggle') {
+    const sid = t.dataset.sid;
+    _histOpenId = (_histOpenId === sid ? null : sid);
+    if (_histOpenId && _histItems[sid] === undefined) loadHistItems(sid);
+    re(); return;
+  }
 
   /* ── BAR: accordion ── */
   if (a === 'toggle-prod') {
@@ -1272,7 +1275,8 @@ export default {
     _syrveMsg      = '';
     _testMsg       = '';
     _confirm       = null;
-    _histOpenIdx   = -1;
+    _histOpenId    = null;
+    _histItems     = {};
     _openPid       = null;
     _showSchedForm = false;
     _calOpen       = false;
