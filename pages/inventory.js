@@ -59,6 +59,7 @@ let _cfgError        = '';
 let _submitted       = false;
 let _syrveMsg        = '';     // підтвердження створення документа в Syrve
 let _testMsg         = '';     // результат dry-run перевірки (нічого не створює)
+let _confirm         = null;   // { title, msg, okLabel, danger, run } — власне вікно підтвердження
 
 /* ════════════════════════ CSS ════════════════════════ */
 const CSS = `<style id="inv-css">
@@ -214,6 +215,17 @@ const CSS = `<style id="inv-css">
 /* Alert */
 .inv-alert{margin:0 20px 8px;border-radius:12px;padding:10px 13px;font-size:12px;line-height:1.5;background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
 
+/* Confirm dialog (власне вікно замість нативного confirm) */
+.inv-cfm-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px}
+.inv-cfm{width:100%;max-width:320px;background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.inv-cfm-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-bottom:8px}
+.inv-cfm-msg{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:18px}
+.inv-cfm-row{display:flex;gap:8px}
+.inv-cfm-btn{flex:1;height:44px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h)}
+.inv-cfm-cancel{background:var(--bg2);color:var(--text1);border:0.5px solid var(--border)}
+.inv-cfm-ok{background:var(--green);color:#000;border:none}
+.inv-cfm-ok.danger{background:var(--red);color:#fff}
+
 /* Spinner */
 .spin{width:28px;height:28px;border:2.5px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin:auto}
 .spin-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
@@ -314,7 +326,7 @@ function bindLiveInputs() {
       const pid  = e.target.dataset.pid;
       const kind = e.target.dataset.liveInp;
       if (!_counts[pid]) _counts[pid] = {};
-      _counts[pid][kind] = e.target.value;
+      _counts[pid][kind] = (e.target.value || '').replace(',', '.');   // кома→крапка (укр. локаль)
       updateConvDisplay(pid);
     };
   });
@@ -572,6 +584,7 @@ function buildPage() {
         ${_view === 'mgr' ? buildMgr() : buildBar()}
       </div>
       ${configSheetHTML()}
+      ${confirmDialogHTML()}
     </div>
   `;
 }
@@ -735,7 +748,7 @@ function inputPanelHTML(p, c, m) {
           <button class="inv-stbtn" data-a="full-inc" data-pid="${p.id}">+</button>
         </div>
         <div class="inv-inp-lbl">Залишок (кг)</div>
-        <input class="inv-field" type="number" inputmode="decimal" step="0.001"
+        <input class="inv-field" type="text" inputmode="decimal"
           placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг` : '0.000'}"
           value="${c.partial || ''}"
           data-live-inp="partial" data-pid="${p.id}">
@@ -761,7 +774,7 @@ function inputPanelHTML(p, c, m) {
     return `
       <div class="inv-ipanel">
         <div class="inv-inp-lbl">Вага (кг)</div>
-        <input class="inv-field" type="number" inputmode="decimal" step="0.001"
+        <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0.000" value="${c.kg || ''}"
           data-live-inp="kg" data-pid="${p.id}">
         ${modePillsHTML(p.id, m)}
@@ -775,7 +788,7 @@ function inputPanelHTML(p, c, m) {
     return `
       <div class="inv-ipanel">
         <div class="inv-inp-lbl">Залишок (мл)</div>
-        <input class="inv-field" type="number" inputmode="decimal" step="1"
+        <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0" value="${c.ml || ''}"
           data-live-inp="ml" data-pid="${p.id}">
         <div class="inv-conv">
@@ -1014,17 +1027,17 @@ function configSheetHTML() {
 
       <div class="inv-cfg-field-grp">
         <div class="inv-cfg-field-lbl">Порожня тара (кг)</div>
-        <input class="inv-cfg-field" type="number" inputmode="decimal" step="0.001"
+        <input class="inv-cfg-field" type="text" inputmode="decimal"
           id="inv-cfg-empty" placeholder="напр. 0.420" value="${eKg}">
       </div>
       <div class="inv-cfg-field-grp">
         <div class="inv-cfg-field-lbl">Повна тара (кг)</div>
-        <input class="inv-cfg-field" type="number" inputmode="decimal" step="0.001"
+        <input class="inv-cfg-field" type="text" inputmode="decimal"
           id="inv-cfg-full" placeholder="напр. 1.150" value="${fKg}">
       </div>
       <div class="inv-cfg-field-grp">
         <div class="inv-cfg-field-lbl">Об'єм повної пляшки (л)</div>
-        <input class="inv-cfg-field" type="number" inputmode="decimal" step="0.001"
+        <input class="inv-cfg-field" type="text" inputmode="decimal"
           id="inv-cfg-vol" placeholder="напр. 0.700" value="${vL}">
       </div>
 
@@ -1042,6 +1055,22 @@ function configSheetHTML() {
       </button>
     </div>
   `;
+}
+
+function confirmDialogHTML() {
+  if (!_confirm) return '';
+  const c = _confirm;
+  return `
+    <div class="inv-cfm-overlay" data-a="confirm-cancel">
+      <div class="inv-cfm" onclick="event.stopPropagation()">
+        <div class="inv-cfm-title">${c.title || 'Підтвердження'}</div>
+        <div class="inv-cfm-msg">${c.msg || ''}</div>
+        <div class="inv-cfm-row">
+          <button class="inv-cfm-btn inv-cfm-cancel" data-a="confirm-cancel">Скасувати</button>
+          <button class="inv-cfm-btn inv-cfm-ok${c.danger ? ' danger' : ''}" data-a="confirm-ok">${c.okLabel || 'OK'}</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 /* ════════════════════════ EVENTS ════════════════════════ */
@@ -1127,8 +1156,10 @@ function on(e) {
   }
 
   /* ── MGR: session actions ── */
-  if (a === 'sess-open')   { if (confirm('Відкрити сесію для рахунку?')) changeStatus(sid, 'open'); return; }
-  if (a === 'sess-delete') { if (confirm('Видалити заплановану сесію?')) deleteSession(sid); return; }
+  if (a === 'sess-open')   { _confirm = { title: 'Відкрити сесію', msg: 'Відкрити сесію для рахунку? Бармени зможуть вводити дані.', okLabel: 'Відкрити', run: () => changeStatus(sid, 'open') }; re(); return; }
+  if (a === 'sess-delete') { _confirm = { title: 'Видалити сесію', msg: 'Видалити заплановану сесію? Дію не можна скасувати.', okLabel: 'Видалити', danger: true, run: () => deleteSession(sid) }; re(); return; }
+  if (a === 'confirm-cancel') { _confirm = null; re(); return; }
+  if (a === 'confirm-ok')     { const run = _confirm?.run; _confirm = null; re(); if (run) run(); return; }
 
   /* ── BAR: mode pills ── */
   if (a === 'mode-sht')    { quickMode(pid, 'sht');    return; }
@@ -1155,9 +1186,10 @@ function on(e) {
   }
   if (a === 'cfg-close') { _configPid = null; re(); return; }
   if (a === 'cfg-save') {
-    _configDraft.emptyTareKg = parseFloat(document.getElementById('inv-cfg-empty')?.value) || 0;
-    _configDraft.fullTareKg  = parseFloat(document.getElementById('inv-cfg-full')?.value)  || 0;
-    _configDraft.bottleVolL  = parseFloat(document.getElementById('inv-cfg-vol')?.value)   || 0;
+    const numv = id => parseFloat((document.getElementById(id)?.value || '').replace(',', '.')) || 0;
+    _configDraft.emptyTareKg = numv('inv-cfg-empty');
+    _configDraft.fullTareKg  = numv('inv-cfg-full');
+    _configDraft.bottleVolL  = numv('inv-cfg-vol');
     saveConfig();
     return;
   }
@@ -1175,6 +1207,7 @@ export default {
     _submitted     = false;
     _syrveMsg      = '';
     _testMsg       = '';
+    _confirm       = null;
     _openPid       = null;
     _showSchedForm = false;
     _calOpen       = false;
