@@ -109,7 +109,7 @@ const CSS = `<style id="inv-css">
 .inv-pcheck{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border2);flex-shrink:0}
 
 /* Input panel */
-.inv-ipanel{border-top:0.5px solid var(--border);padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.inv-ipanel{border-top:0.5px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:10px}
 .inv-inp-lbl{font-size:10px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
 .inv-field{height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;padding:0 14px;font-size:20px;font-weight:700;color:var(--text0);outline:none;width:100%;text-align:center;transition:border-color .2s}
 .inv-field:focus{border-color:var(--green)}
