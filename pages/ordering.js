@@ -233,6 +233,9 @@ const CSS = `<style id="ord-css">
 function getBalance(productId) {
   return _balanceItems.find(b => b.id === productId) || null;
 }
+function getSuggest(productId) {
+  return (_suggest || []).find(s => s.id === productId) || null;
+}
 function stockStatus(amount) {
   if (amount <= 0) return 'critical';
   return 'ok';
@@ -341,6 +344,7 @@ function barSuppliersHTML() {
           const isOpen = _openCards.has(p.productId);
           const unit   = _barUnits[p.productId] || '';
           const UNITS  = ['Ящ','пл','л','шт','кг'];
+          const sug    = getSuggest(p.productId);
           return `
           <div class="ord-prod-wrap">
             <div class="ord-prod-row" onclick="window.__ord.toggleProdCard('${p.productId}')">
@@ -350,6 +354,7 @@ function barSuppliersHTML() {
                 <div class="ord-pname">${p.name}</div>
                 ${p.syrve ? `<div class="ord-pstock" style="color:var(--text3)">Syrve: ${p.syrve}</div>` : ''}
                 <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
+                ${sug && sug.sold7days > 0 ? `<div class="ord-pstock" style="color:${sug.suggestedQty > 0 ? 'var(--amber)' : 'var(--text3)'}">За тиждень: ${fmtN(sug.sold7days)} ${p.unit || sug.unit || ''}${sug.suggestedQty > 0 ? ` · радимо +${fmtN(sug.suggestedQty)}` : ''}</div>` : ''}
               </div>
               ${p.qty > 0 ? `<div class="ord-qty-badge">${p.qty} ${unit || 'од.'}</div>` : ''}
               <div class="ord-chev ${isOpen ? 'open' : ''}">
@@ -776,7 +781,7 @@ async function loadSuggest() {
     _suggest = (r.ok && d.success) ? (d.suggestions || []) : [];
   } catch { _suggest = []; }
   _suggestLoading = false;
-  if (_mgrTab === 'suggest') fullRender();
+  fullRender();   // оновити вкладку менеджера й барменський пікер з підказками
 }
 
 function toggleSuggestLow() { _suggestOnlyLow = !_suggestOnlyLow; fullRender(); }
@@ -1495,6 +1500,7 @@ export default {
     loadDraft();   // відновити збережену чернетку заявки
     loadCopied();  // відновити позначки «вже копіювали»
     loadData();
+    loadSuggest(); // підказки руху за тиждень (показуємо в пікері й у вкладці «Підказки»)
     if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') loadOrders();
   },
 };
