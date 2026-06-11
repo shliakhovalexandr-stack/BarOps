@@ -28,6 +28,9 @@ let _loadError    = '';
 let _openSuppliers = new Set();
 let _submitted     = false;
 let _mgrTab        = 'orders';
+let _suggest        = null;   // підказки закупівлі (рух за 7 днів + залишок) з /ordering-suggestions
+let _suggestLoading = false;
+let _suggestOnlyLow = false;  // фільтр «лише те, що треба замовити»
 
 /* Supplier management */
 let _suppSheet        = null;   // null | 'add' | suppId(string) для edit
@@ -759,6 +762,62 @@ function prodPickerHTML() {
 /* ════════════════════════
    MANAGER RENDER
 ════════════════════════ */
+/* ── Підказки закупівлі (рух за 7 днів + залишок) ── */
+function fmtN(n) { return Math.round((+n || 0) * 10) / 10; }
+
+async function loadSuggest() {
+  if (_suggestLoading) return;
+  _suggestLoading = true;
+  if (_mgrTab === 'suggest') fullRender();
+  try {
+    const tok = _token || localStorage.getItem('barops_token') || '';
+    const r = await fetch(`${API}/api/pos/ordering-suggestions/${_venueId}`, { headers: { Authorization: `Bearer ${tok}` } });
+    const d = await r.json();
+    _suggest = (r.ok && d.success) ? (d.suggestions || []) : [];
+  } catch { _suggest = []; }
+  _suggestLoading = false;
+  if (_mgrTab === 'suggest') fullRender();
+}
+
+function toggleSuggestLow() { _suggestOnlyLow = !_suggestOnlyLow; fullRender(); }
+
+function suggestHTML() {
+  if (_suggestLoading) return `<div style="padding:30px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px">Аналізую рух за 7 днів…</div>`;
+  const all = (_suggest || []).filter(s => (s.sold7days || 0) > 0);
+  if (!all.length) {
+    return `<div style="padding:24px 16px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Немає даних про рух за тиждень.<br>Перевір, що для закладу налаштовано Syrve (department + склад).
+      <div style="margin-top:12px"><button onclick="window.__ord.loadSuggest()" style="height:36px;padding:0 16px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button></div></div>`;
+  }
+  const rank = { critical: 0, low: 1, ok: 2 };
+  all.sort((a, b) => (rank[a.status] - rank[b.status]) || ((a.stock - a.weeklyAvg) - (b.stock - b.weeklyAvg)));
+  const lowCount = all.filter(s => s.status !== 'ok').length;
+  const list = _suggestOnlyLow ? all.filter(s => s.status !== 'ok') : all;
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 10px">
+      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Рух за 7 днів · <b style="color:${lowCount ? 'var(--amber)' : 'var(--green)'}">${lowCount}</b> треба замовити</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="window.__ord.toggleSuggestLow()" style="height:30px;padding:0 11px;border-radius:9px;border:0.5px solid var(--border);background:${_suggestOnlyLow ? 'var(--purple-bg)' : 'var(--bg2)'};color:${_suggestOnlyLow ? 'var(--purple)' : 'var(--text1)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${_suggestOnlyLow ? 'Усі' : 'Лише замовити'}</button>
+        <button onclick="window.__ord.loadSuggest()" style="width:30px;height:30px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px;cursor:pointer">↻</button>
+      </div>
+    </div>
+    ${list.map(s => {
+      const c = s.status === 'critical' ? 'var(--red)' : s.status === 'low' ? 'var(--amber)' : 'var(--text3)';
+      const u = s.unit || 'од.';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;margin-bottom:6px">
+        <div style="width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">за тиждень ${fmtN(s.sold7days)} ${u} · залишок ${fmtN(s.stock)} ${u}</div>
+        </div>
+        ${s.suggestedQty > 0
+          ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:15px;font-weight:600;color:var(--green);line-height:1">+${fmtN(s.suggestedQty)}</div><div style="font-size:10px;color:var(--text3);margin-top:1px">${u}</div></div>`
+          : `<div style="font-size:11px;color:var(--text3);flex-shrink:0">досить</div>`}
+      </div>`;
+    }).join('')}
+    <div style="height:24px"></div>
+  `;
+}
+
 function renderManager() {
   return `
   <div class="ord-topbar" style="flex-shrink:0">
@@ -774,11 +833,13 @@ function renderManager() {
   <div class="ord-scroll">
     <div class="ord-mgr-tabs">
       <button class="ord-mt ${_mgrTab==='orders'?'act':''}"     onclick="window.__ord.setMgrTab('orders')">Замовлення</button>
+      <button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>
       <button class="ord-mt ${_mgrTab==='suppliers'?'act':''}"  onclick="window.__ord.setMgrTab('suppliers')">Постачальники</button>
       <button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>
     </div>
 
     ${_mgrTab === 'orders' ? mgrOrdersHTML() : ''}
+    ${_mgrTab === 'suggest' ? suggestHTML() : ''}
 
     ${_mgrTab === 'suppliers' ? `
       <div class="ord-sec">Постачальники
@@ -1140,7 +1201,7 @@ async function markOrderDone(id) {
 /* ════════════════════════
    MANAGER ACTIONS
 ════════════════════════ */
-function setMgrTab(tab) { _mgrTab = tab; fullRender(); }
+function setMgrTab(tab) { _mgrTab = tab; fullRender(); if (tab === 'suggest' && _suggest === null) loadSuggest(); }
 
 /* ── Supplier CRUD ── */
 function openSuppAdd() {
@@ -1406,6 +1467,7 @@ export default {
     _openCards     = new Set();
     _submitted     = false;
     _mgrTab        = 'orders';
+    _suggest       = null;        // перезавантажити підказки під поточний заклад
     _orders          = [];
     _ordersLoading   = false;
     _expandedOrders  = new Set();
@@ -1420,7 +1482,7 @@ export default {
   init() {
     window.__ord = {
       toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, clearOrderConfirm, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
-      setMgrTab,
+      setMgrTab, loadSuggest, toggleSuggestLow,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       closeConfirm, confirmYes,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
