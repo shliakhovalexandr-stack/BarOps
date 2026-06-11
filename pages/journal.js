@@ -348,6 +348,7 @@ function buildManagerTemplates() {
             <span class="jrn-tag">${t.kind === 'weekly' ? 'Щотижневий' : 'Щоденний'}</span>
             <span class="jrn-tag">${CL_DEPT_LABEL[t.department] || 'Всі'}</span>
             ${t.deadline ? `<span class="jrn-tag">до ${t.deadline}</span>` : ''}
+            ${t.remindAt ? `<span class="jrn-tag">🔔 ${t.remindAt}</span>` : ''}
             <span class="jrn-tag">${count} пункт.</span>
           </div>
         </div>
@@ -409,6 +410,8 @@ function buildClModal() {
         </div>
         <div class="jrn-modal-lbl">Дедлайн (необовʼязково)</div>
         <input id="cl-deadline" type="time" class="jrn-modal-inp" value="${d.deadline || ''}">
+        <div class="jrn-modal-lbl">Нагадати пушем о — зміні в графіку (необовʼязково)</div>
+        <input id="cl-remind" type="time" class="jrn-modal-inp" value="${d.remindAt || ''}">
         <div class="jrn-modal-lbl" id="cl-items-lbl">Пункти${d.kind === 'weekly' ? ' — своя дія на кожен день' : ''}</div>
         <div id="cl-items-area">${clItemsAreaHTML(d)}</div>
       </div>
@@ -431,6 +434,7 @@ function captureClDraft() {
   if (!_clDraft) return;
   const t = document.getElementById('cl-title');    if (t) _clDraft.title = t.value;
   const dl = document.getElementById('cl-deadline'); if (dl) _clDraft.deadline = dl.value;
+  const rm = document.getElementById('cl-remind');   if (rm) _clDraft.remindAt = rm.value;
   const cap = arr => arr.forEach(it => {
     const el = document.getElementById('clitem-' + it.id); if (el) it.text = el.value;
     const de = document.getElementById('cldesc-' + it.id); if (de) it.desc = de.value;
@@ -689,7 +693,7 @@ export default {
 
       openClModal() {
         _clDraft = {
-          id: null, title: '', kind: 'daily', department: '', deadline: '',
+          id: null, title: '', kind: 'daily', department: '', deadline: '', remindAt: '',
           daily: [newClItem()],
           weekly: { 0: [], 1: [newClItem()], 2: [], 3: [], 4: [], 5: [], 6: [] },
         };
@@ -700,7 +704,7 @@ export default {
         const t = _clTemplates.find(x => x.id === id);
         if (!t) return;
         const draft = {
-          id: t.id, title: t.title, kind: t.kind, department: t.department || '', deadline: t.deadline || '',
+          id: t.id, title: t.title, kind: t.kind, department: t.department || '', deadline: t.deadline || '', remindAt: t.remindAt || '',
           daily: [], weekly: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
         };
         (t.items || []).forEach(it => {
@@ -770,7 +774,7 @@ export default {
         }
         if (!items.length) { alert('Додайте хоча б один пункт'); return; }
         const venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
-        const payload = { venueId, title, kind: d.kind, department: d.department, deadline: d.deadline, items };
+        const payload = { venueId, title, kind: d.kind, department: d.department, deadline: d.deadline, remindAt: d.remindAt, items };
         const btn = document.querySelector('.jrn-btn-cta');
         if (btn) { btn.disabled = true; btn.textContent = 'Збереження…'; }
         try {
