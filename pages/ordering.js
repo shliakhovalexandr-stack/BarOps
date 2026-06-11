@@ -35,6 +35,7 @@ let _suppDraft        = { name:'', contact:'', orderDays:'', fop:'', paymentForm
 let _confirm          = null;   // { title, message, confirmLabel, danger, action }
 let _rename           = null;   // { id, syrve, value } — модалка перейменування товару
 let _customProd       = null;   // { suppId, name } — модалка створення власного товару (тільки BarOps)
+let _copiedSupp       = new Set(); // ключі orderId:suppIdx — постачальники, яких уже копіювали (localStorage)
 let _prodPickerSupp   = null;   // suppId для якого відкритий пікер
 let _prodSearch       = '';
 let _suppSaving       = false;
@@ -462,7 +463,10 @@ function mgrOrdersHTML() {
       const copyId = `copy-${o.id}-${si}`;
       return `
       <div class="ord-req-supp">
-        <div class="ord-req-sname" style="margin-bottom:6px">${s.supplierName || 'Постачальник'}</div>
+        <div class="ord-req-sname" style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.supplierName || 'Постачальник'}</span>
+          <span id="copied-${o.id}-${si}" style="font-size:10px;color:var(--green);font-family:var(--font-b);font-weight:500;flex-shrink:0">${_copiedSupp.has(copiedKey(o.id, si)) ? '✓ вже копіювали' : ''}</span>
+        </div>
         <button id="${copyId}" onclick="window.__ord.copySupplier('${o.id}',${si},'${copyId}')"
           style="width:100%;height:38px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px">
           <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4V2.5A1.5 1.5 0 006.5 1h-4A1.5 1.5 0 001 2.5v4A1.5 1.5 0 002.5 8H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Копіювати замовлення
@@ -986,6 +990,12 @@ function setComment(productId, value) {
 }
 
 /* ── Чернетка заявки: зберігається локально, переживає вихід/закриття ── */
+// Памʼять «вже копіювали» постачальника (щоб не плутатись при копіюванні не по порядку)
+function copiedKey(orderId, si) { return `${orderId}:${si}`; }
+function copiedStoreKey() { return `barops_ord_copied_${_venueId || localStorage.getItem('barops_venueId') || ''}`; }
+function loadCopied() { try { _copiedSupp = new Set(JSON.parse(localStorage.getItem(copiedStoreKey()) || '[]')); } catch { _copiedSupp = new Set(); } }
+function saveCopied() { try { localStorage.setItem(copiedStoreKey(), JSON.stringify([..._copiedSupp])); } catch {} }
+
 function draftKey() { return `barops_order_draft_${_venueId || localStorage.getItem('barops_venueId') || ''}`; }
 function saveDraft() {
   try {
@@ -1075,6 +1085,11 @@ async function copySupplier(orderId, suppIdx, btnId) {
 
   // Повний готовий текст із супровідним (Доброго дня / ФОП / Заклад / оплата + перелік)
   const { text } = buildSupplierMessage(s);
+
+  // Позначаємо «вже копіювали» (памʼять у localStorage — щоб не плутатись при копіюванні не по порядку)
+  _copiedSupp.add(copiedKey(orderId, suppIdx)); saveCopied();
+  const cb = document.getElementById(`copied-${orderId}-${suppIdx}`);
+  if (cb) cb.textContent = '✓ вже копіювали';
 
   try {
     await navigator.clipboard.writeText(text);
@@ -1416,6 +1431,7 @@ export default {
     _token   = localStorage.getItem('barops_token');
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
     loadDraft();   // відновити збережену чернетку заявки
+    loadCopied();  // відновити позначки «вже копіювали»
     loadData();
     if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') loadOrders();
   },
