@@ -447,6 +447,7 @@ async function sendPhoto() {
   try {
     const token     = localStorage.getItem('barops_token') || '';
     const venueName = localStorage.getItem('barops_venue')  || '';
+    const venueId   = localStorage.getItem('barops_venueId') || '';
     if (!token) throw new Error('Не авторизований');
 
     const blob = await rotatedBlob(_file, _rot);
@@ -454,6 +455,7 @@ async function sendPhoto() {
     const formData = new FormData();
     formData.append('photo',     blob, 'invoice.jpg');
     formData.append('venueName', venueName);
+    formData.append('venueId',   venueId);   // активний (переглянутий) заклад, а не JWT-дефолт
 
     const res = await fetch(`${API_URL}/api/ocr/notify`, {
       method:  'POST',
