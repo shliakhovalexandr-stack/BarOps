@@ -354,7 +354,7 @@ function barSuppliersHTML() {
                 <div class="ord-pname">${p.name}</div>
                 ${p.syrve ? `<div class="ord-pstock" style="color:var(--text3)">Syrve: ${p.syrve}</div>` : ''}
                 <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
-                ${sug && sug.sold7days > 0 ? `<div class="ord-pstock" style="color:${sug.suggestedQty > 0 ? 'var(--amber)' : 'var(--text3)'}">За тиждень: ${fmtN(sug.sold7days)} ${p.unit || sug.unit || ''}${sug.suggestedQty > 0 ? ` · радимо +${fmtN(sug.suggestedQty)}` : ''}</div>` : ''}
+                ${sug && fmtN(sug.sold7days) > 0 ? `<div class="ord-pstock" style="color:var(--text3)">За тиждень: ${fmtN(sug.sold7days)} ${p.unit || sug.unit || ''}</div>` : ''}
               </div>
               ${p.qty > 0 ? `<div class="ord-qty-badge">${p.qty} ${unit || 'од.'}</div>` : ''}
               <div class="ord-chev ${isOpen ? 'open' : ''}">
