@@ -15,7 +15,20 @@ let _taskModal = false;
 let _taskDraft = { date: '', department: 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
 let _team      = [];      // склад закладу (для вибору виконавця; лише менеджер)
 
+// Чек-листи (Фаза 4.1)
+let _checklists  = [];    // сьогоднішні чек-листи зі станом (усі ролі)
+let _clTemplates = [];    // шаблони (лише менеджер)
+let _clView      = 'today'; // менеджер: 'today' | 'templates' | 'tasks'
+let _clModal     = false;
+let _clDraft     = null;  // чернетка шаблону у конструкторі
+
 const DEPT_LABEL = { kitchen: 'Кухня', waiters: 'Офіціанти', bartenders: 'Бармени' };
+const CL_DEPT_LABEL = { '': 'Всі', bartenders: 'Бармени', kitchen: 'Кухня', waiters: 'Офіціанти' };
+// Дні тижня (weekday за JS getDay: 0=Нд..6=Сб), показуємо з понеділка
+const WEEKDAYS = [
+  { wd: 1, label: 'Пн' }, { wd: 2, label: 'Вт' }, { wd: 3, label: 'Ср' }, { wd: 4, label: 'Чт' },
+  { wd: 5, label: 'Пт' }, { wd: 6, label: 'Сб' }, { wd: 0, label: 'Нд' },
+];
 const DEPT_ROLES = { kitchen: ['cook', 'chef'], waiters: ['waiter'], bartenders: ['bartender', 'barman'] };
 const PRIORITY_LABEL = { urgent: 'Терміново', medium: 'Середнє', low: 'Не терміново' };
 const PRIORITY_COLOR = { urgent: 'var(--red)', medium: 'var(--amber)', low: 'var(--text2)' };
@@ -106,6 +119,36 @@ const CSS = `<style id="jrn-css">
 /* skel */
 .jrn-skel{background:var(--glass-bg);border-radius:12px;animation:jSkel 1.2s ease-in-out infinite}
 @keyframes jSkel{0%,100%{opacity:.4}50%{opacity:.9}}
+/* manager tabs */
+.jrn-tabs{display:flex;gap:6px;padding:4px 14px 10px}
+.jrn-tab{flex:1;height:36px;border-radius:10px;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);
+  color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.jrn-tab.sel{background:rgba(168,139,255,.14);border-color:var(--purple);color:var(--purple)}
+/* checklist meta badges */
+.jrn-cl-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.jrn-tag{font-size:10px;font-weight:600;font-family:var(--font-b);border-radius:6px;padding:2px 7px;
+  background:var(--bg2,#1F1F22);border:0.5px solid var(--border);color:var(--text2)}
+.jrn-tag.late{background:rgba(255,80,80,.12);border-color:rgba(255,80,80,.3);color:#ff6b6b}
+.jrn-tag.ok{background:rgba(134,239,172,.12);border-color:rgba(134,239,172,.35);color:#86EFAC}
+.jrn-cl-photo{font-size:12px;flex-shrink:0;opacity:.7}
+.jrn-cl-by{font-size:10px;color:var(--text3);font-family:var(--font-b);margin-left:auto;flex-shrink:0}
+/* builder */
+.jrn-bld-item{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.jrn-bld-inp{flex:1;box-sizing:border-box;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);border-radius:10px;
+  padding:10px 12px;font-size:14px;color:var(--text0);outline:none;font-family:var(--font-b)}
+.jrn-bld-inp:focus{border-color:rgba(168,139,255,.5)}
+.jrn-bld-photo{width:38px;height:38px;border-radius:10px;flex-shrink:0;background:var(--bg2,#1F1F22);
+  border:0.5px solid var(--border);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.jrn-bld-photo.on{background:rgba(168,139,255,.16);border-color:var(--purple)}
+.jrn-bld-del{width:34px;height:38px;border-radius:10px;flex-shrink:0;background:rgba(255,80,80,.08);
+  border:0.5px solid rgba(255,80,80,.3);color:#ff5c5c;font-size:16px;cursor:pointer;line-height:1}
+.jrn-bld-add{width:100%;height:38px;border-radius:10px;background:var(--bg2,#1F1F22);border:0.5px dashed var(--border);
+  color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;margin-top:2px}
+.jrn-bld-day{margin-top:12px}
+.jrn-bld-day-lbl{font-size:11px;font-weight:700;color:var(--purple);font-family:var(--font-b);margin-bottom:7px;letter-spacing:.04em}
+.jrn-bld-scroll{max-height:60vh;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.jrn-tpl-edit{width:28px;height:28px;border-radius:8px;flex-shrink:0;background:var(--bg2,#1F1F22);
+  border:0.5px solid var(--border);color:var(--text1);font-size:13px;cursor:pointer}
 </style>`;
 
 /* ════════════════════════
@@ -240,11 +283,164 @@ function buildTaskModal() {
 }
 
 /* ════════════════════════
+   CHECKLISTS (Фаза 4.1)
+════════════════════════ */
+// Чи прострочено: дедлайн минув, а не всі пункти зроблені
+function clIsLate(cl) {
+  if (!cl.deadline || cl.doneCount >= cl.total) return false;
+  const [h, m] = cl.deadline.split(':').map(Number);
+  const now = new Date();
+  return now.getHours() > h || (now.getHours() === h && now.getMinutes() > (m || 0));
+}
+
+// Сьогоднішні чек-листи (працівник тапає; менеджер бачить хто/коли)
+function buildTodayChecklists() {
+  if (!_checklists.length) {
+    return `<div class="jrn-empty"><div class="jrn-empty-icon">✓</div>
+      <div class="jrn-empty-txt">Чек-листів на сьогодні немає</div></div>`;
+  }
+  return _checklists.map(cl => {
+    const allDone = cl.total > 0 && cl.doneCount >= cl.total;
+    const late = clIsLate(cl);
+    return `
+    <div class="jrn-cl-card${allDone ? ' done' : ''}">
+      <div class="jrn-cl-head">
+        <div class="jrn-cl-name">${esc(cl.title)}</div>
+        <div class="jrn-cl-tags">
+          <span class="jrn-tag ${allDone ? 'ok' : ''}">${cl.doneCount}/${cl.total}</span>
+          ${cl.kind === 'weekly' ? `<span class="jrn-tag">дія дня</span>` : ''}
+          ${cl.department ? `<span class="jrn-tag">${CL_DEPT_LABEL[cl.department]}</span>` : ''}
+          ${cl.deadline ? `<span class="jrn-tag ${late ? 'late' : (allDone ? 'ok' : '')}">до ${cl.deadline}</span>` : ''}
+        </div>
+      </div>
+      ${cl.items.map(it => `
+      <div class="jrn-cl-item" onclick="window.__jrn.toggleClItem('${cl.templateId}','${it.id}',${it.done ? 0 : 1})">
+        <div class="jrn-cl-check ${it.done ? 'done' : ''}">${it.done ? CHECK_SVG : ''}</div>
+        <div class="jrn-cl-item-text ${it.done ? 'done' : ''}">${esc(it.text)}</div>
+        ${it.photo ? `<span class="jrn-cl-photo" title="Потрібне фото">📷</span>` : ''}
+        ${it.done && it.doneBy ? `<span class="jrn-cl-by">${esc(it.doneBy)}</span>` : ''}
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+// Менеджер: список шаблонів + кнопка створення
+function buildManagerTemplates() {
+  const list = _clTemplates.length ? _clTemplates.map(t => {
+    const count = (t.items || []).length;
+    return `
+    <div class="jrn-cl-card">
+      <div class="jrn-task-row">
+        <div style="flex:1;min-width:0">
+          <div class="jrn-cl-name">${esc(t.title)}${t.active ? '' : ` <span style="color:var(--text3);font-size:11px">(вимкнено)</span>`}</div>
+          <div class="jrn-cl-tags">
+            <span class="jrn-tag">${t.kind === 'weekly' ? 'Щотижневий' : 'Щоденний'}</span>
+            <span class="jrn-tag">${CL_DEPT_LABEL[t.department] || 'Всі'}</span>
+            ${t.deadline ? `<span class="jrn-tag">до ${t.deadline}</span>` : ''}
+            <span class="jrn-tag">${count} пункт.</span>
+          </div>
+        </div>
+        <button class="jrn-tpl-edit" onclick="window.__jrn.editTemplate('${t.id}')">✎</button>
+        <button class="jrn-task-del" onclick="window.__jrn.deleteTemplate('${t.id}')">×</button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="jrn-empty"><div class="jrn-empty-txt">Шаблонів ще немає. Створіть перший.</div></div>`;
+  return `
+    <div style="padding:0 14px 8px"><button class="jrn-add-btn" onclick="window.__jrn.openClModal()">+ Шаблон чек-листа</button></div>
+    ${list}`;
+}
+
+// Рядок пункту у конструкторі (listKey: 'daily' або номер дня тижня)
+function bldItemRow(it, listKey) {
+  return `
+  <div class="jrn-bld-item">
+    <input class="jrn-bld-inp" id="clitem-${it.id}" value="${esc(it.text)}" placeholder="Що зробити…">
+    <button class="jrn-bld-photo ${it.photo ? 'on' : ''}" onclick="window.__jrn.clTogglePhoto('${listKey}','${it.id}')" title="Потрібне фото">📷</button>
+    <button class="jrn-bld-del" onclick="window.__jrn.clDelItem('${listKey}','${it.id}')">×</button>
+  </div>`;
+}
+
+function buildClModal() {
+  if (!_clModal || !_clDraft) return '';
+  const d = _clDraft;
+  const itemsArea = d.kind === 'daily'
+    ? `${d.daily.map(it => bldItemRow(it, 'daily')).join('')}
+       <button class="jrn-bld-add" onclick="window.__jrn.clAddItem('daily')">+ Пункт</button>`
+    : WEEKDAYS.map(w => `
+       <div class="jrn-bld-day">
+         <div class="jrn-bld-day-lbl">${w.label}</div>
+         ${(d.weekly[w.wd] || []).map(it => bldItemRow(it, String(w.wd))).join('')}
+         <button class="jrn-bld-add" onclick="window.__jrn.clAddItem('${w.wd}')">+ Пункт</button>
+       </div>`).join('');
+  return `
+  <div class="jrn-modal-ov" onclick="window.__jrn.closeClModalOv(event)">
+    <div class="jrn-modal" onclick="event.stopPropagation()">
+      <div class="jrn-modal-title">${d.id ? 'Редагувати чек-лист' : 'Новий чек-лист'}</div>
+      <div class="jrn-bld-scroll">
+        <div class="jrn-modal-lbl">Назва</div>
+        <input id="cl-title" class="jrn-modal-inp" value="${esc(d.title)}" placeholder="Відкриття бару">
+        <div class="jrn-modal-lbl">Тип</div>
+        <div class="jrn-dept-row">
+          <button class="jrn-dept-chip ${d.kind === 'daily' ? 'sel' : ''}" onclick="window.__jrn.clSetKind('daily')">Щоденний</button>
+          <button class="jrn-dept-chip ${d.kind === 'weekly' ? 'sel' : ''}" onclick="window.__jrn.clSetKind('weekly')">Щотижневий</button>
+        </div>
+        <div class="jrn-modal-lbl">Для кого</div>
+        <div class="jrn-dept-row">
+          ${Object.entries(CL_DEPT_LABEL).map(([k, v]) =>
+            `<button class="jrn-dept-chip ${d.department === k ? 'sel' : ''}" onclick="window.__jrn.clSetDept('${k}')">${v}</button>`).join('')}
+        </div>
+        <div class="jrn-modal-lbl">Дедлайн (необовʼязково)</div>
+        <input id="cl-deadline" type="time" class="jrn-modal-inp" value="${d.deadline || ''}">
+        <div class="jrn-modal-lbl">Пункти${d.kind === 'weekly' ? ' — своя дія на кожен день' : ''}</div>
+        ${itemsArea}
+      </div>
+      <div class="jrn-modal-btns">
+        <button class="jrn-btn-sec" onclick="window.__jrn.closeClModal()">Скасувати</button>
+        <button class="jrn-btn-cta" onclick="window.__jrn.saveTemplate()">${d.id ? 'Зберегти' : 'Створити'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Зчитати значення інпутів конструктора у чернетку (перед структурним перемальовуванням)
+function captureClDraft() {
+  if (!_clDraft) return;
+  const t = document.getElementById('cl-title');    if (t) _clDraft.title = t.value;
+  const dl = document.getElementById('cl-deadline'); if (dl) _clDraft.deadline = dl.value;
+  const cap = arr => arr.forEach(it => { const el = document.getElementById('clitem-' + it.id); if (el) it.text = el.value; });
+  cap(_clDraft.daily);
+  Object.values(_clDraft.weekly).forEach(cap);
+}
+
+function newClItem() {
+  return { id: `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, text: '', photo: false };
+}
+
+/* ════════════════════════
    BUILD HTML
 ════════════════════════ */
 function buildHTML() {
   const isMgr = canManage();
-  const checklistsHTML = isMgr ? buildManagerTasks() : buildWorkerChecklist();
+
+  let body;
+  if (isMgr) {
+    const tabBody = _clView === 'templates' ? buildManagerTemplates()
+                  : _clView === 'tasks'     ? buildManagerTasks()
+                  :                           buildTodayChecklists();
+    body = `
+      <div class="jrn-tabs">
+        <button class="jrn-tab ${_clView === 'today' ? 'sel' : ''}" onclick="window.__jrn.setClView('today')">Сьогодні</button>
+        <button class="jrn-tab ${_clView === 'templates' ? 'sel' : ''}" onclick="window.__jrn.setClView('templates')">Шаблони</button>
+        <button class="jrn-tab ${_clView === 'tasks' ? 'sel' : ''}" onclick="window.__jrn.setClView('tasks')">Завдання</button>
+      </div>
+      ${tabBody}`;
+  } else {
+    body = `
+      <div class="jrn-sec" style="padding-top:8px">Чек-листи</div>
+      ${buildTodayChecklists()}
+      <div class="jrn-sec">Завдання на сьогодні</div>
+      ${buildWorkerChecklist()}`;
+  }
 
   return `
 ${CSS}
@@ -258,14 +454,12 @@ ${CSS}
       </div>
     </div>
 
-    <!-- Завдання / Чек-листи -->
-    <div class="jrn-sec" style="padding-top:8px">${isMgr ? 'Завдання на зміни' : 'Чек-листи'}</div>
-    ${checklistsHTML}
+    ${body}
 
     <div style="height:20px"></div>
   </div>
 </div>
-${buildTaskModal()}`;
+<div id="jrn-modal-host">${buildTaskModal()}${buildClModal()}</div>`;
 }
 
 /* ════════════════════════
@@ -299,10 +493,48 @@ async function loadTeam() {
   rerender();
 }
 
+async function loadChecklists() {
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  if (!venueId) return;
+  try {
+    const res  = await fetch(`${API}/api/checklists/today?venueId=${venueId}`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    });
+    const data = await res.json();
+    if (data.success) _checklists = data.checklists || [];
+  } catch { /* silent */ }
+  rerender();
+}
+
+async function loadTemplates() {
+  if (!canManage()) return;
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  if (!venueId) return;
+  try {
+    const res  = await fetch(`${API}/api/checklists/templates?venueId=${venueId}`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    });
+    const data = await res.json();
+    if (data.success) _clTemplates = data.templates || [];
+  } catch { /* silent */ }
+  rerender();
+}
+
 function rerender() {
   if (state.route !== 'journal') return;
   const v = document.getElementById('app-view');
   if (v) v.innerHTML = buildHTML();
+}
+
+// Перемальовуємо лише модалки (без скидання скролу сторінки), зберігаючи скрол конструктора
+function rerenderModals() {
+  const sc  = document.querySelector('.jrn-bld-scroll');
+  const top = sc ? sc.scrollTop : 0;
+  const h = document.getElementById('jrn-modal-host');
+  if (!h) { rerender(); return; }
+  h.innerHTML = buildTaskModal() + buildClModal();
+  const sc2 = document.querySelector('.jrn-bld-scroll');
+  if (sc2) sc2.scrollTop = top;
 }
 
 /* ════════════════════════
@@ -310,10 +542,15 @@ function rerender() {
 ════════════════════════ */
 export default {
   render() {
-    _tasks     = [];
-    _team      = [];
-    _taskModal = false;
-    _role      = state.role || localStorage.getItem('barops_role') || 'bartender';
+    _tasks       = [];
+    _team        = [];
+    _taskModal   = false;
+    _checklists  = [];
+    _clTemplates = [];
+    _clView      = 'today';
+    _clModal     = false;
+    _clDraft     = null;
+    _role        = state.role || localStorage.getItem('barops_role') || 'bartender';
     return buildHTML();
   },
   async init() {
@@ -404,8 +641,124 @@ export default {
         } catch { /* silent */ }
         loadTasks();
       },
+
+      /* ── ЧЕК-ЛИСТИ ── */
+      setClView(v) { _clView = v; rerender(); if (v === 'templates') loadTemplates(); },
+
+      async toggleClItem(templateId, itemId, done) {
+        const cl = _checklists.find(c => c.templateId === templateId);
+        const it = cl && cl.items.find(i => i.id === itemId);
+        if (it) { it.done = !!done; if (!done) it.doneBy = ''; cl.doneCount = cl.items.filter(x => x.done).length; }
+        rerender();
+        try {
+          await fetch(`${API}/api/checklists/run/${templateId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+            body: JSON.stringify({ itemId, done: !!done }),
+          });
+        } catch { /* silent */ }
+        loadChecklists();
+      },
+
+      openClModal() {
+        _clDraft = {
+          id: null, title: '', kind: 'daily', department: '', deadline: '',
+          daily: [newClItem()],
+          weekly: { 0: [], 1: [newClItem()], 2: [], 3: [], 4: [], 5: [], 6: [] },
+        };
+        _clModal = true;
+        rerender();
+      },
+      editTemplate(id) {
+        const t = _clTemplates.find(x => x.id === id);
+        if (!t) return;
+        const draft = {
+          id: t.id, title: t.title, kind: t.kind, department: t.department || '', deadline: t.deadline || '',
+          daily: [], weekly: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+        };
+        (t.items || []).forEach(it => {
+          const item = { id: it.id || newClItem().id, text: it.text || '', photo: !!it.photo };
+          if (t.kind === 'weekly') { const wd = Number(it.weekday); draft.weekly[wd >= 0 && wd <= 6 ? wd : 1].push(item); }
+          else draft.daily.push(item);
+        });
+        if (t.kind === 'daily' && !draft.daily.length) draft.daily.push(newClItem());
+        _clDraft = draft; _clModal = true; rerender();
+      },
+      closeClModal() { _clModal = false; _clDraft = null; rerenderModals(); },
+      closeClModalOv(e) { if (e?.target?.classList?.contains('jrn-modal-ov')) { _clModal = false; _clDraft = null; rerenderModals(); } },
+      clSetKind(k) { captureClDraft(); _clDraft.kind = k; rerenderModals(); },
+      clSetDept(k) { captureClDraft(); _clDraft.department = k; rerenderModals(); },
+      clAddItem(listKey) {
+        captureClDraft();
+        if (listKey === 'daily') _clDraft.daily.push(newClItem());
+        else _clDraft.weekly[Number(listKey)].push(newClItem());
+        rerenderModals();
+      },
+      clDelItem(listKey, itemId) {
+        captureClDraft();
+        if (listKey === 'daily') _clDraft.daily = _clDraft.daily.filter(i => i.id !== itemId);
+        else _clDraft.weekly[Number(listKey)] = _clDraft.weekly[Number(listKey)].filter(i => i.id !== itemId);
+        rerenderModals();
+      },
+      clTogglePhoto(listKey, itemId) {
+        captureClDraft();
+        const arr = listKey === 'daily' ? _clDraft.daily : _clDraft.weekly[Number(listKey)];
+        const it = arr.find(i => i.id === itemId);
+        if (it) it.photo = !it.photo;
+        rerenderModals();
+      },
+      async saveTemplate() {
+        captureClDraft();
+        const d = _clDraft;
+        const title = (d.title || '').trim();
+        if (!title) { alert('Вкажіть назву'); return; }
+        let items;
+        if (d.kind === 'daily') {
+          items = d.daily.filter(i => i.text.trim()).map(i => ({ id: i.id, text: i.text.trim(), photo: i.photo }));
+        } else {
+          items = [];
+          for (const w of WEEKDAYS) {
+            (d.weekly[w.wd] || []).filter(i => i.text.trim()).forEach(i =>
+              items.push({ id: i.id, text: i.text.trim(), photo: i.photo, weekday: w.wd }));
+          }
+        }
+        if (!items.length) { alert('Додайте хоча б один пункт'); return; }
+        const venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+        const payload = { venueId, title, kind: d.kind, department: d.department, deadline: d.deadline, items };
+        const btn = document.querySelector('.jrn-btn-cta');
+        if (btn) { btn.disabled = true; btn.textContent = 'Збереження…'; }
+        try {
+          const url = d.id ? `${API}/api/checklists/templates/${d.id}` : `${API}/api/checklists/templates`;
+          const res = await fetch(url, {
+            method: d.id ? 'PATCH' : 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || 'Помилка');
+          _clModal = false; _clDraft = null;
+          await loadTemplates();
+          loadChecklists();
+        } catch (e) {
+          console.error('[checklists] save:', e);
+          if (btn) { btn.disabled = false; btn.textContent = d.id ? 'Зберегти' : 'Створити'; }
+          alert('Не вдалося зберегти: ' + e.message);
+        }
+      },
+      async deleteTemplate(id) {
+        if (!confirm('Видалити цей чек-лист?')) return;
+        try {
+          await fetch(`${API}/api/checklists/templates/${id}`, {
+            method: 'DELETE', headers: { Authorization: `Bearer ${token()}` },
+          });
+        } catch { /* silent */ }
+        loadTemplates();
+        loadChecklists();
+      },
     };
     loadTasks();
     loadTeam();
+    loadChecklists();
+    if (canManage()) loadTemplates();
   },
 };
