@@ -327,13 +327,35 @@ async function processNext() {
   await processFile(_queue.shift());
 }
 
+// Стиснути фото перед відправкою: великі фото з телефону (5–15 МБ) валили OCR у 502
+// (стрибок памʼяті / таймаут на беку). ≤1600px по довшій стороні, JPEG ~0.7, з EXIF-орієнтацією.
+async function compressImage(file, maxDim = 1600, quality = 0.7) {
+  try {
+    if (!/^image\//.test(file.type || '')) return file;
+    let bmp;
+    try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch { bmp = await createImageBitmap(file); }
+    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    bmp.close?.();
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality));
+    if (!blob) return file;
+    return blob.size < file.size ? new File([blob], 'invoice.jpg', { type: 'image/jpeg' }) : file;
+  } catch { return file; }
+}
+
 async function processFile(f) {
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoUrl = URL.createObjectURL(f);
   _supplier = null; _supplierRaw = ''; _invoiceNumber = ''; _invoiceDate = ''; _rows = []; _err = '';
   _step = 'scanning'; _scanMsg = 'Розпізнаю накладну…'; rerender();
   try {
-    const fd = new FormData(); fd.append('photo', f);
+    const photo = await compressImage(f);
+    const fd = new FormData(); fd.append('photo', photo, 'invoice.jpg');
     const ocrRes = await fetch(`${API}/api/invoices/ocr`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` }, body: fd });
     const ocrD = await ocrRes.json();
     if (!ocrRes.ok) throw new Error(ocrD.error || 'OCR не вдалось');
