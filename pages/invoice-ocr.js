@@ -143,7 +143,11 @@ const CSS = `<style id="invoc-css">
 function rerender() {
   if (state.route !== 'invoice-ocr') return;
   const v = document.getElementById('app-view');
-  if (v) v.innerHTML = buildHTML();
+  if (!v) return;
+  const prev = v.querySelector('.io-scroll');           // зберігаємо скрол через перемальовку
+  const top  = prev ? prev.scrollTop : 0;
+  v.innerHTML = buildHTML();
+  if (top) { const next = v.querySelector('.io-scroll'); if (next) next.scrollTop = top; }
 }
 
 function topbar(sub) {
