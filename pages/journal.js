@@ -360,10 +360,9 @@ function bldItemRow(it, listKey) {
   </div>`;
 }
 
-function buildClModal() {
-  if (!_clModal || !_clDraft) return '';
-  const d = _clDraft;
-  const itemsArea = d.kind === 'daily'
+// Область пунктів (daily-список або 7 днів) — окремо, щоб оновлювати точково без перебудови модалки
+function clItemsAreaHTML(d) {
+  return d.kind === 'daily'
     ? `${d.daily.map(it => bldItemRow(it, 'daily')).join('')}
        <button class="jrn-bld-add" onclick="window.__jrn.clAddItem('daily')">+ Пункт</button>`
     : WEEKDAYS.map(w => `
@@ -372,6 +371,11 @@ function buildClModal() {
          ${(d.weekly[w.wd] || []).map(it => bldItemRow(it, String(w.wd))).join('')}
          <button class="jrn-bld-add" onclick="window.__jrn.clAddItem('${w.wd}')">+ Пункт</button>
        </div>`).join('');
+}
+
+function buildClModal() {
+  if (!_clModal || !_clDraft) return '';
+  const d = _clDraft;
   return `
   <div class="jrn-modal-ov" onclick="window.__jrn.closeClModalOv(event)">
     <div class="jrn-modal" onclick="event.stopPropagation()">
@@ -380,19 +384,19 @@ function buildClModal() {
         <div class="jrn-modal-lbl">Назва</div>
         <input id="cl-title" class="jrn-modal-inp" value="${esc(d.title)}" placeholder="Відкриття бару">
         <div class="jrn-modal-lbl">Тип</div>
-        <div class="jrn-dept-row">
+        <div class="jrn-dept-row" id="cl-kind-row">
           <button class="jrn-dept-chip ${d.kind === 'daily' ? 'sel' : ''}" onclick="window.__jrn.clSetKind('daily')">Щоденний</button>
           <button class="jrn-dept-chip ${d.kind === 'weekly' ? 'sel' : ''}" onclick="window.__jrn.clSetKind('weekly')">Щотижневий</button>
         </div>
         <div class="jrn-modal-lbl">Для кого</div>
-        <div class="jrn-dept-row">
+        <div class="jrn-dept-row" id="cl-dept-row">
           ${Object.entries(CL_DEPT_LABEL).map(([k, v]) =>
             `<button class="jrn-dept-chip ${d.department === k ? 'sel' : ''}" onclick="window.__jrn.clSetDept('${k}')">${v}</button>`).join('')}
         </div>
         <div class="jrn-modal-lbl">Дедлайн (необовʼязково)</div>
         <input id="cl-deadline" type="time" class="jrn-modal-inp" value="${d.deadline || ''}">
-        <div class="jrn-modal-lbl">Пункти${d.kind === 'weekly' ? ' — своя дія на кожен день' : ''}</div>
-        ${itemsArea}
+        <div class="jrn-modal-lbl" id="cl-items-lbl">Пункти${d.kind === 'weekly' ? ' — своя дія на кожен день' : ''}</div>
+        <div id="cl-items-area">${clItemsAreaHTML(d)}</div>
       </div>
       <div class="jrn-modal-btns">
         <button class="jrn-btn-sec" onclick="window.__jrn.closeClModal()">Скасувати</button>
@@ -400,6 +404,12 @@ function buildClModal() {
       </div>
     </div>
   </div>`;
+}
+
+// Оновити лише область пунктів (без перебудови всієї модалки → без миготіння)
+function refreshClItems() {
+  const area = document.getElementById('cl-items-area');
+  if (area) area.innerHTML = clItemsAreaHTML(_clDraft); else rerenderModals();
 }
 
 // Зчитати значення інпутів конструктора у чернетку (перед структурним перемальовуванням)
@@ -686,26 +696,45 @@ export default {
       },
       closeClModal() { _clModal = false; _clDraft = null; rerenderModals(); },
       closeClModalOv(e) { if (e?.target?.classList?.contains('jrn-modal-ov')) { _clModal = false; _clDraft = null; rerenderModals(); } },
-      clSetKind(k) { captureClDraft(); _clDraft.kind = k; rerenderModals(); },
-      clSetDept(k) { captureClDraft(); _clDraft.department = k; rerenderModals(); },
+      // Тип: оновлюємо чипи + лише область пунктів (daily↔weekly структурно різні)
+      clSetKind(k) {
+        if (_clDraft.kind === k) return;
+        captureClDraft();
+        _clDraft.kind = k;
+        const row = document.getElementById('cl-kind-row');
+        if (row) [...row.children].forEach((b, i) => b.className = 'jrn-dept-chip' + ((i === 0 ? 'daily' : 'weekly') === k ? ' sel' : ''));
+        const lbl = document.getElementById('cl-items-lbl');
+        if (lbl) lbl.textContent = 'Пункти' + (k === 'weekly' ? ' — своя дія на кожен день' : '');
+        refreshClItems();
+      },
+      // Підрозділ: лише підсвічуємо чипи (нічого не перебудовуємо)
+      clSetDept(k) {
+        _clDraft.department = k;
+        const keys = Object.keys(CL_DEPT_LABEL);
+        const row = document.getElementById('cl-dept-row');
+        if (row) [...row.children].forEach((b, i) => b.className = 'jrn-dept-chip' + (keys[i] === k ? ' sel' : ''));
+      },
       clAddItem(listKey) {
         captureClDraft();
         if (listKey === 'daily') _clDraft.daily.push(newClItem());
         else _clDraft.weekly[Number(listKey)].push(newClItem());
-        rerenderModals();
+        refreshClItems();
       },
       clDelItem(listKey, itemId) {
         captureClDraft();
         if (listKey === 'daily') _clDraft.daily = _clDraft.daily.filter(i => i.id !== itemId);
         else _clDraft.weekly[Number(listKey)] = _clDraft.weekly[Number(listKey)].filter(i => i.id !== itemId);
-        rerenderModals();
+        refreshClItems();
       },
+      // Фото: лише перемикаємо клас цієї кнопки (без перебудови)
       clTogglePhoto(listKey, itemId) {
-        captureClDraft();
         const arr = listKey === 'daily' ? _clDraft.daily : _clDraft.weekly[Number(listKey)];
         const it = arr.find(i => i.id === itemId);
-        if (it) it.photo = !it.photo;
-        rerenderModals();
+        if (!it) return;
+        it.photo = !it.photo;
+        const inp = document.getElementById('clitem-' + itemId);
+        const btn = inp && inp.parentElement && inp.parentElement.querySelector('.jrn-bld-photo');
+        if (btn) btn.className = 'jrn-bld-photo' + (it.photo ? ' on' : '');
       },
       async saveTemplate() {
         captureClDraft();
