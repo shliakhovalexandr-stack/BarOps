@@ -770,18 +770,25 @@ function prodPickerHTML() {
 /* ── Підказки закупівлі (рух за 7 днів + залишок) ── */
 function fmtN(n) { return Math.round((+n || 0) * 10) / 10; }
 
-async function loadSuggest() {
+async function loadSuggest(force = false, attempt = 1) {
   if (_suggestLoading) return;
   _suggestLoading = true;
   if (_mgrTab === 'suggest') fullRender();
+  let ok = false;
   try {
     const tok = _token || localStorage.getItem('barops_token') || '';
-    const r = await fetch(`${API}/api/pos/ordering-suggestions/${_venueId}`, { headers: { Authorization: `Bearer ${tok}` } });
+    const r = await fetch(`${API}/api/pos/ordering-suggestions/${_venueId}${force ? '?fresh=1' : ''}`, { headers: { Authorization: `Bearer ${tok}` } });
     const d = await r.json();
-    _suggest = (r.ok && d.success) ? (d.suggestions || []) : [];
+    ok = r.ok && d.success;
+    _suggest = ok ? (d.suggestions || []) : [];
   } catch { _suggest = []; }
   _suggestLoading = false;
-  fullRender();   // оновити вкладку менеджера й барменський пікер з підказками
+  // Syrve має один REST-слот — запит міг програти гонку іншому. Ретраїмо до 3 разів.
+  if (!ok && attempt < 3 && state.route === 'ordering') {
+    setTimeout(() => loadSuggest(false, attempt + 1), 5000);
+  }
+  // Оновлюємо без скидання скролу: бармен — лише рядки товарів; менеджер — повний рендер вкладки
+  if (_mgrTab === 'suggest') fullRender(); else partialRefreshSupps();
 }
 
 function toggleSuggestLow() { _suggestOnlyLow = !_suggestOnlyLow; fullRender(); }
@@ -791,7 +798,7 @@ function suggestHTML() {
   const all = (_suggest || []).filter(s => (s.sold7days || 0) > 0);
   if (!all.length) {
     return `<div style="padding:24px 16px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Немає даних про рух за тиждень.<br>Перевір, що для закладу налаштовано Syrve (department + склад).
-      <div style="margin-top:12px"><button onclick="window.__ord.loadSuggest()" style="height:36px;padding:0 16px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button></div></div>`;
+      <div style="margin-top:12px"><button onclick="window.__ord.loadSuggest(true)" style="height:36px;padding:0 16px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button></div></div>`;
   }
   const rank = { critical: 0, low: 1, ok: 2 };
   all.sort((a, b) => (rank[a.status] - rank[b.status]) || ((a.stock - a.weeklyAvg) - (b.stock - b.weeklyAvg)));
@@ -802,7 +809,7 @@ function suggestHTML() {
       <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Рух за 7 днів · <b style="color:${lowCount ? 'var(--amber)' : 'var(--green)'}">${lowCount}</b> треба замовити</div>
       <div style="display:flex;gap:6px">
         <button onclick="window.__ord.toggleSuggestLow()" style="height:30px;padding:0 11px;border-radius:9px;border:0.5px solid var(--border);background:${_suggestOnlyLow ? 'var(--purple-bg)' : 'var(--bg2)'};color:${_suggestOnlyLow ? 'var(--purple)' : 'var(--text1)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${_suggestOnlyLow ? 'Усі' : 'Лише замовити'}</button>
-        <button onclick="window.__ord.loadSuggest()" style="width:30px;height:30px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px;cursor:pointer">↻</button>
+        <button onclick="window.__ord.loadSuggest(true)" style="width:30px;height:30px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px;cursor:pointer">↻</button>
       </div>
     </div>
     ${list.map(s => {
@@ -1499,8 +1506,9 @@ export default {
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
     loadDraft();   // відновити збережену чернетку заявки
     loadCopied();  // відновити позначки «вже копіювали»
-    loadData();
-    loadSuggest(); // підказки руху за тиждень (показуємо в пікері й у вкладці «Підказки»)
+    // ПОСЛІДОВНО: обидва ходять у Syrve (один REST-слот) — паралельний loadSuggest
+    // програвав гонку балансу й повертався порожнім
+    loadData().then(() => loadSuggest());
     if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') loadOrders();
   },
 };
