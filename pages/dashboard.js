@@ -21,6 +21,7 @@ let _venueSheetOpen  = false;
 let _notifOpen       = false;
 let _pendingOrders   = [];   // заявки на закупку (для адмін/менеджер)
 let _pendingDayoff   = [];   // запити на вихідні (для адмін/менеджер)
+let _seenNotifs      = new Set(); // id переглянутих сповіщень (localStorage) — нові світяться, прочитані сірі
 
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
@@ -308,6 +309,25 @@ async function loadVenues() {
   }
 }
 
+/* ── Сповіщення: стан «бачив» ── */
+function notifSeenKey() { return 'barops_notif_seen'; }
+function loadSeenNotifs() { try { _seenNotifs = new Set(JSON.parse(localStorage.getItem(notifSeenKey()) || '[]')); } catch { _seenNotifs = new Set(); } }
+function notifList() {
+  const list = [];
+  (_pendingOrders || []).forEach(o => list.push('o-' + o.id));
+  (_pendingDayoff || []).forEach(r => list.push('d-' + r.id));
+  ((_stats && _stats.critical) || []).forEach(p => list.push('c-' + (p.productId || p.name)));
+  return list;
+}
+function unseenNotifCount() { return notifList().filter(id => !_seenNotifs.has(id)).length; }
+function clearNotifs() {
+  notifList().forEach(id => _seenNotifs.add(id));
+  // лишаємо тільки актуальні id, щоб набір не розростався
+  _seenNotifs = new Set([..._seenNotifs].filter(id => notifList().includes(id)));
+  try { localStorage.setItem(notifSeenKey(), JSON.stringify([..._seenNotifs])); } catch {}
+  fullRender();
+}
+
 async function loadStats() {
   _loading = true;
   partialRender();
@@ -362,6 +382,7 @@ function buildHTML() {
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule'].includes(q.route))
               : QUICK_BARTENDER;
   const s     = _stats;
+  const unseen = unseenNotifCount();
 
   // KPI з реальних даних
   const kpi = isMgr ? [
@@ -388,7 +409,10 @@ ${CSS}
   <div class="d-notif-panel ${_notifOpen ? 'open' : ''}" id="d-notif">
     <div class="d-notif-hdr">
       <span class="d-notif-ttl">Сповіщення</span>
-      <button class="d-notif-clr" onclick="window.__dash.closeNotif()">Закрити</button>
+      <span style="display:flex;gap:14px;align-items:center">
+        ${unseen > 0 ? `<button class="d-notif-clr" onclick="window.__dash.clearNotifs()">Очистити</button>` : ''}
+        <button class="d-notif-clr" style="color:var(--text2)" onclick="window.__dash.closeNotif()">Закрити</button>
+      </span>
     </div>
     ${_pendingOrders.length ? _pendingOrders.map(o => {
       const t = new Date(o.createdAt);
@@ -399,7 +423,7 @@ ${CSS}
     <div style="padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer"
          onclick="window.__barops.navigate('ordering');window.__dash.closeNotif()">
       <div style="display:flex;gap:8px;align-items:flex-start">
-        <div style="width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0;margin-top:4px"></div>
+        <div style="width:7px;height:7px;border-radius:50%;background:${_seenNotifs.has('o-'+o.id) ? 'var(--text3)' : 'var(--amber)'};flex-shrink:0;margin-top:4px"></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;color:var(--text1);font-family:var(--font-b)">Нова заявка на закупку</div>
           <div style="font-size:10px;color:var(--text2);margin-top:2px">${o.submittedBy} · ${totalItems} поз. · ${timeStr}</div>
@@ -413,7 +437,7 @@ ${CSS}
     <div style="padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer"
          onclick="window.__barops.navigate('schedule');window.__dash.closeNotif()">
       <div style="display:flex;gap:8px;align-items:flex-start">
-        <div style="width:7px;height:7px;border-radius:50%;background:var(--purple);flex-shrink:0;margin-top:4px"></div>
+        <div style="width:7px;height:7px;border-radius:50%;background:${_seenNotifs.has('d-'+r.id) ? 'var(--text3)' : 'var(--purple)'};flex-shrink:0;margin-top:4px"></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;color:var(--text1);font-family:var(--font-b)">Запит на вихідні</div>
           <div style="font-size:10px;color:var(--text2);margin-top:2px">${r.userName || 'Співробітник'} · ${dts}</div>
@@ -424,7 +448,7 @@ ${CSS}
     ${s?.critical?.length ? s.critical.map(p => `
     <div style="padding:10px 16px;border-bottom:1px solid var(--border)">
       <div style="display:flex;gap:8px;align-items:flex-start">
-        <div style="width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:4px"></div>
+        <div style="width:7px;height:7px;border-radius:50%;background:${_seenNotifs.has('c-'+(p.productId||p.name)) ? 'var(--text3)' : 'var(--red)'};flex-shrink:0;margin-top:4px"></div>
         <div>
           <div style="font-size:12px;color:var(--text1);font-family:var(--font-b)">${p.name} — низький залишок</div>
           <div style="font-size:10px;color:var(--text2);margin-top:2px">${p.currentStock} ${p.unit} · мінімум ${p.reorderPoint} ${p.unit}</div>
@@ -474,7 +498,7 @@ ${CSS}
               stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M10.7 15a2 2 0 01-3.4 0" stroke="var(--text1)" stroke-width="1.3" stroke-linecap="round"/>
           </svg>
-          ${(s?.critical?.length || _pendingOrders.length || _pendingDayoff.length) ? '<div class="d-notif-badge"></div>' : ''}
+          ${unseen > 0 ? '<div class="d-notif-badge"></div>' : ''}
         </div>
       </div>
       <div class="d-shift-row">
@@ -726,6 +750,7 @@ export default {
     _pendingOrders  = [];
     _pendingDayoff  = [];
     _syrveStats     = null;
+    loadSeenNotifs();
     return buildHTML();
   },
   async init() {
@@ -739,6 +764,7 @@ export default {
         _notifOpen = false;
         document.getElementById('d-notif')?.classList.remove('open');
       },
+      clearNotifs,
       toggleVenueSheet,
       closeVenueSheet,
       selectVenue,
