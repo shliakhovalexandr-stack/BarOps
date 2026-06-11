@@ -67,8 +67,12 @@ const CSS = `<style id="jrn-css">
 .jrn-cl-check{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--border);flex-shrink:0;
   display:flex;align-items:center;justify-content:center;transition:all .15s}
 .jrn-cl-check.done{background:var(--green);border-color:var(--green)}
-.jrn-cl-item-text{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
+.jrn-cl-item{align-items:flex-start}
+.jrn-cl-check{margin-top:1px}
+.jrn-cl-item-text{font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)}
 .jrn-cl-item-text.done{color:var(--text3);text-decoration:line-through}
+.jrn-cl-item-desc{font-size:11.5px;color:var(--text2);font-family:var(--font-b);margin-top:3px;line-height:1.45}
+.jrn-cl-item-desc.done{color:var(--text3)}
 /* manager task row */
 .jrn-task-row{display:flex;align-items:center;gap:10px;padding:14px 16px}
 .jrn-task-del{width:28px;height:28px;border-radius:8px;flex-shrink:0;background:rgba(255,80,80,.08);
@@ -133,7 +137,11 @@ const CSS = `<style id="jrn-css">
 .jrn-cl-photo{font-size:12px;flex-shrink:0;opacity:.7}
 .jrn-cl-by{font-size:10px;color:var(--text3);font-family:var(--font-b);margin-left:auto;flex-shrink:0}
 /* builder */
-.jrn-bld-item{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.jrn-bld-item-card{background:rgba(255,255,255,.02);border:0.5px solid var(--border);border-radius:12px;padding:10px;margin-bottom:10px}
+.jrn-bld-item{display:flex;align-items:center;gap:8px}
+.jrn-bld-desc{width:100%;box-sizing:border-box;margin-top:8px;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);border-radius:10px;
+  padding:9px 12px;font-size:13px;color:var(--text1);outline:none;font-family:var(--font-b);resize:none;line-height:1.4}
+.jrn-bld-desc:focus{border-color:rgba(168,139,255,.5)}
 .jrn-bld-inp{flex:1;box-sizing:border-box;background:var(--bg2,#1F1F22);border:0.5px solid var(--border);border-radius:10px;
   padding:10px 12px;font-size:14px;color:var(--text0);outline:none;font-family:var(--font-b)}
 .jrn-bld-inp:focus{border-color:rgba(168,139,255,.5)}
@@ -316,7 +324,10 @@ function buildTodayChecklists() {
       ${cl.items.map(it => `
       <div class="jrn-cl-item" onclick="window.__jrn.toggleClItem('${cl.templateId}','${it.id}',${it.done ? 0 : 1})">
         <div class="jrn-cl-check ${it.done ? 'done' : ''}">${it.done ? CHECK_SVG : ''}</div>
-        <div class="jrn-cl-item-text ${it.done ? 'done' : ''}">${esc(it.text)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="jrn-cl-item-text ${it.done ? 'done' : ''}">${esc(it.text)}</div>
+          ${it.desc ? `<div class="jrn-cl-item-desc ${it.done ? 'done' : ''}">${esc(it.desc)}</div>` : ''}
+        </div>
         ${it.photo ? `<span class="jrn-cl-photo" title="Потрібне фото">📷</span>` : ''}
         ${it.done && it.doneBy ? `<span class="jrn-cl-by">${esc(it.doneBy)}</span>` : ''}
       </div>`).join('')}
@@ -350,13 +361,16 @@ function buildManagerTemplates() {
     ${list}`;
 }
 
-// Рядок пункту у конструкторі (listKey: 'daily' або номер дня тижня)
+// Рядок пункту у конструкторі: Дія (коротко) + Опис (що робити). listKey: 'daily' або номер дня тижня
 function bldItemRow(it, listKey) {
   return `
-  <div class="jrn-bld-item">
-    <input class="jrn-bld-inp" id="clitem-${it.id}" value="${esc(it.text)}" placeholder="Що зробити…">
-    <button class="jrn-bld-photo ${it.photo ? 'on' : ''}" onclick="window.__jrn.clTogglePhoto('${listKey}','${it.id}')" title="Потрібне фото">📷</button>
-    <button class="jrn-bld-del" onclick="window.__jrn.clDelItem('${listKey}','${it.id}')">×</button>
+  <div class="jrn-bld-item-card">
+    <div class="jrn-bld-item">
+      <input class="jrn-bld-inp" id="clitem-${it.id}" value="${esc(it.text)}" placeholder="Дія (коротко)">
+      <button class="jrn-bld-photo ${it.photo ? 'on' : ''}" onclick="window.__jrn.clTogglePhoto('${listKey}','${it.id}')" title="Потрібне фото">📷</button>
+      <button class="jrn-bld-del" onclick="window.__jrn.clDelItem('${listKey}','${it.id}')">×</button>
+    </div>
+    <textarea class="jrn-bld-desc" id="cldesc-${it.id}" rows="2" placeholder="Опис: що саме зробити…">${esc(it.desc || '')}</textarea>
   </div>`;
 }
 
@@ -417,13 +431,16 @@ function captureClDraft() {
   if (!_clDraft) return;
   const t = document.getElementById('cl-title');    if (t) _clDraft.title = t.value;
   const dl = document.getElementById('cl-deadline'); if (dl) _clDraft.deadline = dl.value;
-  const cap = arr => arr.forEach(it => { const el = document.getElementById('clitem-' + it.id); if (el) it.text = el.value; });
+  const cap = arr => arr.forEach(it => {
+    const el = document.getElementById('clitem-' + it.id); if (el) it.text = el.value;
+    const de = document.getElementById('cldesc-' + it.id); if (de) it.desc = de.value;
+  });
   cap(_clDraft.daily);
   Object.values(_clDraft.weekly).forEach(cap);
 }
 
 function newClItem() {
-  return { id: `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, text: '', photo: false };
+  return { id: `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, text: '', desc: '', photo: false };
 }
 
 /* ════════════════════════
@@ -687,7 +704,7 @@ export default {
           daily: [], weekly: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
         };
         (t.items || []).forEach(it => {
-          const item = { id: it.id || newClItem().id, text: it.text || '', photo: !!it.photo };
+          const item = { id: it.id || newClItem().id, text: it.text || '', desc: it.desc || '', photo: !!it.photo };
           if (t.kind === 'weekly') { const wd = Number(it.weekday); draft.weekly[wd >= 0 && wd <= 6 ? wd : 1].push(item); }
           else draft.daily.push(item);
         });
@@ -743,12 +760,12 @@ export default {
         if (!title) { alert('Вкажіть назву'); return; }
         let items;
         if (d.kind === 'daily') {
-          items = d.daily.filter(i => i.text.trim()).map(i => ({ id: i.id, text: i.text.trim(), photo: i.photo }));
+          items = d.daily.filter(i => i.text.trim()).map(i => ({ id: i.id, text: i.text.trim(), desc: (i.desc || '').trim(), photo: i.photo }));
         } else {
           items = [];
           for (const w of WEEKDAYS) {
             (d.weekly[w.wd] || []).filter(i => i.text.trim()).forEach(i =>
-              items.push({ id: i.id, text: i.text.trim(), photo: i.photo, weekday: w.wd }));
+              items.push({ id: i.id, text: i.text.trim(), desc: (i.desc || '').trim(), photo: i.photo, weekday: w.wd }));
           }
         }
         if (!items.length) { alert('Додайте хоча б один пункт'); return; }
