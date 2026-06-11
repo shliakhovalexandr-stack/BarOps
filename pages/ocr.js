@@ -496,6 +496,11 @@ async function loadOcrTgSettings() {
     if (venue) {
       _ocrTgChatId  = venue.telegramOcrChatId  || '';
       _ocrTgTopicId = venue.telegramOcrTopicId || '';
+      // оновити вже відрендерені інпути (render() повертає HTML до завершення fetch → інакше порожньо)
+      const ci = document.getElementById('ocr-tg-chat');
+      if (ci && document.activeElement !== ci) ci.value = _ocrTgChatId;
+      const ti = document.getElementById('ocr-tg-topic');
+      if (ti && document.activeElement !== ti) ti.value = _ocrTgTopicId;
     }
   } catch {}
 }
