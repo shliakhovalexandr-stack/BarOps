@@ -34,6 +34,7 @@ let _suppSheet        = null;   // null | 'add' | suppId(string) для edit
 let _suppDraft        = { name:'', contact:'', orderDays:'', fop:'', paymentForm:'' };
 let _confirm          = null;   // { title, message, confirmLabel, danger, action }
 let _rename           = null;   // { id, syrve, value } — модалка перейменування товару
+let _customProd       = null;   // { suppId, name } — модалка створення власного товару (тільки BarOps)
 let _prodPickerSupp   = null;   // suppId для якого відкритий пікер
 let _prodSearch       = '';
 let _suppSaving       = false;
@@ -654,22 +655,30 @@ function suppSheetHTML() {
 function suppProdsHTML(supp) {
   const prods = supp ? (supp.supplierProducts || []) : [];
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px">
-      <div style="font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b)">Товари (${prods.length})</div>
-      <div onclick="window.__ord.openProdPicker('${supp.id}')"
-        style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--teal);cursor:pointer;padding:6px 12px;background:var(--teal-bg);border:0.5px solid var(--teal-border);border-radius:8px;font-family:var(--font-b)">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="var(--teal)" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Додати товар
+    <div style="margin:6px 0 10px">
+      <div style="font-size:12px;font-weight:600;color:var(--text0);font-family:var(--font-b);margin-bottom:8px">Товари (${prods.length})</div>
+      <div style="display:flex;gap:8px">
+        <div onclick="window.__ord.openProdPicker('${supp.id}')"
+          style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--teal);cursor:pointer;padding:8px 12px;background:var(--teal-bg);border:0.5px solid var(--teal-border);border-radius:8px;font-family:var(--font-b)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="var(--teal)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Із Syrve
+        </div>
+        <div onclick="window.__ord.openCustomProd('${supp.id}')"
+          style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--purple);cursor:pointer;padding:8px 12px;background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:8px;font-family:var(--font-b)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Власний
+        </div>
       </div>
     </div>
     ${prods.length > 0
       ? `<div style="background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
           ${prods.map((sp, i) => {
-            const hasCustom = sp.customName && sp.customName !== sp.productName;
+            const isCustom = (sp.productId || '').startsWith('custom-');
+            const hasCustom = !isCustom && sp.customName && sp.customName !== sp.productName;
             return `
           <div style="display:flex;align-items:center;gap:8px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sp.customName || sp.productName}</div>
+              <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sp.customName || sp.productName}${isCustom ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">власний</span>' : ''}</div>
               ${hasCustom ? `<div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Syrve: ${sp.productName}</div>` : ''}
             </div>
             <div onclick="window.__ord.renameProduct('${sp.id}')" title="Перейменувати для відправки"
@@ -788,7 +797,7 @@ function renderManager() {
 
   <div id="ord-sheet-host">${suppSheetHTML()}</div>
   <div id="ord-picker-host">${prodPickerHTML()}</div>
-  <div id="ord-confirm-host">${confirmHTML()}${renameHTML()}</div>`;
+  <div id="ord-confirm-host">${confirmHTML()}${renameHTML()}${customHTML()}</div>`;
 }
 
 /* ════════════════════════
@@ -831,6 +840,27 @@ function renameHTML() {
   </div>`;
 }
 
+// Модалка створення власного товару (тільки BarOps — для розхідки, якої в Syrve нема як товар)
+function customHTML() {
+  if (!_customProd) return '';
+  const c = _customProd;
+  return `
+  <div class="ord-confirm-ov open" onclick="window.__ord.customCancel()">
+    <div class="ord-confirm" onclick="event.stopPropagation()">
+      <div class="ord-confirm-title">Власний товар</div>
+      <input class="ord-confirm-inp" id="ord-custom-inp" type="text" maxlength="120"
+        value="${(c.name || '').replace(/"/g, '&quot;')}" placeholder="Назва (напр. Серветки, Зубочистки)"
+        oninput="window.__ord.customInput(this.value)"
+        onkeydown="if(event.key==='Enter')window.__ord.saveCustomProd()"/>
+      <div class="ord-confirm-hint">Тільки в BarOps для замовлення (у Syrve товару нема). Одиницю бармен обере при замовленні.</div>
+      <div class="ord-confirm-btns">
+        <button class="ord-confirm-cancel" onclick="window.__ord.customCancel()">Скасувати</button>
+        <button class="ord-confirm-ok primary" onclick="window.__ord.saveCustomProd()">Додати</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ════════════════════════
    BUILD + RENDER
 ════════════════════════ */
@@ -861,10 +891,14 @@ function refreshPickerHost() {
 function refreshConfirmHost() {
   const el = document.getElementById('ord-confirm-host');
   if (!el) { fullRender(); return; }
-  el.innerHTML = confirmHTML() + renameHTML();
+  el.innerHTML = confirmHTML() + renameHTML() + customHTML();
   if (_rename) {
     const inp = document.getElementById('ord-rename-inp');
     if (inp) { inp.focus(); inp.select(); }
+  }
+  if (_customProd) {
+    const inp = document.getElementById('ord-custom-inp');
+    if (inp) { inp.focus(); }
   }
 }
 function refreshMgrSupps() {
@@ -1302,6 +1336,34 @@ async function renameSave() {
   }
 }
 
+/* ── Власний товар (тільки BarOps) ── */
+function openCustomProd(suppId) { _customProd = { suppId, name: '' }; refreshConfirmHost(); }
+function customInput(v) { if (_customProd) _customProd.name = v; }
+function customCancel() { _customProd = null; refreshConfirmHost(); }
+async function saveCustomProd() {
+  if (!_customProd) return;
+  const name = (_customProd.name || '').trim();
+  if (!name) return;                       // порожню назву ігноруємо (діалог лишається)
+  const suppId = _customProd.suppId;
+  _customProd = null; refreshConfirmHost();
+  const supp = _suppliers.find(s => s.id === suppId);
+  if (!supp) return;
+  const productId = 'custom-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  try {
+    const res = await fetch(`${API}/api/suppliers/products`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body:    JSON.stringify({ supplierId: suppId, venueId: _venueId, productId, productName: name, customName: name }),
+    });
+    const data = await res.json();
+    if (!data.success) { alert('Не вдалося додати товар'); return; }
+    if (!supp.supplierProducts) supp.supplierProducts = [];
+    supp.supplierProducts.push(data.supplierProduct);
+    refreshSuppProds();
+    if (_prodPickerSupp) refreshPickerHost();
+  } catch (e) { alert('Помилка: ' + e.message); }
+}
+
 async function removeProduct(spId) {
   try {
     await fetch(`${API}/api/suppliers/products/${spId}`, {
@@ -1348,6 +1410,7 @@ export default {
       closeConfirm, confirmYes,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
       renameProduct, renameInput, renameCancel, renameSave,
+      openCustomProd, customInput, customCancel, saveCustomProd,
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
