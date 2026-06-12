@@ -237,7 +237,7 @@ body {
     authMod, dashMod, ocrMod, invMod, woffMod,
     ordMod, recMod, alertMod, shiftMod, mgrMod, teamMod, profMod,
     exciseMod, debtsMod, analyticsMod, stockMod, venueEditMod, stopListMod, scheduleMod, journalMod,
-    recipeBookMod, currentShiftMod, playlistMod, invoiceOcrMod,
+    recipeBookMod, currentShiftMod, playlistMod, invoiceOcrMod, performanceMod,
   ] = await Promise.all([
     import('./pages/auth.js'),
     import('./pages/dashboard.js'),
@@ -263,6 +263,7 @@ body {
     import('./pages/current-shift.js'),
     import('./pages/playlist.js'),
     import('./pages/invoice-ocr.js'),
+    import('./pages/performance.js'),
   ]);
 
   /* Реєструємо кожну сторінку — простий прямий об'єкт */
@@ -291,6 +292,7 @@ body {
     ['current-shift', currentShiftMod],
     ['playlist',      playlistMod],
     ['invoice-ocr',   invoiceOcrMod],
+    ['performance',   performanceMod],
   ];
 
   for (const [name, mod] of pages) {

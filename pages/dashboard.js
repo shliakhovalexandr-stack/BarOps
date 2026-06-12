@@ -67,9 +67,14 @@ const QUICK_PLAYLIST = { route:'playlist', badge:null, label:'Плей-лист'
        <circle cx="9" cy="9" r="3.6" stroke="currentColor" stroke-width="1.3"/>
        <circle cx="9" cy="9" r="1" fill="currentColor"/>` };
 
+const QUICK_PERFORMANCE = { route:'performance', badge:null, label:'Продуктивність', hint:'Виторг бару на годину-бармена', color:'var(--blue-bg)', iconColor:'var(--blue)',
+  svg:`<path d="M3 15V9M7 15V4M11 15v-4M15 15V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+       <path d="M2 16h14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".5"/>` };
+
 const QUICK_MANAGER = [
   QUICK_CURRENT_SHIFT,
   QUICK_PLAYLIST,
+  QUICK_PERFORMANCE,
   { route:'debts',    badge:null, label:'Борги',            hint:'Відкриті рахунки та борги',    color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
