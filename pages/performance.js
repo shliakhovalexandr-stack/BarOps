@@ -123,6 +123,10 @@ function venueView() {
   if (!_venueData || !_venueData.days?.length) {
     return `<div class="pf-empty"><div class="pf-empty-txt">Немає даних за період.<br>Перевір, що заклад на Syrve і графік заповнено.</div></div>`;
   }
+  const noHours = !(_venueData.totals && _venueData.totals.daysWithShift);
+  const warn = noHours ? `<div class="pf-empty" style="margin-bottom:8px;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
+      <div class="pf-empty-txt">⚠ Графік змін барменів за період не заповнено, тож «виторг/год» порахувати неможливо.<br>
+      Заповни графік у розділі <b style="color:var(--amber)">«Графіки»</b> — і метрика зʼявиться автоматично.</div></div>` : '';
   const days = _venueData.days.slice().reverse(); // новіші зверху
   const bestRev = Math.max(...days.map(d => d.revPerHour || 0));
   const rows = days.map(d => `
@@ -133,6 +137,7 @@ function venueView() {
       <div class="pf-c ${d.bartenderHours ? '' : 'muted'}">${d.bartenderHours ? fmtN(d.bartenderHours)+' год' : 'нема зм.'}</div>
     </div>`).join('');
   return `
+    ${warn}
     ${kpiCards(_venueData.totals)}
     <div class="pf-note">«—» у виторгу/год — день без графіка або ще не закритий. Бар = місця приготування з «бар» у назві.</div>
     <div class="pf-sec">По днях</div>
@@ -157,7 +162,7 @@ function compareView() {
     <div class="pf-cmp">
       <div class="pf-cmp-rank ${i === 0 ? 'top' : ''}">${i + 1}</div>
       <div class="pf-cmp-name">${esc(v.venueName)}
-        <div class="pf-cmp-sub">${v.error ? '⚠ ' + esc(v.error) : `${fmtUAH(t.barRevenue)} · серед.чек ${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'} · ${t.daysWithShift || 0} дн.`}</div>
+        <div class="pf-cmp-sub">${v.error ? '⚠ ' + esc(v.error) : (t.daysWithShift ? `${fmtUAH(t.barRevenue)} · серед.чек ${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'} · ${t.daysWithShift} дн.` : `${fmtUAH(t.barRevenue)} · ⚠ графік змін не заповнено`)}</div>
       </div>
       <div class="pf-cmp-val"><b>${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}</b><span>₴/год</span></div>
     </div>`;
