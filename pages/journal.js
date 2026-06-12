@@ -40,6 +40,8 @@ const CHECK_SVG  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
 const CSS = `<style id="jrn-css">
 .jrn-scroll{overflow-y:auto;flex:1}.jrn-scroll::-webkit-scrollbar{width:0}
 .jrn-header{padding:16px 20px 8px;display:flex;align-items:center;justify-content:space-between}
+.jrn-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.jrn-back:active{background:rgba(255,255,255,.08)}
 .jrn-title{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
 .jrn-date{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .jrn-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;
@@ -479,9 +481,14 @@ ${CSS}
   <div class="jrn-scroll">
 
     <div class="jrn-header">
-      <div>
-        <div class="jrn-title">Журнал</div>
-        <div class="jrn-date">${todayStr()} · ${state.venue || ''}</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="jrn-back" onclick="window.__barops.navigate('dashboard')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="jrn-title">Журнал</div>
+          <div class="jrn-date">${todayStr()} · ${state.venue || ''}</div>
+        </div>
       </div>
     </div>
 
