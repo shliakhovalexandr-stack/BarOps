@@ -53,6 +53,8 @@ const CSS = `<style id="perf-css">
 .pf-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 6px}
 .pf-kpi{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:15px;padding:13px 14px;position:relative;overflow:hidden}
 .pf-kpi.hero{grid-column:1 / -1;background:linear-gradient(135deg,rgba(56,189,248,.10),rgba(168,139,255,.06))}
+.pf-kpi.wide{grid-column:1 / -1}
+.pf-kpi.drink{background:linear-gradient(135deg,rgba(134,239,172,.09),rgba(56,189,248,.04))}
 .pf-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase}
 .pf-kpi-val{font-family:var(--font-h);font-weight:700;color:var(--text0);margin-top:5px;line-height:1}
 .pf-kpi-val.big{font-size:30px;color:var(--blue)}
@@ -97,22 +99,28 @@ function kpiCards(t) {
       <div class="pf-kpi-val big">${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}</div>
       <div class="pf-kpi-hint">за ${t.daysWithShift} повних днів зі зміною · ${fmtN(t.bartenderHours)} год</div>
     </div>
-    <div class="pf-kpi">
-      <div class="pf-kpi-lbl">Позицій / годину</div>
+    <div class="pf-kpi drink">
+      <div class="pf-kpi-lbl">🍸 Напоїв / год</div>
       <div class="pf-kpi-val mid">${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}</div>
+      <div class="pf-kpi-hint">барних позицій на бармена-годину</div>
+    </div>
+    <div class="pf-kpi drink">
+      <div class="pf-kpi-lbl">🧾 Чеків / год</div>
+      <div class="pf-kpi-val mid">${t.checksPerHour != null ? fmtN(t.checksPerHour) : '—'}</div>
+      <div class="pf-kpi-hint">замовлень на бармена-годину</div>
     </div>
     <div class="pf-kpi">
-      <div class="pf-kpi-lbl">Середній бар-чек</div>
+      <div class="pf-kpi-lbl">Середній чек</div>
       <div class="pf-kpi-val mid">${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'}</div>
     </div>
     <div class="pf-kpi">
       <div class="pf-kpi-lbl">Виторг / зміну</div>
       <div class="pf-kpi-val mid">${t.revPerDay != null ? fmtUAH(t.revPerDay) : '—'}</div>
     </div>
-    <div class="pf-kpi">
-      <div class="pf-kpi-lbl">Виторг бару за період</div>
+    <div class="pf-kpi wide">
+      <div class="pf-kpi-lbl">Усього за період</div>
       <div class="pf-kpi-val mid">${fmtUAH(t.barRevenue)}</div>
-      <div class="pf-kpi-hint">${t.barChecks.toLocaleString('uk-UA')} чеків</div>
+      <div class="pf-kpi-hint">${fmtN(t.barItems)} напоїв · ${t.barChecks.toLocaleString('uk-UA')} чеків</div>
     </div>
   </div>`;
 }
@@ -162,7 +170,7 @@ function compareView() {
     <div class="pf-cmp">
       <div class="pf-cmp-rank ${i === 0 ? 'top' : ''}">${i + 1}</div>
       <div class="pf-cmp-name">${esc(v.venueName)}
-        <div class="pf-cmp-sub">${v.error ? '⚠ ' + esc(v.error) : (t.daysWithShift ? `${fmtUAH(t.barRevenue)} · серед.чек ${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'} · ${t.daysWithShift} дн.` : `${fmtUAH(t.barRevenue)} · ⚠ графік змін не заповнено`)}</div>
+        <div class="pf-cmp-sub">${v.error ? '⚠ ' + esc(v.error) : (t.daysWithShift ? `🍸 ${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}/год · серед.чек ${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'} · ${fmtUAH(t.barRevenue)}` : `${fmtUAH(t.barRevenue)} · ⚠ графік змін не заповнено`)}</div>
       </div>
       <div class="pf-cmp-val"><b>${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}</b><span>₴/год</span></div>
     </div>`;
