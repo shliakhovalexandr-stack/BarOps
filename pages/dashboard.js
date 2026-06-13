@@ -22,7 +22,7 @@ let _notifOpen       = false;
 let _pendingOrders   = [];   // заявки на закупку (для адмін/менеджер)
 let _pendingDayoff   = [];   // запити на вихідні (для адмін/менеджер)
 let _seenNotifs      = new Set(); // id переглянутих сповіщень (localStorage) — нові світяться, прочитані сірі
-let _mini            = { digest: null, checklist: null, playlist: null, tasks: null }; // живі міні-показники плиток
+let _mini            = { digest: null, checklist: null, playlist: null, tasks: null, debts: null, excise: null }; // живі міні-показники плиток
 
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
@@ -509,6 +509,13 @@ async function loadMiniStats() {
         _mini.tasks = { done: ts.filter(t => t.done).length, total: ts.length };
       }
     }).catch(() => {}));
+  // Борги (незакриті) + акцизні марки на досканування — для блоку «Моя зміна» бармена
+  if (!mgr) {
+    tasks.push(fetch(`${API}/api/debts?type=debt&filter=active&venueId=${venueId}`, { headers: H })
+      .then(r => r.json()).then(d => { if (d.success && Array.isArray(d.data)) _mini.debts = d.data.length; }).catch(() => {}));
+    tasks.push(fetch(`${API}/api/excise/rescan?venueId=${venueId}`, { headers: H })
+      .then(r => r.json()).then(d => { if (Array.isArray(d.marks)) _mini.excise = d.marks.length; }).catch(() => {}));
+  }
   if (mgr) tasks.push(fetch(`${API}/api/playlist/${venueId}`, { headers: H })
     .then(r => r.json()).then(d => { if (Array.isArray(d.items)) _mini.playlist = d.items.length; }).catch(() => {}));
   await Promise.allSettled(tasks);
@@ -703,8 +710,7 @@ ${CSS}
 
     <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні) -->
     ${(!isAcc && !isMgr) ? (() => {
-      const tk = _mini.tasks, wo = s?.writeoffs?.count ?? 0, cr = s?.critical?.length ?? 0;
-      const tkPend = tk ? Math.max(0, (tk.total || 0) - (tk.done || 0)) : null;
+      const dbt = _mini.debts, ex = _mini.excise, wo = s?.writeoffs?.count ?? 0;
       const cell = (route, big, lbl, sub, col) => `
         <div class="d-tcard" onclick="window.__barops.navigate('${route}')">
           <div class="d-tcard-val" style="color:${col}">${big}</div>
@@ -715,9 +721,9 @@ ${CSS}
     <div class="d-sec" style="padding-top:16px">Моя зміна сьогодні</div>
     ${_loading ? `<div class="d-tcard-row">${[1,2,3].map(()=>'<div class="d-skel" style="height:88px;border-radius:14px"></div>').join('')}</div>` : `
     <div class="d-tcard-row">
-      ${cell('journal',   tkPend != null ? String(tkPend) : '—', 'Завдання', tkPend != null ? (tkPend > 0 ? 'невиконані' : 'усі готові') : '—', tkPend > 0 ? 'var(--amber)' : 'var(--green)')}
-      ${cell('writeoff',  String(wo), 'Списання', wo > 0 ? 'сьогодні' : 'чисто', wo > 0 ? 'var(--amber)' : 'var(--text3)')}
-      ${cell('inventory', String(cr), 'Залишки',  cr > 0 ? 'низько' : 'все норм', cr > 0 ? 'var(--red)' : 'var(--green)')}
+      ${cell('debts',    dbt != null ? String(dbt) : '—', 'Борги',    dbt != null ? (dbt > 0 ? 'відкритих' : 'немає') : '—', dbt > 0 ? 'var(--amber)' : 'var(--green)')}
+      ${cell('writeoff', String(wo),                      'Списання', wo > 0 ? 'сьогодні' : 'чисто',                      wo > 0 ? 'var(--amber)' : 'var(--text3)')}
+      ${cell('excise',   ex != null ? String(ex) : '—',  'Акциз',    ex != null ? (ex > 0 ? 'досканувати' : 'немає') : '—', ex > 0 ? 'var(--red)' : 'var(--green)')}
     </div>`}`;
     })() : ''}
 
@@ -866,7 +872,7 @@ function selectVenue(id, name) {
   localStorage.setItem('barops_venueId', id);
   // Скидаємо ВСІ дані попереднього закладу й перезавантажуємо
   _syrveStats = null;
-  _mini = { digest: null, checklist: null, playlist: null, tasks: null };
+  _mini = { digest: null, checklist: null, playlist: null, tasks: null, debts: null, excise: null };
   _pendingOrders = [];
   _pendingDayoff = [];
   loadStats();
@@ -906,7 +912,7 @@ export default {
     _pendingOrders  = [];
     _pendingDayoff  = [];
     _syrveStats     = null;
-    _mini           = { digest: null, checklist: null, playlist: null };
+    _mini           = { digest: null, checklist: null, playlist: null, tasks: null, debts: null, excise: null };
     loadSeenNotifs();
     return buildHTML();
   },
