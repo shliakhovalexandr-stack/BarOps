@@ -76,11 +76,17 @@ const QUICK_DIGEST = { route:'digest', badge:null, label:'Звіт за день
        <path d="M6 6h7M6 9h7M6 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
        <circle cx="13.5" cy="12.5" r="2" stroke="currentColor" stroke-width="1.1" fill="none"/>` };
 
+const QUICK_DISCIPLINE = { route:'discipline', badge:null, label:'Дисципліна', hint:'Рейтинг персоналу: чек-листи, завдання, списання', color:'var(--purple-bg)', iconColor:'var(--purple)',
+  svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M3 16c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+       <path d="M13 3l1 1 2-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>` };
+
 const QUICK_MANAGER = [
   QUICK_DIGEST,
+  QUICK_PERFORMANCE,
+  QUICK_DISCIPLINE,
   QUICK_CURRENT_SHIFT,
   QUICK_PLAYLIST,
-  QUICK_PERFORMANCE,
   { route:'debts',    badge:null, label:'Борги',            hint:'Відкриті рахунки та борги',    color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <circle cx="4" cy="5" r="1.5" fill="currentColor" opacity=".7"/>` },
