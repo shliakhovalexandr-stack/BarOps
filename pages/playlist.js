@@ -15,6 +15,9 @@ let _venueId   = '';
 let _date      = '';        // обрана дата YYYY-MM-DD
 let _openDish  = null;      // розгорнута страва (id або dishName)
 let _timer     = null;      // авто-оновлення today
+let _rangeMode = false;     // режим «Період» (from..to)
+let _rangeFrom = '';
+let _rangeTo   = '';
 
 // Додавання страви
 let _addOpen      = false;
@@ -88,7 +91,10 @@ const CSS = `<style id="pl-css">
 .pl-title{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
 .pl-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px}
 .pl-scroll{overflow-y:auto;flex:1;padding:10px 16px 32px}.pl-scroll::-webkit-scrollbar{width:0}
-.pl-daterow{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.pl-daterow{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px}
+.pl-rangebtn{height:30px;padding:0 12px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.pl-rangebtn.on{background:rgba(168,139,255,.14);border-color:var(--purple);color:var(--purple)}
+.pl-dinput{flex:1;min-width:0;height:34px;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;color:var(--text0);font-size:13px;font-family:var(--font-b);padding:0 10px;outline:none;color-scheme:dark}
 .pl-navbtn{width:32px;height:32px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text1);flex-shrink:0}
 .pl-navbtn:active{background:var(--bg3)}.pl-navbtn:disabled{opacity:.35;cursor:not-allowed}
 .pl-datelbl{font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-h)}
@@ -143,7 +149,10 @@ async function load(silent) {
   if (!silent) { _loading = true; _error = ''; re(); }
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
   try {
-    const res = await fetch(`${API}/api/playlist/${_venueId}/progress?date=${_date}`, { headers: hdrs() });
+    const url = (_rangeMode && _rangeFrom && _rangeTo)
+      ? `${API}/api/playlist/${_venueId}/progress?from=${_rangeFrom}&to=${_rangeTo}`
+      : `${API}/api/playlist/${_venueId}/progress?date=${_date}`;
+    const res = await fetch(url, { headers: hdrs() });
     const d = await res.json();
     if (res.ok && d.ok) { _data = d; _error = ''; }
     else if (!silent) _error = d.error || 'Не вдалося завантажити плей-лист';
@@ -156,8 +165,8 @@ async function load(silent) {
 
 function scheduleAuto() {
   if (_timer) { clearInterval(_timer); _timer = null; }
-  // авто-оновлення лише для сьогодні (тихо, без спінера)
-  if (_date === todayKyiv() && state.route === 'playlist') {
+  // авто-оновлення лише для сьогодні (тихо, без спінера); у режимі «Період» — ні
+  if (!_rangeMode && _date === todayKyiv() && state.route === 'playlist') {
     _timer = setInterval(() => { if (state.route === 'playlist' && !_addOpen) load(true); }, 60000);
   }
 }
@@ -313,7 +322,7 @@ function re() {
 
 function itemCard(it) {
   const open = _openDish === (it.id || it.dishName);
-  const isToday = _date === todayKyiv();
+  const isToday = !_rangeMode && _date === todayKyiv();
   return `
   <div class="pl-card">
     <div class="pl-row" onclick="window.__pl.toggle('${(it.id || it.dishName).replace(/'/g, "\\'")}')">
@@ -343,7 +352,7 @@ function itemCard(it) {
 }
 
 function body() {
-  const isToday = _date === todayKyiv();
+  const isToday = !_rangeMode && _date === todayKyiv();
   let inner;
   if (_loading) {
     inner = `<div class="pl-spin"></div>`;
@@ -402,7 +411,7 @@ function body() {
     </div>
     <div>
       <div class="pl-title">Плей-лист</div>
-      <div class="pl-sub">${state.venue || ''}${_data && _data.fetchedAt ? ` · оновлено о ${fmtTime(_data.fetchedAt)}` : (isToday ? ' · продажі за сьогодні' : '')}</div>
+      <div class="pl-sub">${state.venue || ''}${_rangeMode ? ` · період ${_rangeFrom && _rangeTo ? fmtDate(_rangeFrom) + '–' + fmtDate(_rangeTo) : '…'}` : (_data && _data.fetchedAt ? ` · оновлено о ${fmtTime(_data.fetchedAt)}` : (isToday ? ' · продажі за сьогодні' : ''))}</div>
     </div>
     <div class="pl-refresh" onclick="window.__pl.openHist()" title="Історія" style="margin-right:8px">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -413,13 +422,21 @@ function body() {
   </div>
   <div class="pl-scroll">
     <div class="pl-daterow">
-      <button class="pl-navbtn" onclick="window.__pl.prevDay()" ${canPrev ? '' : 'disabled'}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
-      </button>
-      <div class="pl-datelbl">${isToday ? 'Сьогодні' : fmtDate(_date)}${isToday ? '<span class="pl-live"></span>' : ''}</div>
-      <button class="pl-navbtn" onclick="window.__pl.nextDay()" ${canNext ? '' : 'disabled'}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
-      </button>
+      ${_rangeMode ? `
+        <input type="date" class="pl-dinput" value="${_rangeFrom}" min="${minDate}" max="${todayKyiv()}" onchange="window.__pl.setRange('from',this.value)">
+        <span style="color:var(--text2);font-family:var(--font-b);font-size:13px;flex-shrink:0">–</span>
+        <input type="date" class="pl-dinput" value="${_rangeTo}" min="${minDate}" max="${todayKyiv()}" onchange="window.__pl.setRange('to',this.value)">
+        <button class="pl-rangebtn on" onclick="window.__pl.toggleRange()" title="Назад до дня">✕</button>
+      ` : `
+        <button class="pl-navbtn" onclick="window.__pl.prevDay()" ${canPrev ? '' : 'disabled'}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="pl-datelbl" style="flex:1;text-align:center">${isToday ? 'Сьогодні' : fmtDate(_date)}${isToday ? '<span class="pl-live"></span>' : ''}</div>
+        <button class="pl-navbtn" onclick="window.__pl.nextDay()" ${canNext ? '' : 'disabled'}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <button class="pl-rangebtn" onclick="window.__pl.toggleRange()">📅 Період</button>
+      `}
     </div>
     ${inner}
   </div>
@@ -601,7 +618,7 @@ function reportSheet() {
 }
 
 function renderItems(items) {
-  const isToday = _date === todayKyiv();
+  const isToday = !_rangeMode && _date === todayKyiv();
   const groupMap = new Map();
   const standalone = [];
   for (const it of items) {
@@ -756,6 +773,7 @@ export default {
   render() {
     _loading = true; _error = ''; _data = null; _openDish = null;
     _date = todayKyiv();
+    _rangeMode = false; _rangeFrom = ''; _rangeTo = '';
     _addOpen = false; _dishes = []; _dishesLoaded = false; _dishesLoading = false; _dishesErr = ''; _query = ''; _busy = false;
     _addDish = null; _addFrom = ''; _addTo = '';
     _histOpen = false; _history = []; _histLoading = false; _report = null;
@@ -771,6 +789,23 @@ export default {
       toggle:  (k) => { _openDish = _openDish === k ? null : k; re(); },
       prevDay: () => { const min = shiftDate(todayKyiv(), -60); if (_date > min) { _date = shiftDate(_date, -1); _openDish = null; load(); } },
       nextDay: () => { if (_date < todayKyiv()) { _date = shiftDate(_date, 1); _openDish = null; load(); } },
+      toggleRange: () => {
+        _rangeMode = !_rangeMode; _openDish = null;
+        if (_rangeMode) {                    // вмикаємо період → дефолт: останні 7 днів
+          if (!_rangeTo)   _rangeTo   = todayKyiv();
+          if (!_rangeFrom) _rangeFrom = shiftDate(todayKyiv(), -6);
+          load();
+        } else { _date = todayKyiv(); load(); }
+      },
+      setRange: (which, val) => {
+        if (!val) return;
+        if (which === 'from') _rangeFrom = val; else _rangeTo = val;
+        if (_rangeFrom && _rangeTo && _rangeFrom > _rangeTo) {   // тримаємо from ≤ to
+          if (which === 'from') _rangeTo = _rangeFrom; else _rangeFrom = _rangeTo;
+        }
+        _openDish = null;
+        if (_rangeFrom && _rangeTo) load();
+      },
       openAdd: () => { _addOpen = true; _addDish = null; re(); loadDishes(); },
       closeAdd:() => { _addOpen = false; _addDish = null; _query = ''; re(); },
       search:  (v) => {
