@@ -126,7 +126,7 @@ function kpiCards(t, prev) {
       <div class="pf-kpi-hint">за ${t.daysWithShift} повних днів зі зміною · ${fmtN(t.bartenderHours)} год</div>
     </div>
     <div class="pf-kpi" style="background:linear-gradient(135deg,rgba(134,239,172,.10),rgba(56,189,248,.04))">
-      <div class="pf-kpi-lbl">💵 Прибуток / год</div>
+      <div class="pf-kpi-lbl">Прибуток / год</div>
       <div class="pf-kpi-val mid" style="color:var(--green)">${t.profitPerHour != null ? fmtUAH(t.profitPerHour) : '—'}${trendBadge(t.profitPerHour, p.profitPerHour)}</div>
       <div class="pf-kpi-hint">виторг − собівартість</div>
     </div>
@@ -136,12 +136,12 @@ function kpiCards(t, prev) {
       <div class="pf-kpi-hint">собівартість від виторгу</div>
     </div>
     <div class="pf-kpi drink">
-      <div class="pf-kpi-lbl">🍸 Напоїв / год</div>
+      <div class="pf-kpi-lbl">Напоїв / год</div>
       <div class="pf-kpi-val mid">${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}${trendBadge(t.itemsPerHour, p.itemsPerHour)}</div>
       <div class="pf-kpi-hint">барних позицій на бармена-годину</div>
     </div>
     <div class="pf-kpi drink">
-      <div class="pf-kpi-lbl">🧾 Чеків / год</div>
+      <div class="pf-kpi-lbl">Чеків / год</div>
       <div class="pf-kpi-val mid">${t.checksPerHour != null ? fmtN(t.checksPerHour) : '—'}${trendBadge(t.checksPerHour, p.checksPerHour)}</div>
       <div class="pf-kpi-hint">замовлень на бармена-годину</div>
     </div>
@@ -187,7 +187,7 @@ function venueView() {
     <div class="pf-sec">По днях</div>
     <div class="pf-card">
       <div class="pf-row head">
-        <div class="pf-c d">Дата</div><div class="pf-c">₴/год ⭐</div><div class="pf-c">Виторг</div><div class="pf-c">Години</div>
+        <div class="pf-c d">Дата</div><div class="pf-c">₴/год</div><div class="pf-c">Виторг</div><div class="pf-c">Години</div>
       </div>
       ${rows}
     </div>
@@ -249,7 +249,7 @@ function compareView() {
     <div class="pf-cmp">
       <div class="pf-cmp-rank ${i === 0 ? 'top' : ''}">${i + 1}</div>
       <div class="pf-cmp-name">${esc(v.venueName)}
-        <div class="pf-cmp-sub">${v.error ? '⚠ ' + esc(v.error) : (t.daysWithShift ? `🍸 ${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}/год · серед.чек ${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'} · ${fmtUAH(t.barRevenue)}` : `${fmtUAH(t.barRevenue)} · ⚠ графік змін не заповнено`)}</div>
+        <div class="pf-cmp-sub">${v.error ? '⚠ ' + esc(v.error) : (t.daysWithShift ? `${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}/год · серед.чек ${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'} · ${fmtUAH(t.barRevenue)}` : `${fmtUAH(t.barRevenue)} · ⚠ графік змін не заповнено`)}</div>
       </div>
       <div class="pf-cmp-val"><b>${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}</b><span>₴/год</span></div>
     </div>`;

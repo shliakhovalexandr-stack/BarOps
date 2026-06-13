@@ -85,15 +85,15 @@ function body() {
       <div class="dg-lbl">Виторг закладу</div>
       <div class="dg-big">${fmtUAH(d.revenue)}</div>
       <div class="dg-sub2">${(d.checks || 0).toLocaleString('uk-UA')} чеків · середній чек ${d.avgCheck != null ? fmtUAH(d.avgCheck) : '—'}</div>
-      ${d.profit != null ? `<div class="dg-sub2" style="margin-top:8px;color:var(--green)">💵 Прибуток ${fmtUAH(d.profit)} <span style="color:var(--text3)">· собівартість ${fmtUAH(d.cost)} · фудкост ${d.foodcostPct != null ? d.foodcostPct + '%' : '—'}</span></div>` : ''}
+      ${d.profit != null ? `<div class="dg-sub2" style="margin-top:8px;color:var(--green)">Прибуток ${fmtUAH(d.profit)} <span style="color:var(--text3)">· собівартість ${fmtUAH(d.cost)} · фудкост ${d.foodcostPct != null ? d.foodcostPct + '%' : '—'}</span></div>` : ''}
     </div>
 
     <!-- Бар -->
-    <div class="dg-sec">🍸 Бар</div>
+    <div class="dg-sec">Бар</div>
     <div class="dg-card">
       <div class="dg-grid">
         <div><div class="dg-mini-lbl">Виторг бару</div><div class="dg-mini-val">${fmtUAH(bar.revenue)}</div></div>
-        <div><div class="dg-mini-lbl">💵 Прибуток</div><div class="dg-mini-val" style="color:var(--green)">${bar.profit != null ? fmtUAH(bar.profit) : '—'}</div></div>
+        <div><div class="dg-mini-lbl">Прибуток</div><div class="dg-mini-val" style="color:var(--green)">${bar.profit != null ? fmtUAH(bar.profit) : '—'}</div></div>
         <div><div class="dg-mini-lbl">₴ / год</div><div class="dg-mini-val">${bar.revPerHour != null ? fmtUAH(bar.revPerHour) : '—'}</div></div>
         <div><div class="dg-mini-lbl">Фудкост</div><div class="dg-mini-val">${bar.foodcostPct != null ? bar.foodcostPct + '%' : '—'}</div></div>
         <div><div class="dg-mini-lbl">Напоїв / год</div><div class="dg-mini-val">${bar.itemsPerHour != null ? fmtN(bar.itemsPerHour) : '—'}</div></div>
@@ -102,18 +102,18 @@ function body() {
     </div>
 
     <!-- Топ офіціанти -->
-    <div class="dg-sec">🏆 Топ персоналу (за виторгом)</div>
+    <div class="dg-sec">Топ персоналу (за виторгом)</div>
     <div class="dg-card">${waiters}</div>
 
     <!-- Чек-листи + Списання -->
-    <div class="dg-sec">📋 Дисципліна</div>
+    <div class="dg-sec">Дисципліна</div>
     <div class="dg-card">
       <div class="dg-lbl">Бармени на зміні</div>
       <div class="dg-sub2" style="margin-top:4px;color:var(--text0);font-size:13px">${onShift.length ? onShift.map(esc).join(', ') : '<span style="color:var(--text3)">графік не заповнено</span>'}</div>
       <div class="dg-lbl" style="margin-top:14px">Чек-листи виконано</div>
       <div class="dg-big" style="font-size:22px">${cl.done}/${cl.total} <span style="font-size:13px;color:var(--text2)">(${clPct}%)</span></div>
       <div class="dg-prog"><div class="dg-prog-fill" style="width:${clPct}%;background:${clPct >= 100 ? 'var(--green)' : clPct >= 50 ? 'var(--amber)' : 'var(--red)'}"></div></div>
-      <div class="dg-sub2" style="margin-top:12px">🗑 Списань: <b style="color:var(--text0)">${wo.count}</b>${wo.items ? ` · ${fmtN(wo.items)} позицій` : ''}</div>
+      <div class="dg-sub2" style="margin-top:12px">Списань: <b style="color:var(--text0)">${wo.count}</b>${wo.items ? ` · ${fmtN(wo.items)} позицій` : ''}</div>
     </div>
 
     <div style="height:24px"></div>`;
