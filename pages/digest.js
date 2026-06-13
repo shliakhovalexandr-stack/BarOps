@@ -77,6 +77,7 @@ function body() {
   const cl = d.checklists || { done: 0, total: 0 };
   const clPct = cl.total ? Math.round(cl.done / cl.total * 100) : 0;
   const wo = d.writeoffs || { count: 0, items: 0 };
+  const onShift = d.bartendersOnShift || [];
 
   return `
     <!-- Виторг закладу -->
@@ -104,7 +105,9 @@ function body() {
     <!-- Чек-листи + Списання -->
     <div class="dg-sec">📋 Дисципліна</div>
     <div class="dg-card">
-      <div class="dg-lbl">Чек-листи виконано</div>
+      <div class="dg-lbl">Бармени на зміні</div>
+      <div class="dg-sub2" style="margin-top:4px;color:var(--text0);font-size:13px">${onShift.length ? onShift.map(esc).join(', ') : '<span style="color:var(--text3)">графік не заповнено</span>'}</div>
+      <div class="dg-lbl" style="margin-top:14px">Чек-листи виконано</div>
       <div class="dg-big" style="font-size:22px">${cl.done}/${cl.total} <span style="font-size:13px;color:var(--text2)">(${clPct}%)</span></div>
       <div class="dg-prog"><div class="dg-prog-fill" style="width:${clPct}%;background:${clPct >= 100 ? 'var(--green)' : clPct >= 50 ? 'var(--amber)' : 'var(--red)'}"></div></div>
       <div class="dg-sub2" style="margin-top:12px">🗑 Списань: <b style="color:var(--text0)">${wo.count}</b>${wo.items ? ` · ${fmtN(wo.items)} позицій` : ''}</div>
