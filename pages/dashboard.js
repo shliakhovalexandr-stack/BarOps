@@ -847,9 +847,15 @@ function selectVenue(id, name) {
   state.venueId    = id;
   localStorage.setItem('barops_venue',   name);
   localStorage.setItem('barops_venueId', id);
-  _syrveStats = null;          // скинути дані попереднього закладу
+  // Скидаємо ВСІ дані попереднього закладу й перезавантажуємо
+  _syrveStats = null;
+  _mini = { digest: null, checklist: null, playlist: null };
+  _pendingOrders = [];
+  _pendingDayoff = [];
   loadStats();
-  loadSyrveStats();            // паралельно довантажити виторг/накладні нового закладу
+  loadMiniStats();             // міні-показники плиток нового закладу
+  loadSyrveStats();            // виторг/прибуток/фудкост нового закладу
+  if (isMgrRole()) { loadPendingOrders(); loadPendingDayoff(); }
 }
 
 async function openShift() {
