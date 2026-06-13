@@ -71,7 +71,13 @@ const QUICK_PERFORMANCE = { route:'performance', badge:null, label:'Продук
   svg:`<path d="M3 15V9M7 15V4M11 15v-4M15 15V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
        <path d="M2 16h14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".5"/>` };
 
+const QUICK_DIGEST = { route:'digest', badge:null, label:'Звіт за день', hint:'Зведення вчора: виторг, бар, персонал, дисципліна', color:'var(--amber-bg)', iconColor:'var(--amber)',
+  svg:`<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+       <path d="M6 6h7M6 9h7M6 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+       <circle cx="13.5" cy="12.5" r="2" stroke="currentColor" stroke-width="1.1" fill="none"/>` };
+
 const QUICK_MANAGER = [
+  QUICK_DIGEST,
   QUICK_CURRENT_SHIFT,
   QUICK_PLAYLIST,
   QUICK_PERFORMANCE,
