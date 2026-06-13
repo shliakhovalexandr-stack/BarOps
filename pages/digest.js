@@ -36,7 +36,9 @@ const CSS = `<style id="dg-css">
 .dg-datebar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px 12px}
 .dg-datenav{width:34px;height:34px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:15px;cursor:pointer;flex-shrink:0}
 .dg-datenav:disabled{opacity:.35}
-.dg-datelbl{flex:1;text-align:center;font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);text-transform:capitalize}
+.dg-datelbl{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);text-transform:capitalize}
+.dg-datepick-wrap{position:relative;flex:1;display:flex;justify-content:center;align-items:center;gap:6px;cursor:pointer}
+.dg-datepick{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;color-scheme:dark;border:0;padding:0}
 .dg-card{margin:0 14px 10px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px}
 .dg-hero{background:linear-gradient(135deg,rgba(56,189,248,.10),rgba(168,139,255,.06))}
 .dg-lbl{font-size:10px;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;font-family:var(--font-b)}
@@ -136,7 +138,11 @@ ${CSS}
     </div>
     <div class="dg-datebar">
       <button class="dg-datenav" onclick="window.__dg.shift(-1)">‹</button>
-      <div class="dg-datelbl">${fmtDate(_date)}</div>
+      <div class="dg-datepick-wrap">
+        <span class="dg-datelbl">${fmtDate(_date)}</span>
+        <svg width="13" height="13" viewBox="0 0 18 18" fill="none" style="opacity:.6"><rect x="2.5" y="3.5" width="13" height="12" rx="2" stroke="var(--text2)" stroke-width="1.3"/><path d="M2.5 7h13M6 2v3M12 2v3" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <input type="date" class="dg-datepick" value="${_date}" max="${ymd(new Date())}" onchange="window.__dg.pick(this.value)">
+      </div>
       <button class="dg-datenav" onclick="window.__dg.shift(1)" ${_date >= ymd(new Date()) ? 'disabled' : ''}>›</button>
     </div>
     ${body()}
@@ -176,6 +182,11 @@ export default {
         const next = addDays(_date, n);
         if (next > ymd(new Date())) return;     // не далі за сьогодні
         _date = next; _digest = null; load();
+      },
+      pick(val) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(val || '') || val > ymd(new Date())) return;
+        if (val === _date) return;
+        _date = val; _digest = null; load();
       },
     };
     load();
