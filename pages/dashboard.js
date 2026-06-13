@@ -297,9 +297,9 @@ function tileByRoute() {
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
-  ['Моніторинг зміни', ['current-shift', 'journal', 'debts', 'stop-list', 'schedule']],
+  ['Моніторинг зміни', ['current-shift', 'journal', 'debts', 'stop-list', 'schedule', 'recipes']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
-  ['Облік',            ['recipes', 'recipe-book']],
+  ['Облік',            ['recipe-book']],
 ];
 const SECTIONS_WORKER = [
   ['Операції',  ['writeoff', 'inventory', 'ordering', 'ocr', 'excise']],
