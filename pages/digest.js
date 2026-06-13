@@ -85,6 +85,7 @@ function body() {
       <div class="dg-lbl">Виторг закладу</div>
       <div class="dg-big">${fmtUAH(d.revenue)}</div>
       <div class="dg-sub2">${(d.checks || 0).toLocaleString('uk-UA')} чеків · середній чек ${d.avgCheck != null ? fmtUAH(d.avgCheck) : '—'}</div>
+      ${d.profit != null ? `<div class="dg-sub2" style="margin-top:8px;color:var(--green)">💵 Прибуток ${fmtUAH(d.profit)} <span style="color:var(--text3)">· собівартість ${fmtUAH(d.cost)} · фудкост ${d.foodcostPct != null ? d.foodcostPct + '%' : '—'}</span></div>` : ''}
     </div>
 
     <!-- Бар -->
@@ -92,7 +93,9 @@ function body() {
     <div class="dg-card">
       <div class="dg-grid">
         <div><div class="dg-mini-lbl">Виторг бару</div><div class="dg-mini-val">${fmtUAH(bar.revenue)}</div></div>
+        <div><div class="dg-mini-lbl">💵 Прибуток</div><div class="dg-mini-val" style="color:var(--green)">${bar.profit != null ? fmtUAH(bar.profit) : '—'}</div></div>
         <div><div class="dg-mini-lbl">₴ / год</div><div class="dg-mini-val">${bar.revPerHour != null ? fmtUAH(bar.revPerHour) : '—'}</div></div>
+        <div><div class="dg-mini-lbl">Фудкост</div><div class="dg-mini-val">${bar.foodcostPct != null ? bar.foodcostPct + '%' : '—'}</div></div>
         <div><div class="dg-mini-lbl">Напоїв / год</div><div class="dg-mini-val">${bar.itemsPerHour != null ? fmtN(bar.itemsPerHour) : '—'}</div></div>
         <div><div class="dg-mini-lbl">Годин бару</div><div class="dg-mini-val">${fmtN(bar.hours)}<span style="font-size:11px;color:var(--text3);font-family:var(--font-b)"> · ${bar.bartenders || 0} барм.</span></div></div>
       </div>

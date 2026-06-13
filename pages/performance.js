@@ -36,12 +36,14 @@ function dShort(iso) {
   return isNaN(d) ? iso : `${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-// Бейдж тренду vs попередній період (вище = краще для всіх метрик бару)
-function trendBadge(cur, prev) {
+// Бейдж тренду vs попередній період. lowerBetter=true для фудкосту (менше = краще → зелений вниз)
+function trendBadge(cur, prev, lowerBetter) {
   if (cur == null || prev == null || prev === 0) return '';
   const d = Math.round((cur - prev) / prev * 100);
   if (d === 0) return `<span class="pf-trend flat">→ 0%</span>`;
-  return d > 0 ? `<span class="pf-trend up">↑ ${d}%</span>` : `<span class="pf-trend down">↓ ${Math.abs(d)}%</span>`;
+  const good = lowerBetter ? d < 0 : d > 0;
+  const arrow = d > 0 ? '↑' : '↓';
+  return `<span class="pf-trend ${good ? 'up' : 'down'}">${arrow} ${Math.abs(d)}%</span>`;
 }
 
 /* ════════════════════════  CSS  ════════════════════════ */
@@ -123,6 +125,16 @@ function kpiCards(t, prev) {
       <div class="pf-kpi-val big">${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}${trendBadge(t.revPerHour, p.revPerHour)}</div>
       <div class="pf-kpi-hint">за ${t.daysWithShift} повних днів зі зміною · ${fmtN(t.bartenderHours)} год</div>
     </div>
+    <div class="pf-kpi" style="background:linear-gradient(135deg,rgba(134,239,172,.10),rgba(56,189,248,.04))">
+      <div class="pf-kpi-lbl">💵 Прибуток / год</div>
+      <div class="pf-kpi-val mid" style="color:var(--green)">${t.profitPerHour != null ? fmtUAH(t.profitPerHour) : '—'}${trendBadge(t.profitPerHour, p.profitPerHour)}</div>
+      <div class="pf-kpi-hint">виторг − собівартість</div>
+    </div>
+    <div class="pf-kpi">
+      <div class="pf-kpi-lbl">Фудкост</div>
+      <div class="pf-kpi-val mid">${t.foodcostPct != null ? t.foodcostPct + '%' : '—'}${trendBadge(t.foodcostPct, p.foodcostPct, true)}</div>
+      <div class="pf-kpi-hint">собівартість від виторгу</div>
+    </div>
     <div class="pf-kpi drink">
       <div class="pf-kpi-lbl">🍸 Напоїв / год</div>
       <div class="pf-kpi-val mid">${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}${trendBadge(t.itemsPerHour, p.itemsPerHour)}</div>
@@ -143,8 +155,8 @@ function kpiCards(t, prev) {
     </div>
     <div class="pf-kpi wide">
       <div class="pf-kpi-lbl">Усього за період</div>
-      <div class="pf-kpi-val mid">${fmtUAH(t.barRevenue)}${trendBadge(t.barRevenue, p.barRevenue)}</div>
-      <div class="pf-kpi-hint">${fmtN(t.barItems)} напоїв · ${t.barChecks.toLocaleString('uk-UA')} чеків · vs попередні ${_period} дн.</div>
+      <div class="pf-kpi-val mid">${fmtUAH(t.barRevenue)} <span style="font-size:13px;color:var(--green)">· прибуток ${fmtUAH(t.barProfit)}</span>${trendBadge(t.barRevenue, p.barRevenue)}</div>
+      <div class="pf-kpi-hint">собівартість ${fmtUAH(t.barCost)} · фудкост ${t.foodcostPct != null ? t.foodcostPct + '%' : '—'} · ${fmtN(t.barItems)} напоїв · vs попередні ${_period} дн.</div>
     </div>
   </div>`;
 }
