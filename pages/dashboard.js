@@ -22,7 +22,7 @@ let _notifOpen       = false;
 let _pendingOrders   = [];   // заявки на закупку (для адмін/менеджер)
 let _pendingDayoff   = [];   // запити на вихідні (для адмін/менеджер)
 let _seenNotifs      = new Set(); // id переглянутих сповіщень (localStorage) — нові світяться, прочитані сірі
-let _mini            = { digest: null, checklist: null, playlist: null }; // живі міні-показники плиток
+let _mini            = { digest: null, checklist: null, playlist: null, tasks: null }; // живі міні-показники плиток
 
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
@@ -227,6 +227,13 @@ const CSS = `<style id="dash-css">
 .d-kpi-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase;line-height:1.3}
 .d-kpi-delta{font-size:10px;margin-top:3px;font-family:var(--font-b)}
 /* mgr widgets */
+/* бармен: «Моя зміна сьогодні» — клікабельні картки */
+.d-tcard-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 14px}
+.d-tcard{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;transition:background .12s}
+.d-tcard:active{background:rgba(255,255,255,.06)}
+.d-tcard-val{font-family:var(--font-h);font-size:26px;font-weight:700;line-height:1}
+.d-tcard-lbl{font-size:11px;color:var(--text1);font-family:var(--font-b);margin-top:7px;font-weight:500}
+.d-tcard-sub{font-size:10px;font-family:var(--font-b);margin-top:2px;opacity:.85}
 .d-today{margin:0 14px;background:linear-gradient(135deg,rgba(168,139,255,.12),rgba(56,189,248,.05));border:0.5px solid var(--border);border-radius:16px;padding:16px}
 .d-today-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-b)}
 .d-today-rev{font-family:var(--font-h);font-size:34px;font-weight:700;color:var(--purple);line-height:1;margin-top:8px;letter-spacing:-.02em}
@@ -493,6 +500,15 @@ async function loadMiniStats() {
         _mini.checklist = { done: cs.reduce((a, c) => a + (c.doneCount || 0), 0), total: cs.reduce((a, c) => a + (c.total || 0), 0) };
       }
     }).catch(() => {}));
+  // Завдання на сьогодні (для блоку «Моя зміна» бармена; бекенд віддає лише свої для працівника)
+  const ymdToday = new Date(); const ydt = `${ymdToday.getFullYear()}-${String(ymdToday.getMonth()+1).padStart(2,'0')}-${String(ymdToday.getDate()).padStart(2,'0')}`;
+  tasks.push(fetch(`${API}/api/tasks?venueId=${venueId}&from=${ydt}`, { headers: H })
+    .then(r => r.json()).then(d => {
+      if (d.success) {
+        const ts = (d.tasks || []).filter(t => t.date === ydt);
+        _mini.tasks = { done: ts.filter(t => t.done).length, total: ts.length };
+      }
+    }).catch(() => {}));
   if (mgr) tasks.push(fetch(`${API}/api/playlist/${venueId}`, { headers: H })
     .then(r => r.json()).then(d => { if (Array.isArray(d.items)) _mini.playlist = d.items.length; }).catch(() => {}));
   await Promise.allSettled(tasks);
@@ -685,24 +701,25 @@ ${CSS}
     <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю) -->
     ${dashTiles(quick, isMgr, !isMgr && !isAcc)}
 
-    <!-- KPI «Зміна сьогодні» — лише для барменів; у менеджерів натомість «Аналітика зміни» -->
-    ${(!isAcc && !isMgr) ? `
-    <div class="d-sec" style="padding-top:16px">Зміна сьогодні</div>
-    ${_loading ? `
-    <div style="padding:0 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-      ${[1,2,3].map(()=>`<div class="d-skel" style="height:78px"></div>`).join('')}
-    </div>` : `
-    <div class="d-kpi-row">
-      ${kpi.map(k => {
-        const col = k.cls==='g'?'var(--green)':k.cls==='a'?'var(--amber)':k.cls==='r'?'var(--red)':'var(--text2)';
-        return `
-        <div class="d-kpi${k.cls?' d-kpi--'+k.cls:''}">
-          <div class="d-kpi-val${k.cls?' d-kpi-val--'+k.cls:''}">${k.val}</div>
-          <div class="d-kpi-lbl">${k.lbl.replace('\n','<br/>')}</div>
-          <div class="d-kpi-delta" style="color:${col}">${k.delta}</div>
+    <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні) -->
+    ${(!isAcc && !isMgr) ? (() => {
+      const tk = _mini.tasks, wo = s?.writeoffs?.count ?? 0, cr = s?.critical?.length ?? 0;
+      const tkPend = tk ? Math.max(0, (tk.total || 0) - (tk.done || 0)) : null;
+      const cell = (route, big, lbl, sub, col) => `
+        <div class="d-tcard" onclick="window.__barops.navigate('${route}')">
+          <div class="d-tcard-val" style="color:${col}">${big}</div>
+          <div class="d-tcard-lbl">${lbl}</div>
+          <div class="d-tcard-sub" style="color:${col}">${sub}</div>
         </div>`;
-      }).join('')}
-    </div>`}` : ''}
+      return `
+    <div class="d-sec" style="padding-top:16px">Моя зміна сьогодні</div>
+    ${_loading ? `<div class="d-tcard-row">${[1,2,3].map(()=>'<div class="d-skel" style="height:88px;border-radius:14px"></div>').join('')}</div>` : `
+    <div class="d-tcard-row">
+      ${cell('journal',   tkPend != null ? String(tkPend) : '—', 'Завдання', tkPend != null ? (tkPend > 0 ? 'невиконані' : 'усі готові') : '—', tkPend > 0 ? 'var(--amber)' : 'var(--green)')}
+      ${cell('writeoff',  String(wo), 'Списання', wo > 0 ? 'сьогодні' : 'чисто', wo > 0 ? 'var(--amber)' : 'var(--text3)')}
+      ${cell('inventory', String(cr), 'Залишки',  cr > 0 ? 'низько' : 'все норм', cr > 0 ? 'var(--red)' : 'var(--green)')}
+    </div>`}`;
+    })() : ''}
 
     <!-- Сьогодні · грошовий пульс усього закладу -->
     ${isMgr && s ? (() => {
@@ -849,7 +866,7 @@ function selectVenue(id, name) {
   localStorage.setItem('barops_venueId', id);
   // Скидаємо ВСІ дані попереднього закладу й перезавантажуємо
   _syrveStats = null;
-  _mini = { digest: null, checklist: null, playlist: null };
+  _mini = { digest: null, checklist: null, playlist: null, tasks: null };
   _pendingOrders = [];
   _pendingDayoff = [];
   loadStats();
