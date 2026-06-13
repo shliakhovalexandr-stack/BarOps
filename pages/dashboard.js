@@ -227,6 +227,12 @@ const CSS = `<style id="dash-css">
 .d-kpi-lbl{font-size:9px;color:var(--text2);margin-top:4px;font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase;line-height:1.3}
 .d-kpi-delta{font-size:10px;margin-top:3px;font-family:var(--font-b)}
 /* mgr widgets */
+.d-today{margin:0 14px;background:linear-gradient(135deg,rgba(168,139,255,.12),rgba(56,189,248,.05));border:0.5px solid var(--border);border-radius:16px;padding:16px}
+.d-today-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-b)}
+.d-today-rev{font-family:var(--font-h);font-size:34px;font-weight:700;color:var(--purple);line-height:1;margin-top:8px;letter-spacing:-.02em}
+.d-today-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:8px}
+.d-today-money{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);font-size:13px;font-family:var(--font-b);font-weight:600}
+.d-today-fc{color:var(--text1)}.d-today-wo{color:var(--red)}
 .d-mgr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px}
 .d-mgr-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px}
 .d-mgr-card-title{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-b);margin-bottom:10px}
@@ -698,46 +704,30 @@ ${CSS}
       }).join('')}
     </div>`}` : ''}
 
-    <!-- Manager analytics -->
+    <!-- Сьогодні · грошовий пульс усього закладу -->
     ${isMgr && s ? (() => {
       const syr      = _syrveStats;
-      const syrReady = !!syr;                              // відповідь Syrve прийшла
-      const revReady = syrReady && syr.revenue != null;   // є виторг
-      const skel     = `<div class="d-skel" style="height:26px;width:72%;border-radius:7px;margin:1px 0 3px"></div>`;
-      const posNote  = syr?.posBusy ? 'POS зайнятий · оновіть' : syr?.posOff ? 'POS не підключено' : '';
+      const syrReady = !!syr;
+      const revReady = syrReady && syr.revenue != null;
+      const skel     = `<div class="d-skel" style="height:34px;width:60%;border-radius:8px;margin:6px 0 2px"></div>`;
+      const posNote  = syr?.posBusy ? 'POS зайнятий · оновіть' : syr?.posOff ? 'POS не підключено' : 'продажі за день';
       const woCount  = s.writeoffs?.count ?? 0;
-      const woWord   = woCount === 1 ? 'акт' : (woCount >= 2 && woCount <= 4) ? 'акти' : 'актів';
-      const woCats   = Object.entries(s.writeoffs?.byCategory || {}).map(([k,v])=>`${k}: ${v}`).join(' · ');
-      const invCount = s.invoices?.count ?? 0;
-      const invWord  = invCount === 1 ? 'накладна' : (invCount >= 2 && invCount <= 4) ? 'накладні' : 'накладних';
+      const sub = revReady
+        ? [syr.checks != null ? `${syr.checks} чеків` : '', syr.avgCheck != null ? `середній ${fmtMoney(syr.avgCheck)}` : ''].filter(Boolean).join(' · ') || 'продажі за день'
+        : posNote;
       return `
-    <div class="d-sec" style="padding-top:16px">Аналітика зміни</div>
-    <div class="d-mgr-grid">
-      <div class="d-mgr-card">
-        <div class="d-mgr-card-title">Виторг · сьогодні</div>
-        ${revReady ? `<div class="d-mgr-num" style="color:var(--green)">${fmtMoney(syr.revenue)}</div>`
-          : syrReady ? `<div class="d-mgr-num" style="color:var(--text2);font-size:20px">—</div>` : skel}
-        <div class="d-mgr-sub">${revReady ? 'продажі за день' : (posNote || 'продажі за день')}</div>
-      </div>
-      <div class="d-mgr-card">
-        <div class="d-mgr-card-title">Накладні · сьогодні</div>
-        <div class="d-mgr-num" style="color:var(--text0)">${fmtMoney(s.invoices?.total)}</div>
-        <div class="d-mgr-sub">${invCount > 0 ? `${invCount} ${invWord} · через BarOps` : 'через BarOps'}</div>
-      </div>
-      <div class="d-mgr-card">
-        <div class="d-mgr-card-title">Списання · сьогодні</div>
-        <div class="d-mgr-num" style="color:${woCount > 0 ? 'var(--red)' : 'var(--green)'};font-size:22px">${fmtMoney(s.writeoffs?.total)}</div>
-        <div class="d-mgr-sub">${woCount > 0 ? `${woCount} ${woWord}${woCats ? ' · ' + woCats : ''}` : 'немає'}</div>
-        ${woCount > 0 ? `<div style="margin-top:8px;display:flex;gap:4px">
-          ${Object.entries(s.writeoffs?.byCategory || {}).map(([,v],i)=>`
-          <div style="flex:${v};height:6px;border-radius:3px;background:${['var(--red)','var(--amber)','var(--purple)'][i%3]}"></div>`).join('')}
-        </div>` : ''}
-      </div>
-      <div class="d-mgr-card">
-        <div class="d-mgr-card-title">Команда закладу</div>
-        <div class="d-mgr-num">${s.teamCount ?? '—'}</div>
-        <div class="d-mgr-sub">у команді закладу</div>
-      </div>
+    <div class="d-sec" style="padding-top:16px">Сьогодні</div>
+    <div class="d-today">
+      <div class="d-today-lbl">Виторг закладу · сьогодні</div>
+      ${revReady ? `<div class="d-today-rev">${fmtMoney(syr.revenue)}</div>`
+        : syrReady ? `<div class="d-today-rev" style="color:var(--text2);font-size:24px">—</div>` : skel}
+      <div class="d-today-sub">${sub}</div>
+      ${revReady && syr.profit != null ? `
+      <div class="d-today-money">
+        <span style="color:var(--green)">Прибуток ${fmtMoney(syr.profit)}</span>
+        ${syr.foodcostPct != null ? `<span class="d-today-fc">Фудкост ${syr.foodcostPct}%</span>` : ''}
+        ${woCount > 0 ? `<span class="d-today-wo">Списання ${fmtMoney(s.writeoffs?.total)}</span>` : ''}
+      </div>` : ''}
     </div>`;
     })() : ''}
 
