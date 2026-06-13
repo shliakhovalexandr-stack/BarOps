@@ -8,9 +8,10 @@ import { state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
-let _tab     = 'venue';   // 'venue' | 'compare'
+let _tab     = 'venue';   // 'venue' | 'top' | 'compare'
 let _period  = 14;        // днів
 let _venueData = null;    // { days, totals, ... }
+let _topItems  = null;    // [{ name, qty, revenue }]
 let _compare   = null;    // [{ venueName, totals }]
 let _loading   = false;
 let _err       = '';
@@ -83,6 +84,8 @@ const CSS = `<style id="perf-css">
 .pf-cmp-val{text-align:right;flex-shrink:0}
 .pf-cmp-val b{font-family:var(--font-h);font-size:16px;color:var(--blue)}
 .pf-cmp-val span{display:block;font-size:10px;color:var(--text3);font-family:var(--font-b)}
+.pf-bar-track{height:4px;border-radius:3px;background:var(--bg3,#26262b);margin-top:6px;overflow:hidden}
+.pf-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--purple))}
 .pf-empty{margin:0 14px;padding:28px 20px;text-align:center;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px}
 .pf-empty-txt{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
 .pf-load{padding:34px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px}
@@ -158,6 +161,27 @@ function venueView() {
     <div style="height:24px"></div>`;
 }
 
+function topView() {
+  if (_loading) return `<div class="pf-load">Рахую топ напоїв…</div>`;
+  if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
+  if (!_topItems || !_topItems.length) {
+    return `<div class="pf-empty"><div class="pf-empty-txt">Немає продажів бару за період.</div></div>`;
+  }
+  const maxQty = _topItems[0].qty || 1;
+  const rows = _topItems.map((it, i) => `
+    <div class="pf-cmp">
+      <div class="pf-cmp-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+      <div class="pf-cmp-name">${esc(it.name)}
+        <div class="pf-bar-track"><div class="pf-bar-fill" style="width:${Math.max(4, Math.round(it.qty / maxQty * 100))}%"></div></div>
+      </div>
+      <div class="pf-cmp-val"><b>${fmtN(it.qty)}</b><span>${fmtUAH(it.revenue)}</span></div>
+    </div>`).join('');
+  return `
+    <div class="pf-note">Найпопулярніші барні позиції за період — орієнтир для заготовок і стоп-листа.</div>
+    <div class="pf-card" style="margin-top:8px">${rows}</div>
+    <div style="height:24px"></div>`;
+}
+
 function compareView() {
   if (_loading) return `<div class="pf-load">Рахую по всіх закладах (послідовно)…</div>`;
   if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
@@ -198,14 +222,15 @@ ${CSS}
 
     <div class="pf-tabs">
       <button class="pf-tab ${_tab === 'venue' ? 'sel' : ''}" onclick="window.__perf.setTab('venue')">Цей заклад</button>
-      <button class="pf-tab ${_tab === 'compare' ? 'sel' : ''}" onclick="window.__perf.setTab('compare')">Порівняння мережі</button>
+      <button class="pf-tab ${_tab === 'top' ? 'sel' : ''}" onclick="window.__perf.setTab('top')">🍸 Топ напоїв</button>
+      <button class="pf-tab ${_tab === 'compare' ? 'sel' : ''}" onclick="window.__perf.setTab('compare')">Мережа</button>
     </div>
 
     <div class="pf-chips">
       ${[7, 14, 30].map(p => `<button class="pf-chip ${_period === p ? 'sel' : ''}" onclick="window.__perf.setPeriod(${p})">${p} днів</button>`).join('')}
     </div>
 
-    ${_tab === 'venue' ? venueView() : compareView()}
+    ${_tab === 'venue' ? venueView() : _tab === 'top' ? topView() : compareView()}
   </div>
 </div>`;
 }
@@ -231,6 +256,20 @@ async function loadVenue() {
   _loading = false; rerender();
 }
 
+async function loadTopItems() {
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  if (!venueId) { _err = 'Не обрано заклад'; rerender(); return; }
+  _loading = true; _err = ''; rerender();
+  const { from, to } = range();
+  try {
+    const r = await fetch(`${API}/api/performance/bar-items?venueId=${venueId}&from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Помилка');
+    _topItems = d.items || [];
+  } catch (e) { _err = 'Не вдалося завантажити: ' + e.message; _topItems = null; }
+  _loading = false; rerender();
+}
+
 async function loadCompare() {
   _loading = true; _err = ''; rerender();
   const { from, to } = range();
@@ -243,18 +282,24 @@ async function loadCompare() {
   _loading = false; rerender();
 }
 
-function loadCurrent() { _tab === 'venue' ? loadVenue() : loadCompare(); }
+function loadCurrent() { _tab === 'venue' ? loadVenue() : _tab === 'top' ? loadTopItems() : loadCompare(); }
 
 /* ════════════════════════  MODULE  ════════════════════════ */
 export default {
   render() {
-    _tab = 'venue'; _period = 14; _venueData = null; _compare = null; _loading = false; _err = '';
+    _tab = 'venue'; _period = 14; _venueData = null; _topItems = null; _compare = null; _loading = false; _err = '';
     return buildHTML();
   },
   init() {
     window.__perf = {
-      setTab(t) { if (_tab === t) return; _tab = t; (t === 'venue' ? (_venueData ? rerender() : loadVenue()) : (_compare ? rerender() : loadCompare())); },
-      setPeriod(p) { if (_period === p) return; _period = p; loadCurrent(); },
+      setTab(t) {
+        if (_tab === t) return;
+        _tab = t;
+        if (t === 'venue')      _venueData ? rerender() : loadVenue();
+        else if (t === 'top')   _topItems  ? rerender() : loadTopItems();
+        else                    _compare   ? rerender() : loadCompare();
+      },
+      setPeriod(p) { if (_period === p) return; _period = p; _venueData = null; _topItems = null; _compare = null; loadCurrent(); },
     };
     loadVenue();
   },
