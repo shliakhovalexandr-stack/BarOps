@@ -12,6 +12,7 @@ let _tab     = 'venue';   // 'venue' | 'top' | 'compare'
 let _period  = 14;        // днів
 let _venueData = null;    // { days, totals, ... }
 let _topItems  = null;    // [{ name, qty, revenue }]
+let _hours     = null;    // { hours:[{hour,revenue,items,checks}], days }
 let _compare   = null;    // [{ venueName, totals }]
 let _loading   = false;
 let _err       = '';
@@ -45,7 +46,7 @@ const CSS = `<style id="perf-css">
 .pf-title{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
 .pf-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .pf-tabs{display:flex;gap:6px;padding:6px 14px 6px}
-.pf-tab{flex:1;height:36px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.pf-tab{flex:1;height:36px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-size:11px;font-weight:600;font-family:var(--font-b);cursor:pointer;white-space:nowrap;padding:0 2px}
 .pf-tab.sel{background:rgba(168,139,255,.14);border-color:var(--purple);color:var(--purple)}
 .pf-chips{display:flex;gap:6px;padding:2px 14px 10px}
 .pf-chip{flex:1;height:32px;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
@@ -86,6 +87,14 @@ const CSS = `<style id="perf-css">
 .pf-cmp-val span{display:block;font-size:10px;color:var(--text3);font-family:var(--font-b)}
 .pf-bar-track{height:4px;border-radius:3px;background:var(--bg3,#26262b);margin-top:6px;overflow:hidden}
 .pf-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--purple))}
+/* hours */
+.pf-hour{display:flex;align-items:center;gap:10px;padding:5px 12px}
+.pf-hour-lbl{width:46px;font-size:12px;font-family:var(--font-b);color:var(--text2);flex-shrink:0}
+.pf-hour-track{flex:1;height:18px;border-radius:5px;background:var(--bg3,#26262b);overflow:hidden}
+.pf-hour-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,rgba(56,189,248,.45),var(--blue))}
+.pf-hour.peak .pf-hour-fill{background:linear-gradient(90deg,var(--blue),var(--purple))}
+.pf-hour-val{width:98px;text-align:right;flex-shrink:0;font-size:12px;font-family:var(--font-h);font-weight:600;color:var(--text0)}
+.pf-hour-val span{display:block;font-size:9px;color:var(--text3);font-family:var(--font-b);font-weight:400}
 .pf-empty{margin:0 14px;padding:28px 20px;text-align:center;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px}
 .pf-empty-txt{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
 .pf-load{padding:34px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px}
@@ -182,6 +191,28 @@ function topView() {
     <div style="height:24px"></div>`;
 }
 
+function hoursView() {
+  if (_loading) return `<div class="pf-load">Рахую виторг по годинах…</div>`;
+  if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
+  const hrs = _hours && _hours.hours;
+  if (!hrs || !hrs.length) {
+    return `<div class="pf-empty"><div class="pf-empty-txt">Немає продажів бару по годинах за період.</div></div>`;
+  }
+  const maxRev = Math.max(...hrs.map(h => h.revenue));
+  const peak = hrs.reduce((a, h) => h.revenue > a.revenue ? h : a, hrs[0]);
+  const hh = n => String(n).padStart(2, '0');
+  const rows = hrs.map(h => `
+    <div class="pf-hour${h.hour === peak.hour ? ' peak' : ''}">
+      <div class="pf-hour-lbl">${hh(h.hour)}:00</div>
+      <div class="pf-hour-track"><div class="pf-hour-fill" style="width:${Math.max(3, Math.round(h.revenue / maxRev * 100))}%"></div></div>
+      <div class="pf-hour-val">${fmtUAH(h.revenue)}<span>${fmtN(h.items)} напоїв</span></div>
+    </div>`).join('');
+  return `
+    <div class="pf-note">Пік о <b style="color:var(--blue)">${hh(peak.hour)}:00</b> — найбільше виторгу. Орієнтир, коли підсилювати бар. Суми за весь період.</div>
+    <div class="pf-card" style="margin-top:8px;padding:6px 2px">${rows}</div>
+    <div style="height:24px"></div>`;
+}
+
 function compareView() {
   if (_loading) return `<div class="pf-load">Рахую по всіх закладах (послідовно)…</div>`;
   if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
@@ -221,8 +252,9 @@ ${CSS}
     </div>
 
     <div class="pf-tabs">
-      <button class="pf-tab ${_tab === 'venue' ? 'sel' : ''}" onclick="window.__perf.setTab('venue')">Цей заклад</button>
-      <button class="pf-tab ${_tab === 'top' ? 'sel' : ''}" onclick="window.__perf.setTab('top')">🍸 Топ напоїв</button>
+      <button class="pf-tab ${_tab === 'venue' ? 'sel' : ''}" onclick="window.__perf.setTab('venue')">Заклад</button>
+      <button class="pf-tab ${_tab === 'top' ? 'sel' : ''}" onclick="window.__perf.setTab('top')">🍸 Напої</button>
+      <button class="pf-tab ${_tab === 'hours' ? 'sel' : ''}" onclick="window.__perf.setTab('hours')">⏰ Години</button>
       <button class="pf-tab ${_tab === 'compare' ? 'sel' : ''}" onclick="window.__perf.setTab('compare')">Мережа</button>
     </div>
 
@@ -230,7 +262,7 @@ ${CSS}
       ${[7, 14, 30].map(p => `<button class="pf-chip ${_period === p ? 'sel' : ''}" onclick="window.__perf.setPeriod(${p})">${p} днів</button>`).join('')}
     </div>
 
-    ${_tab === 'venue' ? venueView() : _tab === 'top' ? topView() : compareView()}
+    ${_tab === 'venue' ? venueView() : _tab === 'top' ? topView() : _tab === 'hours' ? hoursView() : compareView()}
   </div>
 </div>`;
 }
@@ -270,6 +302,20 @@ async function loadTopItems() {
   _loading = false; rerender();
 }
 
+async function loadHours() {
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  if (!venueId) { _err = 'Не обрано заклад'; rerender(); return; }
+  _loading = true; _err = ''; rerender();
+  const { from, to } = range();
+  try {
+    const r = await fetch(`${API}/api/performance/bar-hours?venueId=${venueId}&from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Помилка');
+    _hours = d;
+  } catch (e) { _err = 'Не вдалося завантажити: ' + e.message; _hours = null; }
+  _loading = false; rerender();
+}
+
 async function loadCompare() {
   _loading = true; _err = ''; rerender();
   const { from, to } = range();
@@ -282,12 +328,12 @@ async function loadCompare() {
   _loading = false; rerender();
 }
 
-function loadCurrent() { _tab === 'venue' ? loadVenue() : _tab === 'top' ? loadTopItems() : loadCompare(); }
+function loadCurrent() { _tab === 'venue' ? loadVenue() : _tab === 'top' ? loadTopItems() : _tab === 'hours' ? loadHours() : loadCompare(); }
 
 /* ════════════════════════  MODULE  ════════════════════════ */
 export default {
   render() {
-    _tab = 'venue'; _period = 14; _venueData = null; _topItems = null; _compare = null; _loading = false; _err = '';
+    _tab = 'venue'; _period = 14; _venueData = null; _topItems = null; _hours = null; _compare = null; _loading = false; _err = '';
     return buildHTML();
   },
   init() {
@@ -297,9 +343,10 @@ export default {
         _tab = t;
         if (t === 'venue')      _venueData ? rerender() : loadVenue();
         else if (t === 'top')   _topItems  ? rerender() : loadTopItems();
+        else if (t === 'hours') _hours     ? rerender() : loadHours();
         else                    _compare   ? rerender() : loadCompare();
       },
-      setPeriod(p) { if (_period === p) return; _period = p; _venueData = null; _topItems = null; _compare = null; loadCurrent(); },
+      setPeriod(p) { if (_period === p) return; _period = p; _venueData = null; _topItems = null; _hours = null; _compare = null; loadCurrent(); },
     };
     loadVenue();
   },
