@@ -22,6 +22,7 @@ let _notifOpen       = false;
 let _pendingOrders   = [];   // заявки на закупку (для адмін/менеджер)
 let _pendingDayoff   = [];   // запити на вихідні (для адмін/менеджер)
 let _seenNotifs      = new Set(); // id переглянутих сповіщень (localStorage) — нові світяться, прочитані сірі
+let _mini            = { digest: null, checklist: null, playlist: null }; // живі міні-показники плиток
 
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
@@ -202,16 +203,19 @@ const CSS = `<style id="dash-css">
 .d-qbtn-badge{background:var(--red);border-radius:20px;
   padding:2px 7px;font-size:10px;color:#fff;font-family:var(--font-h);font-weight:600;flex-shrink:0}
 /* секції-сітка плиток (нова головна) */
-.d-gsec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:16px 22px 9px;font-family:var(--font-b)}
-.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
-.d-tile{background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:15px;min-height:116px;
+.d-gsec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:13px 20px 7px;font-family:var(--font-b)}
+.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px}
+.d-tile{background:var(--bg1);border:0.5px solid var(--border);border-radius:15px;padding:12px;min-height:88px;
   display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:left;transition:background .12s}
 .d-tile:active{background:rgba(255,255,255,.05)}
-.d-tile-ic{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center}
-.d-tile-name{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-top:14px;letter-spacing:-.01em}
-.d-tile-hint{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:4px;line-height:1.3}
+.d-tile-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.d-tile-name{font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);margin-top:9px;letter-spacing:-.01em;line-height:1.15}
+.d-tile-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px;line-height:1.25}
+.d-tile-stat{font-size:11.5px;font-weight:600;font-family:var(--font-b);margin-top:2px}
 .d-tile-hero{grid-column:1 / -1;min-height:auto;background:linear-gradient(160deg,rgba(45,212,191,.10),rgba(255,255,255,.005))}
-.d-hero-row{display:flex;align-items:center;gap:14px}
+.d-hero-row{display:flex;align-items:center;gap:12px}
+.d-hero-prog{height:6px;border-radius:4px;background:var(--bg3);overflow:hidden;margin-top:10px}
+.d-hero-prog>div{height:100%;border-radius:4px}
 /* kpi */
 .d-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px}
 .d-kpi{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:13px;
@@ -302,15 +306,27 @@ const SECTIONS_WORKER = [
   ['Моя зміна', ['stop-list', 'debts', 'schedule', 'current-shift']],
 ];
 
+// Живий міні-показник плитки (інакше — звичайна підказка)
+function tileSub(route, hint) {
+  const d = _mini.digest, cl = _mini.checklist;
+  const stat = (txt, color) => `<div class="d-tile-stat" style="color:${color || 'var(--text2)'}">${txt}</div>`;
+  if (route === 'digest'      && d && d.profit != null)                  return stat(`Прибуток ${fmtMoney(d.profit)}`, 'var(--green)');
+  if (route === 'performance' && d && d.bar && d.bar.revPerHour != null) return stat(`${fmtMoney(d.bar.revPerHour)}/год`, 'var(--blue)');
+  if (route === 'playlist'    && _mini.playlist != null)                 return stat(`${_mini.playlist} страв`, 'var(--text1)');
+  if (route === 'journal'     && cl && cl.total)                         return stat(`Чек-листи ${cl.done}/${cl.total}`, cl.done >= cl.total ? 'var(--green)' : 'var(--amber)');
+  if (route === 'stock'       && _stats && _stats.critical) { const n = _stats.critical.length; return stat(n ? `${n} критичних` : 'все норм', n ? 'var(--red)' : 'var(--green)'); }
+  return hint ? `<div class="d-tile-hint">${hint}</div>` : '';
+}
+
 function tileGrid(items) {
   return `<div class="d-grid">` + items.map(q => `
     <div class="d-tile" onclick="window.__barops.navigate('${q.route}')">
       <div class="d-tile-ic" style="background:${q.color}">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="color:${q.iconColor}">${q.svg}</svg>
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none" style="color:${q.iconColor}">${q.svg}</svg>
       </div>
       <div>
         <div class="d-tile-name">${q.label}</div>
-        ${q.hint ? `<div class="d-tile-hint">${q.hint}</div>` : ''}
+        ${tileSub(q.route, q.hint)}
       </div>
     </div>`).join('') + `</div>`;
 }
@@ -319,6 +335,10 @@ function tileGrid(items) {
 function heroChecklistTile() {
   const j = tileByRoute()['journal'];
   const svg = j?.svg || `<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6 6h7M6 9h7M6 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>`;
+  const cl = _mini.checklist;
+  const pct = cl && cl.total ? Math.round(cl.done / cl.total * 100) : null;
+  const col = pct == null ? 'var(--text2)' : pct >= 100 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+  const sub = cl && cl.total ? `${cl.done}/${cl.total} виконано · ${pct}%` : 'Завдання та чек-листи на сьогодні';
   return `<div class="d-gsec">Чек-лист зміни</div>
   <div class="d-grid">
     <div class="d-tile d-tile-hero" onclick="window.__barops.navigate('journal')">
@@ -328,10 +348,12 @@ function heroChecklistTile() {
         </div>
         <div style="flex:1;min-width:0">
           <div class="d-tile-name" style="margin-top:0">Чек-листи зміни</div>
-          <div class="d-tile-hint">Завдання та чек-листи на сьогодні</div>
+          <div class="d-tile-stat" style="color:${col}">${sub}</div>
         </div>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        ${pct != null ? `<div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:${col}">${pct}%</div>`
+          : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`}
       </div>
+      ${pct != null ? `<div class="d-hero-prog"><div style="width:${pct}%;background:${col}"></div></div>` : ''}
     </div>
   </div>`;
 }
@@ -443,6 +465,29 @@ async function loadStats() {
 
 function isMgrRole() {
   return ['admin', 'manager', 'director'].includes(state.role);
+}
+
+// Живі міні-показники для плиток (дешеві/кешовані джерела, без важкого Syrve)
+async function loadMiniStats() {
+  const venueId = _activeVenueId || state.venueId || localStorage.getItem('barops_venueId');
+  const tok = token();
+  if (!venueId || !tok) return;
+  const H = { Authorization: `Bearer ${tok}` };
+  const mgr = isMgrRole();
+  const tasks = [];
+  if (mgr) tasks.push(fetch(`${API}/api/performance/digest?venueId=${venueId}&cachedOnly=1`, { headers: H })
+    .then(r => r.json()).then(d => { if (d.success) _mini.digest = d.digest; }).catch(() => {}));
+  tasks.push(fetch(`${API}/api/checklists/today?venueId=${venueId}`, { headers: H })
+    .then(r => r.json()).then(d => {
+      if (d.success) {
+        const cs = d.checklists || [];
+        _mini.checklist = { done: cs.reduce((a, c) => a + (c.doneCount || 0), 0), total: cs.reduce((a, c) => a + (c.total || 0), 0) };
+      }
+    }).catch(() => {}));
+  if (mgr) tasks.push(fetch(`${API}/api/playlist/${venueId}`, { headers: H })
+    .then(r => r.json()).then(d => { if (Array.isArray(d.items)) _mini.playlist = d.items.length; }).catch(() => {}));
+  await Promise.allSettled(tasks);
+  fullRender();
 }
 
 // Повільні метрики з Syrve (виторг + накладні) — окремий запит зі скелетоном
@@ -845,6 +890,7 @@ export default {
     _pendingOrders  = [];
     _pendingDayoff  = [];
     _syrveStats     = null;
+    _mini           = { digest: null, checklist: null, playlist: null };
     loadSeenNotifs();
     return buildHTML();
   },
@@ -875,6 +921,7 @@ export default {
     // Завантажуємо заклади і статистику
     await loadVenues();
     await loadStats();
+    loadMiniStats();
     if (isMgrRole()) { loadSyrveStats(); loadPendingOrders(); loadPendingDayoff(); }
   },
 };
