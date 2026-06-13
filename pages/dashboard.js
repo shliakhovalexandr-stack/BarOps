@@ -201,6 +201,17 @@ const CSS = `<style id="dash-css">
 .d-qbtn-hint{font-size:11px;color:var(--text2);margin-top:2px}
 .d-qbtn-badge{background:var(--red);border-radius:20px;
   padding:2px 7px;font-size:10px;color:#fff;font-family:var(--font-h);font-weight:600;flex-shrink:0}
+/* секції-сітка плиток (нова головна) */
+.d-gsec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:16px 22px 9px;font-family:var(--font-b)}
+.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.d-tile{background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:15px;min-height:116px;
+  display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:left;transition:background .12s}
+.d-tile:active{background:rgba(255,255,255,.05)}
+.d-tile-ic{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center}
+.d-tile-name{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-top:14px;letter-spacing:-.01em}
+.d-tile-hint{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:4px;line-height:1.3}
+.d-tile-hero{grid-column:1 / -1;min-height:auto;background:linear-gradient(160deg,rgba(45,212,191,.10),rgba(255,255,255,.005))}
+.d-hero-row{display:flex;align-items:center;gap:14px}
 /* kpi */
 .d-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 14px}
 .d-kpi{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:13px;
@@ -271,6 +282,74 @@ function quickGrid(items) {
     ${q.badge ? `<div class="d-qbtn-badge">${q.badge}</div>` : ''}
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
   </div>`).join('');
+}
+
+// ── Нова головна: плитки-сітка по секціях ──────────────────
+function tileByRoute() {
+  const m = {};
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  return m;
+}
+// Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
+const SECTIONS_MGR = [
+  ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
+  ['Моніторинг зміни', ['current-shift', 'journal', 'debts', 'stop-list', 'schedule']],
+  ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
+  ['Облік',            ['recipes', 'recipe-book']],
+];
+const SECTIONS_WORKER = [
+  ['Операції',  ['writeoff', 'inventory', 'ordering', 'ocr', 'excise']],
+  ['Моя зміна', ['stop-list', 'debts', 'schedule', 'current-shift']],
+];
+
+function tileGrid(items) {
+  return `<div class="d-grid">` + items.map(q => `
+    <div class="d-tile" onclick="window.__barops.navigate('${q.route}')">
+      <div class="d-tile-ic" style="background:${q.color}">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="color:${q.iconColor}">${q.svg}</svg>
+      </div>
+      <div>
+        <div class="d-tile-name">${q.label}</div>
+        ${q.hint ? `<div class="d-tile-hint">${q.hint}</div>` : ''}
+      </div>
+    </div>`).join('') + `</div>`;
+}
+
+// Чек-лист — герой нагорі (для працівників): велика плитка → Журнал
+function heroChecklistTile() {
+  const j = tileByRoute()['journal'];
+  const svg = j?.svg || `<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6 6h7M6 9h7M6 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>`;
+  return `<div class="d-gsec">Чек-лист зміни</div>
+  <div class="d-grid">
+    <div class="d-tile d-tile-hero" onclick="window.__barops.navigate('journal')">
+      <div class="d-hero-row">
+        <div class="d-tile-ic" style="background:var(--teal-bg)">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="color:var(--teal)">${svg}</svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="d-tile-name" style="margin-top:0">Чек-листи зміни</div>
+          <div class="d-tile-hint">Завдання та чек-листи на сьогодні</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Згрупувати дозволені плитки ролі у секції-сітку
+function dashTiles(quick, isMgr, showHero) {
+  const inQuick = new Set(quick.map(q => q.route));
+  const byR = tileByRoute();
+  const defs = isMgr ? SECTIONS_MGR : SECTIONS_WORKER;
+  let html = showHero ? heroChecklistTile() : '';
+  const used = new Set();
+  for (const [label, routes] of defs) {
+    const tiles = routes.filter(r => inQuick.has(r)).map(r => { used.add(r); return byR[r]; }).filter(Boolean);
+    if (tiles.length) html += `<div class="d-gsec">${label}</div>` + tileGrid(tiles);
+  }
+  const rest = quick.filter(q => !used.has(q.route));   // нерозкладені — окремо, щоб нічого не загубити
+  if (rest.length) html += `<div class="d-gsec">Інше</div>` + tileGrid(rest);
+  return html;
 }
 
 function meterSvg(pct, color) {
@@ -549,9 +628,8 @@ ${CSS}
       <span style="color:var(--red);font-size:18px;opacity:.6">›</span>
     </div>`).join('') : ''}
 
-    <!-- Quick actions -->
-    <div class="d-sec">Швидкі дії</div>
-    <div class="d-quick">${quickGrid(quick)}</div>
+    <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю) -->
+    ${dashTiles(quick, isMgr, !isMgr && !isAcc)}
 
     <!-- KPI «Зміна сьогодні» — лише для барменів; у менеджерів натомість «Аналітика зміни» -->
     ${(!isAcc && !isMgr) ? `
