@@ -204,12 +204,15 @@ const TAB_BAR_MGR_JOURNAL = TAB_BAR_MANAGER.map(tab =>
 /* ══════════════════════════════════════
    4. DRAWER (менеджер)
    ══════════════════════════════════════ */
-// Бічне меню — коротке: усе операційне доступне плитками на головній; тут лише базове + Рецепти.
+// Бічне меню: базове + операційні (Замовлення/Списання/Акцизні) + Рецепти.
 const DRAWER_NAV = [
-  { route:'dashboard',   label:'Головна',  svg:`<path d="M2 8L9 2l7 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7v9a.5.5 0 00.5.5h4V13h1v3.5h4a.5.5 0 00.5-.5V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/>` },
-  { route:'team',        label:'Команда',  svg:`<circle cx="6" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M2 14c0-2.2 1.8-4 4-4h2M9 14c0-2.2 1.8-4 4-4h0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
-  { route:'recipe-book', label:'Рецепти',  svg:`<rect x="2" y="1" width="10" height="14" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 5h4M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M12 4h2a1 1 0 011 1v9a1 1 0 01-1 1H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
-  { route:'profile',     label:'Профіль',  svg:`<circle cx="9" cy="5" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
+  { route:'dashboard',   label:'Головна',     svg:`<path d="M2 8L9 2l7 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7v9a.5.5 0 00.5.5h4V13h1v3.5h4a.5.5 0 00.5-.5V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/>` },
+  { route:'team',        label:'Команда',     svg:`<circle cx="6" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M2 14c0-2.2 1.8-4 4-4h2M9 14c0-2.2 1.8-4 4-4h0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
+  { route:'ordering',    label:'Замовлення',  svg:`<rect x="3" y="2" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h5M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+  { route:'writeoff',    label:'Списання',    svg:`<path d="M4 15l2-2 6-6 2 2-6 6-2 2H4v-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 5l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
+  { route:'excise',      label:'Акцизні',     svg:`<rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M4 8h8M4 11h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="13" cy="11" r="1.5" fill="currentColor" opacity=".7"/>` },
+  { route:'recipe-book', label:'Рецепти',     svg:`<rect x="2" y="1" width="10" height="14" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 5h4M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M12 4h2a1 1 0 011 1v9a1 1 0 01-1 1H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+  { route:'profile',     label:'Профіль',     svg:`<circle cx="9" cy="5" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` },
 ];
 
 function renderDrawer() {
