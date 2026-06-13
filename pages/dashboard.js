@@ -551,7 +551,7 @@ function buildHTML() {
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
   const quick = state.role === 'admin' ? QUICK_ADMIN
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
-              : isMgr ? QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff'].includes(q.route))
+              : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule'].includes(q.route))
               : QUICK_BARTENDER;
   const s     = _stats;
@@ -651,7 +651,7 @@ ${CSS}
           </div>` : ''}
           <div>
             <div class="d-venue-sub">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'} ·${new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long'})}</div>
-            ${isMgr ? `
+            ${isMgr && _venues.length > 1 ? `
             <div class="d-venue-btn" onclick="window.__dash.toggleVenueSheet()">
               <div class="d-venue-name">${_activeVenueName || state.venue || '...'}</div>
               <div class="d-venue-chev">
@@ -659,7 +659,8 @@ ${CSS}
                   <path d="M2 3l2 2 2-2" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </div>
-            </div>` : `
+            </div>` : isMgr ? `
+            <div class="d-venue-name">${_activeVenueName || state.venue || '...'}</div>` : `
             <div class="d-venue-name">${state.venue || '...'}</div>
             <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${state.user || localStorage.getItem('barops_user') || ''} - ${localStorage.getItem('barops_phone') || ''}
               </div>`}

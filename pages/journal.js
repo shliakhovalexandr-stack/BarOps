@@ -181,6 +181,10 @@ function canManage() {
   const r = (_role || '').toLowerCase();
   return r === 'admin' || r === 'manager' || r === 'director';
 }
+// Менеджер залу: його журнал стосується ЛИШЕ офіціантів (шаблони/чек-листи/завдання).
+// Адмін і керуючий бачать усі підрозділи.
+function isFloorMgr() { return (_role || '').toLowerCase() === 'manager'; }
+const FLOOR_DEPT = 'waiters';
 function myDepartment(role) {
   const r = (role || '').toLowerCase();
   if (r === 'cook' || r === 'chef') return 'kitchen';
@@ -235,7 +239,8 @@ function buildWorkerChecklist() {
 }
 
 function buildManagerTasks() {
-  const listHTML = _tasks.length ? _tasks.map(t => `
+  const tasks = isFloorMgr() ? _tasks.filter(t => (t.department || '') === FLOOR_DEPT) : _tasks;
+  const listHTML = tasks.length ? tasks.map(t => `
     <div class="jrn-cl-card${t.done ? ' done' : ''}">
       <div class="jrn-task-row">
         <div style="flex:1;min-width:0">
@@ -264,11 +269,14 @@ function buildTaskModal() {
       <div class="jrn-modal-lbl">Дата виконання</div>
       <input type="date" id="jrn-task-date" class="jrn-modal-inp" value="${_taskDraft.date}">
       <div class="jrn-modal-lbl">Підрозділ</div>
+      ${isFloorMgr() ? `
+      <div class="jrn-dept-row"><button class="jrn-dept-chip sel" disabled>Офіціанти</button></div>
+      ` : `
       <div class="jrn-dept-row">
         ${Object.entries(DEPT_LABEL).map(([k, v]) =>
           `<button class="jrn-dept-chip ${_taskDraft.department === k ? 'sel' : ''}" onclick="window.__jrn.setDept('${k}')">${v}</button>`
         ).join('')}
-      </div>
+      </div>`}
       <div class="jrn-modal-lbl">Виконавець</div>
       <select id="jrn-task-assignee" class="jrn-modal-inp" onchange="window.__jrn.setAssignee(this.value)">
         <option value="">— Оберіть людину —</option>
@@ -305,11 +313,12 @@ function clIsLate(cl) {
 
 // Сьогоднішні чек-листи (працівник тапає; менеджер бачить хто/коли)
 function buildTodayChecklists() {
-  if (!_checklists.length) {
+  const lists = isFloorMgr() ? _checklists.filter(cl => (cl.department || '') === FLOOR_DEPT) : _checklists;
+  if (!lists.length) {
     return `<div class="jrn-empty"><div class="jrn-empty-icon">✓</div>
-      <div class="jrn-empty-txt">Чек-листів на сьогодні немає</div></div>`;
+      <div class="jrn-empty-txt">${isFloorMgr() ? 'Чек-листів для офіціантів на сьогодні немає' : 'Чек-листів на сьогодні немає'}</div></div>`;
   }
-  return _checklists.map(cl => {
+  return lists.map(cl => {
     const allDone = cl.total > 0 && cl.doneCount >= cl.total;
     const late = clIsLate(cl);
     return `
@@ -339,7 +348,8 @@ function buildTodayChecklists() {
 
 // Менеджер: список шаблонів + кнопка створення
 function buildManagerTemplates() {
-  const list = _clTemplates.length ? _clTemplates.map(t => {
+  const tpls = isFloorMgr() ? _clTemplates.filter(t => (t.department || '') === FLOOR_DEPT) : _clTemplates;
+  const list = tpls.length ? tpls.map(t => {
     const count = (t.items || []).length;
     return `
     <div class="jrn-cl-card">
@@ -358,7 +368,7 @@ function buildManagerTemplates() {
         <button class="jrn-task-del" onclick="window.__jrn.deleteTemplate('${t.id}')">×</button>
       </div>
     </div>`;
-  }).join('') : `<div class="jrn-empty"><div class="jrn-empty-txt">Шаблонів ще немає. Створіть перший.</div></div>`;
+  }).join('') : `<div class="jrn-empty"><div class="jrn-empty-txt">${isFloorMgr() ? 'Шаблонів для офіціантів ще немає. Створіть перший.' : 'Шаблонів ще немає. Створіть перший.'}</div></div>`;
   return `
     <div style="padding:0 14px 8px"><button class="jrn-add-btn" onclick="window.__jrn.openClModal()">+ Шаблон чек-листа</button></div>
     ${list}`;
@@ -405,11 +415,15 @@ function buildClModal() {
           <button class="jrn-dept-chip ${d.kind === 'daily' ? 'sel' : ''}" onclick="window.__jrn.clSetKind('daily')">Щоденний</button>
           <button class="jrn-dept-chip ${d.kind === 'weekly' ? 'sel' : ''}" onclick="window.__jrn.clSetKind('weekly')">Щотижневий</button>
         </div>
+        ${isFloorMgr() ? `
+        <div class="jrn-modal-lbl">Для кого</div>
+        <div class="jrn-dept-row"><button class="jrn-dept-chip sel" disabled>Офіціанти</button></div>
+        ` : `
         <div class="jrn-modal-lbl">Для кого</div>
         <div class="jrn-dept-row" id="cl-dept-row">
           ${Object.entries(CL_DEPT_LABEL).map(([k, v]) =>
             `<button class="jrn-dept-chip ${d.department === k ? 'sel' : ''}" onclick="window.__jrn.clSetDept('${k}')">${v}</button>`).join('')}
-        </div>
+        </div>`}
         <div class="jrn-modal-lbl">Дедлайн (необовʼязково)</div>
         <input id="cl-deadline" type="time" class="jrn-modal-inp" value="${d.deadline || ''}">
         <div class="jrn-modal-lbl">Нагадати пушем о — зміні в графіку (необовʼязково)</div>
@@ -609,7 +623,7 @@ export default {
       },
 
       openTaskModal() {
-        _taskDraft = { date: ymd(new Date()), department: 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
+        _taskDraft = { date: ymd(new Date()), department: isFloorMgr() ? FLOOR_DEPT : 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
         _taskModal = true;
         rerender();
       },
@@ -700,7 +714,7 @@ export default {
 
       openClModal() {
         _clDraft = {
-          id: null, title: '', kind: 'daily', department: '', deadline: '', remindAt: '',
+          id: null, title: '', kind: 'daily', department: isFloorMgr() ? FLOOR_DEPT : '', deadline: '', remindAt: '',
           daily: [newClItem()],
           weekly: { 0: [], 1: [newClItem()], 2: [], 3: [], 4: [], 5: [], 6: [] },
         };
