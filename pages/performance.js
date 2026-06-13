@@ -36,6 +36,13 @@ function dShort(iso) {
   return isNaN(d) ? iso : `${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// Бейдж тренду vs попередній період (вище = краще для всіх метрик бару)
+function trendBadge(cur, prev) {
+  if (cur == null || prev == null || prev === 0) return '';
+  const d = Math.round((cur - prev) / prev * 100);
+  if (d === 0) return `<span class="pf-trend flat">→ 0%</span>`;
+  return d > 0 ? `<span class="pf-trend up">↑ ${d}%</span>` : `<span class="pf-trend down">↓ ${Math.abs(d)}%</span>`;
+}
 
 /* ════════════════════════  CSS  ════════════════════════ */
 const CSS = `<style id="perf-css">
@@ -62,6 +69,10 @@ const CSS = `<style id="perf-css">
 .pf-kpi-val.big{font-size:30px;color:var(--blue)}
 .pf-kpi-val.mid{font-size:20px}
 .pf-kpi-hint{font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:4px}
+.pf-trend{display:inline-flex;align-items:center;gap:1px;font-size:11px;font-weight:700;font-family:var(--font-b);margin-left:8px;vertical-align:middle}
+.pf-trend.up{color:var(--green)}
+.pf-trend.down{color:#ff6b6b}
+.pf-trend.flat{color:var(--text3)}
 /* table */
 .pf-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 20px 8px;font-family:var(--font-b)}
 .pf-card{margin:0 14px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
@@ -102,37 +113,38 @@ const CSS = `<style id="perf-css">
 </style>`;
 
 /* ════════════════════════  RENDER  ════════════════════════ */
-function kpiCards(t) {
+function kpiCards(t, prev) {
   if (!t) return '';
+  const p = prev || {};
   return `
   <div class="pf-kpis">
     <div class="pf-kpi hero">
       <div class="pf-kpi-lbl">Виторг бару / годину-бармена</div>
-      <div class="pf-kpi-val big">${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}</div>
+      <div class="pf-kpi-val big">${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}${trendBadge(t.revPerHour, p.revPerHour)}</div>
       <div class="pf-kpi-hint">за ${t.daysWithShift} повних днів зі зміною · ${fmtN(t.bartenderHours)} год</div>
     </div>
     <div class="pf-kpi drink">
       <div class="pf-kpi-lbl">🍸 Напоїв / год</div>
-      <div class="pf-kpi-val mid">${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}</div>
+      <div class="pf-kpi-val mid">${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}${trendBadge(t.itemsPerHour, p.itemsPerHour)}</div>
       <div class="pf-kpi-hint">барних позицій на бармена-годину</div>
     </div>
     <div class="pf-kpi drink">
       <div class="pf-kpi-lbl">🧾 Чеків / год</div>
-      <div class="pf-kpi-val mid">${t.checksPerHour != null ? fmtN(t.checksPerHour) : '—'}</div>
+      <div class="pf-kpi-val mid">${t.checksPerHour != null ? fmtN(t.checksPerHour) : '—'}${trendBadge(t.checksPerHour, p.checksPerHour)}</div>
       <div class="pf-kpi-hint">замовлень на бармена-годину</div>
     </div>
     <div class="pf-kpi">
       <div class="pf-kpi-lbl">Середній чек</div>
-      <div class="pf-kpi-val mid">${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'}</div>
+      <div class="pf-kpi-val mid">${t.avgCheck != null ? fmtUAH(t.avgCheck) : '—'}${trendBadge(t.avgCheck, p.avgCheck)}</div>
     </div>
     <div class="pf-kpi">
       <div class="pf-kpi-lbl">Виторг / зміну</div>
-      <div class="pf-kpi-val mid">${t.revPerDay != null ? fmtUAH(t.revPerDay) : '—'}</div>
+      <div class="pf-kpi-val mid">${t.revPerDay != null ? fmtUAH(t.revPerDay) : '—'}${trendBadge(t.revPerDay, p.revPerDay)}</div>
     </div>
     <div class="pf-kpi wide">
       <div class="pf-kpi-lbl">Усього за період</div>
-      <div class="pf-kpi-val mid">${fmtUAH(t.barRevenue)}</div>
-      <div class="pf-kpi-hint">${fmtN(t.barItems)} напоїв · ${t.barChecks.toLocaleString('uk-UA')} чеків</div>
+      <div class="pf-kpi-val mid">${fmtUAH(t.barRevenue)}${trendBadge(t.barRevenue, p.barRevenue)}</div>
+      <div class="pf-kpi-hint">${fmtN(t.barItems)} напоїв · ${t.barChecks.toLocaleString('uk-UA')} чеків · vs попередні ${_period} дн.</div>
     </div>
   </div>`;
 }
@@ -158,7 +170,7 @@ function venueView() {
     </div>`).join('');
   return `
     ${warn}
-    ${kpiCards(_venueData.totals)}
+    ${kpiCards(_venueData.totals, _venueData.prev)}
     <div class="pf-note">«—» у виторгу/год — день без графіка або ще не закритий. Бар = місця приготування з «бар» у назві.</div>
     <div class="pf-sec">По днях</div>
     <div class="pf-card">
