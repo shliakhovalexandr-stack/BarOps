@@ -94,13 +94,21 @@ function fcBg(fc) {
   return 'var(--amber-bg)';
 }
 function calcCost(dish) {
+  // Пріоритет — собівартість із бекенду: OLAP (точно, по продажах) або ТТК з рекурсією НФ.
+  if (dish.costPrice > 0) return dish.costPrice;
+  // Фолбек — порахувати з інгредієнтів × ціни (поверхнево, без НФ)
   if ((dish.ingredients || []).length) {
     let cost = 0;
     for (const ing of dish.ingredients)
       cost += (ing.grossAmount || 0) * (_prices[ing.productId]?.unitPrice || 0);
     if (cost > 0) return cost;
   }
-  return dish.costPrice || 0;
+  return 0;
+}
+// Собівартість приблизна (з ТТК), а не точна (з продажів через OLAP)
+function costIsEstimated(dish) {
+  if (dish.costPrice > 0) return !!dish.costEstimated;
+  return (dish.ingredients || []).some(i => _prices[i.productId]?.unitPrice > 0);
 }
 function calcFC(dish) {
   const cost  = calcCost(dish);
@@ -767,7 +775,7 @@ function buildMain() {
           <div class="rec-name" style="display:flex;align-items:center;gap:6px">
             ${d.name}${warnIcon}
           </div>
-          <div class="rec-cat-lbl">${d.category || '—'} · соб. ${fmtPrice(cost || null)} · ціна ${price ? price.toFixed(0) + ' ₴' : '—'}</div>
+          <div class="rec-cat-lbl">${d.category || '—'} · соб. ${cost > 0 && costIsEstimated(d) ? '≈' : ''}${fmtPrice(cost || null)} · ціна ${price ? price.toFixed(0) + ' ₴' : '—'}</div>
         </div>
         <div style="text-align:right;min-width:56px;flex-shrink:0">
           <div style="font-family:var(--font-h);font-size:14px;font-weight:600;color:${color};letter-spacing:-0.02em;line-height:1">${fc !== null ? fmtFC(fc) : '—'}</div>
