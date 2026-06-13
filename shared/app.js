@@ -168,7 +168,7 @@ const TAB_BAR_MANAGER = [
     </svg>`,
   },
   {
-    route: 'performance', label: 'Аналітика', fab: true,
+    route: 'performance', label: 'Продуктивність', fab: true,
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <path d="M3 15l4-5 4 3 4-6 4 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`,
