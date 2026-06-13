@@ -367,7 +367,10 @@ function dashTiles(quick, isMgr, showHero) {
   const used = new Set();
   for (const [label, routes] of defs) {
     const tiles = routes.filter(r => inQuick.has(r)).map(r => { used.add(r); return byR[r]; }).filter(Boolean);
-    if (tiles.length) html += `<div class="d-gsec">${label}</div>` + tileGrid(tiles);
+    if (!tiles.length) continue;
+    // Операції для менеджера/адміна — компактним списком (він їх не виконує щодня)
+    if (isMgr && label === 'Операції') html += `<div class="d-gsec">${label}</div><div class="d-quick">${quickGrid(tiles)}</div>`;
+    else html += `<div class="d-gsec">${label}</div>` + tileGrid(tiles);
   }
   const rest = quick.filter(q => !used.has(q.route));   // нерозкладені — окремо, щоб нічого не загубити
   if (rest.length) html += `<div class="d-gsec">Інше</div>` + tileGrid(rest);
