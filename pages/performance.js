@@ -277,8 +277,8 @@ ${CSS}
 
     <div class="pf-tabs">
       <button class="pf-tab ${_tab === 'venue' ? 'sel' : ''}" onclick="window.__perf.setTab('venue')">Заклад</button>
-      <button class="pf-tab ${_tab === 'top' ? 'sel' : ''}" onclick="window.__perf.setTab('top')">🍸 Напої</button>
-      <button class="pf-tab ${_tab === 'hours' ? 'sel' : ''}" onclick="window.__perf.setTab('hours')">⏰ Години</button>
+      <button class="pf-tab ${_tab === 'top' ? 'sel' : ''}" onclick="window.__perf.setTab('top')">Напої</button>
+      <button class="pf-tab ${_tab === 'hours' ? 'sel' : ''}" onclick="window.__perf.setTab('hours')">Години</button>
       <button class="pf-tab ${_tab === 'compare' ? 'sel' : ''}" onclick="window.__perf.setTab('compare')">Мережа</button>
     </div>
 
