@@ -519,6 +519,12 @@ const CSS = `<style id="wo-css">
 /* ════════════════════════
    BARTENDER RENDER
 ════════════════════════ */
+// Підпис під товаром: показуємо причину; категорію — лише якщо осмислена
+// (дефолтне «Інше» не показуємо — воно зайве).
+function woMeta(w) {
+  if (w.reason) return w.reason;
+  return (w.cat && w.cat !== 'insh') ? (CAT[w.cat]?.label || '') : '';
+}
 function woCardHTML(w) {
   return `
     <div class="wo-swipe-wrap" data-id="${w.id}">
@@ -537,7 +543,7 @@ function woCardHTML(w) {
         </div>
         <div class="wo-info">
           <div class="wo-name">${w.prod}</div>
-          <div class="wo-meta">${w.meta}</div>
+          <div class="wo-meta">${woMeta(w)}</div>
         </div>
         <div class="wo-right">
           <div class="wo-vol" style="color:${w.valColor}">${w.vol}</div>
@@ -1181,7 +1187,7 @@ function renderManager() {
               <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
               <div style="flex:1;min-width:0">
                 <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
-                <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${w.reason ? `${CAT[w.cat]?.label||''} · ${w.reason}` : (CAT[w.cat]?.label||'')}</div>
+                <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${woMeta(w)}</div>
               </div>
               <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:10px">
                 <div>
@@ -1700,7 +1706,7 @@ async function submitForm() {
         cat:         finalCat,
         prod:        _selProd?.name ?? old.prod,
         prodId:      _selProd?.id   ?? old.prodId,
-        meta:        _selReason ? `${CAT[finalCat]?.label||''} · ${_selReason}` : (CAT[finalCat]?.label||''),
+        meta:        _selReason || (finalCat !== 'insh' ? (CAT[finalCat]?.label||'') : ''),
         vol:         `−${vol}${uLbl}`,
         volNum:      vol,
         unitKey:     unit,
@@ -1755,7 +1761,7 @@ async function submitForm() {
     cat:     finalCat,
     prod:    _selProd?.name || 'Товар',
     prodId:  _selProd?.id   || null,
-    meta:    _selReason ? `${CAT[finalCat]?.label||''} · ${_selReason}` : (CAT[finalCat]?.label||''),
+    meta:    _selReason || (finalCat !== 'insh' ? (CAT[finalCat]?.label||'') : ''),
     vol:     `−${vol}${uLbl}`,
     volNum:  vol,
     unitKey: unit,
@@ -2376,7 +2382,7 @@ export default {
             cat:         catKey,
             prod:        item.productName || 'Товар',
             prodId:      item.productId || null,
-            meta:        w.reason ? `${CAT[catKey]?.label||''} · ${w.reason}` : (CAT[catKey]?.label||''),
+            meta:        w.reason || (catKey !== 'insh' ? (CAT[catKey]?.label||'') : ''),
             vol:         `−${qty}${uLbl}`,
             volNum:      qty,
             unitKey:     uKey,
