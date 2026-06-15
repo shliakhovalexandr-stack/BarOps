@@ -227,10 +227,10 @@ function buildWorkerChecklist() {
   <div class="jrn-cl-card">
     <div class="jrn-cl-head">
       <div class="jrn-cl-name">Завдання на сьогодні</div>
-      <div class="jrn-cl-meta">${done}/${tasks.length} виконано</div>
+      <div class="jrn-cl-meta"><span data-task-count>${done}</span>/${tasks.length} виконано</div>
     </div>
     ${tasks.map(t => `
-    <div class="jrn-cl-item" onclick="window.__jrn.toggleTask('${t.id}',${t.done ? 0 : 1})">
+    <div class="jrn-cl-item" id="task-${t.id}" onclick="window.__jrn.toggleTask('${t.id}')">
       <div class="jrn-cl-check ${t.done ? 'done' : ''}">${t.done ? CHECK_SVG : ''}</div>
       <div class="jrn-cl-item-text ${t.done ? 'done' : ''}">${esc(t.text)}</div>
       <span class="jrn-prio-dot" style="background:${PRIORITY_COLOR[t.priority] || 'var(--text2)'}" title="${PRIORITY_LABEL[t.priority] || ''}"></span>
@@ -322,18 +322,18 @@ function buildTodayChecklists() {
     const allDone = cl.total > 0 && cl.doneCount >= cl.total;
     const late = clIsLate(cl);
     return `
-    <div class="jrn-cl-card${allDone ? ' done' : ''}">
+    <div class="jrn-cl-card${allDone ? ' done' : ''}" id="clcard-${cl.templateId}">
       <div class="jrn-cl-head">
         <div class="jrn-cl-name">${esc(cl.title)}</div>
         <div class="jrn-cl-tags">
-          <span class="jrn-tag ${allDone ? 'ok' : ''}">${cl.doneCount}/${cl.total}</span>
+          <span class="jrn-tag ${allDone ? 'ok' : ''}" data-cl-count>${cl.doneCount}/${cl.total}</span>
           ${cl.kind === 'weekly' ? `<span class="jrn-tag">дія дня</span>` : ''}
           ${cl.department ? `<span class="jrn-tag">${CL_DEPT_LABEL[cl.department]}</span>` : ''}
-          ${cl.deadline ? `<span class="jrn-tag ${late ? 'late' : (allDone ? 'ok' : '')}">до ${cl.deadline}</span>` : ''}
+          ${cl.deadline ? `<span class="jrn-tag ${late ? 'late' : (allDone ? 'ok' : '')}" data-cl-deadline>до ${cl.deadline}</span>` : ''}
         </div>
       </div>
       ${cl.items.map(it => `
-      <div class="jrn-cl-item" onclick="window.__jrn.toggleClItem('${cl.templateId}','${it.id}',${it.done ? 0 : 1})">
+      <div class="jrn-cl-item" id="clrun-${cl.templateId}-${it.id}" onclick="window.__jrn.toggleClItem('${cl.templateId}','${it.id}')">
         <div class="jrn-cl-check ${it.done ? 'done' : ''}">${it.done ? CHECK_SVG : ''}</div>
         <div style="flex:1;min-width:0">
           <div class="jrn-cl-item-text ${it.done ? 'done' : ''}">${esc(it.text)}</div>
@@ -589,6 +589,48 @@ function rerenderModals() {
   if (sc2) sc2.scrollTop = top;
 }
 
+// Точкове оновлення одного пункту чек-листа (без перебудови сторінки → без стрибка скролу)
+function updateClItemDOM(cl, it) {
+  const el = document.getElementById(`clrun-${cl.templateId}-${it.id}`);
+  if (el) {
+    const check = el.querySelector('.jrn-cl-check');
+    if (check) { check.classList.toggle('done', it.done); check.innerHTML = it.done ? CHECK_SVG : ''; }
+    const txt = el.querySelector('.jrn-cl-item-text');
+    if (txt) txt.classList.toggle('done', it.done);
+    const desc = el.querySelector('.jrn-cl-item-desc');
+    if (desc) desc.classList.toggle('done', it.done);
+    let by = el.querySelector('.jrn-cl-by');
+    if (it.done && it.doneBy) {
+      if (!by) { by = document.createElement('span'); by.className = 'jrn-cl-by'; el.appendChild(by); }
+      by.textContent = it.doneBy;
+    } else if (by) { by.remove(); }
+  }
+  const card = document.getElementById(`clcard-${cl.templateId}`);
+  if (card) {
+    const allDone = cl.total > 0 && cl.doneCount >= cl.total;
+    card.classList.toggle('done', allDone);
+    const cnt = card.querySelector('[data-cl-count]');
+    if (cnt) { cnt.textContent = `${cl.doneCount}/${cl.total}`; cnt.classList.toggle('ok', allDone); }
+    const dl = card.querySelector('[data-cl-deadline]');
+    if (dl) { const late = clIsLate(cl); dl.classList.toggle('late', late); dl.classList.toggle('ok', !late && allDone); }
+  }
+}
+
+// Точкове оновлення одного завдання (воркер) + лічильника картки
+function updateTaskDOM(t) {
+  const el = document.getElementById(`task-${t.id}`);
+  if (el) {
+    const check = el.querySelector('.jrn-cl-check');
+    if (check) { check.classList.toggle('done', t.done); check.innerHTML = t.done ? CHECK_SVG : ''; }
+    const txt = el.querySelector('.jrn-cl-item-text');
+    if (txt) txt.classList.toggle('done', t.done);
+  }
+  const today = ymd(new Date());
+  const done = _tasks.filter(x => x.date === today && x.done).length;
+  const cnt = document.querySelector('[data-task-count]');
+  if (cnt) cnt.textContent = String(done);
+}
+
 /* ════════════════════════
    PAGE MODULE
 ════════════════════════ */
@@ -608,18 +650,22 @@ export default {
   async init() {
     _role = state.role || localStorage.getItem('barops_role') || 'bartender';
     window.__jrn = {
-      async toggleTask(id, done) {
+      async toggleTask(id) {
         const t = _tasks.find(x => x.id === id);
-        if (t) t.done = !!done;     // оптимістично
-        rerender();
+        if (!t) return;
+        const newDone = !t.done;
+        t.done = newDone;            // оптимістично
+        updateTaskDOM(t);            // точково, без перебудови сторінки
         try {
           await fetch(`${API}/api/tasks/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ done: !!done }),
+            body: JSON.stringify({ done: newDone }),
           });
-        } catch { /* silent */ }
-        loadTasks();
+        } catch {
+          t.done = !newDone;         // відкат при помилці
+          updateTaskDOM(t);
+        }
       },
 
       openTaskModal() {
@@ -697,19 +743,27 @@ export default {
       /* ── ЧЕК-ЛИСТИ ── */
       setClView(v) { _clView = v; rerender(); if (v === 'templates') loadTemplates(); },
 
-      async toggleClItem(templateId, itemId, done) {
+      async toggleClItem(templateId, itemId) {
         const cl = _checklists.find(c => c.templateId === templateId);
         const it = cl && cl.items.find(i => i.id === itemId);
-        if (it) { it.done = !!done; if (!done) it.doneBy = ''; cl.doneCount = cl.items.filter(x => x.done).length; }
-        rerender();
+        if (!it) return;
+        const newDone = !it.done;
+        it.done = newDone;           // оптимістично
+        it.doneBy = newDone ? (state.user || localStorage.getItem('barops_user') || '') : '';
+        cl.doneCount = cl.items.filter(x => x.done).length;
+        updateClItemDOM(cl, it);     // точково, без перебудови сторінки
         try {
           await fetch(`${API}/api/checklists/run/${templateId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ itemId, done: !!done }),
+            body: JSON.stringify({ itemId, done: newDone }),
           });
-        } catch { /* silent */ }
-        loadChecklists();
+        } catch {
+          it.done = !newDone;        // відкат при помилці
+          it.doneBy = it.done ? (state.user || localStorage.getItem('barops_user') || '') : '';
+          cl.doneCount = cl.items.filter(x => x.done).length;
+          updateClItemDOM(cl, it);
+        }
       },
 
       openClModal() {
