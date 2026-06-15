@@ -354,7 +354,7 @@ const CSS = `<style id="wo-css">
 /* prod list */
 .wo-prod-search-wrap{position:relative}
 .wo-prod-search-ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none}
-.wo-prod-inp{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px 0 38px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s}
+.wo-prod-inp{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px 0 38px;font-size:16px;color:var(--text0);font-family:var(--font-b);outline:none;transition:border-color .2s}/* 16px — інакше iOS зумить при фокусі */
 .wo-prod-inp:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.10)}
 .wo-prod-inp::placeholder{color:var(--text2)}
 .wo-prod-list{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto}
@@ -392,7 +392,7 @@ const CSS = `<style id="wo-css">
 .wo-reason-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .wo-reason-text{font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1}
 .wo-custom-lbl{font-size:10px;color:var(--text2);letter-spacing:.07em;text-transform:uppercase;font-family:var(--font-b);margin-bottom:5px}
-.wo-textarea{width:100%;height:78px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:11px 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;line-height:1.5;transition:border-color .2s}
+.wo-textarea{width:100%;height:78px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:11px 14px;font-size:16px;color:var(--text0);font-family:var(--font-b);resize:none;outline:none;line-height:1.5;transition:border-color .2s}/* 16px — інакше iOS зумить при фокусі */
 .wo-textarea:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.10)}
 .wo-textarea::placeholder{color:var(--text2)}
 
