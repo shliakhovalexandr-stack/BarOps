@@ -59,6 +59,7 @@ let _mgrTo      = '';
 let _succOpen   = false;
 let _transfers  = [];          // переміщення бар↔кухня (localStorage barops_transfers_v1)
 let _formMode   = 'writeoff';  // 'writeoff' | 'transfer' — режим форми
+let _editId     = null;        // id запису, що редагується (до відправки в Syrve)
 let _transferDir = 'bar2kitchen'; // напрямок для admin: 'bar2kitchen' | 'kitchen2bar'
 let _transferConfirmOpen = false; // стилізоване підтвердження надсилання переміщення
 let _transferResult = null;       // { sending } | { ok, msg }
@@ -297,6 +298,8 @@ const CSS = `<style id="wo-css">
 .wo-swipe-wrap{position:relative;border-radius:12px;overflow:hidden}
 .wo-swipe-del{position:absolute;right:0;top:0;bottom:0;width:76px;background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:0 12px 12px 0;flex-shrink:0}
 .wo-swipe-del-lbl{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600}
+.wo-swipe-edit{position:absolute;right:76px;top:0;bottom:0;width:76px;background:var(--purple,#A88BFF);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;flex-shrink:0}
+.wo-swipe-edit-lbl{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600}
 .wo-card{background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px;padding:11px 13px;transition:transform .25s cubic-bezier(.22,1,.36,1);position:relative;z-index:1;will-change:transform}
 .wo-bar{width:3px;height:38px;border-radius:2px;flex-shrink:0}
 .wo-emoji{width:34px;height:34px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
@@ -519,6 +522,10 @@ const CSS = `<style id="wo-css">
 function woCardHTML(w) {
   return `
     <div class="wo-swipe-wrap" data-id="${w.id}">
+      <div class="wo-swipe-edit" onclick="window.__wo.editWriteoff('${w.id}')">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M3 15l2.5-.6 8-8-1.9-1.9-8 8L3 15z" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.5l1.9 1.9" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span class="wo-swipe-edit-lbl">Змінити</span>
+      </div>
       <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3h4v2M7.5 8.5v5M10.5 8.5v5M4 5l1 10h8l1-10" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="wo-swipe-del-lbl">Видалити</span>
@@ -691,7 +698,7 @@ function renderBartender() {
     <div class="wo-sheet" onclick="event.stopPropagation()">
       <div class="wo-sheet-handle"></div>
       <div class="wo-sheet-hdr">
-        <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : 'Нове списання'}</div>
+        <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : (_editId ? 'Редагувати списання' : 'Нове списання')}</div>
         <div class="wo-sheet-close" onclick="window.__wo.closeForm()">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
@@ -1162,6 +1169,10 @@ function renderManager() {
         <div class="wo-list" style="margin-bottom:8px">
           ${unsent.map(w => `
           <div class="wo-swipe-wrap" data-id="${w.id}">
+            <div class="wo-swipe-edit" onclick="window.__wo.editWriteoff('${w.id}')">
+              <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M3 15l2.5-.6 8-8-1.9-1.9-8 8L3 15z" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.5l1.9 1.9" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <span class="wo-swipe-edit-lbl">Змінити</span>
+            </div>
             <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
               <span class="wo-swipe-del-lbl">Видалити</span>
@@ -1285,7 +1296,7 @@ function renderManager() {
       <div class="wo-sheet" onclick="event.stopPropagation()">
         <div class="wo-sheet-handle"></div>
         <div class="wo-sheet-hdr">
-          <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : 'Нове списання'}</div>
+          <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : (_editId ? 'Редагувати списання' : 'Нове списання')}</div>
           <div class="wo-sheet-close" onclick="window.__wo.closeForm()">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
           </div>
@@ -1544,6 +1555,7 @@ function setCatFilter(cat) { _catFilter = cat; refreshList(); fullRender(); }
 
 /* form */
 function openForm(mode)  {
+  _editId = null;
   _formMode = (mode === 'transfer') ? 'transfer' : 'writeoff';
   _formOpen=true; _formStep = _formMode==='transfer' ? 2 : 1;
   _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch='';
@@ -1551,7 +1563,34 @@ function openForm(mode)  {
   if (_formMode !== 'transfer') autoSelectAccount();
   fullRender();
 }
-function closeForm() { _formOpen=false; fullRender(); }
+function closeForm() { _formOpen=false; _editId=null; fullRender(); }
+
+// Редагування непроведеного списання: передзаповнюємо форму даними запису
+function editWriteoff(id) {
+  const w = _writeoffs.find(x => x.id === id);
+  if (!w || w.sentAt) return;                 // відправлені в Syrve не редагуємо
+  // Відновлюємо об'єкт товару зі списку (для кроку «Кількість» — одиниці/залишок)
+  let p = _prods.find(x => x.id === w.prodId);
+  if (!p) {
+    const pr = _preps.find(x => x.id === w.prodId);
+    if (pr) p = { id: pr.id, name: pr.name, unit: normalizeUnit(pr.unit), stock: pr.stock, isPrep: true, scope: pr.scope };
+  }
+  if (!p) p = { id: w.prodId, name: w.prod, unit: w.unitKey || 'l', stock: 0, vol: 0.7, price: 0, isPrep: !!w.isPrep, scope: w.scope };
+
+  _editId    = id;
+  _formMode  = 'writeoff';
+  _formOpen  = true;
+  _selProd   = p;
+  _selUnit   = w.unitKey || p.unit || 'l';
+  _selVol    = w.volNum || null;
+  _selCat    = w.cat || null;
+  _selReason = w.reason || null;
+  _selAccount = w.accountId ? { id: w.accountId, name: w.accountName || '' } : null;
+  if (!_selAccount) autoSelectAccount();
+  _prodTab   = w.isPrep ? 'prep' : 'goods';
+  _formStep  = 3;                              // одразу на «Кількість» (найчастіша правка); назад/далі доступні
+  fullRender();
+}
 function maybeClose(e) { if (e.target===document.getElementById('wo-form-overlay')) closeForm(); }
 
 function selectCat(cat) {
@@ -1650,6 +1689,67 @@ async function submitForm() {
   const dd   = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}`;
 
   const finalCat = _selCat || 'insh';
+
+  // ── РЕДАГУВАННЯ наявного (непроведеного) запису ──
+  if (_editId) {
+    const idx = _writeoffs.findIndex(w => w.id === _editId);
+    if (idx !== -1 && !_writeoffs[idx].sentAt) {
+      const old = _writeoffs[idx];
+      const updated = {
+        ...old,
+        cat:         finalCat,
+        prod:        _selProd?.name ?? old.prod,
+        prodId:      _selProd?.id   ?? old.prodId,
+        meta:        _selReason ? `${CAT[finalCat]?.label||''} · ${_selReason}` : (CAT[finalCat]?.label||''),
+        vol:         `−${vol}${uLbl}`,
+        volNum:      vol,
+        unitKey:     unit,
+        isPrep:      !!_selProd?.isPrep,
+        valColor:    CAT[finalCat]?.color || 'var(--text0)',
+        reason:      _selReason || '',
+        accountId:   _selAccount?.id   || old.accountId   || null,
+        accountName: _selAccount?.name || old.accountName || null,
+        // id, ts, time, dateStr, sentAt(undefined) лишаємо
+      };
+      _writeoffs[idx] = updated;
+
+      const vId = localStorage.getItem('barops_venueId') || '';
+      const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+      if (raw[vId]) {
+        const li = raw[vId].findIndex(w => w.id === _editId);
+        if (li !== -1) raw[vId][li] = updated; else raw[vId].push(updated);
+        localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
+      }
+
+      // Бекенд-журнал best-effort: видалити старий запис і створити оновлений
+      const editedId = _editId;
+      try {
+        const token = localStorage.getItem('barops_token');
+        await fetch(`${API}/api/writeoffs/${editedId}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const { writeoffsAPI } = await import('../shared/api.js');
+        const saved = await writeoffsAPI.create({
+          items:    [{ productName: updated.prod, productId: updated.prodId, qty: vol, unit: uLbl }],
+          category: CAT[finalCat]?.label || finalCat || 'Інше',
+          reason:   updated.reason || null,
+          venueId:  vId,
+        });
+        if (saved?.data?.id) {
+          updated.id = saved.data.id;
+          const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+          const li2 = (r2[vId] || []).findIndex(w => w.id === editedId);
+          if (li2 !== -1) { r2[vId][li2].id = saved.data.id; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
+        }
+      } catch (err) {
+        console.warn('[Writeoff edit] Backend недоступний:', err.message);
+      }
+    }
+    _editId   = null;
+    _formOpen = false;
+    fullRender();
+    setTimeout(initSwipe, 50);
+    return;
+  }
+
   const entry = {
     id:      Date.now().toString(36),
     cat:     finalCat,
@@ -2159,14 +2259,14 @@ function initSwipe() {
     const dx = e.touches[0].clientX - sx;
     const dy = Math.abs(e.touches[0].clientY - sy);
     if (dy > 12 && dy > Math.abs(dx)) { activeCard = null; return; }
-    if (dx < 0) activeCard.style.transform = `translateX(${Math.max(dx, -76)}px)`;
+    if (dx < 0) activeCard.style.transform = `translateX(${Math.max(dx, -152)}px)`;
   }, { passive: true });
   document.addEventListener('touchend', e => {
     if (!activeCard) return;
     const dx = e.changedTouches[0].clientX - sx;
     activeCard.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
-    if (dx < -38) {
-      activeCard.style.transform = 'translateX(-76px)';
+    if (dx < -50) {
+      activeCard.style.transform = 'translateX(-152px)';
     } else {
       activeCard.style.transform = 'translateX(0)';
       activeCard = null;
@@ -2393,7 +2493,7 @@ export default {
       sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
-      deleteWriteoff,
+      deleteWriteoff, editWriteoff,
       sendTransferToSyrve, deleteTransfer, setTransferDir,
       closeTransferConfirm, doSendTransfer, closeTransferResult,
       setProdTab,
