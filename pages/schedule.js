@@ -224,6 +224,21 @@ async function loadRosters() {
       : teamMembers
           .filter(m => cfg.apiRoles.includes((m.role || '').toLowerCase()))
           .map(m => ({ id: m.id, i: ini(m.name || '?'), n: m.name || 'Невідомо', role: (m.role || '').toLowerCase() }));
+
+    // Бармени мережеві: якщо хтось підтвердив вихідний, але його ще нема в ростері закладу —
+    // додаємо рядок (id = userId акаунта, дедуп по прізвищу), щоб підтверджений вихідний було видно.
+    if (key === 'bartenders') {
+      const seenSur = new Set(basePeople.map(p => (p.n || '').trim().toLowerCase().split(/\s+/)[0]).filter(Boolean));
+      for (const rq of (dayoffByRole.bartenders || [])) {
+        if (rq.status !== 'approved') continue;
+        const nm  = (rq.who || '').trim().toLowerCase();
+        const sur = nm.split(/\s+/)[0];
+        if (!sur || seenSur.has(sur)) continue;
+        seenSur.add(sur);
+        basePeople.push({ id: rq.userId || `req-${rq.id}`, i: ini(rq.who || '?'), n: rq.who || 'Бармен', role: 'bartender', extra: true });
+      }
+    }
+
     const people = applyOrder(key, basePeople);
 
     const grid = people.map(p => {
