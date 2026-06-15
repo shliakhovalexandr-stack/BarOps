@@ -77,6 +77,7 @@ const DEFAULTS = {
 ════════════════════════════════════════ */
 const DOW_SHORT  = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
 const MONTHS_GEN = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+const MONTHS_SHORT = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
 
 function getWeekDates(offset = 0) {
   const today  = new Date();
@@ -121,9 +122,18 @@ function roleKeyForRole(role) {
 }
 function formatReqDates(dates) {
   if (!Array.isArray(dates) || !dates.length) return '';
-  return dates.map(s => {
+  // ISO yyyy-mm-dd сортується лексикографічно = хронологічно
+  const sorted = [...dates].filter(Boolean).sort();
+  let prevMonth = null;
+  return sorted.map(s => {
     const d = new Date(`${s}T00:00:00`);
-    return isNaN(d) ? s : `${DOW_SHORT[(d.getDay()+6)%7]} ${d.getDate()}`;
+    if (isNaN(d)) return s;
+    const m = d.getMonth();
+    const wd = DOW_SHORT[(d.getDay()+6)%7];
+    // місяць показуємо лише на першому дні та при переході через межу місяця
+    const out = (m !== prevMonth) ? `${wd} ${d.getDate()} ${MONTHS_SHORT[m]}` : `${wd} ${d.getDate()}`;
+    prevMonth = m;
+    return out;
   }).join(', ');
 }
 
