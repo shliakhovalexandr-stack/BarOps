@@ -462,8 +462,10 @@ async function loadAll() {
     if (balRes.ok) {
       const d = await balRes.json();
       _balance = [];
-      // посуд — лише склад «Посуд»; бар — як було (усі повернуті склади)
-      const stores = isDish() ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || '')) : (d.stores || []);
+      // посуд — лише склад «Посуд»; Poster-бар — склад «Бар»; Syrve-бар — усі повернуті (бекенд уже відфільтрував по syrveStoreId)
+      const stores = isDish()
+        ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || ''))
+        : (d.mode === 'poster' ? (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '')) : (d.stores || []));
       if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
       for (const store of stores) {
         for (const item of (store.items || [])) {
