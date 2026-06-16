@@ -12,6 +12,7 @@ let _loading = true;
 let _saving = false;
 let _saveSuccess = false;
 let _toastTimer = null;
+let _modalPosType = '';   // обраний у модалці тип POS (кастомний дропдаун)
 let _draft = { name: '', posType: 'manual', topicUrl: '', posUrl: '', posApiKey: '', posLogin: '', posPassword: '', syrveDepartmentId: '' };
 
 function token() { return localStorage.getItem('barops_token') || ''; }
@@ -56,6 +57,18 @@ const CSS = `<style id="ve-css">
 .ve-tg-item:active{background:rgba(255,255,255,.1)}
 .ve-tg-name{font-size:13px;color:var(--text0);font-family:var(--font-b)}
 .ve-tg-id{font-size:10px;color:var(--text3);font-family:monospace;word-break:break-all}
+/* Кастомний дропдаун (нативний select ОС малює білим) */
+.ve-dd{position:relative;margin-bottom:14px}
+.ve-dd-btn{width:100%;height:48px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:14px;color:var(--text0);font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;gap:8px;box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
+.ve-dd-btn.open{border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
+.ve-dd-btn .ve-dd-chev{margin-left:auto;transition:transform .2s}
+.ve-dd-btn.open .ve-dd-chev{transform:rotate(180deg)}
+.ve-dd-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;background:var(--bg2,#1A1A1E);border:0.5px solid var(--border2,var(--border));border-radius:12px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.55);display:none}
+.ve-dd-menu.open{display:block}
+.ve-dd-opt{display:flex;align-items:center;padding:13px 14px;font-size:14px;color:var(--text1);font-family:var(--font-b);cursor:pointer;border-bottom:0.5px solid var(--border)}
+.ve-dd-opt:last-child{border-bottom:none}
+.ve-dd-opt:active{background:rgba(255,255,255,.05)}
+.ve-dd-opt.sel{background:var(--green-bg);color:var(--green)}
 </style>`;
 
 function markSaved(id) {
@@ -200,6 +213,69 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// ── Кастомний дропдаун у стилі додатку (заміна нативного select) ──
+const POS_OPTIONS = [
+  ['manual',  'Manual (ручний облік)'],
+  ['syrve',   'Syrve (iiko)'],
+  ['poster',  'Poster'],
+  ['rkeeper', 'R-Keeper'],
+];
+const MODAL_POS_OPTIONS = [
+  ['',        '— Оберіть —'],
+  ['syrve',   'Syrve (iiko)'],
+  ['poster',  'Poster'],
+  ['rkeeper', 'R-Keeper'],
+];
+
+function ddHTML(idPrefix, options, selectedValue, onSelect) {
+  const sel = options.find(o => o[0] === selectedValue) || options[0];
+  return `
+  <div class="ve-dd" id="${idPrefix}-dd">
+    <div class="ve-dd-btn" id="${idPrefix}-dd-btn" onclick="window.__ve.toggleDd('${idPrefix}')">
+      <span id="${idPrefix}-dd-label">${escapeHtml(sel[1])}</span>
+      <svg class="ve-dd-chev" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="var(--text2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="ve-dd-menu" id="${idPrefix}-dd-menu">
+      ${options.map(([v, l]) => `
+      <div class="ve-dd-opt ${v === selectedValue ? 'sel' : ''}" data-val="${v}"
+          onclick="window.__ve.${onSelect}('${v}','${escapeHtml(l).replace(/'/g, "\\'")}','${idPrefix}')">
+        <span>${escapeHtml(l)}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function toggleDd(prefix) {
+  const menu = document.getElementById(`${prefix}-dd-menu`);
+  const btn  = document.getElementById(`${prefix}-dd-btn`);
+  if (!menu || !btn) return;
+  const willOpen = !menu.classList.contains('open');
+  // закрити інші відкриті дропдауни
+  document.querySelectorAll('.ve-dd-menu.open').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.ve-dd-btn.open').forEach(b => b.classList.remove('open'));
+  menu.classList.toggle('open', willOpen);
+  btn.classList.toggle('open', willOpen);
+}
+
+// Головний POS-дропдаун: зміна типу перемальовує секцію інтеграції
+function pickPos(value) {
+  if (_draft.posType === value) { toggleDd('ve-pos'); return; }
+  _draft.posType = value;
+  render();
+}
+
+// POS-дропдаун у модалці: перемикає поля без повного перемалювання
+function pickModalPos(value, label, prefix) {
+  const lblEl = document.getElementById(`${prefix}-dd-label`);
+  const btn   = document.getElementById(`${prefix}-dd-btn`);
+  const menu  = document.getElementById(`${prefix}-dd-menu`);
+  if (lblEl) lblEl.textContent = label;
+  if (btn)  btn.classList.remove('open');
+  if (menu) { menu.classList.remove('open'); menu.querySelectorAll('.ve-dd-opt').forEach(o => o.classList.toggle('sel', o.dataset.val === value)); }
+  _modalPosType = value;
+  onModalPosChange(value);
+}
+
 function buildHTML() {
   if (_loading) {
     return `${CSS}
@@ -254,17 +330,12 @@ ${CSS}
     ` : ''}
 
     <div class="ve-sec">Основна інформація</div>
-    <div class="ve-card">
+    <div class="ve-card" style="overflow:visible">
       <div class="ve-label">Назва закладу</div>
       <input class="ve-input" id="ve-name" type="text" value="${escapeHtml(_draft.name)}" placeholder="Наприклад: Test Bar">
 
       <div class="ve-label">POS-система</div>
-      <select class="ve-select" id="ve-pos">
-        <option value="manual" ${_draft.posType === 'manual' ? 'selected' : ''}>Manual (ручний облік)</option>
-        <option value="syrve" ${_draft.posType === 'syrve' ? 'selected' : ''}>Syrve (iiko)</option>
-        <option value="poster" ${_draft.posType === 'poster' ? 'selected' : ''}>Poster</option>
-        <option value="rkeeper" ${_draft.posType === 'rkeeper' ? 'selected' : ''}>R-Keeper</option>
-      </select>
+      ${ddHTML('ve-pos', POS_OPTIONS, _draft.posType, 'pickPos')}
     </div>
 
     <!-- POS інтеграція — динамічна секція -->
@@ -414,12 +485,7 @@ ${CSS}
           <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:16px">🔗 Підключити POS-систему</div>
 
           <div class="ve-label">Оберіть систему</div>
-          <select class="ve-select" id="modal-pos-type" onchange="window.__ve.onModalPosChange(this.value)" style="margin-bottom:16px">
-            <option value="">— Оберіть —</option>
-            <option value="syrve">Syrve (iiko)</option>
-            <option value="poster">Poster</option>
-            <option value="rkeeper">R-Keeper</option>
-          </select>
+          ${ddHTML('modal-pos-type', MODAL_POS_OPTIONS, '', 'pickModalPos')}
 
           <!-- Syrve fields -->
           <div id="modal-syrve" style="display:none">
@@ -553,7 +619,7 @@ async function save() {
   const topicInput = document.getElementById('ve-topic');
 
   const name = (nameInput?.value || '').trim();
-  const posType = posSelect?.value || 'manual';
+  const posType = _draft.posType || 'manual';   // джерело — кастомний дропдаун (не нативний select)
   const topicUrl = (topicInput?.value || '').trim();
   const topicId = extractTopicId(topicUrl);
 
@@ -1068,7 +1134,15 @@ function setModalSyrveMode(mode) {
 
 function openPosModal() {
   const modal = document.getElementById('pos-modal');
-  if (modal) { modal.style.display = 'flex'; }
+  if (!modal) return;
+  // чистий старт дропдауна щоразу
+  _modalPosType = '';
+  const lbl = document.getElementById('modal-pos-type-dd-label');
+  if (lbl) lbl.textContent = '— Оберіть —';
+  const menu = document.getElementById('modal-pos-type-dd-menu');
+  if (menu) menu.querySelectorAll('.ve-dd-opt').forEach(o => o.classList.toggle('sel', o.dataset.val === ''));
+  onModalPosChange('');
+  modal.style.display = 'flex';
 }
 
 function closePosModal() {
@@ -1083,7 +1157,7 @@ function onModalPosChange(val) {
 }
 
 async function savePosModal() {
-  const posType = document.getElementById('modal-pos-type').value;
+  const posType = _modalPosType;
   if (!posType) { showToast('Оберіть POS-систему', 'error'); return; }
 
   const venueId = _venue?.id;
@@ -1269,7 +1343,7 @@ export default {
     return buildHTML();
   },
   init(params) {
-    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode, setModalSyrveMode };
+    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode, setModalSyrveMode, toggleDd, pickPos, pickModalPos };
     setupListeners();
   },
 };
