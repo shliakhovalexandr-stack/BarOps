@@ -12,10 +12,18 @@ let _error   = '';
 let _data    = null;        // { waiters:[], totalOpenTables, totalSum, sectionsCount }
 let _openId  = null;        // розгорнутий офіціант (показ столів)
 let _venueId = '';
-let _cash    = [];          // вилучення з каси за сьогодні (BarOps) — матч по імені офіціанта
+let _cash    = [];          // вилучення з каси за вибраний день (BarOps) — матч по імені офіціанта
+let _day     = '';          // вибраний день YYYY-MM-DD (історія)
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function money(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA') + ' ₴'; }
+function todayIso() { return new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10); }
+function dayLabel(day) {
+  const d = new Date(`${day}T00:00:00`);
+  if (isNaN(d)) return day;
+  if (day === todayIso()) return 'Сьогодні';
+  return d.toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'long' });
+}
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 // Вилучення з каси, зафіксовані на цього офіціанта (матч по імені sourceName ↔ WaiterName)
 function cashFor(name) {
@@ -38,9 +46,15 @@ const CSS = `<style id="cs-css">
 .cs-refresh{margin-left:auto;width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .cs-scroll{overflow-y:auto;flex:1;padding:12px 16px 32px}.cs-scroll::-webkit-scrollbar{width:0}
 .cs-kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
-.cs-kpi{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 10px;text-align:center}
-.cs-kpi-val{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);line-height:1}
-.cs-kpi-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);margin-top:5px;text-transform:uppercase;letter-spacing:.05em}
+.cs-kpi{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;min-height:80px}
+.cs-kpi-val{font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);line-height:1.05}
+.cs-kpi-lbl{font-size:9px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em}
+.cs-datebar{display:flex;align-items:center;justify-content:center;gap:10px;padding:2px 16px 12px}
+.cs-nav{width:34px;height:34px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:var(--font-h)}
+.cs-nav:disabled{opacity:.3}
+.cs-date-wrap{position:relative;min-width:150px;text-align:center}
+.cs-date-lbl{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)}
+.cs-date-inp{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none}
 .cs-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;margin-bottom:8px;overflow:hidden}
 .cs-row{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background .12s}
 .cs-row:active{background:var(--bg2)}
@@ -72,14 +86,15 @@ function initials(name) {
 }
 
 async function load() {
+  if (!_day) _day = todayIso();
   _loading = true; _error = ''; re();
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
-  // Вилучення з каси (швидкий запит до BarOps) — паралельно з POS
-  const cashP = fetch(`${API}/api/cash/withdrawals?venueId=${_venueId}`, { headers: { Authorization: `Bearer ${token()}` } })
+  // Вилучення з каси (швидкий запит до BarOps) — паралельно з POS, за вибраний день
+  const cashP = fetch(`${API}/api/cash/withdrawals?venueId=${_venueId}&day=${_day}`, { headers: { Authorization: `Bearer ${token()}` } })
     .then(r => r.json()).then(d => { _cash = d && d.success ? (d.withdrawals || []) : []; })
     .catch(() => { _cash = []; });
   try {
-    const res = await fetch(`${API}/api/pos/current-shift/${_venueId}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const res = await fetch(`${API}/api/pos/current-shift/${_venueId}?date=${_day}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await res.json();
     if (res.ok && d.ok) _data = d;
     else _error = d.error || 'Не вдалося завантажити дані зміни';
@@ -181,7 +196,7 @@ function body() {
     if (!allW.length) {
       inner = `<div class="cs-empty">
         <div class="cs-empty-icon">🧑‍🍳</div>
-        <div class="cs-empty-txt">Сьогодні ще немає продажів по офіціантах.<br>Дані з POS за поточний день.</div>
+        <div class="cs-empty-txt">${_day === todayIso() ? 'Сьогодні ще немає продажів по офіціантах.' : 'Цього дня не було продажів по офіціантах.'}<br>Дані з POS.</div>
       </div>`;
     } else {
       inner = `
@@ -206,12 +221,25 @@ function body() {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>
     </div>
   </div>
-  <div class="cs-scroll">${inner}</div>`;
+  <div class="cs-scroll">${dateBarHTML()}${inner}</div>`;
+}
+
+function dateBarHTML() {
+  const isToday = _day === todayIso();
+  return `
+    <div class="cs-datebar">
+      <button class="cs-nav" onclick="window.__cs.dayStep(-1)" aria-label="Попередній день">‹</button>
+      <div class="cs-date-wrap">
+        <span class="cs-date-lbl">${dayLabel(_day)}</span>
+        <input type="date" class="cs-date-inp" value="${_day}" max="${todayIso()}" onchange="window.__cs.pickDay(this.value)">
+      </div>
+      <button class="cs-nav" onclick="window.__cs.dayStep(1)" ${isToday ? 'disabled' : ''} aria-label="Наступний день">›</button>
+    </div>`;
 }
 
 export default {
   render() {
-    _loading = true; _error = ''; _data = null; _openId = null; _cash = [];
+    _loading = true; _error = ''; _data = null; _openId = null; _cash = []; _day = todayIso();
     return `${CSS}<div class="cs-wrap" id="cs-root">${body()}</div>`;
   },
   init() {
@@ -219,6 +247,13 @@ export default {
       back:   () => navigate('dashboard'),
       reload: () => load(),
       toggle: (id) => { _openId = _openId === id ? null : id; re(); },
+      dayStep: (n) => {
+        const d = new Date(`${_day}T00:00:00`); d.setDate(d.getDate() + n);
+        const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        if (iso > todayIso()) return;
+        _day = iso; _openId = null; load();
+      },
+      pickDay: (val) => { if (!val) return; _day = val > todayIso() ? todayIso() : val; _openId = null; load(); },
     };
     load();
   },
