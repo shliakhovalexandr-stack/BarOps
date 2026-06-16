@@ -17,6 +17,7 @@ let _addOpen = false;
 let _saving  = false;
 let _waiters = [];   // офіціанти закладу для випадайки «від кого» (лише менеджер)
 let _editId  = null; // id запису, що редагується (свайп → Змінити)
+let _confirmId = null; // id запису, видалення якого підтверджують
 let _swipeAdded = false;
 
 const isMgr = () => ['admin', 'manager', 'director'].includes((state.role || '').toLowerCase());
@@ -83,6 +84,14 @@ const CSS = `<style id="csh-css">
 .csh-btn-sec{flex:1;height:48px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:14px;font-weight:500;font-family:var(--font-b);cursor:pointer}
 .csh-btn-cta{flex:2;height:48px;border-radius:12px;background:var(--amber);border:none;color:#000;font-size:15px;font-weight:700;font-family:var(--font-h);cursor:pointer}
 .csh-btn-cta:disabled{opacity:.4}
+/* підтвердження видалення (по центру) */
+.csh-confirm-ov{position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.76);display:flex;align-items:center;justify-content:center;padding:24px;animation:cshOv .18s ease}
+.csh-confirm{width:100%;max-width:340px;background:var(--bg1);border:0.5px solid var(--border);border-radius:20px;padding:22px 20px 18px;text-align:center;animation:cshPop .2s cubic-bezier(.22,1,.36,1)}
+@keyframes cshPop{from{transform:scale(.94);opacity:.4}to{transform:none;opacity:1}}
+.csh-confirm-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:6px}
+.csh-confirm-sub{font-size:12.5px;color:var(--text2);font-family:var(--font-b);line-height:1.5;margin-bottom:18px}
+.csh-btn-del{flex:1;height:48px;border-radius:12px;background:var(--red);border:none;color:#fff;font-size:15px;font-weight:700;font-family:var(--font-h);cursor:pointer}
+.csh-btn-del:active{filter:brightness(.9)}
 </style>`;
 
 /* ════════════ RENDER PARTS ════════════ */
@@ -138,17 +147,19 @@ function initSwipe() {
   });
 }
 
+function srcKey(w) { return w.sourceId || ('n:' + (w.sourceName || '—')); }
+
 // Менеджеру — групуємо по джерелу (від кого взяли гроші)
 function groupedHTML() {
   const groups = new Map();
   for (const w of _items) {
-    const key = w.sourceId || ('n:' + (w.sourceName || '—'));
-    const g = groups.get(key) || { label: w.sourceName || '—', total: 0, items: [] };
+    const key = srcKey(w);
+    const g = groups.get(key) || { key, label: w.sourceName || '—', total: 0, items: [] };
     g.total += w.amount || 0; g.items.push(w);
     groups.set(key, g);
   }
   return [...groups.values()].sort((a, b) => b.total - a.total).map(g => `
-    <div class="csh-grp">
+    <div class="csh-grp" data-src="${esc(g.key)}">
       <div class="csh-grp-head">
         <span class="csh-grp-name">${esc(g.label)}</span>
         <span class="csh-grp-total">−${fmtMoney(g.total)}</span>
@@ -204,12 +215,33 @@ function addModalHTML() {
   </div>`;
 }
 
+// Підтвердження видалення в стилі додатку
+function confirmHTML() {
+  if (!_confirmId) return '';
+  return `
+  <div class="csh-confirm-ov" onclick="window.__cash.cancelDel(event)">
+    <div class="csh-confirm" onclick="event.stopPropagation()">
+      <div class="csh-confirm-title">Видалити запис?</div>
+      <div class="csh-confirm-sub">Цю дію не можна скасувати.</div>
+      <div class="csh-btns">
+        <button class="csh-btn-sec" onclick="window.__cash.cancelDel()">Скасувати</button>
+        <button class="csh-btn-del" onclick="window.__cash.confirmDel()">Видалити</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Оновити лише шар модалок (без перебудови списку → без «стрибка»)
+function renderModalHost() {
+  const h = document.getElementById('csh-modal-host');
+  if (h) h.innerHTML = addModalHTML() + confirmHTML();
+}
+
 function rerender() {
   if (state.route !== 'cash') return;
   const b = document.getElementById('csh-body');
   if (b) b.innerHTML = bodyHTML();
-  const h = document.getElementById('csh-modal-host');
-  if (h) h.innerHTML = addModalHTML();
+  renderModalHost();
 }
 
 /* ════════════ DATA ════════════ */
@@ -264,9 +296,9 @@ export default {
 
   init() {
     window.__cash = {
-      openAdd() { _editId = null; _addOpen = true; rerender(); setTimeout(() => document.getElementById('csh-amt')?.focus(), 60); },
-      closeAdd() { _addOpen = false; _editId = null; rerender(); },
-      closeAddOv(e) { if (e?.target?.classList?.contains('csh-ov')) { _addOpen = false; _editId = null; rerender(); } },
+      openAdd() { _editId = null; _addOpen = true; renderModalHost(); setTimeout(() => document.getElementById('csh-amt')?.focus(), 60); },
+      closeAdd() { _addOpen = false; _editId = null; renderModalHost(); },
+      closeAddOv(e) { if (e?.target?.classList?.contains('csh-ov')) { _addOpen = false; _editId = null; renderModalHost(); } },
 
       // Свайп → Змінити: відкриваємо модалку передзаповненою
       edit(id) {
@@ -274,7 +306,7 @@ export default {
         if (!w) return;
         _editId = id;
         _addOpen = true;
-        rerender();
+        renderModalHost();
         setTimeout(() => {
           const amt = document.getElementById('csh-amt'); if (amt) amt.value = w.amount;
           const rs  = document.getElementById('csh-reason'); if (rs) rs.value = w.reason || '';
@@ -319,15 +351,35 @@ export default {
         }
       },
 
-      async del(id) {
-        if (!confirm('Видалити цей запис?')) return;
+      // Видалення — через кастомне підтвердження в стилі додатку
+      del(id) { _confirmId = id; renderModalHost(); },
+      cancelDel(e) {
+        if (e && !(e.target && e.target.classList.contains('csh-confirm-ov'))) return;
+        _confirmId = null; renderModalHost();
+      },
+      confirmDel() {
+        const id = _confirmId;
+        _confirmId = null; renderModalHost();
+        if (!id) return;
+        // оптимістично + ТОЧКОВЕ видалення рядка (без перебудови списку → без стрибка)
         _items = _items.filter(w => w.id !== id);
         _total = _items.reduce((s, w) => s + (w.amount || 0), 0);
-        rerender();
-        try {
-          await fetch(`${API}/api/cash/withdrawals/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
-        } catch { /* silent */ }
-        load();
+        const wrap   = document.querySelector(`.csh-swipe-wrap[data-id="${id}"]`);
+        const grp    = wrap ? wrap.closest('.csh-grp') : null;
+        const grpKey = grp ? grp.getAttribute('data-src') : null;
+        if (wrap) wrap.remove();
+        const tv = document.querySelector('.csh-total-val');
+        if (tv) tv.textContent = '−' + fmtMoney(_total);
+        if (grp && grpKey != null) {
+          const remain = _items.filter(w => srcKey(w) === grpKey);
+          if (!remain.length) grp.remove();
+          else {
+            const gt = grp.querySelector('.csh-grp-total');
+            if (gt) gt.textContent = '−' + fmtMoney(remain.reduce((s, w) => s + (w.amount || 0), 0));
+          }
+        }
+        if (!_items.length) rerender();   // показати порожній стан
+        fetch(`${API}/api/cash/withdrawals/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } }).catch(() => {});
       },
     };
     initSwipe();
