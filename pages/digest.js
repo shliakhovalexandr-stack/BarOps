@@ -76,6 +76,7 @@ function body() {
     </div>`).join('') || `<div class="dg-sub2">Немає даних</div>`;
 
   const bar = d.bar || {};
+  const kit = d.kitchen || null;
   const cl = d.checklists || { done: 0, total: 0 };
   const clPct = cl.total ? Math.round(cl.done / cl.total * 100) : 0;
   const wo = d.writeoffs || { count: 0, items: 0 };
@@ -102,6 +103,20 @@ function body() {
         <div><div class="dg-mini-lbl">Годин бару</div><div class="dg-mini-val">${fmtN(bar.hours)}<span style="font-size:11px;color:var(--text3);font-family:var(--font-b)"> · ${bar.bartenders || 0} барм.</span></div></div>
       </div>
     </div>
+
+    <!-- Кухня -->
+    ${kit && (kit.revenue || kit.items) ? `
+    <div class="dg-sec">Кухня</div>
+    <div class="dg-card">
+      <div class="dg-grid">
+        <div><div class="dg-mini-lbl">Виторг кухні</div><div class="dg-mini-val">${fmtUAH(kit.revenue)}</div></div>
+        <div><div class="dg-mini-lbl">Прибуток</div><div class="dg-mini-val" style="color:var(--green)">${kit.profit != null ? fmtUAH(kit.profit) : '—'}</div></div>
+        <div><div class="dg-mini-lbl">₴ / год</div><div class="dg-mini-val">${kit.revPerHour != null ? fmtUAH(kit.revPerHour) : '—'}</div></div>
+        <div><div class="dg-mini-lbl">Фудкост</div><div class="dg-mini-val">${kit.foodcostPct != null ? kit.foodcostPct + '%' : '—'}</div></div>
+        <div><div class="dg-mini-lbl">Страв / год</div><div class="dg-mini-val">${kit.itemsPerHour != null ? fmtN(kit.itemsPerHour) : '—'}</div></div>
+        <div><div class="dg-mini-lbl">Годин кухні</div><div class="dg-mini-val">${fmtN(kit.hours)}<span style="font-size:11px;color:var(--text3);font-family:var(--font-b)"> · ${kit.cooks || 0} кух.</span></div></div>
+      </div>
+    </div>` : ''}
 
     <!-- Топ офіціанти -->
     <div class="dg-sec">Топ персоналу (за виторгом)</div>
