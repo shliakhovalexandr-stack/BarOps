@@ -37,7 +37,7 @@ const QUICK_CASH = { route:'cash', badge:null, label:'Каса', hint:'Готі�
        <circle cx="9" cy="9.5" r="2" stroke="currentColor" stroke-width="1.3"/>
        <path d="M5 8.5v2M13 8.5v2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` };
 
-const QUICK_DISHWARE = { route:'dishware', badge:null, label:'Посуд', hint:'Інвентаризація посуду', color:'var(--teal-bg)', iconColor:'var(--teal)',
+const QUICK_DISHWARE = { route:'dishware', badge:null, label:'Інвентаризація посуд', hint:'Перерахунок посуду в залі', color:'var(--teal-bg)', iconColor:'var(--teal)',
   svg:`<circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
        <circle cx="9" cy="9" r="2.5" stroke="currentColor" stroke-width="1.2" fill="none"/>` };
 
@@ -323,7 +323,8 @@ function tileByRoute() {
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
-  ['Моніторинг зміни', ['current-shift', 'journal', 'cash', 'dishware', 'debts', 'stop-list', 'schedule', 'recipes']],
+  ['Моніторинг зміни', ['current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
+  ['Ревізія',          ['dishware']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
   ['Облік',            ['recipe-book']],
 ];

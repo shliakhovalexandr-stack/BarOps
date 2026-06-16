@@ -278,8 +278,8 @@ export default {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <div>
-          <div class="dw-title">Посуд</div>
-          <div class="dw-sub">${esc(state.venue || '')}${isMgr() ? '' : ' · інвентаризація'}</div>
+          <div class="dw-title">Інвентаризація посуд</div>
+          <div class="dw-sub">${esc(state.venue || '')}</div>
         </div>
       </div>
       <div class="dw-scroll"><div id="dw-body">${bodyHTML()}</div></div>
