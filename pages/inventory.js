@@ -33,6 +33,28 @@ let _configDraft     = { mode: 'sht', emptyTareKg: '', fullTareKg: '', bottleVol
 let _cfgFilter       = 'all';  // 'all' | 'unset' — фільтр списку налаштувань
 let _search          = '';     // пошук товару
 
+/* ── Параметризація за видом інвентаризації (бар / посуд / далі кухня) ── */
+// kind визначається за маршрутом; bar = стара поведінка (нічого не змінюється).
+const INV_KIND = {
+  bar:      { title: '',                    store: null,      photoCfg: false },
+  dishware: { title: 'Інвентаризація посуд', store: /посуд/i,  photoCfg: true },
+};
+let _kind        = 'bar';
+let _dishStoreId = '';         // id складу для посуду (для акту в Syrve)
+let _dishMeta    = {};         // syrveProductId → { customName, hasPhoto, dishId } (посуд)
+let _dishEditPid = null;       // позиція посуду в редагуванні (назва/фото)
+let _dishEditPhoto;            // нове фото base64 (undefined = не міняли)
+let _dishPhotoView = null;     // { pid } фото у фуллскрін
+function kindCfg() { return INV_KIND[_kind] || INV_KIND.bar; }
+function isDish() { return _kind === 'dishware'; }
+// Хто бачить менеджерський вид (планування/налаштування):
+//   бар — admin/accountant (як було); посуд — ще й manager/director.
+function canManageInv() {
+  const r = (_role || '').toLowerCase();
+  if (r === 'admin' || r === 'accountant') return true;
+  return isDish() && (r === 'manager' || r === 'director');
+}
+
 // Які scope ПФ показувати за роллю (бар/кухня/загальні)
 function prepScopesForRole() {
   const r = (_role || '').toLowerCase();
@@ -236,6 +258,15 @@ const CSS = `<style id="inv-css">
 .spin{width:28px;height:28px;border:2.5px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin:auto}
 .spin-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* посуд: фото-thumb + модалка назва/фото */
+.dwc-thumb{width:42px;height:42px;border-radius:9px;flex-shrink:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;overflow:hidden;border:0.5px solid var(--border);cursor:pointer}
+.dwc-thumb img{width:100%;height:100%;object-fit:cover}
+.dw-pv{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:20px}
+.dw-pv img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px}
+.dw-photo-box{margin-top:6px;border:0.5px dashed var(--border2);border-radius:12px;min-height:130px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg2);position:relative}
+.dw-photo-box img{width:100%;max-height:240px;object-fit:contain}
+.dw-photo-hint{font-size:12px;color:var(--text2);font-family:var(--font-b)}
+.dw-file{position:absolute;inset:0;opacity:0;cursor:pointer}
 </style>`;
 
 /* ════════════════════════ HELPERS ════════════════════════ */
@@ -367,6 +398,7 @@ function re() {
   const next = document.getElementById('inv-scroll');
   if (next) next.scrollTop = top;
   bindLiveInputs();
+  if (isDish()) loadDishImgs();
 }
 
 /* ════════════════════════ LIVE INPUT BINDING ════════════════════════ */
@@ -407,8 +439,8 @@ async function loadAll() {
     // balance — єдиний із цих, що бʼє в Syrve. ПФ вантажимо ОКРЕМО після нього (нижче),
     // бо Syrve self-hosted має одне REST-зʼєднання → паралельний auth ПФ програє гонку й падає.
     const [sessRes, balRes, cfgRes] = await Promise.all([
-      fetch(`${API}/api/inventory/sessions?venueId=${_venueId}`, { headers: h }),
-      fetch(`${API}/api/pos/balance/${_venueId}`, { headers: h }),
+      fetch(`${API}/api/inventory/sessions?venueId=${_venueId}&kind=${_kind}`, { headers: h }),
+      fetch(`${API}/api/pos/balance/${_venueId}${isDish() ? '?allStores=1' : ''}`, { headers: h }),
       fetch(`${API}/api/inventory/config?venueId=${_venueId}`, { headers: h }),
     ]);
 
@@ -417,13 +449,34 @@ async function loadAll() {
       _sessions = d.sessions || [];
     }
 
+    // Для посуду — мета (назва від менеджера + фото) по позиціях
+    if (isDish()) {
+      try {
+        const dr = await fetch(`${API}/api/dishware/items?venueId=${_venueId}`, { headers: h });
+        const dd = await dr.json();
+        _dishMeta = {};
+        for (const it of (dd.items || [])) _dishMeta[it.syrveProductId] = { customName: it.customName || '', hasPhoto: !!it.hasPhoto, dishId: it.id };
+      } catch { _dishMeta = {}; }
+    }
+
     if (balRes.ok) {
       const d = await balRes.json();
       _balance = [];
-      for (const store of (d.stores || [])) {
+      // посуд — лише склад «Посуд»; бар — як було (усі повернуті склади)
+      const stores = isDish() ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || '')) : (d.stores || []);
+      if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
+      for (const store of stores) {
         for (const item of (store.items || [])) {
           if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
-            if (!_balance.find(x => x.id === item.id)) _balance.push(item);
+            if (!_balance.find(x => x.id === item.id)) {
+              if (isDish()) {
+                // посуд: name = менеджерська (як у закупці), syrveName = оригінал
+                const meta = _dishMeta[item.id];
+                _balance.push({ ...item, syrveName: item.name, name: (meta && meta.customName) ? meta.customName : item.name });
+              } else {
+                _balance.push(item);
+              }
+            }
           }
         }
       }
@@ -471,7 +524,7 @@ async function scheduleSession() {
     const res = await fetch(`${API}/api/inventory/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-      body: JSON.stringify({ venueId: _venueId, scheduledAt: _schedDate }),
+      body: JSON.stringify({ venueId: _venueId, scheduledAt: _schedDate, kind: _kind }),
     });
     const d = await res.json();
     if (!d.success) throw new Error(d.error);
@@ -552,8 +605,9 @@ async function submitInventory(dryRun) {
       body: JSON.stringify({
         items:   syrveItems,
         date:    os.scheduledAt,
-        comment: `BarOps Інвентаризація ${fmtDate(os.scheduledAt)}`,
+        comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
         dryRun:  !!dryRun,
+        ...(isDish() && _dishStoreId ? { storeId: _dishStoreId } : {}),
       }),
     });
     const invD = await invRes.json().catch(() => ({}));
@@ -626,14 +680,81 @@ function buildPage() {
     ${CSS}
     <div class="inv-wrap">
       ${(state.role || '').toLowerCase() === 'accountant' ? `<div style="padding:8px 20px 0;display:flex"><div onclick="window.__barops.openDrawer()" aria-label="Меню" style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);border:0.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0"><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div></div></div>` : `<div style="padding:10px 18px 0;display:flex"><div onclick="window.__barops.navigate('dashboard')" aria-label="Назад" style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>`}
-      ${(_role === 'admin' || _role === 'accountant') ? roleTabs() : ''}
+      ${isDish() ? `<div style="padding:2px 20px 6px"><div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em">${kindCfg().title}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${(state.venue || '')}</div></div>` : ''}
+      ${canManageInv() ? roleTabs() : ''}
       <div class="inv-scroll" id="inv-scroll">
         ${_view === 'mgr' ? buildMgr() : buildBar()}
       </div>
       ${configSheetHTML()}
       ${confirmDialogHTML()}
+      ${isDish() ? dishEditHTML() + dishPhotoHTML() : ''}
     </div>
   `;
+}
+
+/* ── Посуд: модалка назва+фото ── */
+function dishEditHTML() {
+  const isOpen = _dishEditPid !== null;
+  const p      = _balance.find(x => x.id === _dishEditPid);
+  const meta   = p ? (_dishMeta[p.id] || {}) : {};
+  const nm     = p ? (meta.customName || p.name || '') : '';
+  const showExisting = meta.hasPhoto && _dishEditPhoto === undefined;
+  return `
+    <div class="inv-cfg-overlay${isOpen ? ' open' : ''}" data-a="dw-edit-close"></div>
+    <div class="inv-cfg-sheet${isOpen ? ' open' : ''}">
+      <div class="inv-cfg-sheet-handle"></div>
+      <div class="inv-cfg-sheet-title">Назва та фото</div>
+      ${p ? `
+        <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;margin:4px 0 6px">Назва (як у закупці)</div>
+        <input class="inv-field" id="dw-edit-name" type="text" value="${(nm || '').replace(/"/g, '&quot;')}" placeholder="Назва посуду">
+        <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-top:6px">у Syrve: ${p.syrveName || p.name}</div>
+        <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px">Фото</div>
+        <div class="dw-photo-box">
+          ${_dishEditPhoto ? `<img src="${_dishEditPhoto}" alt="">` : showExisting ? `<img id="dw-edit-img" alt="">` : `<span class="dw-photo-hint">Натисніть, щоб додати фото</span>`}
+          <input class="dw-file" type="file" accept="image/*" data-a="dw-photo-file">
+        </div>
+        <div class="inv-actions" style="padding:16px 0 0">
+          <button class="inv-btn-green" data-a="dw-edit-save">${_saving ? 'Збереження…' : 'Зберегти'}</button>
+        </div>
+      ` : ''}
+    </div>`;
+}
+function dishPhotoHTML() {
+  if (!_dishPhotoView) return '';
+  return `<div class="dw-pv" data-a="dw-photo-vclose"><img id="dw-pv-img" alt=""></div>`;
+}
+
+// Підвантажити фото-мініатюри (конфіг + рахунок) і фуллскрін
+function loadDishImgs() {
+  if (!isDish()) return;
+  for (const p of _balance) {
+    const meta = _dishMeta[p.id];
+    if (!meta || !meta.hasPhoto || !meta.dishId) continue;
+    ['dwc-img-' + p.id, 'dwt-' + p.id].forEach(elId => {
+      const img = document.getElementById(elId);
+      if (!img || img.dataset.l) return;
+      img.dataset.l = '1';
+      fetch(`${API}/api/dishware/items/${meta.dishId}/photo`, { headers: { Authorization: `Bearer ${_token}` } })
+        .then(r => r.json()).then(d => { if (d.photoUrl) img.src = d.photoUrl; }).catch(() => {});
+    });
+  }
+  // фуллскрін
+  if (_dishPhotoView) {
+    const meta = _dishMeta[_dishPhotoView.pid];
+    const img = document.getElementById('dw-pv-img');
+    if (img && meta?.dishId && !img.src) {
+      fetch(`${API}/api/dishware/items/${meta.dishId}/photo`, { headers: { Authorization: `Bearer ${_token}` } })
+        .then(r => r.json()).then(d => { if (d.photoUrl) img.src = d.photoUrl; }).catch(() => {});
+    }
+  }
+  // фото в картці редагування (існуюче)
+  const eimg = document.getElementById('dw-edit-img');
+  if (eimg && !eimg.dataset.l) {
+    eimg.dataset.l = '1';
+    const meta = _dishMeta[_dishEditPid];
+    if (meta?.dishId) fetch(`${API}/api/dishware/items/${meta.dishId}/photo`, { headers: { Authorization: `Bearer ${_token}` } })
+      .then(r => r.json()).then(d => { if (d.photoUrl) eimg.src = d.photoUrl; }).catch(() => {});
+  }
 }
 
 function roleTabs() {
@@ -732,6 +853,13 @@ function buildBar() {
   `;
 }
 
+function dishCountThumb(p) {
+  const meta = _dishMeta[p.id] || {};
+  return `<div class="dwc-thumb" data-a="dw-photo-view" data-pid="${p.id}" style="width:38px;height:38px;margin-right:4px">${meta.hasPhoto
+    ? `<img id="dwt-${p.id}" alt="">`
+    : '<svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="11" rx="2" stroke="var(--text3)" stroke-width="1.2"/><circle cx="9" cy="9.5" r="2.2" stroke="var(--text3)" stroke-width="1.2"/></svg>'}</div>`;
+}
+
 function productRowHTML(p) {
   const m       = modeOf(p.id);
   const c       = _counts[p.id] || {};
@@ -751,6 +879,7 @@ function productRowHTML(p) {
     <div class="inv-prod${counted ? ' entered' : ''}${isOpen ? ' is-open' : ''}">
       <div class="inv-prod-row" data-a="toggle-prod" data-pid="${p.id}">
         <div class="inv-pbar" style="background:${barColor}"></div>
+        ${isDish() ? dishCountThumb(p) : ''}
         <div style="flex:1;min-width:0">
           <div class="inv-pname">${p.name}${p.isPrep ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
           ${canSeeSystemQty() ? `<div class="inv-pmeta">У системі: ${p.amount != null ? p.amount.toFixed(1) : '—'} ${p.unit || ''}</div>` : ''}
@@ -862,14 +991,39 @@ function buildMgr() {
     ${historyHTML()}
 
     <div class="inv-sec" style="margin-top:8px">
-      Одиниці вимірювання
+      ${isDish() ? 'Налаштування посуду · назва + фото' : 'Одиниці вимірювання'}
     </div>
     ${_balance.length === 0
-      ? `<div style="padding:8px 18px 16px;font-size:13px;color:var(--text2);font-family:var(--font-b)">Залишки Syrve не завантажено. Підключіть Syrve у Налаштуваннях закладу.</div>`
-      : productConfigHTML()
+      ? `<div style="padding:8px 18px 16px;font-size:13px;color:var(--text2);font-family:var(--font-b)">${isDish() ? 'Склад «Посуд» порожній або не завантажено.' : 'Залишки Syrve не завантажено. Підключіть Syrve у Налаштуваннях закладу.'}</div>`
+      : (isDish() ? dishCfgHTML() : productConfigHTML())
     }
     <div style="height:28px"></div>
   `;
+}
+
+/* ── Посуд: налаштування (назва + фото) по позиціях ── */
+function dishCfgHTML() {
+  const list = _balance.filter(matchSearch);
+  return `
+    ${searchBoxHTML()}
+    <div class="inv-cfg-list">
+      ${list.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>` : ''}
+      ${list.map(p => {
+        const meta = _dishMeta[p.id] || {};
+        const nm   = meta.customName || p.name;
+        return `
+          <div class="inv-cfg-row">
+            <div class="dwc-thumb" data-a="dw-photo-view" data-pid="${p.id}">
+              ${meta.hasPhoto ? `<img id="dwc-img-${p.id}" alt="">` : '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="11" rx="2" stroke="var(--text3)" stroke-width="1.2"/><circle cx="9" cy="9.5" r="2.2" stroke="var(--text3)" stroke-width="1.2"/></svg>'}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="inv-cfg-name">${nm}</div>
+              <div class="inv-cfg-sub">у Syrve: ${p.syrveName || p.name} · залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>
+            </div>
+            <button class="inv-mode-btn" data-a="dw-edit" data-pid="${p.id}" style="width:auto;padding:0 10px">✎ Назва/фото</button>
+          </div>`;
+      }).join('')}
+    </div>`;
 }
 
 function historyHTML() {
@@ -1283,6 +1437,44 @@ function on(e) {
     saveConfig();
     return;
   }
+
+  /* ── ПОСУД: фото-перегляд + редагування назви/фото ── */
+  if (a === 'dw-photo-view') {
+    const meta = _dishMeta[pid];
+    if (meta && meta.hasPhoto) { _dishPhotoView = { pid }; re(); }
+    return;
+  }
+  if (a === 'dw-photo-vclose') { _dishPhotoView = null; re(); return; }
+  if (a === 'dw-edit') { _dishEditPid = pid; _dishEditPhoto = undefined; re(); return; }
+  if (a === 'dw-edit-close') { _dishEditPid = null; _dishEditPhoto = undefined; re(); return; }
+  if (a === 'dw-photo-file') {
+    const f = t.files && t.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { _dishEditPhoto = String(reader.result || ''); re(); };
+    reader.readAsDataURL(f);
+    return;
+  }
+  if (a === 'dw-edit-save') {
+    const p = _balance.find(x => x.id === _dishEditPid);
+    if (!p || _saving) return;
+    const name = (document.getElementById('dw-edit-name')?.value || '').trim();
+    _saving = true; re();
+    const body = { venueId: _venueId, syrveProductId: p.id, syrveName: p.syrveName || p.name, customName: name };
+    if (_dishEditPhoto !== undefined) body.photoData = _dishEditPhoto;
+    fetch(`${API}/api/dishware/upsert`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body: JSON.stringify(body),
+    }).then(r => r.json()).then(d => {
+      if (d.success && d.item) {
+        _dishMeta[p.id] = { customName: d.item.customName || '', hasPhoto: !!d.item.hasPhoto, dishId: d.item.id };
+        const bi = _balance.find(x => x.id === p.id);
+        if (bi) bi.name = d.item.customName || bi.syrveName || bi.name;
+      }
+      _saving = false; _dishEditPid = null; _dishEditPhoto = undefined; re();
+    }).catch(() => { _saving = false; re(); });
+    return;
+  }
 }
 
 /* ════════════════════════ EXPORTS ════════════════════════ */
@@ -1293,7 +1485,10 @@ export default {
     _venueId       = state.venueId || localStorage.getItem('barops_venueId');
     _token         = state.token   || localStorage.getItem('barops_token');
     _role          = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
-    _view          = (_role === 'admin' || _role === 'accountant') ? 'mgr' : 'bar';
+    _kind          = (state.route === 'dishware') ? 'dishware' : 'bar';
+    _dishStoreId   = '';
+    _dishMeta      = {};
+    _view          = canManageInv() ? 'mgr' : 'bar';
     _submitted     = false;
     _syrveMsg      = '';
     _testMsg       = '';
