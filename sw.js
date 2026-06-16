@@ -3,7 +3,7 @@
    Кешування ресурсів для офлайн-режиму
    ============================================================ */
 
-const CACHE_NAME = 'barops-v7';
+const CACHE_NAME = 'barops-v8';
 
 // Тільки справді статичні ресурси (CSS, маніфест)
 // JS-сторінки НЕ precache — вони завантажуються при першому відкритті
@@ -65,7 +65,9 @@ self.addEventListener('fetch', event => {
     fetch(event.request)
       .then(response => {
         if (response.ok) {
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
+          // Клонуємо СИНХРОННО, до return — інакше тіло вже спожите сторінкою
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
         }
         return response;
       })

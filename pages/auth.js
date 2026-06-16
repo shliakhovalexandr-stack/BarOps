@@ -13,6 +13,11 @@ let _phone      = '';
 let _pin        = '';
 let _pinLoading = false;
 
+// Мультизаклад: один PIN збігається з кількома акаунтами → вибір закладу
+let _pickVenues    = [];
+let _pickTempToken = '';
+let _pickLoading   = false;
+
 let _mgr        = { email: '', password: '' };
 let _mgrLoading = false;
 let _mgrError   = '';
@@ -153,6 +158,31 @@ function viewPin() {
           <span class="apin-link" onclick="window.__auth.goTo('admin-login')">System Manager</span>
         </div>
       </div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════
+   VIEW: VENUE PICK (один PIN — кілька закладів)
+════════════════════════════════════════ */
+function viewVenuePick() {
+  const items = (_pickVenues || []).map(v => `
+    <div class="venue-pick-item" onclick="${_pickLoading ? '' : `window.__auth.pickVenue('${v.userId}')`}">
+      <span class="venue-pick-name">${(v.venueName || 'Заклад').replace(/</g,'&lt;')}</span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="var(--text2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>`).join('');
+  return `
+  <div class="auth-view ${_view==='venue-pick'?'active':''}" id="auth-venue-pick">
+    <div class="auth-inner">
+      <div class="auth-header">
+        <div class="auth-back" onclick="window.__auth.goTo('pin')">${BACK_SVG}</div>
+        <div>
+          <div class="auth-screen-title">Оберіть заклад</div>
+          <div class="auth-screen-sub">${_pickLoading ? 'Вхід…' : 'Цей PIN використовується в кількох закладах'}</div>
+        </div>
+      </div>
+      <div class="auth-error" id="vpick-err"></div>
+      <div class="venue-pick-list">${items}</div>
     </div>
   </div>`;
 }
@@ -396,7 +426,7 @@ function viewReg3() {
 function rerender() {
   const c = document.querySelector('.auth-views-wrap');
   if (!c) return;
-  c.innerHTML = viewPin() + viewSetup() + viewAdminLogin() + viewReg1() + viewReg2() + viewRegOtp() + viewReg3();
+  c.innerHTML = viewPin() + viewVenuePick() + viewSetup() + viewAdminLogin() + viewReg1() + viewReg2() + viewRegOtp() + viewReg3();
 }
 
 function goTo(sub) {
@@ -468,10 +498,40 @@ async function doLogin() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка входу');
+    // Один PIN у кількох закладах → екран вибору закладу (а не крах на data.user)
+    if (data.multiVenue) {
+      _pickVenues    = data.venues || [];
+      _pickTempToken = data.tempToken || '';
+      _pin = ''; _pinLoading = false;
+      goTo('venue-pick');
+      return;
+    }
     saveSession(data);
     navigate('dashboard');
   } catch (err) {
     showError(err.message || 'Невірний PIN');
+  }
+}
+
+// Фіналізація входу після вибору закладу (мультизаклад)
+async function pickVenue(userId) {
+  if (_pickLoading) return;
+  _pickLoading = true; rerender();
+  try {
+    const res  = await fetch(`${API}/api/auth/login-by-userid`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ userId, tempToken: _pickTempToken }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.user) throw new Error(data.error || 'Помилка входу');
+    saveSession(data);
+    navigate('dashboard');
+  } catch (err) {
+    _pickLoading = false;
+    const e = document.getElementById('vpick-err');
+    if (e) e.textContent = err.message || 'Помилка входу';
+    else { alert(err.message || 'Помилка входу'); rerender(); }
   }
 }
 
@@ -704,11 +764,12 @@ export default {
     _otpCode    = '';
     _otpLoading = false;
     _otpError   = '';
+    _pickVenues = []; _pickTempToken = ''; _pickLoading = false;
     return `
       ${CSS}
       <div class="auth-wrap">
         <div class="auth-views-wrap" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-          ${viewPin()}${viewSetup()}${viewAdminLogin()}${viewReg1()}${viewReg2()}${viewRegOtp()}${viewReg3()}
+          ${viewPin()}${viewVenuePick()}${viewSetup()}${viewAdminLogin()}${viewReg1()}${viewReg2()}${viewRegOtp()}${viewReg3()}
         </div>
       </div>`;
   },
@@ -716,7 +777,7 @@ export default {
   init() {
     window.__auth = {
       goTo, goBackFromAdmin, showComingSoon,
-      numPress, numDelete,
+      numPress, numDelete, pickVenue,
       onSetupPhoneInput, submitSetup, changeAccount,
       mgrField, doManagerLogin,
       regField, goToReg2, doRegister, enterApp,
