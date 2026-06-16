@@ -569,6 +569,7 @@ function buildHTML() {
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : state.role === 'chef' ? [...QUICK_BARTENDER, QUICK_PERFORMANCE]
+              : state.role === 'waiter' ? QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
@@ -725,8 +726,8 @@ ${CSS}
     <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю) -->
     ${dashTiles(quick, isMgr, !isMgr && !isAcc)}
 
-    <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні) -->
-    ${(!isAcc && !isMgr) ? (() => {
+    <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні; офіціанту не показуємо: борги/списання/акциз йому не потрібні) -->
+    ${(!isAcc && !isMgr && state.role !== 'waiter') ? (() => {
       const dbt = _mini.debts, ex = _mini.excise, wo = s?.writeoffs?.count ?? 0;
       const cell = (route, big, lbl, sub, col) => `
         <div class="d-tcard" onclick="window.__barops.navigate('${route}')">
