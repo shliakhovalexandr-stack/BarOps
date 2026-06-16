@@ -178,7 +178,7 @@ function bodyHTML() {
       <div class="csh-total-val">−${fmtMoney(_total)}</div>
       <div class="csh-total-lbl">${totalLbl}</div>
     </div>
-    <button class="csh-add" onclick="window.__cash.openAdd()">− Взяв з каси</button>`;
+    <button class="csh-add" onclick="window.__cash.openAdd()">Взяв з каси</button>`;
 
   if (!_items.length) {
     html += `<div class="csh-sec">Сьогодні</div>
