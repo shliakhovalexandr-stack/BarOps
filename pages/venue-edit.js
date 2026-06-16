@@ -672,6 +672,23 @@ async function save() {
     console.log('[VenueEdit] Response:', data);
 
     if (data.success) {
+      // Poster: якщо введено токен — зберегти його тим самим натисканням,
+      // щоб великий «Зберегти зміни» зберігав усе (а не лише назву/тип)
+      if (posType === 'poster') {
+        const pk = (document.getElementById('poster-api-key')?.value || '').trim();
+        if (pk) {
+          try {
+            await fetch(`${API}/api/pos/save`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ venueId: _venue.id, posType: 'poster', url: 'https://joinposter.com/api', apiKey: pk, login: '', password: '' }),
+            });
+            // зрозумілий статус: токен збережено, лишилось перевірити зʼєднання
+            const pbadge = document.getElementById('poster-status-badge');
+            if (pbadge) { pbadge.textContent = '⚠️ Збережено — натисніть «Перевірити зʼєднання»'; pbadge.style.background = 'rgba(234,179,8,.15)'; pbadge.style.color = '#eab308'; }
+          } catch { /* токен можна зберегти і кнопкою в картці Poster */ }
+        }
+      }
       _saveSuccess = true;
       showToast('✅ Зміни збережено');
 
@@ -688,8 +705,9 @@ async function save() {
   }
 
   _saving = false;
-  // Тепер перерендерюємо — показати success banner і оновлений статус
-  render();
+  // Знімаємо стан кнопки БЕЗ повного render — інакше стираються введені дані POS-інтеграції.
+  // Зворотний звʼязок дає toast «Зміни збережено».
+  setSavingState(false);
 }
 
 /* ════════════════════════
