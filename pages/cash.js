@@ -15,6 +15,7 @@ let _total   = 0;
 let _loading = false;
 let _addOpen = false;
 let _saving  = false;
+let _waiters = [];   // офіціанти закладу для випадайки «від кого» (лише менеджер)
 
 const isMgr = () => ['admin', 'manager', 'director'].includes((state.role || '').toLowerCase());
 
@@ -57,6 +58,11 @@ const CSS = `<style id="csh-css">
 .csh-del:active{filter:brightness(.85)}
 .csh-empty{margin:0 20px;padding:28px 20px;text-align:center;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px}
 .csh-empty-txt{font-size:13px;color:var(--text2);font-family:var(--font-b)}
+/* групи по джерелу (менеджер) */
+.csh-grp{margin-bottom:14px}
+.csh-grp-head{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px;gap:10px}
+.csh-grp-name{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.csh-grp-total{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--amber);flex-shrink:0}
 /* modal */
 .csh-ov{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.76);display:flex;align-items:flex-end;animation:cshOv .18s ease}
 @keyframes cshOv{from{opacity:0}to{opacity:1}}
@@ -74,6 +80,39 @@ const CSS = `<style id="csh-css">
 </style>`;
 
 /* ════════════ RENDER PARTS ════════════ */
+const DEL_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function rowHTML(w) {
+  return `
+    <div class="csh-row">
+      <div class="csh-amt">−${fmtMoney(w.amount)}</div>
+      <div class="csh-info">
+        <div class="csh-reason ${w.reason ? '' : 'empty'}">${w.reason ? esc(w.reason) : 'без причини'}</div>
+        <div class="csh-meta">${fmtTime(w.createdAt)}</div>
+      </div>
+      <div class="csh-del" onclick="window.__cash.del('${w.id}')" aria-label="Видалити">${DEL_SVG}</div>
+    </div>`;
+}
+
+// Менеджеру — групуємо по джерелу (від кого взяли гроші)
+function groupedHTML() {
+  const groups = new Map();
+  for (const w of _items) {
+    const key = w.sourceId || ('n:' + (w.sourceName || '—'));
+    const g = groups.get(key) || { label: w.sourceName || '—', total: 0, items: [] };
+    g.total += w.amount || 0; g.items.push(w);
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => b.total - a.total).map(g => `
+    <div class="csh-grp">
+      <div class="csh-grp-head">
+        <span class="csh-grp-name">${esc(g.label)}</span>
+        <span class="csh-grp-total">−${fmtMoney(g.total)}</span>
+      </div>
+      ${g.items.map(rowHTML).join('')}
+    </div>`).join('');
+}
+
 function bodyHTML() {
   if (_loading && !_items.length) {
     return `<div class="csh-empty"><div class="csh-empty-txt">Завантаження…</div></div>`;
@@ -92,19 +131,8 @@ function bodyHTML() {
     return html;
   }
 
-  html += `<div class="csh-sec">Сьогодні</div><div class="csh-list">`;
-  html += _items.map(w => `
-    <div class="csh-row">
-      <div class="csh-amt">−${fmtMoney(w.amount)}</div>
-      <div class="csh-info">
-        <div class="csh-reason ${w.reason ? '' : 'empty'}">${w.reason ? esc(w.reason) : 'без причини'}</div>
-        <div class="csh-meta">${isMgr() ? `${esc(w.userName || '—')} · ` : ''}${fmtTime(w.createdAt)}</div>
-      </div>
-      <div class="csh-del" onclick="window.__cash.del('${w.id}')" aria-label="Видалити">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-    </div>`).join('');
-  html += `</div>`;
+  html += `<div class="csh-sec">${isMgr() ? 'Сьогодні · по кому' : 'Сьогодні'}</div>`;
+  html += `<div class="csh-list">${isMgr() ? groupedHTML() : _items.map(rowHTML).join('')}</div>`;
   return html;
 }
 
@@ -116,6 +144,12 @@ function addModalHTML() {
       <div class="csh-sheet-title">Взяв готівку з каси</div>
       <div class="csh-lbl">Сума, ₴</div>
       <input id="csh-amt" class="csh-inp csh-amt-inp" type="number" inputmode="decimal" step="1" min="0" placeholder="0">
+      ${isMgr() ? `
+      <div class="csh-lbl">Від кого (чиї гроші)</div>
+      <select id="csh-source" class="csh-inp">
+        <option value="cash">З вчорашньої каси</option>
+        ${_waiters.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('')}
+      </select>` : ''}
       <div class="csh-lbl">На що (коротко)</div>
       <input id="csh-reason" class="csh-inp" type="text" placeholder="Напр.: оплата доставки, дрібна закупівля…">
       <div class="csh-btns">
@@ -135,6 +169,22 @@ function rerender() {
 }
 
 /* ════════════ DATA ════════════ */
+// Офіціанти закладу для випадайки «від кого» (лише менеджер/адмін має доступ до /team)
+async function loadWaiters() {
+  if (!isMgr()) return;
+  const vId = venueId();
+  if (!vId) return;
+  try {
+    const res  = await fetch(`${API}/api/auth/team?venueId=${vId}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.team)) {
+      _waiters = data.team
+        .filter(m => (m.role || '').toLowerCase() === 'waiter')
+        .map(m => ({ id: m.id, name: m.name }));
+    }
+  } catch { /* silent — лишиться лише «з каси» */ }
+}
+
 async function load() {
   const vId = venueId();
   if (!vId) return;
@@ -150,7 +200,7 @@ async function load() {
 /* ════════════ PAGE MODULE ════════════ */
 export default {
   render() {
-    _items = []; _total = 0; _loading = true; _addOpen = false; _saving = false;
+    _items = []; _total = 0; _loading = true; _addOpen = false; _saving = false; _waiters = [];
     return `
     ${CSS}
     <div class="csh-wrap">
@@ -179,6 +229,13 @@ export default {
         const amount = parseFloat(document.getElementById('csh-amt')?.value);
         const reason = (document.getElementById('csh-reason')?.value || '').trim();
         if (!amount || amount <= 0) { document.getElementById('csh-amt')?.focus(); return; }
+        // Джерело (лише менеджер обирає; інакше бекенд проставить самого реєстратора)
+        let source = {};
+        if (isMgr()) {
+          const val = document.getElementById('csh-source')?.value || 'cash';
+          if (val === 'cash') source = { sourceId: null, sourceName: 'Вчорашня каса' };
+          else { const w = _waiters.find(x => x.id === val); source = { sourceId: val, sourceName: w ? w.name : '' }; }
+        }
         _saving = true;
         const btn = document.getElementById('csh-save');
         if (btn) { btn.disabled = true; btn.textContent = 'Запис…'; }
@@ -186,7 +243,7 @@ export default {
           const res = await fetch(`${API}/api/cash/withdrawals`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ venueId: venueId(), amount, reason }),
+            body: JSON.stringify({ venueId: venueId(), amount, reason, ...source }),
           });
           const data = await res.json();
           if (!data.success) throw new Error(data.error || 'Помилка');
@@ -211,6 +268,7 @@ export default {
         load();
       },
     };
+    loadWaiters();
     load();
   },
 };
