@@ -12,9 +12,16 @@ let _error   = '';
 let _data    = null;        // { waiters:[], totalOpenTables, totalSum, sectionsCount }
 let _openId  = null;        // розгорнутий офіціант (показ столів)
 let _venueId = '';
+let _cash    = [];          // вилучення з каси за сьогодні (BarOps) — матч по імені офіціанта
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function money(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA') + ' ₴'; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+// Вилучення з каси, зафіксовані на цього офіціанта (матч по імені sourceName ↔ WaiterName)
+function cashFor(name) {
+  const nm = (name || '').trim().toLowerCase();
+  return _cash.filter(c => (c.sourceName || '').trim().toLowerCase() === nm);
+}
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -67,6 +74,10 @@ function initials(name) {
 async function load() {
   _loading = true; _error = ''; re();
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+  // Вилучення з каси (швидкий запит до BarOps) — паралельно з POS
+  const cashP = fetch(`${API}/api/cash/withdrawals?venueId=${_venueId}`, { headers: { Authorization: `Bearer ${token()}` } })
+    .then(r => r.json()).then(d => { _cash = d && d.success ? (d.withdrawals || []) : []; })
+    .catch(() => { _cash = []; });
   try {
     const res = await fetch(`${API}/api/pos/current-shift/${_venueId}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await res.json();
@@ -75,6 +86,7 @@ async function load() {
   } catch {
     _error = 'Немає звʼязку із сервером';
   }
+  await cashP;
   _loading = false; re();
 }
 
@@ -94,13 +106,15 @@ function guestWord(n) {
 
 function waiterCard(w) {
   const open = _openId === w.id;
+  const outs = cashFor(w.name);
+  const outsTotal = outs.reduce((s, c) => s + (c.amount || 0), 0);
   return `
   <div class="cs-card">
     <div class="cs-row" onclick="window.__cs.toggle('${w.id.replace(/'/g, "\\'")}')">
       <div class="cs-av">${initials(w.name)}</div>
       <div style="flex:1;min-width:0">
         <div class="cs-name">${w.name}</div>
-        <div class="cs-meta">${Math.round(w.orders)} ${chequeWord(w.orders)} · ${Math.round(w.guests)} ${guestWord(w.guests)}</div>
+        <div class="cs-meta">${Math.round(w.orders)} ${chequeWord(w.orders)} · ${Math.round(w.guests)} ${guestWord(w.guests)}${outsTotal > 0 ? ` · <span style="color:var(--red)">−${money(outsTotal)} з каси</span>` : ''}</div>
       </div>
       <div>
         <div class="cs-sum">${money(w.sum)}</div>
@@ -122,6 +136,17 @@ function waiterCard(w) {
           <div class="cs-table-sum">${money(pmt.sum)}</div>
         </div>`).join('')
         : '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 2px">Немає даних по оплатах</div>'}
+      ${outs.length ? `
+      <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;padding:12px 2px 6px">Вилучено з каси · <span style="color:var(--red)">−${money(outsTotal)}</span></div>
+      ${outs.map(c => `
+        <div class="cs-table">
+          <div class="cs-table-info">
+            <div class="cs-table-zone" style="color:#FBBF24">${esc(c.reason || 'без причини')}</div>
+            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${fmtTime(c.createdAt)}</div>
+          </div>
+          <div class="cs-table-sum" style="color:var(--red)">−${money(c.amount)}</div>
+        </div>`).join('')}
+      ` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -166,7 +191,7 @@ function body() {
 
 export default {
   render() {
-    _loading = true; _error = ''; _data = null; _openId = null;
+    _loading = true; _error = ''; _data = null; _openId = null; _cash = [];
     return `${CSS}<div class="cs-wrap" id="cs-root">${body()}</div>`;
   },
   init() {
