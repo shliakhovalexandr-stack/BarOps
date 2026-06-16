@@ -213,10 +213,23 @@ const ROLE_OPTIONS = [
   ['WAITER',     '🍽', 'Офіціант'],
 ];
 
+// Які ролі може призначати поточний користувач:
+// звичайний менеджер — лише офіціанта або іншого менеджера; адмін/керуючий — усі.
+function availableRoleOptions() {
+  if ((state.role || '').toLowerCase() === 'manager') {
+    return ROLE_OPTIONS.filter(o => o[0] === 'WAITER' || o[0] === 'MANAGER');
+  }
+  return ROLE_OPTIONS;
+}
+function defaultRole() {
+  return (state.role || '').toLowerCase() === 'manager' ? 'WAITER' : 'BARTENDER';
+}
+
 // Кастомний дропдаун ролі у стилі додатку (нативний select малює ОС білим)
 function roleDropdownHTML(idPrefix, selectedValue, onSelect) {
-  const sel = (selectedValue || 'BARTENDER').toUpperCase();
-  const cur = ROLE_OPTIONS.find(o => o[0] === sel) || ROLE_OPTIONS[0];
+  const opts = availableRoleOptions();
+  const sel = (selectedValue || opts[0][0]).toUpperCase();
+  const cur = opts.find(o => o[0] === sel) || opts[0];
   return `
   <div class="tm-dd" id="${idPrefix}-dd">
     <div class="tm-dd-btn" id="${idPrefix}-dd-btn" onclick="window.__tm.toggleRoleDd('${idPrefix}')">
@@ -225,7 +238,7 @@ function roleDropdownHTML(idPrefix, selectedValue, onSelect) {
       <svg class="tm-dd-chev" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="var(--text2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="tm-dd-menu" id="${idPrefix}-dd-menu">
-      ${ROLE_OPTIONS.map(([v, e, l]) => `
+      ${opts.map(([v, e, l]) => `
       <div class="tm-dd-opt ${v === sel ? 'sel' : ''}" data-val="${v}"
           onclick="window.__tm.${onSelect}('${v}','${e}','${l}','${idPrefix}')">
         <span class="tm-dd-emoji">${e}</span><span>${l}</span>
@@ -606,7 +619,7 @@ function openAdd() {
   _addPinConfirm = '';
   _pinStep = 'first';
   _editTarget = null;
-  _selectedRole = 'BARTENDER';   // скидаємо роль на дефолт (інакше лишається з минулого додавання)
+  _selectedRole = defaultRole();   // дефолт за роллю користувача (менеджер → офіціант)
   fullRender();
 }
 
