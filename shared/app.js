@@ -110,6 +110,18 @@ const TAB_BAR_BARTENDER = [
   },
 ];
 
+// Офіціант — як у бармена, але центральна кнопка «Накладна» → «Каса» (накладні офіціанту не потрібні)
+const TAB_BAR_WAITER = TAB_BAR_BARTENDER.map(tab =>
+  tab.route === 'ocr'
+    ? { route: 'cash', label: 'Каса', fab: true,
+        icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="3" y="6" width="16" height="10" rx="1.6" stroke="white" stroke-width="1.8"/>
+          <circle cx="11" cy="11" r="2.3" stroke="white" stroke-width="1.6"/>
+          <path d="M6 9v4M16 9v4" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>` }
+    : tab
+);
+
 const TAB_BAR_ACCOUNTANT = [
   {
     route: 'dashboard', label: 'Головна',
@@ -684,7 +696,8 @@ function updateTabBarActive() {
   if (!el || !el.children.length) { renderTabBar(); return; }
   const tabs = state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
              : state.role === 'admin' ? TAB_BAR_MANAGER
-             : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT : TAB_BAR_BARTENDER;
+             : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
+             : state.role === 'waiter' ? TAB_BAR_WAITER : TAB_BAR_BARTENDER;
   // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
   const domRoutes = [...el.children].map(c => c.dataset.route || '');
   if (domRoutes.length !== tabs.length || tabs.some((t, i) => t.route !== domRoutes[i])) {
@@ -726,6 +739,7 @@ function renderTabBar() {
              : state.role === 'manager'     ? TAB_BAR_MGR_JOURNAL
              : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
              : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
+             : state.role === 'waiter'      ? TAB_BAR_WAITER
              : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {
     const isActive = state.route === tab.route;

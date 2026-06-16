@@ -405,6 +405,18 @@ function dashTiles(quick, isMgr, showHero) {
   return html;
 }
 
+// Офіціант: чек-лист-герой + усі плитки одним блоком без заголовків секцій
+function waiterTiles(quick) {
+  const byR = tileByRoute();
+  const order = ['dishware', 'cash', 'stop-list', 'schedule', 'current-shift'];
+  const inQuick = new Set(quick.map(q => q.route));
+  const seen = new Set();
+  const tiles = [];
+  for (const r of order) if (inQuick.has(r) && byR[r]) { tiles.push(byR[r]); seen.add(r); }
+  for (const q of quick) if (!seen.has(q.route)) tiles.push(q);   // нічого не загубити
+  return heroChecklistTile() + tileGrid(tiles);
+}
+
 function meterSvg(pct, color) {
   const r = 14, c = 2 * Math.PI * r;
   const safeP = Math.min(100, Math.max(0, pct));
@@ -723,8 +735,8 @@ ${CSS}
       <span style="color:var(--red);font-size:18px;opacity:.6">›</span>
     </div>`).join('') : ''}
 
-    <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю) -->
-    ${dashTiles(quick, isMgr, !isMgr && !isAcc)}
+    <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю); офіціант — одним блоком без назв -->
+    ${state.role === 'waiter' ? waiterTiles(quick) : dashTiles(quick, isMgr, !isMgr && !isAcc)}
 
     <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні; офіціанту не показуємо: борги/списання/акциз йому не потрібні) -->
     ${(!isAcc && !isMgr && state.role !== 'waiter') ? (() => {
