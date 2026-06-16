@@ -447,9 +447,10 @@ ${CSS}
           <span id="poster-status-badge" style="padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;font-family:var(--font-b);background:rgba(234,179,8,0.15);color:#eab308">Завантаження...</span>
         </div>
         <div class="ve-label">API токен Poster</div>
-        <input class="ve-input" id="poster-api-key" type="text" placeholder="Вставте токен з Poster">
+        <input class="ve-input" id="poster-api-key" type="text" placeholder="Вставте токен з Poster" style="margin-bottom:4px" oninput="window.__ve.posterTokenHint(this.value)">
+        <div id="poster-token-hint" style="font-size:11px;font-family:var(--font-b);margin-bottom:10px;min-height:14px"></div>
         <div class="ve-hint">
-          Як отримати токен: Poster → Налаштування → Інтеграції → API → Скопіювати токен
+          Як отримати токен: Poster → Налаштування → Інтеграції → API → Скопіювати токен (формат «акаунт:хеш», хеш 32 символи)
         </div>
         <div style="display:flex;gap:12px;margin-top:8px">
           <button type="button" id="btn-test-poster" class="ve-btn" style="flex:1;background:transparent;border:1.5px solid var(--green);color:var(--green);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);height:48px;border-radius:14px">
@@ -1150,6 +1151,19 @@ function setModalSyrveMode(mode) {
   }
 }
 
+// Жива підказка про повноту Poster-токена (формат «акаунт:хеш», хеш 32 символи)
+function posterTokenHint(val) {
+  const el = document.getElementById('poster-token-hint');
+  if (!el) return;
+  const t = (val || '').trim();
+  if (!t) { el.textContent = ''; return; }
+  const m = t.match(/^(\d+):([A-Za-z0-9]+)$/);
+  if (!m) { el.textContent = '⚠ Формат має бути «акаунт:хеш» (напр. 459992:abcdef…)'; el.style.color = 'var(--amber)'; return; }
+  const len = m[2].length;
+  if (len === 32) { el.textContent = '✅ Токен виглядає повним (хеш 32 символи)'; el.style.color = 'var(--green)'; }
+  else { el.textContent = `⚠ Хеш ${len}/32 — токен неповний, скопіюйте до кінця`; el.style.color = len < 32 ? '#ff6b6b' : 'var(--amber)'; }
+}
+
 function openPosModal() {
   const modal = document.getElementById('pos-modal');
   if (!modal) return;
@@ -1361,7 +1375,7 @@ export default {
     return buildHTML();
   },
   init(params) {
-    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode, setModalSyrveMode, toggleDd, pickPos, pickModalPos };
+    window.__ve = { save, openPosModal, closePosModal, onModalPosChange, savePosModal, setSyrveMode, setModalSyrveMode, toggleDd, pickPos, pickModalPos, posterTokenHint };
     setupListeners();
   },
 };
