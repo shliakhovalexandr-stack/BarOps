@@ -567,7 +567,7 @@ function buildHTML() {
   const quick = state.role === 'admin' ? QUICK_ADMIN
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
-              : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash', 'dishware'].includes(q.route))
+              : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : state.role === 'chef' ? [...QUICK_BARTENDER, QUICK_PERFORMANCE]
               : QUICK_BARTENDER;
   const s     = _stats;
