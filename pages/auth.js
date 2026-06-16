@@ -726,8 +726,10 @@ function saveSession(data) {
   state.role = data.user.role;
   state.user = data.user.name;
 
-  // Для адміна/менеджера зберігаємо їх вибраний заклад, не перезаписуємо JWT-значенням
-  const isMulti  = ['admin', 'ADMIN', 'manager', 'MANAGER', 'director', 'DIRECTOR', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
+  // Заклади перемикають лише admin / бухгалтер / керуючий — їм зберігаємо вибраний заклад.
+  // Менеджер (і решта) привʼязані до СВОГО закладу акаунта — завжди беремо з логіну,
+  // інакше старий venueId з localStorage (напр. від іншої сесії) показав би чужі дані.
+  const isMulti  = ['admin', 'ADMIN', 'director', 'DIRECTOR', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
   const savedId  = localStorage.getItem('barops_venueId');
   if (isMulti && savedId) {
     state.venue   = localStorage.getItem('barops_venue') || data.user.venueName || '';
@@ -797,7 +799,7 @@ export default {
             if (data.user) {
               state.role = data.user.role;
               state.user = data.user.name;
-              const isMulti2 = ['admin', 'ADMIN', 'manager', 'MANAGER', 'director', 'DIRECTOR', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
+              const isMulti2 = ['admin', 'ADMIN', 'director', 'DIRECTOR', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
               const savedId2 = localStorage.getItem('barops_venueId');
               if (isMulti2 && savedId2) {
                 state.venue   = localStorage.getItem('barops_venue') || data.user.venueName || '';
@@ -805,6 +807,9 @@ export default {
               } else {
                 state.venue   = data.user.venueName || '';
                 state.venueId = data.user.venueId   || '';
+                // менеджер/решта привʼязані до свого закладу — синхронізуємо localStorage
+                localStorage.setItem('barops_venue',   data.user.venueName || '');
+                localStorage.setItem('barops_venueId', data.user.venueId   || '');
               }
             }
             navigate('dashboard');
