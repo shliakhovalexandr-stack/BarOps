@@ -41,6 +41,10 @@ const QUICK_DISHWARE = { route:'dishware', badge:null, label:'Інвентари
   svg:`<circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
        <circle cx="9" cy="9" r="2.5" stroke="currentColor" stroke-width="1.2" fill="none"/>` };
 
+const QUICK_MY_SHIFT = { route:'my-shift', badge:null, label:'Моя зміна', hint:'Мої продажі, чеки та фокус-страви', color:'var(--purple-bg)', iconColor:'var(--purple)',
+  svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M3.5 15.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
+
 const QUICK_BARTENDER = [
   { route:'debts',     badge:null, label:'Борги',     hint:'Відкриті рахунки та борги',  color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -407,12 +411,12 @@ function dashTiles(quick, isMgr, showHero) {
 
 // Офіціант: чек-лист-герой + усі плитки одним блоком без заголовків секцій
 function waiterTiles(quick) {
-  const byR = tileByRoute();
-  const order = ['dishware', 'cash', 'stop-list', 'schedule', 'current-shift'];
-  const inQuick = new Set(quick.map(q => q.route));
+  const byR = {};
+  for (const q of quick) byR[q.route] = q;   // лукап із власних плиток офіціанта
+  const order = ['my-shift', 'dishware', 'cash', 'stop-list', 'schedule'];
   const seen = new Set();
   const tiles = [];
-  for (const r of order) if (inQuick.has(r) && byR[r]) { tiles.push(byR[r]); seen.add(r); }
+  for (const r of order) if (byR[r]) { tiles.push(byR[r]); seen.add(r); }
   for (const q of quick) if (!seen.has(q.route)) tiles.push(q);   // нічого не загубити
   // 8px-проміжок між героєм і плитками (раніше відступ давав заголовок секції)
   return heroChecklistTile() + `<div style="height:8px"></div>` + tileGrid(tiles);
@@ -582,7 +586,7 @@ function buildHTML() {
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : state.role === 'chef' ? [...QUICK_BARTENDER, QUICK_PERFORMANCE]
-              : state.role === 'waiter' ? QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))
+              : state.role === 'waiter' ? [QUICK_MY_SHIFT, ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))]
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
