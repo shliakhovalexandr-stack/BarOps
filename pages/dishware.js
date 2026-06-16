@@ -243,9 +243,9 @@ async function loadBalance() {
     const items = dishStore ? (dishStore.items || []) : [];
     const map = new Map(); const prods = [];
     for (const it of items) {
-      if (!it.name || /^[0-9a-f-]{36}$/i.test(it.name)) continue;
+      if (!it.id) continue;
       map.set(it.id, { amount: it.amount ?? 0, unit: it.unit || '' });
-      if (!prods.find(p => p.id === it.id)) prods.push({ id: it.id, name: it.name, amount: it.amount ?? 0, unit: it.unit || '' });
+      if (!prods.find(p => p.id === it.id)) prods.push({ id: it.id, name: it.name || ('Позиція ' + String(it.id).slice(0, 6)), amount: it.amount ?? 0, unit: it.unit || '' });
     }
     _balance = map; _balProds = prods.sort((a, b) => a.name.localeCompare(b.name));
   } catch { /* silent */ }
