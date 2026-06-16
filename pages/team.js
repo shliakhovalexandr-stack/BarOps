@@ -211,15 +211,18 @@ const ROLE_OPTIONS = [
   ['CHEF',       '👨‍🍳', 'Шеф-кухар'],
   ['COOK',       '🍳', 'Кухар'],
   ['WAITER',     '🍽', 'Офіціант'],
+  ['ADMIN',      '🛡', 'Системний менеджер'],
 ];
 
 // Які ролі може призначати поточний користувач:
-// звичайний менеджер — лише офіціанта або іншого менеджера; адмін/керуючий — усі.
+// звичайний менеджер — лише офіціанта або іншого менеджера;
+// системний менеджер (admin) — усі ролі, разом із Системним менеджером;
+// решта (керуючий тощо) — усі, окрім Системного менеджера.
 function availableRoleOptions() {
-  if ((state.role || '').toLowerCase() === 'manager') {
-    return ROLE_OPTIONS.filter(o => o[0] === 'WAITER' || o[0] === 'MANAGER');
-  }
-  return ROLE_OPTIONS;
+  const r = (state.role || '').toLowerCase();
+  if (r === 'manager') return ROLE_OPTIONS.filter(o => o[0] === 'WAITER' || o[0] === 'MANAGER');
+  if (r === 'admin')   return ROLE_OPTIONS;
+  return ROLE_OPTIONS.filter(o => o[0] !== 'ADMIN');
 }
 function defaultRole() {
   return (state.role || '').toLowerCase() === 'manager' ? 'WAITER' : 'BARTENDER';
