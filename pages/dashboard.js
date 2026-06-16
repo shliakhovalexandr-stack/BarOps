@@ -414,7 +414,8 @@ function waiterTiles(quick) {
   const tiles = [];
   for (const r of order) if (inQuick.has(r) && byR[r]) { tiles.push(byR[r]); seen.add(r); }
   for (const q of quick) if (!seen.has(q.route)) tiles.push(q);   // нічого не загубити
-  return heroChecklistTile() + tileGrid(tiles);
+  // 8px-проміжок між героєм і плитками (раніше відступ давав заголовок секції)
+  return heroChecklistTile() + `<div style="height:8px"></div>` + tileGrid(tiles);
 }
 
 function meterSvg(pct, color) {
