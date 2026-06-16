@@ -8,10 +8,11 @@ import { state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
-let _tab     = 'venue';   // 'venue' | 'top' | 'compare'
+let _tab     = 'venue';   // 'venue' | 'top' | 'kitchen' | 'hours' | 'compare'
 let _period  = 14;        // днів
 let _venueData = null;    // { days, totals, ... }
-let _topItems  = null;    // [{ name, qty, revenue }]
+let _topItems  = null;    // [{ name, qty, revenue }] — напої (бар)
+let _kitchen   = null;    // [{ name, qty, revenue }] — страви (кухня)
 let _hours     = null;    // { hours:[{hour,revenue,items,checks}], days }
 let _compare   = null;    // [{ venueName, totals }]
 let _loading   = false;
@@ -215,6 +216,27 @@ function topView() {
     <div style="height:24px"></div>`;
 }
 
+function kitchenView() {
+  if (_loading) return `<div class="pf-load">Рахую топ страв…</div>`;
+  if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
+  if (!_kitchen || !_kitchen.length) {
+    return `<div class="pf-empty"><div class="pf-empty-txt">Немає продажів кухні за період.</div></div>`;
+  }
+  const maxQty = _kitchen[0].qty || 1;
+  const rows = _kitchen.map((it, i) => `
+    <div class="pf-cmp">
+      <div class="pf-cmp-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+      <div class="pf-cmp-name">${esc(it.name)}
+        <div class="pf-bar-track"><div class="pf-bar-fill" style="width:${Math.max(4, Math.round(it.qty / maxQty * 100))}%"></div></div>
+      </div>
+      <div class="pf-cmp-val"><b>${fmtN(it.qty)}</b><span>${fmtUAH(it.revenue)}</span></div>
+    </div>`).join('');
+  return `
+    <div class="pf-note">Найпопулярніші страви кухні за період — орієнтир для заготовок і стоп-листа.</div>
+    <div class="pf-card" style="margin-top:8px">${rows}</div>
+    <div style="height:24px"></div>`;
+}
+
 function hoursView() {
   if (_loading) return `<div class="pf-load">Рахую виторг по годинах…</div>`;
   if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
@@ -260,6 +282,21 @@ function compareView() {
     <div style="height:24px"></div>`;
 }
 
+function isChef() { return (state.role || '').toLowerCase() === 'chef'; }
+
+// Таби залежать від ролі: шеф бачить лише «Страви» (кухня); решта — повний набір + «Страви»
+function tabsHTML() {
+  if (isChef()) {
+    return `<div class="pf-tabs"><button class="pf-tab sel" onclick="window.__perf.setTab('kitchen')">Страви</button></div>`;
+  }
+  const r = (state.role || '').toLowerCase();
+  const t = (key, label) => `<button class="pf-tab ${_tab === key ? 'sel' : ''}" onclick="window.__perf.setTab('${key}')">${label}</button>`;
+  return `<div class="pf-tabs">
+    ${t('venue', 'Заклад')}${t('top', 'Напої')}${t('kitchen', 'Страви')}${t('hours', 'Години')}
+    ${r === 'manager' ? '' : t('compare', 'Мережа')}
+  </div>`;
+}
+
 function buildHTML() {
   return `
 ${CSS}
@@ -271,22 +308,21 @@ ${CSS}
       </div>
       <div>
         <div class="pf-title">Продуктивність</div>
-        <div class="pf-sub">Бар · ${esc(state.venue || '')}</div>
+        <div class="pf-sub">${isChef() ? 'Кухня' : 'Бар'} · ${esc(state.venue || '')}</div>
       </div>
     </div>
 
-    <div class="pf-tabs">
-      <button class="pf-tab ${_tab === 'venue' ? 'sel' : ''}" onclick="window.__perf.setTab('venue')">Заклад</button>
-      <button class="pf-tab ${_tab === 'top' ? 'sel' : ''}" onclick="window.__perf.setTab('top')">Напої</button>
-      <button class="pf-tab ${_tab === 'hours' ? 'sel' : ''}" onclick="window.__perf.setTab('hours')">Години</button>
-      ${(state.role||'').toLowerCase()==='manager' ? '' : `<button class="pf-tab ${_tab === 'compare' ? 'sel' : ''}" onclick="window.__perf.setTab('compare')">Мережа</button>`}
-    </div>
+    ${tabsHTML()}
 
     <div class="pf-chips">
       ${[7, 14, 30].map(p => `<button class="pf-chip ${_period === p ? 'sel' : ''}" onclick="window.__perf.setPeriod(${p})">${p} днів</button>`).join('')}
     </div>
 
-    ${_tab === 'venue' ? venueView() : _tab === 'top' ? topView() : _tab === 'hours' ? hoursView() : compareView()}
+    ${_tab === 'venue' ? venueView()
+    : _tab === 'top'     ? topView()
+    : _tab === 'kitchen' ? kitchenView()
+    : _tab === 'hours'   ? hoursView()
+    :                      compareView()}
   </div>
 </div>`;
 }
@@ -326,6 +362,20 @@ async function loadTopItems() {
   _loading = false; rerender();
 }
 
+async function loadKitchen() {
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  if (!venueId) { _err = 'Не обрано заклад'; rerender(); return; }
+  _loading = true; _err = ''; rerender();
+  const { from, to } = range();
+  try {
+    const r = await fetch(`${API}/api/performance/kitchen-items?venueId=${venueId}&from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Помилка');
+    _kitchen = d.items || [];
+  } catch (e) { _err = 'Не вдалося завантажити: ' + e.message; _kitchen = null; }
+  _loading = false; rerender();
+}
+
 async function loadHours() {
   const venueId = state.venueId || localStorage.getItem('barops_venueId');
   if (!venueId) { _err = 'Не обрано заклад'; rerender(); return; }
@@ -352,12 +402,19 @@ async function loadCompare() {
   _loading = false; rerender();
 }
 
-function loadCurrent() { _tab === 'venue' ? loadVenue() : _tab === 'top' ? loadTopItems() : _tab === 'hours' ? loadHours() : loadCompare(); }
+function loadCurrent() {
+  _tab === 'venue'   ? loadVenue()
+  : _tab === 'top'     ? loadTopItems()
+  : _tab === 'kitchen' ? loadKitchen()
+  : _tab === 'hours'   ? loadHours()
+  :                      loadCompare();
+}
 
 /* ════════════════════════  MODULE  ════════════════════════ */
 export default {
   render() {
-    _tab = 'venue'; _period = 14; _venueData = null; _topItems = null; _hours = null; _compare = null; _loading = false; _err = '';
+    _tab = isChef() ? 'kitchen' : 'venue';   // шеф одразу на «Страви»
+    _period = 14; _venueData = null; _topItems = null; _kitchen = null; _hours = null; _compare = null; _loading = false; _err = '';
     return buildHTML();
   },
   init() {
@@ -365,13 +422,14 @@ export default {
       setTab(t) {
         if (_tab === t) return;
         _tab = t;
-        if (t === 'venue')      _venueData ? rerender() : loadVenue();
-        else if (t === 'top')   _topItems  ? rerender() : loadTopItems();
-        else if (t === 'hours') _hours     ? rerender() : loadHours();
-        else                    _compare   ? rerender() : loadCompare();
+        if (t === 'venue')        _venueData ? rerender() : loadVenue();
+        else if (t === 'top')     _topItems  ? rerender() : loadTopItems();
+        else if (t === 'kitchen') _kitchen   ? rerender() : loadKitchen();
+        else if (t === 'hours')   _hours     ? rerender() : loadHours();
+        else                      _compare   ? rerender() : loadCompare();
       },
-      setPeriod(p) { if (_period === p) return; _period = p; _venueData = null; _topItems = null; _hours = null; _compare = null; loadCurrent(); },
+      setPeriod(p) { if (_period === p) return; _period = p; _venueData = null; _topItems = null; _kitchen = null; _hours = null; _compare = null; loadCurrent(); },
     };
-    loadVenue();
+    loadCurrent();
   },
 };

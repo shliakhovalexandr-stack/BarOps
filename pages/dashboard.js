@@ -322,6 +322,7 @@ const SECTIONS_MGR = [
   ['Облік',            ['recipe-book']],
 ];
 const SECTIONS_WORKER = [
+  ['Аналітика', ['performance']],   // лише для тих, у кого є плитка (напр. шеф-кухар)
   ['Операції',  ['writeoff', 'inventory', 'ordering', 'ocr', 'excise']],
   ['Моя зміна', ['cash', 'stop-list', 'debts', 'schedule', 'current-shift']],
 ];
@@ -560,6 +561,7 @@ function buildHTML() {
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
+              : state.role === 'chef' ? [...QUICK_BARTENDER, QUICK_PERFORMANCE]
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
