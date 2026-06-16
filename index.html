@@ -238,7 +238,7 @@ body {
     ordMod, recMod, alertMod, shiftMod, mgrMod, teamMod, profMod,
     exciseMod, debtsMod, analyticsMod, stockMod, venueEditMod, stopListMod, scheduleMod, journalMod,
     recipeBookMod, currentShiftMod, playlistMod, invoiceOcrMod, performanceMod, digestMod, disciplineMod,
-    cashMod,
+    cashMod, dishwareMod,
   ] = await Promise.all([
     import('./pages/auth.js'),
     import('./pages/dashboard.js'),
@@ -268,6 +268,7 @@ body {
     import('./pages/digest.js'),
     import('./pages/discipline.js'),
     import('./pages/cash.js'),
+    import('./pages/dishware.js'),
   ]);
 
   /* Реєструємо кожну сторінку — простий прямий об'єкт */
@@ -300,6 +301,7 @@ body {
     ['digest',        digestMod],
     ['discipline',    disciplineMod],
     ['cash',          cashMod],
+    ['dishware',      dishwareMod],
   ];
 
   for (const [name, mod] of pages) {
