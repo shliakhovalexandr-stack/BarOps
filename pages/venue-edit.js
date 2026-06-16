@@ -1273,6 +1273,16 @@ async function initPosterSection(venueId) {
       badge.style.background = 'rgba(234, 179, 8, 0.15)';
       badge.style.color = '#eab308';
     }
+
+    // Токен уже збережено (його не показуємо з міркувань безпеки) → даємо це зрозуміти у полі + підказці
+    if (settings.posApiKey) {
+      if (apiKeyInput) apiKeyInput.placeholder = '•••••• токен збережено — залиш порожнім, щоб не змінювати';
+      const hintEl = document.getElementById('poster-token-hint');
+      if (hintEl) {
+        hintEl.textContent = isConn2 ? '✅ Токен збережено й працює' : '✅ Токен збережено — натисніть «Перевірити зʼєднання»';
+        hintEl.style.color = isConn2 ? 'var(--green)' : 'var(--amber)';
+      }
+    }
   } catch (err) {
     console.error('Load poster settings error:', err);
   }
