@@ -11,6 +11,10 @@ let _period  = 14;
 let _people  = null;
 let _loading = false;
 let _err     = '';
+let _dept    = 'all';   // 'all' | 'waiters' | 'bartenders' | 'kitchen'
+
+const DEPT_LABEL = { waiters: 'Офіціанти', bartenders: 'Бармени', kitchen: 'Кухарі' };
+const DEPT_ORDER = ['waiters', 'bartenders', 'kitchen'];
 
 function token() { return localStorage.getItem('barops_token') || state.token || ''; }
 function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -48,13 +52,31 @@ const CSS = `<style id="ds-css">
 .ds-load{padding:34px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px}
 </style>`;
 
+function presentDepts() {
+  const set = new Set((_people || []).map(p => p.dept).filter(Boolean));
+  return DEPT_ORDER.filter(d => set.has(d));
+}
+
+function deptChipsHTML() {
+  const depts = presentDepts();
+  if (depts.length < 2) return '';   // нема сенсу ділити, якщо один підрозділ
+  const chip = (key, label) => `<button class="ds-chip ${_dept === key ? 'sel' : ''}" onclick="window.__ds.setDept('${key}')">${label}</button>`;
+  return `<div class="ds-chips" style="padding-top:0">
+    ${chip('all', 'Всі')}${depts.map(d => chip(d, DEPT_LABEL[d])).join('')}
+  </div>`;
+}
+
 function listView() {
   if (_loading) return `<div class="ds-load">Рахую дисципліну…</div>`;
   if (_err)     return `<div class="ds-empty"><div class="ds-empty-txt">${esc(_err)}</div></div>`;
   if (!_people || !_people.length) {
     return `<div class="ds-empty"><div class="ds-empty-txt">Немає активності за період.<br>Зʼявиться, коли працівники відмічатимуть чек-листи й завдання.</div></div>`;
   }
-  const rows = _people.map((p, i) => `
+  const filtered = _dept === 'all' ? _people : _people.filter(p => p.dept === _dept);
+  if (!filtered.length) {
+    return `<div class="ds-empty"><div class="ds-empty-txt">Немає активності в цьому підрозділі за період.</div></div>`;
+  }
+  const rows = filtered.map((p, i) => `
     <div class="ds-row">
       <div class="ds-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
       <div class="ds-av">${esc(initials(p.name))}</div>
@@ -88,6 +110,7 @@ ${CSS}
     <div class="ds-chips">
       ${[7, 14, 30].map(p => `<button class="ds-chip ${_period === p ? 'sel' : ''}" onclick="window.__ds.setPeriod(${p})">${p} днів</button>`).join('')}
     </div>
+    ${deptChipsHTML()}
     ${listView()}
   </div>
 </div>`;
@@ -109,17 +132,21 @@ async function load() {
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'Помилка');
     _people = d.people || [];
+    if (_dept !== 'all' && !presentDepts().includes(_dept)) _dept = 'all';
   } catch (e) { _err = 'Не вдалося завантажити: ' + e.message; _people = null; }
   _loading = false; rerender();
 }
 
 export default {
   render() {
-    _period = 14; _people = null; _loading = false; _err = '';
+    _period = 14; _people = null; _loading = false; _err = ''; _dept = 'all';
     return buildHTML();
   },
   init() {
-    window.__ds = { setPeriod(p) { if (_period === p) return; _period = p; _people = null; load(); } };
+    window.__ds = {
+      setPeriod(p) { if (_period === p) return; _period = p; _people = null; load(); },
+      setDept(d)   { if (_dept === d) return; _dept = d; rerender(); },
+    };
     load();
   },
 };
