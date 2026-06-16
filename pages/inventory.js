@@ -1018,7 +1018,8 @@ function dishCfgHTML() {
             </div>
             <div style="flex:1;min-width:0">
               <div class="inv-cfg-name">${nm}</div>
-              <div class="inv-cfg-sub">у Syrve: ${p.syrveName || p.name} · залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>
+              <div class="inv-cfg-sub">у Syrve: ${p.syrveName || p.name}</div>
+              <div class="inv-cfg-sub" style="color:var(--blue)">залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>
             </div>
             <button class="inv-mode-btn" data-a="dw-edit" data-pid="${p.id}" style="width:auto;padding:0 10px">✎ Назва/фото</button>
           </div>`;
