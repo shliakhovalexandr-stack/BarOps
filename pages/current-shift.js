@@ -114,11 +114,14 @@ function waiterCard(w) {
       <div class="cs-av">${initials(w.name)}</div>
       <div style="flex:1;min-width:0">
         <div class="cs-name">${w.name}</div>
-        <div class="cs-meta">${Math.round(w.orders)} ${chequeWord(w.orders)} · ${Math.round(w.guests)} ${guestWord(w.guests)}${outsTotal > 0 ? ` · <span style="color:var(--red)">−${money(outsTotal)} з каси</span>` : ''}</div>
+        <div class="cs-meta">${w.cashOnly
+          ? `Без продажів · <span style="color:var(--red)">−${money(outsTotal)} з каси</span>`
+          : `${Math.round(w.orders)} ${chequeWord(w.orders)} · ${Math.round(w.guests)} ${guestWord(w.guests)}${outsTotal > 0 ? ` · <span style="color:var(--red)">−${money(outsTotal)} з каси</span>` : ''}`}</div>
       </div>
       <div>
-        <div class="cs-sum">${money(w.sum)}</div>
-        <div class="cs-sum-lbl">виторг</div>
+        ${w.cashOnly
+          ? `<div class="cs-sum" style="color:var(--red)">−${money(outsTotal)}</div><div class="cs-sum-lbl">з каси</div>`
+          : `<div class="cs-sum">${money(w.sum)}</div><div class="cs-sum-lbl">виторг</div>`}
       </div>
       <svg class="cs-chev ${open ? 'open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
     </div>
@@ -151,6 +154,20 @@ function waiterCard(w) {
   </div>`;
 }
 
+// Офіціанти, що мають вилучення з каси, але ще НЕ зʼявились у POS (немає продажів) →
+// синтетичні картки лише з відʼємним показником. «Вчорашня каса» (без sourceId) сюди не йде.
+function extraCashWaiters(posWaiters) {
+  const have = new Set((posWaiters || []).map(w => (w.name || '').trim().toLowerCase()));
+  const map = new Map();
+  for (const c of _cash) {
+    if (!c.sourceId) continue;                       // лише офіціанти
+    const nm = (c.sourceName || '').trim();
+    if (!nm || have.has(nm.toLowerCase()) || map.has(nm.toLowerCase())) continue;
+    map.set(nm.toLowerCase(), { id: c.sourceId || ('cw:' + nm), name: nm, orders: 0, guests: 0, sum: 0, payments: [], cashOnly: true });
+  }
+  return [...map.values()];
+}
+
 function body() {
   let inner;
   if (_loading) {
@@ -158,20 +175,23 @@ function body() {
   } else if (_error) {
     inner = `<div class="cs-err">${_error}</div>
       <div class="cs-empty"><div class="cs-empty-icon">📡</div><div class="cs-empty-txt">Перевірте підключення POS у налаштуваннях закладу.</div></div>`;
-  } else if (!_data || !_data.waiters.length) {
-    inner = `<div class="cs-empty">
-      <div class="cs-empty-icon">🧑‍🍳</div>
-      <div class="cs-empty-txt">Сьогодні ще немає продажів по офіціантах.<br>Дані з POS за поточний день.</div>
-    </div>`;
   } else {
-    const d = _data;
-    inner = `
-    <div class="cs-kpis">
-      <div class="cs-kpi"><div class="cs-kpi-val">${d.waiters.length}</div><div class="cs-kpi-lbl">Офіціантів</div></div>
-      <div class="cs-kpi"><div class="cs-kpi-val">${d.totalOrders}</div><div class="cs-kpi-lbl">Чеків</div></div>
-      <div class="cs-kpi"><div class="cs-kpi-val" style="color:var(--green)">${money(d.totalSum)}</div><div class="cs-kpi-lbl">Виторг</div></div>
-    </div>
-    ${d.waiters.map(waiterCard).join('')}`;
+    const d = _data || { waiters: [], totalOrders: 0, totalSum: 0 };
+    const allW = [...d.waiters, ...extraCashWaiters(d.waiters)];
+    if (!allW.length) {
+      inner = `<div class="cs-empty">
+        <div class="cs-empty-icon">🧑‍🍳</div>
+        <div class="cs-empty-txt">Сьогодні ще немає продажів по офіціантах.<br>Дані з POS за поточний день.</div>
+      </div>`;
+    } else {
+      inner = `
+      <div class="cs-kpis">
+        <div class="cs-kpi"><div class="cs-kpi-val">${allW.length}</div><div class="cs-kpi-lbl">Офіціантів</div></div>
+        <div class="cs-kpi"><div class="cs-kpi-val">${d.totalOrders}</div><div class="cs-kpi-lbl">Чеків</div></div>
+        <div class="cs-kpi"><div class="cs-kpi-val" style="color:var(--green)">${money(d.totalSum)}</div><div class="cs-kpi-lbl">Виторг</div></div>
+      </div>
+      ${allW.map(waiterCard).join('')}`;
+    }
   }
   return `
   <div class="cs-top">
