@@ -16,6 +16,8 @@ let _loading = false;
 let _addOpen = false;
 let _saving  = false;
 let _waiters = [];   // офіціанти закладу для випадайки «від кого» (лише менеджер)
+let _editId  = null; // id запису, що редагується (свайп → Змінити)
+let _swipeAdded = false;
 
 const isMgr = () => ['admin', 'manager', 'director'].includes((state.role || '').toLowerCase());
 
@@ -48,7 +50,11 @@ const CSS = `<style id="csh-css">
 .csh-add:active{filter:brightness(.92)}
 .csh-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:18px 20px 8px;font-family:var(--font-b)}
 .csh-list{padding:0 20px}
-.csh-row{display:flex;align-items:center;gap:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px}
+.csh-swipe-wrap{position:relative;border-radius:14px;overflow:hidden;margin-bottom:8px}
+.csh-swipe-edit{position:absolute;right:76px;top:0;bottom:0;width:76px;background:var(--purple,#A88BFF);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
+.csh-swipe-del2{position:absolute;right:0;top:0;bottom:0;width:76px;background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:0 14px 14px 0}
+.csh-swipe-lbl{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600}
+.csh-row{display:flex;align-items:center;gap:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;position:relative;z-index:1;transition:transform .25s cubic-bezier(.22,1,.36,1);will-change:transform}
 .csh-amt{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--red);flex-shrink:0;min-width:70px}
 .csh-info{flex:1;min-width:0}
 .csh-reason{font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -84,14 +90,52 @@ const DEL_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><pa
 
 function rowHTML(w) {
   return `
-    <div class="csh-row">
-      <div class="csh-amt">−${fmtMoney(w.amount)}</div>
-      <div class="csh-info">
-        <div class="csh-reason ${w.reason ? '' : 'empty'}">${w.reason ? esc(w.reason) : 'без причини'}</div>
-        <div class="csh-meta">${fmtTime(w.createdAt)}</div>
+    <div class="csh-swipe-wrap" data-id="${w.id}">
+      <div class="csh-swipe-edit" onclick="window.__cash.edit('${w.id}')">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M3 15l2.5-.6 8-8-1.9-1.9-8 8L3 15z" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.5l1.9 1.9" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span class="csh-swipe-lbl">Змінити</span>
       </div>
-      <div class="csh-del" onclick="window.__cash.del('${w.id}')" aria-label="Видалити">${DEL_SVG}</div>
+      <div class="csh-swipe-del2" onclick="window.__cash.del('${w.id}')">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3h4v2M7.5 8.5v5M10.5 8.5v5M4 5l1 10h8l1-10" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="csh-swipe-lbl">Видалити</span>
+      </div>
+      <div class="csh-row">
+        <div class="csh-amt">−${fmtMoney(w.amount)}</div>
+        <div class="csh-info">
+          <div class="csh-reason ${w.reason ? '' : 'empty'}">${w.reason ? esc(w.reason) : 'без причини'}</div>
+          <div class="csh-meta">${fmtTime(w.createdAt)}</div>
+        </div>
+        <div class="csh-del" onclick="window.__cash.del('${w.id}')" aria-label="Видалити">${DEL_SVG}</div>
+      </div>
     </div>`;
+}
+
+// Свайп вліво по рядку → відкриває «Змінити» + «Видалити»
+function initSwipe() {
+  if (_swipeAdded) return;
+  _swipeAdded = true;
+  let sx = 0, sy = 0, active = null;
+  document.addEventListener('touchstart', e => {
+    const wrap = e.target.closest('.csh-swipe-wrap');
+    const card = wrap?.querySelector('.csh-row');
+    if (active && active !== card) { active.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)'; active.style.transform = 'translateX(0)'; active = null; }
+    if (!card) return;
+    active = card; sx = e.touches[0].clientX; sy = e.touches[0].clientY; card.style.transition = 'none';
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!active) return;
+    const dx = e.touches[0].clientX - sx;
+    const dy = Math.abs(e.touches[0].clientY - sy);
+    if (dy > 12 && dy > Math.abs(dx)) { active = null; return; }
+    if (dx < 0) active.style.transform = `translateX(${Math.max(dx, -152)}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!active) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    active.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
+    active.style.transform = dx < -50 ? 'translateX(-152px)' : 'translateX(0)';
+    if (dx >= -50) active = null;
+  });
 }
 
 // Менеджеру — групуємо по джерелу (від кого взяли гроші)
@@ -141,7 +185,7 @@ function addModalHTML() {
   return `
   <div class="csh-ov" onclick="window.__cash.closeAddOv(event)">
     <div class="csh-sheet" onclick="event.stopPropagation()">
-      <div class="csh-sheet-title">Взяв готівку з каси</div>
+      <div class="csh-sheet-title">${_editId ? 'Редагувати запис' : 'Взяв готівку з каси'}</div>
       <div class="csh-lbl">Сума, ₴</div>
       <input id="csh-amt" class="csh-inp csh-amt-inp" type="number" inputmode="decimal" step="1" min="0" placeholder="0">
       ${isMgr() ? `
@@ -154,7 +198,7 @@ function addModalHTML() {
       <input id="csh-reason" class="csh-inp" type="text" placeholder="Напр.: оплата доставки, дрібна закупівля…">
       <div class="csh-btns">
         <button class="csh-btn-sec" onclick="window.__cash.closeAdd()">Скасувати</button>
-        <button class="csh-btn-cta" id="csh-save" onclick="window.__cash.save()">Записати</button>
+        <button class="csh-btn-cta" id="csh-save" onclick="window.__cash.save()">${_editId ? 'Зберегти' : 'Записати'}</button>
       </div>
     </div>
   </div>`;
@@ -200,7 +244,7 @@ async function load() {
 /* ════════════ PAGE MODULE ════════════ */
 export default {
   render() {
-    _items = []; _total = 0; _loading = true; _addOpen = false; _saving = false; _waiters = [];
+    _items = []; _total = 0; _loading = true; _addOpen = false; _saving = false; _waiters = []; _editId = null;
     return `
     ${CSS}
     <div class="csh-wrap">
@@ -220,16 +264,31 @@ export default {
 
   init() {
     window.__cash = {
-      openAdd() { _addOpen = true; rerender(); setTimeout(() => document.getElementById('csh-amt')?.focus(), 60); },
-      closeAdd() { _addOpen = false; rerender(); },
-      closeAddOv(e) { if (e?.target?.classList?.contains('csh-ov')) { _addOpen = false; rerender(); } },
+      openAdd() { _editId = null; _addOpen = true; rerender(); setTimeout(() => document.getElementById('csh-amt')?.focus(), 60); },
+      closeAdd() { _addOpen = false; _editId = null; rerender(); },
+      closeAddOv(e) { if (e?.target?.classList?.contains('csh-ov')) { _addOpen = false; _editId = null; rerender(); } },
+
+      // Свайп → Змінити: відкриваємо модалку передзаповненою
+      edit(id) {
+        const w = _items.find(x => x.id === id);
+        if (!w) return;
+        _editId = id;
+        _addOpen = true;
+        rerender();
+        setTimeout(() => {
+          const amt = document.getElementById('csh-amt'); if (amt) amt.value = w.amount;
+          const rs  = document.getElementById('csh-reason'); if (rs) rs.value = w.reason || '';
+          const src = document.getElementById('csh-source'); if (src) src.value = w.sourceId || 'cash';
+          amt?.focus();
+        }, 60);
+      },
 
       async save() {
         if (_saving) return;
         const amount = parseFloat(document.getElementById('csh-amt')?.value);
         const reason = (document.getElementById('csh-reason')?.value || '').trim();
         if (!amount || amount <= 0) { document.getElementById('csh-amt')?.focus(); return; }
-        // Джерело (лише менеджер обирає; інакше бекенд проставить самого реєстратора)
+        // Джерело (лише менеджер обирає; інакше бекенд лишає як є / проставить реєстратора)
         let source = {};
         if (isMgr()) {
           const val = document.getElementById('csh-source')?.value || 'cash';
@@ -238,20 +297,23 @@ export default {
         }
         _saving = true;
         const btn = document.getElementById('csh-save');
-        if (btn) { btn.disabled = true; btn.textContent = 'Запис…'; }
+        if (btn) { btn.disabled = true; btn.textContent = _editId ? 'Збереження…' : 'Запис…'; }
         try {
-          const res = await fetch(`${API}/api/cash/withdrawals`, {
-            method: 'POST',
+          const url    = _editId ? `${API}/api/cash/withdrawals/${_editId}` : `${API}/api/cash/withdrawals`;
+          const method = _editId ? 'PATCH' : 'POST';
+          const body   = _editId ? { amount, reason, ...source } : { venueId: venueId(), amount, reason, ...source };
+          const res = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ venueId: venueId(), amount, reason, ...source }),
+            body: JSON.stringify(body),
           });
           const data = await res.json();
           if (!data.success) throw new Error(data.error || 'Помилка');
-          _addOpen = false;
+          _addOpen = false; _editId = null;
           await load();
         } catch (e) {
-          if (btn) { btn.disabled = false; btn.textContent = 'Записати'; }
-          alert('Не вдалося записати: ' + e.message);
+          if (btn) { btn.disabled = false; btn.textContent = _editId ? 'Зберегти' : 'Записати'; }
+          alert('Не вдалося зберегти: ' + e.message);
         } finally {
           _saving = false;
         }
@@ -268,6 +330,7 @@ export default {
         load();
       },
     };
+    initSwipe();
     loadWaiters();
     load();
   },
