@@ -116,13 +116,25 @@ const CSS = `<style id="perf-css">
 </style>`;
 
 /* ════════════════════════  RENDER  ════════════════════════ */
-function kpiCards(t, prev) {
+// Підписи KPI для бару й кухні (один шаблон, різні слова)
+const CFG_BAR = {
+  hero: 'Виторг бару / годину-бармена',
+  itemsLbl: 'Напоїв / год', itemsHint: 'барних позицій на бармена-годину',
+  checksHint: 'замовлень на бармена-годину', word: 'напоїв',
+};
+const CFG_KIT = {
+  hero: 'Виторг кухні / годину-кухаря',
+  itemsLbl: 'Страв / год', itemsHint: 'позицій кухні на кухаря-годину',
+  checksHint: 'замовлень з кухнею на кухаря-годину', word: 'страв',
+};
+function kpiCards(t, prev, cfg) {
+  cfg = cfg || CFG_BAR;
   if (!t) return '';
   const p = prev || {};
   return `
   <div class="pf-kpis">
     <div class="pf-kpi hero">
-      <div class="pf-kpi-lbl">Виторг бару / годину-бармена</div>
+      <div class="pf-kpi-lbl">${cfg.hero}</div>
       <div class="pf-kpi-val big">${t.revPerHour != null ? fmtUAH(t.revPerHour) : '—'}${trendBadge(t.revPerHour, p.revPerHour)}</div>
       <div class="pf-kpi-hint">за ${t.daysWithShift} повних днів зі зміною · ${fmtN(t.bartenderHours)} год</div>
     </div>
@@ -137,14 +149,14 @@ function kpiCards(t, prev) {
       <div class="pf-kpi-hint">собівартість від виторгу</div>
     </div>
     <div class="pf-kpi drink">
-      <div class="pf-kpi-lbl">Напоїв / год</div>
+      <div class="pf-kpi-lbl">${cfg.itemsLbl}</div>
       <div class="pf-kpi-val mid">${t.itemsPerHour != null ? fmtN(t.itemsPerHour) : '—'}${trendBadge(t.itemsPerHour, p.itemsPerHour)}</div>
-      <div class="pf-kpi-hint">барних позицій на бармена-годину</div>
+      <div class="pf-kpi-hint">${cfg.itemsHint}</div>
     </div>
     <div class="pf-kpi drink">
       <div class="pf-kpi-lbl">Чеків / год</div>
       <div class="pf-kpi-val mid">${t.checksPerHour != null ? fmtN(t.checksPerHour) : '—'}${trendBadge(t.checksPerHour, p.checksPerHour)}</div>
-      <div class="pf-kpi-hint">замовлень на бармена-годину</div>
+      <div class="pf-kpi-hint">${cfg.checksHint}</div>
     </div>
     <div class="pf-kpi">
       <div class="pf-kpi-lbl">Середній чек</div>
@@ -157,13 +169,50 @@ function kpiCards(t, prev) {
     <div class="pf-kpi wide">
       <div class="pf-kpi-lbl">Усього за період</div>
       <div class="pf-kpi-val mid">${fmtUAH(t.barRevenue)} <span style="font-size:13px;color:var(--green)">· прибуток ${fmtUAH(t.barProfit)}</span>${trendBadge(t.barRevenue, p.barRevenue)}</div>
-      <div class="pf-kpi-hint">собівартість ${fmtUAH(t.barCost)} · фудкост ${t.foodcostPct != null ? t.foodcostPct + '%' : '—'} · ${fmtN(t.barItems)} напоїв · vs попередні ${_period} дн.</div>
+      <div class="pf-kpi-hint">собівартість ${fmtUAH(t.barCost)} · фудкост ${t.foodcostPct != null ? t.foodcostPct + '%' : '—'} · ${fmtN(t.barItems)} ${cfg.word} · vs попередні ${_period} дн.</div>
     </div>
   </div>`;
 }
 
+// Таблиця «по днях» (₴/год · виторг · години) — спільна для бару й кухні
+function dailyTable(days, title) {
+  const list = (days || []).slice().reverse(); // новіші зверху
+  if (!list.length) return '';
+  const bestRev = Math.max(...list.map(d => d.revPerHour || 0));
+  const rows = list.map(d => `
+    <div class="pf-row${d.revPerHour && d.revPerHour === bestRev ? ' best' : ''}">
+      <div class="pf-c d">${dShort(d.date)} <span class="pf-dow">${dow(d.date)}</span></div>
+      <div class="pf-c v">${d.revPerHour != null ? fmtUAH(d.revPerHour) : '<span class="muted">—</span>'}</div>
+      <div class="pf-c">${fmtUAH(d.barRevenue)}</div>
+      <div class="pf-c ${d.bartenderHours ? '' : 'muted'}">${d.bartenderHours ? fmtN(d.bartenderHours)+' год' : 'нема зм.'}</div>
+    </div>`).join('');
+  return `
+    <div class="pf-sec">${title}</div>
+    <div class="pf-card">
+      <div class="pf-row head">
+        <div class="pf-c d">Дата</div><div class="pf-c">₴/год</div><div class="pf-c">Виторг</div><div class="pf-c">Години</div>
+      </div>
+      ${rows}
+    </div>`;
+}
+
+// Блок кухні в «Заклад»: ті ж KPI + таблиця, але з кухонними виторгом/годинами кухарів
+function kitchenBlock(k) {
+  if (!k || !k.days || !k.days.length) return '';
+  const t = k.totals || {};
+  const noHours = !(t && t.daysWithShift);
+  const note = noHours
+    ? `<div class="pf-note">Графік кухарів за період не заповнено — «виторг/год» по кухні недоступний, але виторг, фудкост і к-сть страв рахуються.</div>`
+    : `<div class="pf-note">«—» у виторгу/год — день без графіка кухарів або ще не закритий. Кухня = усі НЕ барні місця приготування.</div>`;
+  return `
+    <div class="pf-sec" style="padding-top:24px;font-size:11px;color:var(--text1)">🍳 Кухня</div>
+    ${kpiCards(t, k.prev, CFG_KIT)}
+    ${note}
+    ${dailyTable(k.days, 'Кухня · по днях')}`;
+}
+
 function venueView() {
-  if (_loading) return `<div class="pf-load">Рахую виторг бару й години…</div>`;
+  if (_loading) return `<div class="pf-load">Рахую виторг закладу й години…</div>`;
   if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
   if (!_venueData || !_venueData.days?.length) {
     return `<div class="pf-empty"><div class="pf-empty-txt">Немає даних за період.<br>Перевір, що заклад на Syrve і графік заповнено.</div></div>`;
@@ -172,26 +221,13 @@ function venueView() {
   const warn = noHours ? `<div class="pf-empty" style="margin-bottom:8px;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
       <div class="pf-empty-txt">⚠ Графік змін барменів за період не заповнено, тож «виторг/год» порахувати неможливо.<br>
       Заповни графік у розділі <b style="color:var(--amber)">«Графіки»</b> — і метрика зʼявиться автоматично.</div></div>` : '';
-  const days = _venueData.days.slice().reverse(); // новіші зверху
-  const bestRev = Math.max(...days.map(d => d.revPerHour || 0));
-  const rows = days.map(d => `
-    <div class="pf-row${d.revPerHour && d.revPerHour === bestRev ? ' best' : ''}">
-      <div class="pf-c d">${dShort(d.date)} <span class="pf-dow">${dow(d.date)}</span></div>
-      <div class="pf-c v">${d.revPerHour != null ? fmtUAH(d.revPerHour) : '<span class="muted">—</span>'}</div>
-      <div class="pf-c">${fmtUAH(d.barRevenue)}</div>
-      <div class="pf-c ${d.bartenderHours ? '' : 'muted'}">${d.bartenderHours ? fmtN(d.bartenderHours)+' год' : 'нема зм.'}</div>
-    </div>`).join('');
   return `
     ${warn}
-    ${kpiCards(_venueData.totals, _venueData.prev)}
+    <div class="pf-sec" style="padding-top:8px;font-size:11px;color:var(--text1)">🍸 Бар</div>
+    ${kpiCards(_venueData.totals, _venueData.prev, CFG_BAR)}
     <div class="pf-note">«—» у виторгу/год — день без графіка або ще не закритий. Бар = місця приготування з «бар» у назві.</div>
-    <div class="pf-sec">По днях</div>
-    <div class="pf-card">
-      <div class="pf-row head">
-        <div class="pf-c d">Дата</div><div class="pf-c">₴/год</div><div class="pf-c">Виторг</div><div class="pf-c">Години</div>
-      </div>
-      ${rows}
-    </div>
+    ${dailyTable(_venueData.days, 'Бар · по днях')}
+    ${kitchenBlock(_venueData.kitchen)}
     <div style="height:24px"></div>`;
 }
 
