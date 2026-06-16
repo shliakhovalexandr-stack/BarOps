@@ -173,22 +173,12 @@ function loadThumbs() {
 /* ── overlays ── */
 function pickerHTML() {
   if (!_pickerOpen) return '';
-  const q = _pickerSearch.trim().toLowerCase();
-  const list = (q ? _balProds.filter(p => p.name.toLowerCase().includes(q)) : _balProds).slice(0, 80);
   return `
   <div class="dw-ov" onclick="window.__dw.closePicker(event)">
     <div class="dw-sheet" onclick="event.stopPropagation()" style="height:80vh">
-      <div class="dw-sheet-title">Додати посуд із Syrve</div>
+      <div class="dw-sheet-title">Додати посуд зі складу «Посуд»</div>
       <input class="dw-pk-search" id="dw-pk-search" placeholder="Пошук: тарілка, келих…" value="${esc(_pickerSearch)}" oninput="window.__dw.pickerSearch(this.value)">
-      <div class="dw-pk-list">
-        ${!_balLoaded ? `<div class="dw-spin"></div>`
-          : list.length ? list.map(p => `
-            <div class="dw-pk-item" onclick="window.__dw.addItem('${p.id}', '${esc(p.name).replace(/'/g,"\\'")}')">
-              <span class="dw-pk-name">${esc(p.name)}</span>
-              <span class="dw-pk-bal">${num(p.amount)}${p.unit ? ' ' + p.unit : ''}</span>
-            </div>`).join('')
-          : `<div class="dw-empty"><div class="dw-empty-txt">Нічого не знайдено</div></div>`}
-      </div>
+      <div class="dw-pk-list">${pickerListInner()}</div>
     </div>
   </div>`;
 }
@@ -241,25 +231,22 @@ async function loadItems() {
   _loading = false; rerender();
 }
 
-// Залишок Syrve + товари для пікера (лише менеджер)
+// Залишок Syrve + товари для пікера — лише зі складу «Посуд» (той самий заклад, окремий склад)
 async function loadBalance() {
   if (!isMgr()) return;
   const vId = venueId();
   if (!vId) return;
   try {
-    const r = await fetch(`${API}/api/pos/balance/${vId}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const r = await fetch(`${API}/api/pos/balance/${vId}?allStores=1`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json();
+    const dishStore = (d.stores || []).find(s => /посуд/i.test(s.storeName || ''));
+    const items = dishStore ? (dishStore.items || []) : [];
     const map = new Map(); const prods = [];
-    for (const store of (d.stores || [])) {
-      for (const it of (store.items || [])) {
-        if (!it.name || /^[0-9a-f-]{36}$/i.test(it.name)) continue;
-        const prev = map.get(it.id);
-        map.set(it.id, { amount: (prev?.amount || 0) + (it.amount ?? 0), unit: it.unit || prev?.unit || '' });
-        if (!prods.find(p => p.id === it.id)) prods.push({ id: it.id, name: it.name, amount: it.amount ?? 0, unit: it.unit || '' });
-      }
+    for (const it of items) {
+      if (!it.name || /^[0-9a-f-]{36}$/i.test(it.name)) continue;
+      map.set(it.id, { amount: it.amount ?? 0, unit: it.unit || '' });
+      if (!prods.find(p => p.id === it.id)) prods.push({ id: it.id, name: it.name, amount: it.amount ?? 0, unit: it.unit || '' });
     }
-    // підсумувати кількість по складах для пікера
-    for (const p of prods) { const m = map.get(p.id); if (m) p.amount = m.amount; }
     _balance = map; _balProds = prods.sort((a, b) => a.name.localeCompare(b.name));
   } catch { /* silent */ }
   _balLoaded = true; rerender();
@@ -395,10 +382,10 @@ export default {
 
 // helper для часткового оновлення списку пікера (без перебудови модалки)
 function pickerListInner() {
+  if (!_balLoaded) return `<div class="dw-spin"></div>`;
   const q = _pickerSearch.trim().toLowerCase();
   const list = (q ? _balProds.filter(p => p.name.toLowerCase().includes(q)) : _balProds).slice(0, 80);
-  if (!_balLoaded) return `<div class="dw-spin"></div>`;
-  if (!list.length) return `<div class="dw-empty"><div class="dw-empty-txt">Нічого не знайдено</div></div>`;
+  if (!list.length) return `<div class="dw-empty"><div class="dw-empty-txt">${_balProds.length ? 'Нічого не знайдено' : 'Склад «Посуд» не знайдено або порожній'}</div></div>`;
   return list.map(p => `
     <div class="dw-pk-item" onclick="window.__dw.addItem('${p.id}', '${esc(p.name).replace(/'/g,"\\'")}')">
       <span class="dw-pk-name">${esc(p.name)}</span>
