@@ -32,6 +32,11 @@ const VENUE_COLORS = [
 /* ════════════════════════
    QUICK ACTIONS
 ════════════════════════ */
+const QUICK_CASH = { route:'cash', badge:null, label:'Каса', hint:'Готівка, взята з каси за зміну', color:'var(--amber-bg)', iconColor:'var(--amber)',
+  svg:`<rect x="2" y="5" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
+       <circle cx="9" cy="9.5" r="2" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M5 8.5v2M13 8.5v2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` };
+
 const QUICK_BARTENDER = [
   { route:'debts',     badge:null, label:'Борги',     hint:'Відкриті рахунки та борги',  color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -56,6 +61,7 @@ const QUICK_BARTENDER = [
          <path d="M2 7h14" stroke="currentColor" stroke-width="1.3"/>
          <path d="M6 2v2M12 2v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
          <path d="M5 10h2M8 10h2M11 10h2M5 13h2M8 13h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` },
+  QUICK_CASH,
 ];
 
 const QUICK_CURRENT_SHIFT = { route:'current-shift', badge:null, label:'Поточна зміна', hint:'Офіціанти, зони та відкриті столи з POS', color:'var(--purple-bg)', iconColor:'var(--purple)',
@@ -108,6 +114,7 @@ const QUICK_MANAGER = [
   { route:'writeoff',  badge:null, label:'Списання',        hint:'Списати товари зі складу',     color:'var(--red-bg)',    iconColor:'var(--red)',
     svg:`<path d="M3 14l2-2 7-7 2 2-7 7-2 2H3v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
          <path d="M10 5l2 2" stroke="currentColor" stroke-width="1.3"/>` },
+  QUICK_CASH,
 ];
 
 const QUICK_ADMIN = [
@@ -310,13 +317,13 @@ function tileByRoute() {
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
-  ['Моніторинг зміни', ['current-shift', 'journal', 'debts', 'stop-list', 'schedule', 'recipes']],
+  ['Моніторинг зміни', ['current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
   ['Облік',            ['recipe-book']],
 ];
 const SECTIONS_WORKER = [
   ['Операції',  ['writeoff', 'inventory', 'ordering', 'ocr', 'excise']],
-  ['Моя зміна', ['stop-list', 'debts', 'schedule', 'current-shift']],
+  ['Моя зміна', ['cash', 'stop-list', 'debts', 'schedule', 'current-shift']],
 ];
 
 // Живий міні-показник плитки (інакше — звичайна підказка)
@@ -552,7 +559,7 @@ function buildHTML() {
   const quick = state.role === 'admin' ? QUICK_ADMIN
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
-              : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule'].includes(q.route))
+              : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
