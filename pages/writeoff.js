@@ -2452,7 +2452,8 @@ export default {
     }
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
-    const prodsKey = `barops_prods_${vId}`;
+    // v2 — інвалідація старого кешу (одиниці Poster тощо)
+    const prodsKey = `barops_prods_v2_${vId}`;
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
