@@ -75,6 +75,15 @@ let _prepsLoaded  = false;
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
 
+// Дозволена зона товарів у писанні за роллю (Poster: є склади Бар/Кухня).
+// bartender→бар, кухар/шеф→кухня, адмін/менеджер/керуючий/бухгалтер→усі.
+function woAllowedZone() {
+  const r = (state.role || '').toLowerCase();
+  if (r === 'bartender' || r === 'barman') return 'bar';
+  if (r === 'cook' || r === 'chef') return 'kitchen';
+  return null;
+}
+
 // Сітка причин на кроці 1: для Poster — реальні причини Poster; інакше — категорії BarOps
 function catGridHTML() {
   if (_isPosterWo) {
@@ -911,7 +920,8 @@ function renderBartender() {
 
 function prodListHTML() {
   const q = _prodSearch.toLowerCase();
-  const list = _prods.filter(p => !q || p.name.toLowerCase().includes(q));
+  const zoneF = _isPosterWo ? woAllowedZone() : null;   // рольовий поділ товарів (Poster)
+  const list = _prods.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!zoneF || p.zone === zoneF));
   if (list.length === 0) {
     return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_prods.length===0?'Завантаження товарів…':'Нічого не знайдено'}</div>`;
   }
@@ -1762,7 +1772,7 @@ async function submitForm() {
     isPrep:  !!_selProd?.isPrep,
     scope:   _selProd?.isPrep
                ? (_selProd.scope === 'kitchen' ? 'kitchen' : _selProd.scope === 'bar' ? 'bar' : roleZone())
-               : 'bar',                 // звичайні товари — зі складу бару (баланс)
+               : (_isPosterWo ? (_selProd?.zone || 'bar') : 'bar'),   // Poster: за зоною товару (Бар/Кухня)
     valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
     reasonId:    _isPosterWo ? _selReasonId : undefined,    // причина Poster (reason_id)
@@ -2469,7 +2479,7 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v2_${vId}`;
+    const prodsKey = `barops_prods_v3_${vId}`;
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
@@ -2487,9 +2497,10 @@ export default {
             const data = await res.json();
             const fresh = [];
             for (const store of (data.stores || [])) {
+              const zone = /бар|bar/i.test(store.storeName || '') ? 'bar' : /кухн|kitchen/i.test(store.storeName || '') ? 'kitchen' : '';
               for (const item of (store.items || [])) {
                 if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !fresh.find(p=>p.id===item.id)) {
-                  fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit) });
+                  fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit), zone });
                 }
               }
             }
