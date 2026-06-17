@@ -73,6 +73,8 @@ let _preps        = [];           // напівфабрикати з /api/pos/pr
 let _prepsLoading = false;
 let _prepsLoaded  = false;
 
+// Назва POS для підписів (Poster для Poster-закладів, інакше Syrve)
+function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
 
@@ -706,7 +708,7 @@ function renderBartender() {
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 7h9M9 4l3 3-3 3M15 11H6M9 14l-3-3 3-3" stroke="var(--teal,#2DD4BF)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Переміщення на Syrve</div>
+          <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Переміщення на ${posName()}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px">${pend.length ? `${pend.length} поз. · ${dir.from} → ${dir.to}` : 'Немає нових позицій'}</div>
         </div>
         <button id="wo-transfer-btn" onclick="window.__wo.sendTransferToSyrve()" ${!pend.length ? 'disabled' : ''}
@@ -748,7 +750,7 @@ function renderBartender() {
     <div class="wo-sheet" onclick="event.stopPropagation()">
       <div class="wo-sheet-handle"></div>
       <div class="wo-sheet-hdr">
-        <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : (_editId ? 'Редагувати списання' : 'Нове списання')}</div>
+        <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? (_editId ? 'Редагувати переміщення' : `Переміщення · ${transferDir().from} → ${transferDir().to}`) : (_editId ? 'Редагувати списання' : 'Нове списання')}</div>
         <div class="wo-sheet-close" onclick="window.__wo.closeForm()">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
@@ -1075,7 +1077,7 @@ function syrveResultHTML() {
   const iconPath     = isError
     ? `<path d="M4 4l8 8M12 4l-8 8" stroke="${accentColor}" stroke-width="2" stroke-linecap="round"/>`
     : `<path d="M3 9l5 5 9-9" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  const title = isError ? 'Завершено з помилками' : 'Відправлено до Syrve';
+  const title = isError ? 'Завершено з помилками' : `Відправлено до ${posName()}`;
   return `
   <div class="wo-syrve-res-overlay open" onclick="if(event.target===this)window.__wo.closeSyrveResult()">
     <div class="wo-syrve-res-sheet" onclick="event.stopPropagation()">
@@ -1180,7 +1182,7 @@ function renderManager() {
       <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);min-width:0">
         ${_priceSyncMsg
           ? _priceSyncMsg
-          : (priceCount() > 0 ? `Собівартість: ${priceCount()} позицій із Syrve` : '⚠️ Собівартість не синхронізована — збиток не рахується')}
+          : (priceCount() > 0 ? `Собівартість: ${priceCount()} позицій із ${posName()}` : '⚠️ Собівартість не синхронізована — збиток не рахується')}
       </div>
       <button onclick="window.__wo.syncPrices()" ${_priceSyncMsg.startsWith('Синхронізую') ? 'disabled' : ''}
         style="flex-shrink:0;height:30px;padding:0 12px;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:11px;font-family:var(--font-b);cursor:pointer">
@@ -1197,7 +1199,7 @@ function renderManager() {
           <div style="font-size:13px;color:var(--text2);font-family:var(--font-b)">Немає непроведених списань</div>
         </div>`;
       return `
-        <div class="wo-sec">Не відправлені в Syrve</div>
+        <div class="wo-sec">Не відправлені в ${posName()}</div>
         <div class="wo-list" style="margin-bottom:8px">
           ${unsent.map(w => `
           <div class="wo-swipe-wrap" data-id="${w.id}">
@@ -1273,7 +1275,7 @@ function renderManager() {
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 7h9M9 4l3 3-3 3M15 11H6M9 14l-3-3 3-3" stroke="var(--teal,#2DD4BF)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Переміщення на Syrve</div>
+          <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Переміщення на ${posName()}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px">${pend.length ? `${pend.length} поз. · ${dir.from} → ${dir.to}` : 'Немає нових позицій'}</div>
         </div>
         <button id="wo-transfer-btn" onclick="window.__wo.sendTransferToSyrve()" ${!pend.length ? 'disabled' : ''}
@@ -1283,8 +1285,8 @@ function renderManager() {
       </div>`;
     })()}
 
-    <!-- Syrve Office -->
-    <div class="wo-sec" style="padding-top:14px">Syrve Office</div>
+    <!-- POS Office -->
+    <div class="wo-sec" style="padding-top:14px">${_isPosterWo ? 'Облік Poster' : 'Syrve Office'}</div>
     <div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
       <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
@@ -1328,7 +1330,7 @@ function renderManager() {
       <div class="wo-sheet" onclick="event.stopPropagation()">
         <div class="wo-sheet-handle"></div>
         <div class="wo-sheet-hdr">
-          <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? `Переміщення · ${transferDir().from} → ${transferDir().to}` : (_editId ? 'Редагувати списання' : 'Нове списання')}</div>
+          <div class="wo-sheet-title" id="wo-sheet-title">${_formMode==='transfer' ? (_editId ? 'Редагувати переміщення' : `Переміщення · ${transferDir().from} → ${transferDir().to}`) : (_editId ? 'Редагувати списання' : 'Нове списання')}</div>
           <div class="wo-sheet-close" onclick="window.__wo.closeForm()">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
           </div>
@@ -1854,7 +1856,10 @@ function transferListHTML() {
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:13px;color:var(--teal,#2DD4BF);font-family:var(--font-h);font-weight:700">${t.vol}</div>
-        <div onclick="window.__wo.deleteTransfer('${t.id}')" style="font-size:10px;color:var(--text3);cursor:pointer;margin-top:2px">видалити</div>
+        <div style="display:flex;gap:12px;margin-top:3px;justify-content:flex-end">
+          <span onclick="window.__wo.editTransfer('${t.id}')" style="font-size:11px;color:var(--purple);cursor:pointer">Змінити</span>
+          <span onclick="window.__wo.deleteTransfer('${t.id}')" style="font-size:11px;color:#ff6b6b;cursor:pointer">Видалити</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -1864,6 +1869,20 @@ function deleteTransfer(id) {
   if (i === -1) return;
   _transfers.splice(i, 1);
   saveTransfers();
+  fullRender();
+}
+
+// Редагувати ще не надіслане переміщення — відкрити форму з його даними
+function editTransfer(id) {
+  const t = _transfers.find(x => x.id === id);
+  if (!t || t.sentAt) return;
+  _formMode = 'transfer';
+  _editId   = id;
+  _selProd  = _prods.find(p => p.id === t.prodId) || { id: t.prodId, name: t.prod, unit: t.unitKey || 'l', stock: 0, zone: '' };
+  _selVol   = t.volNum;
+  _selUnit  = t.unitKey || 'l';
+  _formOpen = true;
+  _formStep = 2;            // з кроку вибору товару (можна змінити товар і кількість)
   fullRender();
 }
 
@@ -1879,12 +1898,18 @@ async function submitTransfer() {
   const dd   = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}`;
   const dir  = transferDir();
   const entry = {
-    id: 't' + Date.now().toString(36),
+    id: _editId || ('t' + Date.now().toString(36)),
     prod: _selProd?.name || 'Товар', prodId: _selProd?.id || null,
     volNum: vol, unitKey: unit, vol: `${vol}${uLbl}`,
     time: hhmm, dateStr: `${dd} · ${hhmm}`, ts: now.toISOString(), sentAt: null,
   };
-  _transfers.push(entry);
+  if (_editId) {                                   // редагування — заміняємо позицію
+    const i = _transfers.findIndex(t => t.id === _editId);
+    if (i !== -1) _transfers[i] = entry; else _transfers.push(entry);
+    _editId = null;
+  } else {
+    _transfers.push(entry);
+  }
   saveTransfers();
   _formOpen = false; _succOpen = true;
   fullRender();
@@ -1995,7 +2020,7 @@ function transferResultHTML() {
       <div class="wo-succ-icon" style="background:var(--bg2);border-color:var(--border)">
         <span class="auth-spinner" style="width:28px;height:28px;border-width:3px"></span>
       </div>
-      <div class="wo-succ-title">Надсилаю у Syrve…</div>
+      <div class="wo-succ-title">Надсилаю у ${posName()}…</div>
       <div class="wo-succ-sub">Створюю документ переміщення</div>
     </div>`;
   }
@@ -2546,7 +2571,7 @@ export default {
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
       deleteWriteoff, editWriteoff,
-      sendTransferToSyrve, deleteTransfer, setTransferDir,
+      sendTransferToSyrve, deleteTransfer, editTransfer, setTransferDir,
       closeTransferConfirm, doSendTransfer, closeTransferResult, setTransferComment,
       setProdTab,
     };
