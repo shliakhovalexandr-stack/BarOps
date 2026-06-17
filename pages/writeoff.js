@@ -1917,7 +1917,8 @@ async function doSendTransfer() {
       pend.forEach(t => { t.sentAt = ts; });
       saveTransfers();
       const dir = transferDir();
-      _transferResult = { ok: true, msg: `${d.itemCount} поз. · ${dir.from} → ${dir.to}. Чернетка — проведіть у Syrve Office.` };
+      const where = _isPosterWo ? 'Створено переміщення в Poster.' : 'Чернетка — проведіть у Syrve Office.';
+      _transferResult = { ok: true, msg: `${d.itemCount} поз. · ${dir.from} → ${dir.to}. ${where}` };
     } else {
       _transferResult = { ok: false, msg: d.error || ('Помилка ' + res.status) };
     }
