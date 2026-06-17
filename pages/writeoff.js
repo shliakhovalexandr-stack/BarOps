@@ -83,6 +83,13 @@ function woAllowedZone() {
   if (r === 'cook' || r === 'chef') return 'kitchen';
   return null;
 }
+// Зона-джерело для переміщення: показуємо товари складу, ЗВІДКИ переміщуємо
+function transferSourceZone() {
+  const r = (state.role || '').toLowerCase();
+  if (r === 'cook' || r === 'chef') return 'kitchen';                 // кухар: кухня → бар
+  if (r === 'admin') return _transferDir === 'kitchen2bar' ? 'kitchen' : 'bar';
+  return 'bar';                                                       // бармен: бар → кухня
+}
 
 // Сітка причин на кроці 1: для Poster — реальні причини Poster; інакше — категорії BarOps
 function catGridHTML() {
@@ -920,7 +927,8 @@ function renderBartender() {
 
 function prodListHTML() {
   const q = _prodSearch.toLowerCase();
-  const zoneF = _isPosterWo ? woAllowedZone() : null;   // рольовий поділ товарів (Poster)
+  // Poster: у переміщенні — товари складу-джерела; у писанні — за роллю
+  const zoneF = _isPosterWo ? (_formMode === 'transfer' ? transferSourceZone() : woAllowedZone()) : null;
   const list = _prods.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!zoneF || p.zone === zoneF));
   if (list.length === 0) {
     return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_prods.length===0?'Завантаження товарів…':'Нічого не знайдено'}</div>`;
