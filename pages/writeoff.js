@@ -49,6 +49,9 @@ let _syrveConfirmOpen   = false;
 let _syrveConfirmGroups = [];
 let _syrveResult        = null; // { isError, lines:[] }
 let _syrveStores        = []; // [{id, name}] — доступні склади для цього закладу
+let _isPosterWo         = false; // заклад на Poster (модалка показує причину замість рахунків)
+let _woReasons          = [];    // [{id, name}] — причини списання Poster
+let _selReasonId        = null;  // обрана причина (Poster); null = Без причини
 let _selStoreId         = null;
 let _swipeListenerAdded = false;
 let _prodSearch = '';
@@ -979,7 +982,7 @@ function syrveConfirmHTML() {
       <div class="wo-sheet-handle"></div>
       <div class="wo-sheet-hdr">
         <div>
-          <div class="wo-sheet-title">Надіслати до Syrve?</div>
+          <div class="wo-sheet-title">${_isPosterWo ? 'Надіслати в Poster?' : 'Надіслати до Syrve?'}</div>
           <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">
             ${_syrveConfirmGroups.length > 1 ? _syrveConfirmGroups.length + ' акти списання' : 'Акт списання'}
           </div>
@@ -997,10 +1000,10 @@ function syrveConfirmHTML() {
           }, {}));
           return `
           <div style="margin-bottom:16px">
-            <div style="font-size:11px;color:var(--purple);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            ${_isPosterWo ? '' : `<div style="font-size:11px;color:var(--purple);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">
               <div style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>
               ${g.accountName}
-            </div>
+            </div>`}
             <div style="display:flex;flex-direction:column;gap:4px">
               ${items.map(it => `
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
@@ -1011,6 +1014,20 @@ function syrveConfirmHTML() {
           </div>`;
         }).join('')}
       </div>
+      ${_isPosterWo ? `
+      <div style="padding:4px 0 12px">
+        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px">Причина списання</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${[{ id: null, name: 'Без причини' }, ..._woReasons].map(r => `
+          <button type="button" onclick="window.__wo.selectActReason(${r.id === null ? 'null' : `'${String(r.id).replace(/'/g, "\\'")}'`})"
+            style="height:34px;padding:0 14px;border-radius:10px;font-size:13px;cursor:pointer;font-family:var(--font-h);transition:all .15s;
+                   border:${_selReasonId === r.id ? 'none' : '0.5px solid var(--border)'};
+                   background:${_selReasonId === r.id ? 'var(--purple)' : 'rgba(255,255,255,.06)'};
+                   color:${_selReasonId === r.id ? '#fff' : 'var(--text1)'}">
+            ${r.name}
+          </button>`).join('')}
+        </div>
+      </div>` : ''}
       ${_syrveStores.length > 1 ? `
       <div style="padding:4px 0 12px">
         <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px">Склад для списання</div>
@@ -2026,6 +2043,13 @@ async function sendActToSyrve() {
   // Авто-вибір якщо склад тільки один
   _selStoreId = _syrveStores.length === 1 ? _syrveStores[0].id : null;
 
+  // Причини списання (Poster) — у модалці замість рахунків
+  _isPosterWo = false; _woReasons = []; _selReasonId = null;
+  try {
+    const rr = await fetch(`${API}/api/pos/writeoff-reasons/${vId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (rr.ok) { const rd = await rr.json(); _isPosterWo = !!rd.poster; _woReasons = rd.reasons || []; }
+  } catch { /* без причин — продовжуємо */ }
+
   const byAccount = {};
   for (const w of sendItems) {
     const key = w.accountId || '__auto__';
@@ -2048,6 +2072,11 @@ function closeSyrveConfirm() {
 
 function selectWriteoffStore(id) {
   _selStoreId = id;
+  fullRender();
+}
+
+function selectActReason(id) {   // причина списання Poster у модалці підтвердження
+  _selReasonId = id;
   fullRender();
 }
 
@@ -2090,6 +2119,7 @@ async function doSendActToSyrve() {
         const reasons = [...new Set(witems.filter(w => w.reason).map(w => w.reason))].join('; ');
         const body = { items, comment: reasons || undefined, scope };
         if (g.accountId) body.accountId = g.accountId;
+        if (_isPosterWo && _selReasonId) body.reasonId = _selReasonId;     // причина списання Poster
         if (_selStoreId && scope === 'bar') body.storeId = _selStoreId;   // ручний вибір складу — лише для бару
         const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
           method: 'POST',
@@ -2497,7 +2527,7 @@ export default {
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport, syncPrices: syncPricesWo,
-      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
+      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore, selectActReason,
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
       deleteWriteoff, editWriteoff,
