@@ -52,6 +52,7 @@ let _syrveStores        = []; // [{id, name}] — доступні склади 
 let _isPosterWo         = false; // заклад на Poster (модалка показує причину замість рахунків)
 let _woReasons          = [];    // [{id, name}] — причини списання Poster
 let _selReasonId        = null;  // обрана причина (Poster); null = Без причини
+let _selReasonName      = '';    // назва обраної причини Poster (для відображення)
 let _selStoreId         = null;
 let _swipeListenerAdded = false;
 let _prodSearch = '';
@@ -73,6 +74,29 @@ let _prepsLoaded  = false;
 
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
+
+// Сітка причин на кроці 1: для Poster — реальні причини Poster; інакше — категорії BarOps
+function catGridHTML() {
+  if (_isPosterWo) {
+    const opts = [{ id: null, name: 'Без причини', icon: '🚫', bg: 'var(--bg3)' },
+                  ..._woReasons.map(r => ({ id: r.id, name: r.name, icon: '🍂', bg: 'var(--amber-bg)' }))];
+    return `<div class="wo-cat-grid">${opts.map(r => {
+      const sel = (_selCat === 'insh' && _selReasonId === r.id);
+      const idArg = r.id === null ? 'null' : `'${String(r.id).replace(/'/g, "\\'")}'`;
+      const nameArg = `'${String(r.name).replace(/'/g, "\\'")}'`;
+      return `<div class="wo-cat-card ${sel ? 'sel-psuv' : ''}" onclick="window.__wo.selectPosterCat(${idArg}, ${nameArg})">
+        <div class="wo-cat-icon" style="background:${r.bg}">${r.icon}</div>
+        <div class="wo-cat-name">${r.name}</div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+  return `<div class="wo-cat-grid">
+    <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" onclick="window.__wo.selectCat('biy')"><div class="wo-cat-icon" style="background:var(--red-bg)">💥</div><div class="wo-cat-name">Бій</div><div class="wo-cat-desc">Розбита тара, механічне пошкодження</div></div>
+    <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" onclick="window.__wo.selectCat('psuv')"><div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div><div class="wo-cat-name">Псування</div><div class="wo-cat-desc">Прострочення, зміна якості</div></div>
+    <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" onclick="window.__wo.selectCat('deg')"><div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div><div class="wo-cat-name">Дегустація</div><div class="wo-cat-desc">Персонал, гості, презентація</div></div>
+    <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" onclick="window.__wo.selectCat('insh')"><div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div><div class="wo-cat-name">Інше</div><div class="wo-cat-desc">Вказати вручну</div></div>
+  </div>`;
+}
 // Які scope ПФ показувати: бармен бар+загальні, кухар кухня+загальні, менеджер усі
 function prepScopesForRole() {
   const r = (state.role || '').toLowerCase();
@@ -739,28 +763,7 @@ function renderBartender() {
             }
             return `
               <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть причину списання</div>
-              <div class="wo-cat-grid">
-                <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" onclick="window.__wo.selectCat('biy')">
-                  <div class="wo-cat-icon" style="background:var(--red-bg)">💥</div>
-                  <div class="wo-cat-name">Бій</div>
-                  <div class="wo-cat-desc">Розбита тара, механічне пошкодження</div>
-                </div>
-                <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" onclick="window.__wo.selectCat('psuv')">
-                  <div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div>
-                  <div class="wo-cat-name">Псування</div>
-                  <div class="wo-cat-desc">Прострочення, зміна якості</div>
-                </div>
-                <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" onclick="window.__wo.selectCat('deg')">
-                  <div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div>
-                  <div class="wo-cat-name">Дегустація</div>
-                  <div class="wo-cat-desc">Персонал, гості, презентація</div>
-                </div>
-                <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" onclick="window.__wo.selectCat('insh')">
-                  <div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div>
-                  <div class="wo-cat-name">Інше</div>
-                  <div class="wo-cat-desc">Вказати вручну</div>
-                </div>
-              </div>`;
+              ${catGridHTML()}`;
           })()}
         </div>
 
@@ -926,6 +929,7 @@ function prodListHTML() {
 }
 
 function reasonListHTML() {
+  if (_isPosterWo) return '';   // для Poster причина обрана на кроці 1; тут лише вільний коментар
   if (!_selCat) return '';
   const rColors = ['var(--red)','var(--amber)','var(--green)','var(--purple)'];
   return (REASONS[_selCat] || []).map((r, i) => `
@@ -1014,20 +1018,6 @@ function syrveConfirmHTML() {
           </div>`;
         }).join('')}
       </div>
-      ${_isPosterWo ? `
-      <div style="padding:4px 0 12px">
-        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px">Причина списання</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${[{ id: null, name: 'Без причини' }, ..._woReasons].map(r => `
-          <button type="button" onclick="window.__wo.selectActReason(${r.id === null ? 'null' : `'${String(r.id).replace(/'/g, "\\'")}'`})"
-            style="height:34px;padding:0 14px;border-radius:10px;font-size:13px;cursor:pointer;font-family:var(--font-h);transition:all .15s;
-                   border:${_selReasonId === r.id ? 'none' : '0.5px solid var(--border)'};
-                   background:${_selReasonId === r.id ? 'var(--purple)' : 'rgba(255,255,255,.06)'};
-                   color:${_selReasonId === r.id ? '#fff' : 'var(--text1)'}">
-            ${r.name}
-          </button>`).join('')}
-        </div>
-      </div>` : ''}
       ${_syrveStores.length > 1 ? `
       <div style="padding:4px 0 12px">
         <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px">Склад для списання</div>
@@ -1115,7 +1105,7 @@ function summaryHTML() {
   <div class="wo-summary-card">
     <div class="wo-sum-row"><div class="wo-sum-label">Товар</div><div class="wo-sum-val">${_selProd?_selProd.name:'—'}</div></div>
     <div class="wo-sum-div"></div>
-    <div class="wo-sum-row"><div class="wo-sum-label">Категорія</div><div class="wo-sum-val">${_selCat?CAT[_selCat].label:'—'}</div></div>
+    <div class="wo-sum-row"><div class="wo-sum-label">${_isPosterWo ? 'Причина' : 'Категорія'}</div><div class="wo-sum-val">${_isPosterWo ? (_selReasonName || 'Без причини') : (_selCat?CAT[_selCat].label:'—')}</div></div>
     <div class="wo-sum-row"><div class="wo-sum-label">Об'єм</div><div class="wo-sum-val-big">${vol} ${unit}</div></div>
     <div class="wo-sum-row"><div class="wo-sum-label">Збиток (орієнтовно)</div><div class="wo-sum-val" style="color:var(--red)">${loss>0?'~'+loss+' ₴':'—'}</div></div>
   </div>`;
@@ -1348,28 +1338,7 @@ function renderManager() {
               }
               return `
                 <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:4px">Оберіть причину списання</div>
-                <div class="wo-cat-grid">
-                  <div class="wo-cat-card ${_selCat==='biy'?'sel-biy':''}" id="wcat-biy" onclick="window.__wo.selectCat('biy')">
-                    <div class="wo-cat-icon" style="background:var(--red-bg)">💥</div>
-                    <div class="wo-cat-name">Бій</div>
-                    <div class="wo-cat-desc">Розбита тара, механічне пошкодження</div>
-                  </div>
-                  <div class="wo-cat-card ${_selCat==='psuv'?'sel-psuv':''}" id="wcat-psuv" onclick="window.__wo.selectCat('psuv')">
-                    <div class="wo-cat-icon" style="background:var(--amber-bg)">🍂</div>
-                    <div class="wo-cat-name">Псування</div>
-                    <div class="wo-cat-desc">Прострочення, зміна якості</div>
-                  </div>
-                  <div class="wo-cat-card ${_selCat==='deg'?'sel-deg':''}" id="wcat-deg" onclick="window.__wo.selectCat('deg')">
-                    <div class="wo-cat-icon" style="background:var(--green-bg)">🍸</div>
-                    <div class="wo-cat-name">Дегустація</div>
-                    <div class="wo-cat-desc">Персонал, гості, презентація</div>
-                  </div>
-                  <div class="wo-cat-card ${_selCat==='insh'?'sel-insh':''}" id="wcat-insh" onclick="window.__wo.selectCat('insh')">
-                    <div class="wo-cat-icon" style="background:var(--purple-bg)">📋</div>
-                    <div class="wo-cat-name">Інше</div>
-                    <div class="wo-cat-desc">Вказати вручну</div>
-                  </div>
-                </div>`;
+                ${catGridHTML()}`;
             })()}
           </div>
 
@@ -1582,6 +1551,7 @@ function openForm(mode)  {
   _formMode = (mode === 'transfer') ? 'transfer' : 'writeoff';
   _formOpen=true; _formStep = _formMode==='transfer' ? 2 : 1;
   _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch='';
+  _selReasonId=null; _selReasonName='';
   _prodTab='goods';
   if (_formMode !== 'transfer') autoSelectAccount();
   fullRender();
@@ -1619,6 +1589,13 @@ function maybeClose(e) { if (e.target===document.getElementById('wo-form-overlay
 function selectCat(cat) {
   _selCat = cat;
   // Авто-перехід на наступний крок без кнопки «Далі»
+  setTimeout(() => { _formStep = 2; fullRender(); }, 180);
+}
+// Вибір причини Poster на кроці 1 (id=null → Без причини); _selCat='insh' як плейсхолдер для флоу
+function selectPosterCat(id, name) {
+  _selReasonId   = id;
+  _selReasonName = name || '';
+  _selCat        = 'insh';
   setTimeout(() => { _formStep = 2; fullRender(); }, 180);
 }
 function searchProds(q) { _prodSearch = q; refreshProdList(); }
@@ -1778,7 +1755,7 @@ async function submitForm() {
     cat:     finalCat,
     prod:    _selProd?.name || 'Товар',
     prodId:  _selProd?.id   || null,
-    meta:    _selReason || (finalCat !== 'insh' ? (CAT[finalCat]?.label||'') : ''),
+    meta:    _isPosterWo ? (_selReasonName || 'Без причини') : (_selReason || (finalCat !== 'insh' ? (CAT[finalCat]?.label||'') : '')),
     vol:     `−${vol}${uLbl}`,
     volNum:  vol,
     unitKey: unit,
@@ -1788,6 +1765,8 @@ async function submitForm() {
                : 'bar',                 // звичайні товари — зі складу бару (баланс)
     valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
+    reasonId:    _isPosterWo ? _selReasonId : undefined,    // причина Poster (reason_id)
+    reasonName:  _isPosterWo ? (_selReasonName || '') : undefined,
     accountId:   _selAccount?.id   || null,
     accountName: _selAccount?.name || null,
     time:    hhmm,
@@ -2042,13 +2021,7 @@ async function sendActToSyrve() {
 
   // Авто-вибір якщо склад тільки один
   _selStoreId = _syrveStores.length === 1 ? _syrveStores[0].id : null;
-
-  // Причини списання (Poster) — у модалці замість рахунків
-  _isPosterWo = false; _woReasons = []; _selReasonId = null;
-  try {
-    const rr = await fetch(`${API}/api/pos/writeoff-reasons/${vId}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (rr.ok) { const rd = await rr.json(); _isPosterWo = !!rd.poster; _woReasons = rd.reasons || []; }
-  } catch { /* без причин — продовжуємо */ }
+  // _isPosterWo / _woReasons завантажені при відкритті сторінки (для кроку 1 форми)
 
   const byAccount = {};
   for (const w of sendItems) {
@@ -2075,10 +2048,6 @@ function selectWriteoffStore(id) {
   fullRender();
 }
 
-function selectActReason(id) {   // причина списання Poster у модалці підтвердження
-  _selReasonId = id;
-  fullRender();
-}
 
 function closeSyrveResult() {
   _syrveResult = null;
@@ -2108,32 +2077,41 @@ async function doSendActToSyrve() {
     const byScope = {};
     for (const w of g.items) { const sc = w.scope || 'bar'; (byScope[sc] = byScope[sc] || []).push(w); }
     for (const [scope, witems] of Object.entries(byScope)) {
-      const grouped = {};
+      // Poster — окремий акт на кожну причину; Syrve — один акт на scope
+      const byReason = {};
       for (const w of witems) {
-        if (!grouped[w.prodId]) grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
-        grouped[w.prodId].amount += w.volNum || 0;
+        const rk = _isPosterWo ? (w.reasonId == null ? '__none__' : String(w.reasonId)) : '__all__';
+        (byReason[rk] = byReason[rk] || []).push(w);
       }
-      const items = Object.values(grouped);
-      const tag   = scope === 'kitchen' ? ' (кухня)' : '';
-      try {
-        const reasons = [...new Set(witems.filter(w => w.reason).map(w => w.reason))].join('; ');
-        const body = { items, comment: reasons || undefined, scope };
-        if (g.accountId) body.accountId = g.accountId;
-        if (_isPosterWo && _selReasonId) body.reasonId = _selReasonId;     // причина списання Poster
-        if (_selStoreId && scope === 'bar') body.storeId = _selStoreId;   // ручний вибір складу — лише для бару
-        const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify(body),
-        });
-        const data = await resp.json();
-        if (!resp.ok) {
-          const det = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : '';
-          throw new Error(det || data.error || 'Помилка');
+      for (const [rk, ritems] of Object.entries(byReason)) {
+        const grouped = {};
+        for (const w of ritems) {
+          if (!grouped[w.prodId]) grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
+          grouped[w.prodId].amount += w.volNum || 0;
         }
-        results.push(`✓ ${g.accountName}${tag}: ${data.itemCount} позицій${data.syrveDocId ? ` · Syrve ID: ${data.syrveDocId.slice(0,8)}…` : ''}`);
-      } catch (err) {
-        errors.push(`✗ ${g.accountName}${tag}: ${err.message}`);
+        const items = Object.values(grouped);
+        const tag   = scope === 'kitchen' ? ' (кухня)' : '';
+        const label = _isPosterWo ? (ritems[0]?.reasonName || 'Без причини') : g.accountName;
+        try {
+          const reasons = [...new Set(ritems.filter(w => w.reason).map(w => w.reason))].join('; ');
+          const body = { items, comment: reasons || undefined, scope };
+          if (g.accountId) body.accountId = g.accountId;
+          if (_isPosterWo && rk !== '__none__') body.reasonId = rk;          // причина списання Poster
+          if (_selStoreId && scope === 'bar') body.storeId = _selStoreId;   // ручний вибір складу — лише для бару
+          const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(body),
+          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            const det = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : '';
+            throw new Error(det || data.error || 'Помилка');
+          }
+          results.push(`✓ ${label}${tag}: ${data.itemCount} позицій${data.syrveDocId ? ` · ID: ${data.syrveDocId.slice(0,8)}…` : ''}`);
+        } catch (err) {
+          errors.push(`✗ ${label}${tag}: ${err.message}`);
+        }
       }
     }
   }
@@ -2437,6 +2415,13 @@ export default {
       console.warn('[Writeoff] Не вдалось завантажити з backend, використовуємо localStorage:', e.message);
     }
 
+    // Причини списання Poster (для кроку 1 форми) — визначаємо тип закладу
+    try {
+      const token = localStorage.getItem('barops_token');
+      const rr = await fetch(`${API}/api/pos/writeoff-reasons/${vId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (rr.ok) { const rd = await rr.json(); _isPosterWo = !!rd.poster; _woReasons = rd.reasons || []; }
+    } catch { /* не Poster / офлайн */ }
+
     // Завантажуємо рахунки списань з бекенду (доступно всім ролям)
     try {
       const token = localStorage.getItem('barops_token');
@@ -2523,11 +2508,11 @@ export default {
   init() {
     window.__wo = {
       setCatFilter, openForm, closeForm, maybeClose,
-      selectCat, searchProds, selectProd,
+      selectCat, selectPosterCat, searchProds, selectProd,
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport, syncPrices: syncPricesWo,
-      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore, selectActReason,
+      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
       deleteWriteoff, editWriteoff,
