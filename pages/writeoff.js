@@ -2086,10 +2086,11 @@ async function doSendActToSyrve() {
       for (const [rk, ritems] of Object.entries(byReason)) {
         const grouped = {};
         for (const w of ritems) {
-          if (!grouped[w.prodId]) grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod };
+          if (!grouped[w.prodId]) grouped[w.prodId] = { productId: w.prodId, amount: 0, unitKey: w.unitKey || 'l', productName: w.prod, _reasons: new Set() };
           grouped[w.prodId].amount += w.volNum || 0;
+          if (w.reason) grouped[w.prodId]._reasons.add(w.reason);   // коментар саме цієї позиції
         }
-        const items = Object.values(grouped);
+        const items = Object.values(grouped).map(g => ({ productId: g.productId, amount: g.amount, unitKey: g.unitKey, productName: g.productName, reason: [...g._reasons].join('; ') || undefined }));
         const tag   = scope === 'kitchen' ? ' (кухня)' : '';
         const label = _isPosterWo ? (ritems[0]?.reasonName || 'Без причини') : g.accountName;
         try {
