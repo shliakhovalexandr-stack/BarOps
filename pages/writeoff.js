@@ -1092,7 +1092,7 @@ function syrveResultHTML() {
 
 function summaryHTML() {
   const vol = _selVol || 0;
-  const unit = 'л';
+  const unit = unitLabel(_selUnit || _selProd?.unit || 'l');   // була захардкоджена «л»
   const loss = _selProd ? Math.round(vol / _selProd.vol * _selProd.price) : 0;
   return `
   <div class="wo-summary-card">
