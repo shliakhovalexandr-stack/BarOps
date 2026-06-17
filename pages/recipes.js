@@ -8,6 +8,8 @@ import { state, navigate } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 
 let _venueId, _token, _role;
+let _isPoster  = false;   // заклад на Poster (ціни/собівартість з menu.getProducts; Syrve-синхр. не треба)
+function posLabel() { return _isPoster ? 'Poster' : 'Syrve'; }
 let _dishes    = [];
 let _prices    = {};
 let _loading   = true;
@@ -218,6 +220,7 @@ async function loadAll(attempt = 1) {
 
   if (dishResult.status === 'fulfilled' && dishResult.value.ok) {
     const d = await dishResult.value.json().catch(() => ({}));
+    _isPoster = !!d.poster;
     if (d.dishes?.length) { _dishes = d.dishes; saveDishesToCache(_dishes); }
   } else if (dishResult.status === 'rejected') {
     const isNetwork = dishResult.reason?.name === 'AbortError' || dishResult.reason?.message?.includes('fetch');
@@ -618,7 +621,7 @@ function buildError() {
     <div style="padding:40px 24px;text-align:center">
       <div style="font-size:36px;margin-bottom:14px">⚠️</div>
       <div style="font-family:var(--font-h);font-size:15px;color:var(--text0);margin-bottom:8px">${_error}</div>
-      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:20px;line-height:1.6">Перевірте налаштування POS — Syrve має бути підключено</div>
+      <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:20px;line-height:1.6">Перевірте налаштування POS — ${posLabel()} має бути підключено</div>
       <button data-act="reload" style="height:36px;padding:0 20px;background:var(--green);border:none;border-radius:10px;color:#000;font-size:13px;cursor:pointer;font-family:var(--font-b)">Спробувати знову</button>
     </div>
   </div>`;
@@ -658,14 +661,14 @@ function buildMain() {
     ${BACK_BTN}
     <div style="flex:1">
       <div class="rec-title">Фудкост</div>
-      <div class="rec-sub">${subtitleCount} · Syrve${_syncMsg ? ' · ' + _syncMsg : ''}</div>
+      <div class="rec-sub">${subtitleCount} · ${posLabel()}${_syncMsg ? ' · ' + _syncMsg : ''}</div>
     </div>
     ${(_role === 'admin' || _role === 'manager' || _role === 'director') ? `
     <button data-act="toggle-settings" style="height:32px;padding:0 10px;background:${_showFCSettings ? 'var(--green-bg,#1a3320)' : 'var(--bg2)'};border:0.5px solid ${_showFCSettings ? 'var(--green)' : 'var(--border)'};border-radius:10px;color:${_showFCSettings ? 'var(--green)' : 'var(--text2)'};font-size:11px;font-family:var(--font-b);cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:4px">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M6 1v1.5M6 9.5V11M11 6H9.5M2.5 6H1M9.2 2.8l-1 1M3.8 7.2l-1 1M9.2 9.2l-1-1M3.8 4.8l-1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
       макс ${_fcMax}%
     </button>` : ''}
-    ${(_role === 'manager' || _role === 'director') ? `
+    ${(!_isPoster && (_role === 'manager' || _role === 'director')) ? `
     <button data-act="sync-prices" style="height:32px;padding:0 12px;background:${_syncing ? 'var(--bg3)' : 'var(--amber,#c98a00)'};border:none;border-radius:10px;color:${_syncing ? 'var(--text2)' : '#000'};font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0" ${_syncing ? 'disabled' : ''}>
       ${_syncing ? '⏳...' : '↻ Ціни'}
     </button>` : ''}
@@ -701,7 +704,7 @@ function buildMain() {
     <div style="padding:60px 30px;text-align:center">
       <div style="font-size:48px;margin-bottom:16px">🍽️</div>
       <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:8px">Страв не знайдено</div>
-      <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6">Переконайтеся що Syrve підключено і є страви типу DISH у номенклатурі</div>
+      <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.6">Переконайтеся що ${posLabel()} підключено і є страви у номенклатурі</div>
     </div>` : `
 
     <div class="rec-kpi-row">
@@ -828,7 +831,7 @@ function buildDetail(d) {
     ${(d.ingredients || []).length === 0 ? `
     <div style="padding:16px 16px 4px">
       <div style="background:var(--bg3);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.6">
-        ТТК в Syrve не задана. Вкажіть собівартість порції і ціну продажу вище — фудкост розрахується автоматично.
+        Тех.карта в ${posLabel()} не задана. Вкажіть собівартість порції і ціну продажу вище — фудкост розрахується автоматично.
       </div>
     </div>` : (d.ingredients || []).map(ing => {
       const ingPrice = _prices[ing.productId]?.unitPrice || 0;
