@@ -878,6 +878,9 @@ ${CSS}
 ════════════════════════ */
 function fullRender() {
   if (state.route !== 'dashboard') return;
+  // Поки відкрита модалка вибору закладу — не перемальовуємо весь дашборд,
+  // інакше фонові завантаження (stats/mini/syrve/заявки) «блимають» модалкою.
+  if (_venueSheetOpen) return;
   const v = document.getElementById('app-view');
   if (!v) return;
   // Зберігаємо позицію скролу, щоб фонові оновлення (stats/заявки) не кидали на верх
@@ -892,15 +895,28 @@ function fullRender() {
 
 function partialRender() { fullRender(); }
 
-function toggleVenueSheet() { _venueSheetOpen = !_venueSheetOpen; fullRender(); }
+// Відкриття/закриття — через CSS-клас на наявному оверлеї (без перебудови дашборду = без блимання)
+function toggleVenueSheet() {
+  _venueSheetOpen = !_venueSheetOpen;
+  const ov = document.querySelector('.d-vsheet-ov');
+  if (ov) ov.classList.toggle('open', _venueSheetOpen);
+  else fullRender();                 // оверлея ще нема в DOM — побудувати
+  if (!_venueSheetOpen) fullRender(); // закрили — підтягнути фонові дані, що прийшли поки було відкрито
+}
 function closeVenueSheet(e) {
-  if (!e || e.target.classList.contains('d-vsheet-ov')) { _venueSheetOpen = false; fullRender(); }
+  if (!e || e.target.classList.contains('d-vsheet-ov')) {
+    _venueSheetOpen = false;
+    const ov = document.querySelector('.d-vsheet-ov');
+    if (ov) ov.classList.remove('open');
+    fullRender();
+  }
 }
 
 function selectVenue(id, name) {
   _activeVenueId   = id;
   _activeVenueName = name;
   _venueSheetOpen  = false;
+  document.querySelector('.d-vsheet-ov')?.classList.remove('open');   // одразу сховати модалку
   state.venue      = name;
   state.venueId    = id;
   localStorage.setItem('barops_venue',   name);
