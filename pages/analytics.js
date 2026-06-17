@@ -127,8 +127,8 @@ function buildInsights(fc) {
     insights.push({
       sev: 'warning', icon: '🟡',
       title: `${noPrice.length} страв без ціни`,
-      body: 'Фудкост неможливо розрахувати — ціна не встановлена в Syrve.',
-      action: 'Заповнити ціни у номенклатурі Syrve',
+      body: 'Фудкост неможливо розрахувати — ціна не встановлена в POS.',
+      action: 'Заповнити ціни у номенклатурі POS',
     });
   }
 
@@ -138,7 +138,7 @@ function buildInsights(fc) {
       sev: 'warning', icon: '🟡',
       title: `${noCost.length} страв без собівартості`,
       body: 'ТТК відсутні або не завантажені — FC неможливо порахувати.',
-      action: 'Заповнити технологічні карти у Syrve',
+      action: 'Заповнити технологічні карти у POS',
     });
   }
 
@@ -642,7 +642,7 @@ function buildHTML() {
           <div class="an-vc-dot" style="background:${VENUE_COLORS[i%VENUE_COLORS.length]}"></div>
           <div style="flex:1">
             <div class="an-vc-name">${v.name}</div>
-            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${v.posType === 'syrve' ? '✓ Syrve' : 'Ручний режим'} · ${v.teamCount || 0} барм.</div>
+            <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${v.posType === 'syrve' ? '✓ Syrve' : v.posType === 'poster' ? '✓ Poster' : 'Ручний режим'} · ${v.teamCount || 0} барм.</div>
           </div>
           <div style="text-align:right">
             <div style="font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">${Math.round(v.invoiceTotal||0).toLocaleString('uk-UA')} ₴</div>
