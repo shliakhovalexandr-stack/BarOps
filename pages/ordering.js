@@ -797,7 +797,7 @@ function suggestHTML() {
   if (_suggestLoading) return `<div style="padding:30px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px">Аналізую рух за 7 днів…</div>`;
   const all = (_suggest || []).filter(s => (s.sold7days || 0) > 0);
   if (!all.length) {
-    return `<div style="padding:24px 16px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Немає даних про рух за тиждень.<br>Перевір, що для закладу налаштовано Syrve (department + склад).
+    return `<div style="padding:24px 16px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Немає даних про рух за тиждень.<br>Перевір, що для закладу налаштовано POS і є продажі за тиждень.
       <div style="margin-top:12px"><button onclick="window.__ord.loadSuggest(true)" style="height:36px;padding:0 16px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button></div></div>`;
   }
   const rank = { critical: 0, low: 1, ok: 2 };
