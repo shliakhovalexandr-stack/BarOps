@@ -854,10 +854,10 @@ ${CSS}
         <div class="d-vo-dot" style="background:${VENUE_COLORS[i % VENUE_COLORS.length]}"></div>
         <div style="flex:1">
           <div class="d-vo-name">${v.name}</div>
-          <div class="d-vo-pos">${v.posType === 'syrve' ? '✓ Syrve підключено' : v.posType === 'manual' ? 'Ручний режим' : v.posType}</div>
-          ${v.posType !== 'syrve' ? `
-          <div class="d-vo-connect" onclick="event.stopPropagation();window.__dash.openSyrveSheet('${v.id}','${vn}')">
-            + Підключити Syrve
+          <div class="d-vo-pos">${v.posType === 'syrve' ? '✓ Syrve підключено' : v.posType === 'poster' ? '✓ Poster підключено' : v.posType === 'manual' ? 'Ручний режим' : v.posType}</div>
+          ${v.posType === 'manual' ? `
+          <div class="d-vo-connect" onclick="event.stopPropagation();window.__dash.editVenue('${v.id}')">
+            + Налаштувати POS
           </div>` : ''}
         </div>
         ${_activeVenueId === v.id ? `
@@ -966,6 +966,11 @@ export default {
       toggleVenueSheet,
       closeVenueSheet,
       selectVenue,
+      editVenue(id) {
+        const v = _venues.find(x => x.id === id);
+        _venueSheetOpen = false;
+        navigate('venue-edit', { params: { venueId: id, venueName: v ? v.name : '' } });
+      },
     };
 
     // Синхронізуємо активний заклад з глобального state (перемикання в drawer)
