@@ -1844,24 +1844,38 @@ function saveTransfers() {
   localStorage.setItem('barops_transfers_v1', JSON.stringify(raw));
 }
 
+function transferCardHTML(t) {
+  // Та сама механіка, що в списанні: свайп вліво → «Змінити», іконка-корзина → видалити
+  return `
+    <div class="wo-swipe-wrap" data-id="${t.id}">
+      <div class="wo-swipe-edit" onclick="window.__wo.editTransfer('${t.id}')">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M3 15l2.5-.6 8-8-1.9-1.9-8 8L3 15z" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.5l1.9 1.9" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span class="wo-swipe-edit-lbl">Змінити</span>
+      </div>
+      <div class="wo-swipe-del" onclick="window.__wo.deleteTransfer('${t.id}')">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3h4v2M7.5 8.5v5M10.5 8.5v5M4 5l1 10h8l1-10" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="wo-swipe-del-lbl">Видалити</span>
+      </div>
+      <div class="wo-card" data-id="${t.id}">
+        <div class="wo-bar" style="background:var(--teal,#2DD4BF)"></div>
+        <div class="wo-card-del" onclick="event.stopPropagation();window.__wo.deleteTransfer('${t.id}')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="wo-info">
+          <div class="wo-name">${t.prod}</div>
+          <div class="wo-meta">${t.dateStr || t.time}</div>
+        </div>
+        <div class="wo-right">
+          <div class="wo-vol" style="color:var(--teal,#2DD4BF)">${t.vol}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function transferListHTML() {
   const list = _transfers.filter(t => !t.sentAt);
   if (!list.length) return `<div style="text-align:center;padding:14px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">Немає позицій</div>`;
-  return list.map(t => `
-    <div class="wo-card" data-id="${t.id}" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:12px;margin:0 14px 6px">
-      <div style="width:30px;height:30px;border-radius:8px;background:var(--teal-bg,rgba(45,212,191,.12));display:flex;align-items:center;justify-content:center;flex-shrink:0">🔁</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.prod}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">${t.dateStr}</div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:13px;color:var(--teal,#2DD4BF);font-family:var(--font-h);font-weight:700">${t.vol}</div>
-        <div style="display:flex;gap:12px;margin-top:3px;justify-content:flex-end">
-          <span onclick="window.__wo.editTransfer('${t.id}')" style="font-size:11px;color:var(--purple);cursor:pointer">Змінити</span>
-          <span onclick="window.__wo.deleteTransfer('${t.id}')" style="font-size:11px;color:#ff6b6b;cursor:pointer">Видалити</span>
-        </div>
-      </div>
-    </div>`).join('');
+  return list.map(transferCardHTML).join('');
 }
 
 function deleteTransfer(id) {
