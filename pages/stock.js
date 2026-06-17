@@ -322,7 +322,7 @@ ${CSS}
   </div>` : !_isSyrve ? `
   <div class="stk-note">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="7" cy="7" r="5.5" stroke="var(--blue)" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.4" stroke="var(--blue)" stroke-width="1.2" stroke-linecap="round"/></svg>
-    ${_venueId ? `Завантаження залишків з Syrve…${_loadingAttempt > 1 ? ` <span style="color:var(--text3)">(спроба ${_loadingAttempt}/3)</span>` : ''}` : 'Демо-дані. Після підключення Syrve тут будуть реальні залишки.'}
+    ${_venueId ? `Завантаження залишків з POS…${_loadingAttempt > 1 ? ` <span style="color:var(--text3)">(спроба ${_loadingAttempt}/3)</span>` : ''}` : 'Демо-дані. Після підключення POS тут будуть реальні залишки.'}
   </div>` : ''}
 
   <div class="stk-col-hdr">
