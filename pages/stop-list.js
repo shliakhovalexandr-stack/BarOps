@@ -14,6 +14,7 @@ let _loading   = false;
 let _error     = '';
 let _syncedAt  = null;
 let _activeStops = [];
+let _isPoster    = false;   // заклад на Poster (стоп-ліст = visible=0; Syrve-діагностика недоступна)
 let _atRisk      = [];
 let _pollTimer   = null;
 
@@ -467,7 +468,7 @@ function buildDataPage(critCount) {
     <div class="sl-empty">
       <div class="sl-empty-icon">✓</div>
       <div class="sl-empty-title">Стоп-листа немає</div>
-      <div class="sl-empty-sub">Всі інгредієнти в наявності.<br>Дані синхронізовані з Syrve.</div>
+      <div class="sl-empty-sub">Всі інгредієнти в наявності.<br>Дані синхронізовані з ${_isPoster ? 'Poster' : 'Syrve'}.</div>
     </div>
     ${quickActionsSection()}`;
   }
@@ -580,7 +581,7 @@ function quickActionsSection() {
         <div class="sl-qa-label">Інвентаризація</div>
       </div>
     </div>
-    ${isAdmin ? `
+    ${isAdmin && !_isPoster ? `
     <div style="margin-top:8px">
       <div class="sl-qa" style="grid-column:1/-1" onclick="window.__stopList.diagnose()">
         <div style="display:flex;align-items:center;gap:10px">
@@ -640,6 +641,7 @@ async function loadStopList() {
     }
 
     const data = await res.json();
+    _isPoster    = data.source === 'poster';
     _activeStops = data.activeStops || [];
     _atRisk      = data.atRisk      || [];
     _syncedAt    = data.syncedAt    || new Date().toISOString();

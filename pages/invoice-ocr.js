@@ -23,6 +23,8 @@ let _store         = null;   // { id, name } — склад приходу
 let _conception    = null;   // { id, name } — концепція (Тераса/Хочу: «Ресторан»)
 let _rows          = [];     // { rawName, qty, unitsPerPack, unit, sum, vatPercent, productId, productName, confidence, source, suggestions }
 let _catalog       = { products: [], suppliers: [] };
+let _isPoster      = false;   // заклад на Poster (прихід проводиться одразу, не чернетка)
+function posLabel() { return _isPoster ? 'Poster' : 'Syrve Office'; }
 let _search        = null;   // { type:'product'|'supplier', row, q }
 let _result        = null;
 let _queue         = [];     // черга фото (пакетний режим)
@@ -159,7 +161,7 @@ function topbar(sub) {
 
 function buildHTML() {
   if (_step === 'scanning') return `${CSS}<div class="io-wrap">${topbar('')}<div class="io-spin"></div><div class="io-spin-t">${_scanMsg}</div><div class="io-spin-s">Claude Vision аналізує накладну</div></div>`;
-  if (_step === 'sending')  return `${CSS}<div class="io-wrap">${topbar('')}<div class="io-spin"></div><div class="io-spin-t">Створюємо накладну…</div><div class="io-spin-s">Непроведена накладна в Syrve Office</div></div>`;
+  if (_step === 'sending')  return `${CSS}<div class="io-wrap">${topbar('')}<div class="io-spin"></div><div class="io-spin-t">${_isPoster ? 'Проводимо прихід…' : 'Створюємо накладну…'}</div><div class="io-spin-s">${_isPoster ? 'Прихід у Poster' : 'Непроведена накладна в Syrve Office'}</div></div>`;
   if (_step === 'done')     return `${CSS}<div class="io-wrap">${topbar('')}${doneView()}</div>`;
   if (_step === 'error')    return `${CSS}<div class="io-wrap">${topbar('')}${errorView()}</div>`;
   if (_step === 'review')   return `${CSS}<div class="io-wrap">${topbar(_venueName || '')}${reviewView()}${_search ? searchSheet() : ''}</div>${fileInputs()}`;
@@ -176,7 +178,7 @@ function idleView() {
     <div class="io-hero">
       <div class="io-hero-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6"><rect x="3" y="2" width="14" height="18" rx="2"/><path d="M7 7h7M7 11h7M7 15h4" stroke-linecap="round"/></svg></div>
       <div class="io-hero-t">Сфотографуйте накладну</div>
-      <div class="io-hero-d">AI розпізнає товари й зіставить із Syrve.<br>Галерея — можна обрати <b>кілька фото</b> для наповнення памʼяті (alias).</div>
+      <div class="io-hero-d">AI розпізнає товари й зіставить із ${_isPoster ? 'Poster' : 'Syrve'}.<br>Галерея — можна обрати <b>кілька фото</b> для наповнення памʼяті (alias).</div>
     </div>
     <div class="io-btn-grid">
       <button class="io-btn" onclick="document.getElementById('io-cam').click()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Камера</button>
@@ -248,7 +250,7 @@ function reviewView() {
     </div>
     <div class="io-lbl" style="margin:4px 2px 8px">Позиції · зіставлено ${matchedCount()}/${_rows.length}</div>
     ${rows}
-    <button class="io-fullbtn" ${ready ? '' : 'disabled'} onclick="window.__io.submit(false)">Створити накладну в Syrve →</button>
+    <button class="io-fullbtn" ${ready ? '' : 'disabled'} onclick="window.__io.submit(false)">${_isPoster ? 'Провести прихід у Poster →' : 'Створити накладну в Syrve →'}</button>
   </div>
   <div class="io-foot">
     <div class="io-foot-sum">
@@ -261,7 +263,7 @@ function reviewView() {
 }
 
 function searchSheet() {
-  const title = _search.type === 'supplier' ? 'Постачальник' : _search.type === 'store' ? 'Склад' : _search.type === 'conception' ? 'Концепція' : 'Товар Syrve';
+  const title = _search.type === 'supplier' ? 'Постачальник' : _search.type === 'store' ? 'Склад' : _search.type === 'conception' ? 'Концепція' : `Товар ${_isPoster ? 'Poster' : 'Syrve'}`;
   return `<div class="io-ov" onclick="window.__io.closeSearch()">
     <div class="io-sheet" onclick="event.stopPropagation()">
       <div class="io-sheet-h"></div>
@@ -295,8 +297,10 @@ function doneView() {
   }
   return `<div class="io-center">
     <div class="io-c-ic ok"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-    <div class="io-c-t">Накладну створено</div>
-    <div class="io-c-s">Непроведена прихідна накладна${_result?.syrveDocNumber ? ` №${_result.syrveDocNumber}` : ''} у Syrve Office${_result?.lineCount ? ` · ${_result.lineCount} поз.` : ''}. Бухгалтер перевірить і проведе.</div>
+    <div class="io-c-t">${_isPoster ? 'Прихід проведено' : 'Накладну створено'}</div>
+    <div class="io-c-s">${_isPoster
+      ? `Прихід${_result?.syrveDocNumber ? ` №${_result.syrveDocNumber}` : ''} проведено в Poster${_result?.lineCount ? ` · ${_result.lineCount} поз.` : ''}. Залишки оновлено.`
+      : `Непроведена прихідна накладна${_result?.syrveDocNumber ? ` №${_result.syrveDocNumber}` : ''} у Syrve Office${_result?.lineCount ? ` · ${_result.lineCount} поз.` : ''}. Бухгалтер перевірить і проведе.`}</div>
     <button class="io-c-btn" onclick="window.__io.reset()">Нова накладна</button>
     <button class="io-c-btn2" onclick="window.__io.back()">На головний</button>
   </div>`;
@@ -405,6 +409,7 @@ async function loadCatalog() {
     const res = await fetch(`${API}/api/invoices/catalog/${_venueId}`, { headers: { Authorization: `Bearer ${_token}` } });
     const d = await res.json();
     if (res.ok) {
+      _isPoster = !!d.poster;
       _catalog = { products: d.products || [], suppliers: d.suppliers || [], stores: d.stores || [], defaultStoreId: d.defaultStoreId || null, conceptions: d.conceptions || [], conceptionId: d.conceptionId || null };
       pickDefaultStore();
       pickDefaultConception();
@@ -458,7 +463,7 @@ async function submit(aliasesOnly) {
       }),
     });
     const d = await res.json();
-    if (!res.ok || !d.success) throw new Error(d.error || (d.details ? `Syrve: ${typeof d.details === 'string' ? d.details.slice(0, 200) : ''}` : 'Не вдалося зберегти'));
+    if (!res.ok || !d.success) throw new Error(d.error || (d.details ? `${_isPoster ? 'Poster' : 'Syrve'}: ${typeof d.details === 'string' ? d.details.slice(0, 200) : ''}` : 'Не вдалося зберегти'));
     _batchCount += 1;
     if (aliasesOnly) _batchLearned += (d.learned || items.length);
     if (_queue.length) { processNext(); }
