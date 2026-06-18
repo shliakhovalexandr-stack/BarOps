@@ -31,7 +31,7 @@ async function loadVenuesIntoDrawer() {
       MANAGER_VENUES = data.venues.map((v, i) => ({
         id:     v.id,
         name:   v.name,
-        pos:    'Syrve',
+        pos:    v.posType === 'poster' ? 'Poster' : v.posType === 'manual' ? 'Ручний облік' : 'Syrve',
         active: savedId ? v.id === savedId : i === 0,
       }));
       // fallback: якщо збережений ID не знайдено — перший заклад
@@ -475,6 +475,10 @@ function renderAccountantDrawer(el) {
 
 export function openDrawer()  {
   _drawerOpen = true;
+  // Заклад могли змінити в шапці (не через switchVenue) → пересинхронізуємо позначку активного
+  // зі state.venueId, інакше бургер підсвічує старий заклад, а заголовок — новий.
+  const curId = state.venueId || localStorage.getItem('barops_venueId');
+  if (curId && MANAGER_VENUES.length) MANAGER_VENUES.forEach(v => v.active = v.id === curId);
   renderDrawer();
   // Оновлюємо список закладів кожного разу при відкритті
   if (MANAGER_VENUES.length === 0) loadVenuesIntoDrawer();
