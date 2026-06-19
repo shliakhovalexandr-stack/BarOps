@@ -19,6 +19,8 @@ let _invoiceNumber = '';
 let _invoiceDate   = '';
 let _supplier      = null;   // { id, name }
 let _supplierSug   = [];
+let _supplierHint  = '';     // Крок 3: підказка формату накладної цього постачальника (для AI)
+let _hintOpen      = false;  // редактор підказки відкрито
 let _store         = null;   // { id, name } — склад приходу
 let _conception    = null;   // { id, name } — концепція (Тераса/Хочу: «Ресторан»)
 let _rows          = [];     // { rawName, qty, unitsPerPack, unit, sum, vatPercent, productId, productName, confidence, source, suggestions }
@@ -234,6 +236,15 @@ function reviewView() {
         </div>
         <svg class="io-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
       </div>
+      ${_supplier && isAdmin ? `
+      <div style="margin-top:8px">
+        <div onclick="window.__io.toggleHint()" style="font-size:11px;color:#A88BFF;font-family:var(--font-b);cursor:pointer">📋 Формат накладної для AI ${_supplierHint ? '✓' : ''} ${_hintOpen ? '▲' : '▾'}</div>
+        ${_hintOpen ? `
+          <textarea id="io-hint-ta" placeholder="Напр.: к-сть бери з колонки «к-сть уп», помнож на «од в уп». «*N» у назві — фасування, ігноруй." style="width:100%;box-sizing:border-box;margin-top:6px;min-height:66px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:8px 10px;font-size:12px;color:var(--text0);font-family:var(--font-b);outline:none">${(_supplierHint || '').replace(/</g, '&lt;')}</textarea>
+          <button onclick="window.__io.saveHint()" style="margin-top:6px;height:34px;padding:0 14px;border-radius:9px;border:0.5px solid var(--purple,#a855f7);background:var(--purple-bg,#241b3a);color:#A88BFF;font-size:12px;font-family:var(--font-b);cursor:pointer">Зберегти формат</button>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:4px;line-height:1.4">Застосується при наступному скануванні цього постачальника (AI перечитає фото з підказкою).</div>
+        ` : ''}
+      </div>` : ''}
     </div>
     <div class="io-card">
       <div class="io-lbl">Склад приходу</div>
@@ -377,12 +388,12 @@ async function processFile(f) {
   _step = 'scanning'; _scanMsg = 'Розпізнаю накладну…'; rerender();
   try {
     const photo = await compressImage(f);
-    const fd = new FormData(); fd.append('photo', photo, 'invoice.jpg');
+    const fd = new FormData(); fd.append('photo', photo, 'invoice.jpg'); fd.append('venueId', _venueId);
     const ocrRes = await fetch(`${API}/api/invoices/ocr`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` }, body: fd });
     const ocrD = await ocrRes.json();
     if (!ocrRes.ok) throw new Error(ocrD.error || 'OCR не вдалось');
     if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
-    _parsed = ocrD.parsed;
+    _parsed = ocrD.parsed; _supplierHint = ocrD.supplierHint || '';
     await matchAndReview();
   } catch (e) { _err = e.message; _step = 'error'; rerender(); }
 }
@@ -394,13 +405,13 @@ async function processPages(files) {
   _supplier = null; _supplierRaw = ''; _invoiceNumber = ''; _invoiceDate = ''; _rows = []; _err = '';
   _step = 'scanning'; _scanMsg = `Розпізнаю накладну (${files.length} фото)…`; rerender();
   try {
-    const fd = new FormData();
+    const fd = new FormData(); fd.append('venueId', _venueId);
     for (const f of files) { const p = await compressImage(f); fd.append('photos', p, 'invoice.jpg'); }
     const ocrRes = await fetch(`${API}/api/invoices/ocr`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` }, body: fd });
     const ocrD = await ocrRes.json();
     if (!ocrRes.ok) throw new Error(ocrD.error || 'OCR не вдалось');
     if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
-    _parsed = ocrD.parsed;
+    _parsed = ocrD.parsed; _supplierHint = ocrD.supplierHint || '';
     await matchAndReview();
   } catch (e) { _err = e.message; _step = 'error'; rerender(); }
 }
@@ -533,8 +544,26 @@ function nextOrDone() {
   else { _step = 'done'; _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount }; rerender(); }
 }
 
+// Крок 3: підказка формату накладної постачальника
+function toggleHint() { _hintOpen = !_hintOpen; rerender(); }
+async function saveHint() {
+  if (!_supplier) { alert('Спершу оберіть постачальника'); return; }
+  const ta = document.getElementById('io-hint-ta');
+  const hint = ta ? ta.value : (_supplierHint || '');
+  try {
+    const res = await fetch(`${API}/api/invoices/supplier-hint`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body: JSON.stringify({ venueId: _venueId, supplierRawName: _supplierRaw || _supplier.name, supplierId: _supplier.id, supplierName: _supplier.name, ocrHint: hint }),
+    });
+    const d = await res.json();
+    if (!res.ok || !d.success) throw new Error(d.error || 'Не збереглось');
+    _supplierHint = d.ocrHint || ''; _hintOpen = false; rerender();
+  } catch (e) { alert('Помилка: ' + e.message); }
+}
+
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
+  _supplierHint = ''; _hintOpen = false;
   _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
@@ -556,6 +585,7 @@ export default {
       back: () => navigate('dashboard'),
       file: handleFiles,
       pages: handlePages,
+      toggleHint, saveHint,
       reset,
       submit: (aliasesOnly) => submit(aliasesOnly),
       skip: nextOrDone,
