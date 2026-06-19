@@ -27,6 +27,7 @@ let _loadError    = '';
 
 let _openSuppliers = new Set();
 let _submitted     = false;
+let _myOrderId     = null;    // id поданої заявки бармена (для редагування поки не «виконано»)
 let _mgrTab        = 'orders';
 let _suggest        = null;   // підказки закупівлі (рух за 7 днів + залишок) з /ordering-suggestions
 let _suggestLoading = false;
@@ -426,7 +427,7 @@ function renderBartender() {
       <div class="ord-sb-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l5 5 7-8" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div>
         <div class="ord-sb-title">Заявку подано ✓</div>
-        <div class="ord-sb-sub">Менеджер отримав сповіщення і перевірить замовлення перед відправкою</div>
+        <div class="ord-sb-sub">Менеджер отримав сповіщення. Можете виправити заявку, доки він не позначив «виконано».</div>
       </div>
     </div>` : ''}
 
@@ -440,7 +441,7 @@ function renderBartender() {
       ? `<button class="ord-btn ord-btn-ghost" onclick="window.__ord.resetOrder()">Редагувати заявку</button>`
       : `<button class="ord-btn ord-btn-teal" onclick="window.__ord.submitOrder()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h10M8 4l4 4-4 4" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Відправити заявку менеджеру
+          ${_myOrderId ? 'Оновити заявку' : 'Відправити заявку менеджеру'}
         </button>
         ${totalItems > 0 ? `<button class="ord-btn ord-btn-ghost" style="margin-top:8px" onclick="window.__ord.clearOrderConfirm()">Очистити заявку</button>` : ''}`}
   </div>`;
@@ -1116,14 +1117,23 @@ async function submitOrder() {
 
   if (!suppliers.length) return;
 
+  // Якщо заявку вже подано й вона ще редагована → ОНОВЛЮЄМО ту саму (PATCH), а не створюємо дубль
+  const url    = _myOrderId ? `${API}/api/orders/${_myOrderId}` : `${API}/api/orders`;
+  const method = _myOrderId ? 'PATCH' : 'POST';
+
   try {
-    const res = await fetch(`${API}/api/orders`, {
-      method:  'POST',
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
       body:    JSON.stringify({ venueId: _venueId, suppliers }),
     });
-    const data = await res.json();
-    if (!data.success) { alert(data.error || 'Помилка'); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      // 409 = менеджер уже позначив «виконано» → редагування недоступне
+      if (res.status === 409) { _myOrderId = null; _submitted = false; alert(data.error || 'Заявку вже опрацьовано'); fullRender(); return; }
+      alert(data.error || 'Помилка'); return;
+    }
+    if (!_myOrderId && data.data?.id) _myOrderId = data.data.id;   // запамʼятовуємо нову заявку для подальших правок
     _submitted = true;
     clearDraftStorage();   // після відправки чернетка більше не відновлюється
     fullRender();
@@ -1132,7 +1142,28 @@ async function submitOrder() {
   }
 }
 
-function resetOrder() { _submitted = false; fullRender(); }
+function resetOrder() { _submitted = false; fullRender(); }   // _myOrderId лишається → повторна відправка оновить заявку
+
+// Бармен: відновити свою ще не виконану заявку (щоб зайти й виправити навіть після перезаходу)
+async function loadMyOrder() {
+  try {
+    const res  = await fetch(`${API}/api/orders?venueId=${_venueId}&mine=1`, { headers: { Authorization: `Bearer ${_token}` } });
+    const data = await res.json().catch(() => ({}));
+    if (!data.success) return;
+    const editable = (data.data || []).find(o => o.status === 'pending' || o.status === 'approved');
+    if (!editable) return;
+    _myOrderId = editable.id;
+    _submitted = true;
+    _barQtys = {}; _barUnits = {}; _barComments = {};
+    for (const s of (editable.suppliers || [])) for (const it of (s.items || [])) {
+      if (!it.productId) continue;
+      _barQtys[it.productId] = Number(it.qty) || 0;
+      if (it.unit)    _barUnits[it.productId]    = it.unit;
+      if (it.comment) _barComments[it.productId] = it.comment;
+    }
+    fullRender();
+  } catch { /* silent */ }
+}
 
 async function loadOrders() {
   _ordersLoading = true;
@@ -1478,6 +1509,7 @@ export default {
     _barUnits      = {};
     _openCards     = new Set();
     _submitted     = false;
+    _myOrderId     = null;
     _mgrTab        = 'orders';
     _suggest       = null;        // перезавантажити підказки під поточний заклад
     _orders          = [];
@@ -1510,5 +1542,6 @@ export default {
     // програвав гонку балансу й повертався порожнім
     loadData().then(() => loadSuggest());
     if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') loadOrders();
+    else loadMyOrder();   // бармен: підтягнути свою ще не виконану заявку для редагування
   },
 };
