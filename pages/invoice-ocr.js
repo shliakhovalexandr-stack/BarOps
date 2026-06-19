@@ -170,7 +170,8 @@ function buildHTML() {
 
 function fileInputs() {
   return `<input class="io-file" id="io-cam" type="file" accept="image/*" capture="environment" onchange="window.__io.file(this)"/>
-    <input class="io-file" id="io-gal" type="file" accept="image/*" multiple onchange="window.__io.file(this)"/>`;
+    <input class="io-file" id="io-gal" type="file" accept="image/*" multiple onchange="window.__io.file(this)"/>
+    <input class="io-file" id="io-pages" type="file" accept="image/*" multiple onchange="window.__io.pages(this)"/>`;
 }
 
 function idleView() {
@@ -178,12 +179,16 @@ function idleView() {
     <div class="io-hero">
       <div class="io-hero-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6"><rect x="3" y="2" width="14" height="18" rx="2"/><path d="M7 7h7M7 11h7M7 15h4" stroke-linecap="round"/></svg></div>
       <div class="io-hero-t">Сфотографуйте накладну</div>
-      <div class="io-hero-d">AI розпізнає товари й зіставить із ${_isPoster ? 'Poster' : 'Syrve'}.<br>Галерея — можна обрати <b>кілька фото</b> для наповнення памʼяті (alias).</div>
+      <div class="io-hero-d">AI розпізнає товари й зіставить із ${_isPoster ? 'Poster' : 'Syrve'}.<br>Галерея — кілька фото = кілька <b>окремих</b> накладних (для памʼяті). Багатосторінкова — кілька фото = <b>одна</b> накладна.</div>
     </div>
     <div class="io-btn-grid">
       <button class="io-btn" onclick="document.getElementById('io-cam').click()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Камера</button>
       <button class="io-btn" onclick="document.getElementById('io-gal').click()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Галерея</button>
     </div>
+    <button class="io-btn" style="width:100%;margin-top:10px" onclick="document.getElementById('io-pages').click()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3h8l4 4v14a1 1 0 01-1 1H8a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M4 7v13a1 1 0 001 1h11" opacity=".5"/><path d="M15 3v5h5"/></svg>
+      Кілька сторінок = 1 накладна
+    </button>
   </div>`;
 }
 
@@ -326,6 +331,15 @@ function handleFiles(input) {
   processNext();
 }
 
+// Кілька фото = ОДНА накладна (сторінки)
+function handlePages(input) {
+  const files = [...(input.files || [])]; input.value = '';
+  if (!files.length) return;
+  _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;   // не пакетний режим — одна накладна
+  if (!_catalog.products.length) loadCatalog();
+  if (files.length === 1) processFile(files[0]); else processPages(files);
+}
+
 async function processNext() {
   if (!_queue.length) {
     _step = 'done';
@@ -369,39 +383,62 @@ async function processFile(f) {
     if (!ocrRes.ok) throw new Error(ocrD.error || 'OCR не вдалось');
     if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
     _parsed = ocrD.parsed;
-    _supplierRaw = _parsed.supplierName || '';
-    _invoiceNumber = _parsed.invoiceNumber || '';
-    _invoiceDate = _parsed.date || '';
-
-    _scanMsg = 'Зіставляю товари…'; rerender();
-    const mRes = await fetch(`${API}/api/invoices/match/${_venueId}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-      body: JSON.stringify({ supplierRawName: _supplierRaw, items: (_parsed.items || []).map(i => ({ rawName: i.rawName })) }),
-    });
-    const mD = await mRes.json();
-    if (!mRes.ok) throw new Error(mD.error || 'Зіставлення не вдалось');
-
-    _supplier = mD.supplier?.match ? { id: mD.supplier.match.id, name: mD.supplier.match.name } : null;
-    _supplierSug = mD.supplier?.suggestions || [];
-    if (!_supplier && _supplierSug[0] && _supplierSug[0].score >= 80) _supplier = { id: _supplierSug[0].id, name: _supplierSug[0].name };
-
-    _rows = (_parsed.items || []).map((it, idx) => {
-      const m = (mD.items || [])[idx] || {};
-      const qty = Number(it.qty) || 0;
-      const sum = Number(it.sum) || (Number(it.pricePerUnit) || 0) * qty || 0;
-      return {
-        rawName: it.rawName, qty, unitsPerPack: Number(it.unitsPerPack) || 1, unit: it.unit || '',
-        volumeL: Number(it.volumeL) || 0,
-        sum, vatPercent: Number(it.vatPercent) || 0,
-        productId: m.match?.productId || '', productName: m.match?.name || '',
-        confidence: m.match?.confidence || 0, source: m.match?.source || '',
-        suggestions: m.suggestions || [],
-      };
-    });
-
-    if (!_catalog.products.length) loadCatalog(); else { pickDefaultStore(); pickDefaultConception(); }
-    _step = 'review'; rerender();
+    await matchAndReview();
   } catch (e) { _err = e.message; _step = 'error'; rerender(); }
+}
+
+// Кілька фото = ОДНА накладна (сторінки): один OCR-запит з усіма фото → один список позицій
+async function processPages(files) {
+  if (_photoUrl) URL.revokeObjectURL(_photoUrl);
+  _photoUrl = URL.createObjectURL(files[0]);
+  _supplier = null; _supplierRaw = ''; _invoiceNumber = ''; _invoiceDate = ''; _rows = []; _err = '';
+  _step = 'scanning'; _scanMsg = `Розпізнаю накладну (${files.length} фото)…`; rerender();
+  try {
+    const fd = new FormData();
+    for (const f of files) { const p = await compressImage(f); fd.append('photos', p, 'invoice.jpg'); }
+    const ocrRes = await fetch(`${API}/api/invoices/ocr`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` }, body: fd });
+    const ocrD = await ocrRes.json();
+    if (!ocrRes.ok) throw new Error(ocrD.error || 'OCR не вдалось');
+    if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
+    _parsed = ocrD.parsed;
+    await matchAndReview();
+  } catch (e) { _err = e.message; _step = 'error'; rerender(); }
+}
+
+// Спільне після OCR: зіставлення товарів/постачальника + рядки + екран перевірки
+async function matchAndReview() {
+  _supplierRaw = _parsed.supplierName || '';
+  _invoiceNumber = _parsed.invoiceNumber || '';
+  _invoiceDate = _parsed.date || '';
+
+  _scanMsg = 'Зіставляю товари…'; rerender();
+  const mRes = await fetch(`${API}/api/invoices/match/${_venueId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+    body: JSON.stringify({ supplierRawName: _supplierRaw, items: (_parsed.items || []).map(i => ({ rawName: i.rawName })) }),
+  });
+  const mD = await mRes.json();
+  if (!mRes.ok) throw new Error(mD.error || 'Зіставлення не вдалось');
+
+  _supplier = mD.supplier?.match ? { id: mD.supplier.match.id, name: mD.supplier.match.name } : null;
+  _supplierSug = mD.supplier?.suggestions || [];
+  if (!_supplier && _supplierSug[0] && _supplierSug[0].score >= 80) _supplier = { id: _supplierSug[0].id, name: _supplierSug[0].name };
+
+  _rows = (_parsed.items || []).map((it, idx) => {
+    const m = (mD.items || [])[idx] || {};
+    const qty = Number(it.qty) || 0;
+    const sum = Number(it.sum) || (Number(it.pricePerUnit) || 0) * qty || 0;
+    return {
+      rawName: it.rawName, qty, unitsPerPack: Number(it.unitsPerPack) || 1, unit: it.unit || '',
+      volumeL: Number(it.volumeL) || 0,
+      sum, vatPercent: Number(it.vatPercent) || 0,
+      productId: m.match?.productId || '', productName: m.match?.name || '',
+      confidence: m.match?.confidence || 0, source: m.match?.source || '',
+      suggestions: m.suggestions || [],
+    };
+  });
+
+  if (!_catalog.products.length) loadCatalog(); else { pickDefaultStore(); pickDefaultConception(); }
+  _step = 'review'; rerender();
 }
 
 async function loadCatalog() {
@@ -499,6 +536,7 @@ export default {
     window.__io = {
       back: () => navigate('dashboard'),
       file: handleFiles,
+      pages: handlePages,
       reset,
       submit: (aliasesOnly) => submit(aliasesOnly),
       skip: nextOrDone,
