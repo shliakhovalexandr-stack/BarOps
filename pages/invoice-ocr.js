@@ -427,12 +427,18 @@ async function matchAndReview() {
     const m = (mD.items || [])[idx] || {};
     const qty = Number(it.qty) || 0;
     const sum = Number(it.sum) || (Number(it.pricePerUnit) || 0) * qty || 0;
+    // Крок 2: якщо в alias збережено обʼєм/«× в уп» — підставляємо їх замість OCR (виправлення «памʼятаються»)
+    const remUp  = m.match?.unitsPerPack;
+    const remVol = m.match?.volumeL;
     return {
-      rawName: it.rawName, qty, unitsPerPack: Number(it.unitsPerPack) || 1, unit: it.unit || '',
-      volumeL: Number(it.volumeL) || 0,
+      rawName: it.rawName, qty,
+      unitsPerPack: (remUp != null && +remUp > 0) ? +remUp : (Number(it.unitsPerPack) || 1),
+      unit: it.unit || '',
+      volumeL: (remVol != null && +remVol > 0) ? +remVol : (Number(it.volumeL) || 0),
       sum, vatPercent: Number(it.vatPercent) || 0,
       productId: m.match?.productId || '', productName: m.match?.name || '',
       confidence: m.match?.confidence || 0, source: m.match?.source || '',
+      storeId: m.match?.storeId || '',   // склад із памʼяті → пре-філ селектора
       suggestions: m.suggestions || [],
     };
   });
@@ -461,11 +467,22 @@ function pickDefaultStore() {
   const stores = _catalog.stores || [];
   if (!stores.length) return;
   let s;
-  if (_role === 'chef' || _role === 'cook') s = stores.find(x => /кух|kitchen/i.test(x.name));
-  else if (_role === 'bartender')           s = stores.find(x => /бар|bar/i.test(x.name));
+  const memId = rememberedStoreId();   // склад із памʼяті товарів цієї накладної (Крок 2)
+  if (memId) s = stores.find(x => x.id === memId);
+  if (!s && (_role === 'chef' || _role === 'cook')) s = stores.find(x => /кух|kitchen/i.test(x.name));
+  else if (!s && _role === 'bartender')             s = stores.find(x => /бар|bar/i.test(x.name));
   if (!s && _catalog.defaultStoreId) s = stores.find(x => x.id === _catalog.defaultStoreId);
   if (!s) s = stores[0];
   if (s) _store = { id: s.id, name: s.name };
+}
+
+// Найчастіший склад серед alias-збігів поточних рядків (памʼять складу)
+function rememberedStoreId() {
+  const cnt = {};
+  for (const r of _rows) if (r.storeId) cnt[r.storeId] = (cnt[r.storeId] || 0) + 1;
+  let best = null, bn = 0;
+  for (const [id, n] of Object.entries(cnt)) if (n > bn) { best = id; bn = n; }
+  return best;
 }
 
 function pickDefaultConception() {
@@ -486,6 +503,8 @@ async function submit(aliasesOnly) {
   const items = _rows.filter(r => r.productId).map(r => ({
     rawName: r.rawName, productId: r.productId, productName: r.productName,
     amount: amountOf(r), sum: Number(r.sum) || 0, vatPercent: Number(r.vatPercent) || 0,
+    volumeL: isLiterRow(r) ? (volOf(r) || 0) : 0,        // Крок 2: памʼять обʼєму (л-товари)
+    unitsPerPack: isLiterRow(r) ? 0 : (Number(r.unitsPerPack) || 0),  // памʼять «× в уп» (шт/кг)
   }));
   if (!items.length) { alert('Жодного зіставленого товару'); return; }
   if (!aliasesOnly && !_store) { alert('Оберіть склад'); return; }
@@ -495,7 +514,7 @@ async function submit(aliasesOnly) {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
       body: JSON.stringify({
         supplierRawName: _supplierRaw, supplierId: _supplier.id, supplierName: _supplier.name,
-        invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', conceptionId: _conception?.id || '',
+        invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', storeName: _store?.name || '', conceptionId: _conception?.id || '',
         aliasesOnly: !!aliasesOnly, items,
       }),
     });
