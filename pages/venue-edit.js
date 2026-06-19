@@ -1034,7 +1034,7 @@ async function initIikoSection(venueId) {
             <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
               <input type="checkbox" data-id="${s.id}" data-name="${s.name}" ${savedStoreIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
               <div>
-                <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${s.name}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${s.name}${s.parentName ? ` · <span style="color:var(--purple,#a855f7)">${s.parentName}</span>` : ''}</div>
                 <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:1px">${s.id}</div>
               </div>
             </label>`).join('')
