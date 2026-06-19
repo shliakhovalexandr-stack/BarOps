@@ -1569,6 +1569,22 @@ export function init() {
     selectStation(stationId) {
       if (!_cellSheet) return;
       _cellSheet.station = stationId;
+      // Вибір локації = РОБОЧА зміна → автоматично знімаємо «вихідний», якщо був
+      if (_cellMode !== 'shift') {
+        _cellMode = 'shift';
+        const timeRow  = document.getElementById('sch-time-row');
+        const timeLbl  = document.getElementById('sch-time-label');
+        const resetRow = document.getElementById('sch-reset-row');
+        const icon     = document.getElementById('sch-off-icon');
+        const txt      = document.getElementById('sch-off-txt');
+        const chk      = document.getElementById('sch-off-check');
+        if (timeRow)  timeRow.style.display  = 'flex';
+        if (timeLbl)  timeLbl.style.display  = 'block';
+        if (resetRow) resetRow.style.display = 'block';
+        if (icon)     icon.setAttribute('stroke', '#52525B');
+        if (txt)      txt.style.color        = '#71717A';
+        if (chk)      chk.style.display      = 'none';
+      }
       // Update chips visually
       const stns = _stations[_cellSheet.roleKey] || [];
       stns.forEach(s => {
