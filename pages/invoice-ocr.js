@@ -202,15 +202,15 @@ function reviewView() {
         <svg class="io-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
       </div>
       <div class="io-nums">
-        <div class="io-num"><div class="io-num-l">К-сть</div><input type="number" inputmode="decimal" value="${r.qty}" onchange="window.__io.edit(${i},'qty',this.value)"></div>
+        <div class="io-num"><div class="io-num-l">К-сть</div><input type="number" inputmode="decimal" value="${r.qty}" onfocus="this.select()" oninput="window.__io.edit(${i},'qty',this.value)"></div>
         ${isLiterRow(r)
-          ? `<div class="io-num"><div class="io-num-l">× об'єм л</div><input type="number" inputmode="decimal" value="${volOf(r) || ''}" onchange="window.__io.edit(${i},'volumeL',this.value)"></div>`
-          : `<div class="io-num"><div class="io-num-l">× в уп</div><input type="number" inputmode="decimal" value="${r.unitsPerPack}" onchange="window.__io.edit(${i},'unitsPerPack',this.value)"></div>`}
+          ? `<div class="io-num"><div class="io-num-l">× об'єм л</div><input type="number" inputmode="decimal" value="${volOf(r) || ''}" onfocus="this.select()" oninput="window.__io.edit(${i},'volumeL',this.value)"></div>`
+          : `<div class="io-num"><div class="io-num-l">× в уп</div><input type="number" inputmode="decimal" value="${r.unitsPerPack}" onfocus="this.select()" oninput="window.__io.edit(${i},'unitsPerPack',this.value)"></div>`}
         <div class="io-num"><div class="io-num-l">= ${baseUnitOf(r) || 'шт'}</div><div class="ro" id="io-amt-${i}">${amountOf(r)}</div></div>
       </div>
       <div class="io-nums" style="margin-top:6px">
-        <div class="io-num" style="grid-column:span 2"><div class="io-num-l">Сума, грн</div><input type="number" inputmode="decimal" value="${r.sum}" onchange="window.__io.edit(${i},'sum',this.value)"></div>
-        <div class="io-num"><div class="io-num-l">ПДВ %</div><input type="number" inputmode="decimal" value="${r.vatPercent}" onchange="window.__io.edit(${i},'vatPercent',this.value)"></div>
+        <div class="io-num" style="grid-column:span 2"><div class="io-num-l">Сума, грн</div><input type="number" inputmode="decimal" value="${r.sum}" onfocus="this.select()" oninput="window.__io.edit(${i},'sum',this.value)"></div>
+        <div class="io-num"><div class="io-num-l">ПДВ %</div><input type="number" inputmode="decimal" value="${r.vatPercent}" onfocus="this.select()" oninput="window.__io.edit(${i},'vatPercent',this.value)"></div>
       </div>
     </div>`;
   }).join('');
