@@ -221,11 +221,15 @@ const ROLE_OPTIONS = [
 function availableRoleOptions() {
   const r = (state.role || '').toLowerCase();
   if (r === 'manager') return ROLE_OPTIONS.filter(o => o[0] === 'WAITER' || o[0] === 'MANAGER');
+  if (r === 'chef')    return ROLE_OPTIONS.filter(o => o[0] === 'COOK' || o[0] === 'CHEF');   // шеф — лише кухня
   if (r === 'admin')   return ROLE_OPTIONS;
   return ROLE_OPTIONS.filter(o => o[0] !== 'ADMIN');
 }
 function defaultRole() {
-  return (state.role || '').toLowerCase() === 'manager' ? 'WAITER' : 'BARTENDER';
+  const r = (state.role || '').toLowerCase();
+  if (r === 'manager') return 'WAITER';
+  if (r === 'chef')    return 'COOK';
+  return 'BARTENDER';
 }
 
 // Кастомний дропдаун ролі у стилі додатку (нативний select малює ОС білим)
@@ -339,7 +343,7 @@ function teamListHTML() {
   <div class="tm-list">
     ${groupedTeamHTML()}
 
-    ${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? `
+    ${(['admin', 'manager', 'director', 'chef'].includes(state.role)) ? `
     <div class="tm-add-btn" onclick="window.__tm.openAdd()">
       <div class="tm-add-icon">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -403,7 +407,7 @@ function profileHTML(t) {
   </div>
 
   <div class="tm-ph-actions">
-    ${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? `
+    ${(['admin', 'manager', 'director', 'chef'].includes(state.role)) ? `
     <button class="tm-btn tm-btn-green" onclick="window.__tm.openEdit('${t.id}')">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2l3 3-7 7H2V9l7-7z" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Редагувати / Змінити PIN
@@ -541,7 +545,7 @@ ${CSS}
       <div class="tm-title">Команда</div>
       <div class="tm-sub">${_activeVenueName || state.venue || 'Всі заклади'} · ${_team.length} учасників</div>
     </div>
-    ${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? `
+    ${(['admin', 'manager', 'director', 'chef'].includes(state.role)) ? `
     <button onclick="window.__tm.openAdd()"
       style="height:34px;padding:0 14px;background:var(--green);border:none;border-radius:20px;font-size:12px;font-family:var(--font-b);color:#000;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="#000" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -571,8 +575,8 @@ ${CSS}
         ? `<div class="tm-loading" style="flex-direction:column;gap:16px;padding:32px">
              <div style="font-size:40px">👥</div>
              <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);text-align:center">Команда порожня</div>
-             <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.6">${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? 'Додайте першого бармена натиснувши кнопку вище' : 'У цьому закладі ще немає учасників команди'}</div>
-             ${(state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? `<div class="tm-add-btn" onclick="window.__tm.openAdd()" style="margin:0;width:100%">
+             <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center;line-height:1.6">${(['admin', 'manager', 'director', 'chef'].includes(state.role)) ? 'Додайте першого бармена натиснувши кнопку вище' : 'У цьому закладі ще немає учасників команди'}</div>
+             ${(['admin', 'manager', 'director', 'chef'].includes(state.role)) ? `<div class="tm-add-btn" onclick="window.__tm.openAdd()" style="margin:0;width:100%">
                <div class="tm-add-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round"/></svg></div>
                <div><div class="tm-add-text">Додати першого бармена</div><div class="tm-add-sub">Ім'я, посада та PIN для входу</div></div>
              </div>` : ''}

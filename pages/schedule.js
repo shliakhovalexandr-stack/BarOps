@@ -22,7 +22,7 @@ function resolveRole() {
 // Редагувати графік можуть лише менеджер/адмін; решта — перегляд + бронювання вихідних.
 function canEdit() {
   const r = resolveRole();
-  return r === 'manager' || r === 'admin' || r === 'director';
+  return r === 'manager' || r === 'admin' || r === 'director' || r === 'chef';
 }
 
 /* ════════════════════════════════════════

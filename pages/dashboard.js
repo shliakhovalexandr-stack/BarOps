@@ -324,6 +324,9 @@ function tileByRoute() {
   for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
+// Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист
+const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'inventory'];
+
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
@@ -391,7 +394,7 @@ function heroChecklistTile() {
 }
 
 // Згрупувати дозволені плитки ролі у секції-сітку
-function dashTiles(quick, isMgr, showHero) {
+function dashTiles(quick, isMgr, showHero, compactOps = isMgr) {
   const inQuick = new Set(quick.map(q => q.route));
   const byR = tileByRoute();
   const defs = isMgr ? SECTIONS_MGR : SECTIONS_WORKER;
@@ -400,8 +403,8 @@ function dashTiles(quick, isMgr, showHero) {
   for (const [label, routes] of defs) {
     const tiles = routes.filter(r => inQuick.has(r)).map(r => { used.add(r); return byR[r]; }).filter(Boolean);
     if (!tiles.length) continue;
-    // Операції для менеджера/адміна — компактним списком (він їх не виконує щодня)
-    if (isMgr && label === 'Операції') html += `<div class="d-gsec">${label}</div><div class="d-quick">${quickGrid(tiles)}</div>`;
+    // Операції для менеджера/адміна — компактним списком (він їх не виконує щодня); шеф виконує → повні плитки
+    if (compactOps && label === 'Операції') html += `<div class="d-gsec">${label}</div><div class="d-quick">${quickGrid(tiles)}</div>`;
     else html += `<div class="d-gsec">${label}</div>` + tileGrid(tiles);
   }
   const rest = quick.filter(q => !used.has(q.route));   // нерозкладені — окремо, щоб нічого не загубити
@@ -585,7 +588,7 @@ function buildHTML() {
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
-              : state.role === 'chef' ? [...QUICK_BARTENDER, QUICK_PERFORMANCE]
+              : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))]
               : QUICK_BARTENDER;
   const s     = _stats;
@@ -741,7 +744,9 @@ ${CSS}
     </div>`).join('') : ''}
 
     <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю); офіціант — одним блоком без назв -->
-    ${state.role === 'waiter' ? waiterTiles(quick) : dashTiles(quick, isMgr, !isMgr && !isAcc)}
+    ${state.role === 'waiter' ? waiterTiles(quick)
+      : state.role === 'chef' ? dashTiles(quick, true, false, false)
+      : dashTiles(quick, isMgr, !isMgr && !isAcc)}
 
     <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні; офіціанту не показуємо: борги/списання/акциз йому не потрібні) -->
     ${(!isAcc && !isMgr && state.role !== 'waiter') ? (() => {

@@ -268,7 +268,12 @@ function renderDrawer() {
                   color:var(--text0);letter-spacing:-.02em">${state.venue}</div>
     </div>
     <div data-drawer-scroll style="flex:1;overflow-y:auto;padding:8px 0">
-      ${(((state.role||'').toLowerCase()==='manager') ? DRAWER_NAV.filter(i => !['ordering','writeoff','excise'].includes(i.route)) : DRAWER_NAV).map(item => {
+      ${(() => {
+        const r = (state.role || '').toLowerCase();
+        if (r === 'manager') return DRAWER_NAV.filter(i => !['ordering', 'writeoff', 'excise'].includes(i.route));
+        if (r === 'chef')    return DRAWER_NAV.filter(i => i.route !== 'excise');   // шеф: кухня без акцизу (бар/алкоголь)
+        return DRAWER_NAV;
+      })().map(item => {
         const isActive = state.route === item.route;
         return `
         <div data-drawer-route="${item.route}"

@@ -183,8 +183,10 @@ function canManage() {
 }
 // Менеджер залу: його журнал стосується ЛИШЕ офіціантів (шаблони/чек-листи/завдання).
 // Адмін і керуючий бачать усі підрозділи.
-function isFloorMgr() { return (_role || '').toLowerCase() === 'manager'; }
-const FLOOR_DEPT = 'waiters';
+// Керівник, обмежений департаментом: менеджер → зал (офіціанти), шеф → кухня
+function isFloorMgr() { return ['manager', 'chef'].includes((_role || '').toLowerCase()); }
+function mgrDept()  { return (_role || '').toLowerCase() === 'chef' ? 'kitchen' : 'waiters'; }
+function mgrWhom()  { return mgrDept() === 'kitchen' ? 'кухні' : 'офіціантів'; }
 function myDepartment(role) {
   const r = (role || '').toLowerCase();
   if (r === 'cook' || r === 'chef') return 'kitchen';
@@ -239,7 +241,7 @@ function buildWorkerChecklist() {
 }
 
 function buildManagerTasks() {
-  const tasks = isFloorMgr() ? _tasks.filter(t => (t.department || '') === FLOOR_DEPT) : _tasks;
+  const tasks = isFloorMgr() ? _tasks.filter(t => (t.department || '') === mgrDept()) : _tasks;
   const listHTML = tasks.length ? tasks.map(t => `
     <div class="jrn-cl-card${t.done ? ' done' : ''}">
       <div class="jrn-task-row">
@@ -270,7 +272,7 @@ function buildTaskModal() {
       <input type="date" id="jrn-task-date" class="jrn-modal-inp" value="${_taskDraft.date}">
       <div class="jrn-modal-lbl">Підрозділ</div>
       ${isFloorMgr() ? `
-      <div class="jrn-dept-row"><button class="jrn-dept-chip sel" disabled>Офіціанти</button></div>
+      <div class="jrn-dept-row"><button class="jrn-dept-chip sel" disabled>${DEPT_LABEL[mgrDept()]}</button></div>
       ` : `
       <div class="jrn-dept-row">
         ${Object.entries(DEPT_LABEL).map(([k, v]) =>
@@ -313,10 +315,10 @@ function clIsLate(cl) {
 
 // Сьогоднішні чек-листи (працівник тапає; менеджер бачить хто/коли)
 function buildTodayChecklists() {
-  const lists = isFloorMgr() ? _checklists.filter(cl => (cl.department || '') === FLOOR_DEPT) : _checklists;
+  const lists = isFloorMgr() ? _checklists.filter(cl => (cl.department || '') === mgrDept()) : _checklists;
   if (!lists.length) {
     return `<div class="jrn-empty"><div class="jrn-empty-icon">✓</div>
-      <div class="jrn-empty-txt">${isFloorMgr() ? 'Чек-листів для офіціантів на сьогодні немає' : 'Чек-листів на сьогодні немає'}</div></div>`;
+      <div class="jrn-empty-txt">${isFloorMgr() ? `Чек-листів для ${mgrWhom()} на сьогодні немає` : 'Чек-листів на сьогодні немає'}</div></div>`;
   }
   return lists.map(cl => {
     const allDone = cl.total > 0 && cl.doneCount >= cl.total;
@@ -348,7 +350,7 @@ function buildTodayChecklists() {
 
 // Менеджер: список шаблонів + кнопка створення
 function buildManagerTemplates() {
-  const tpls = isFloorMgr() ? _clTemplates.filter(t => (t.department || '') === FLOOR_DEPT) : _clTemplates;
+  const tpls = isFloorMgr() ? _clTemplates.filter(t => (t.department || '') === mgrDept()) : _clTemplates;
   const list = tpls.length ? tpls.map(t => {
     const count = (t.items || []).length;
     return `
@@ -368,7 +370,7 @@ function buildManagerTemplates() {
         <button class="jrn-task-del" onclick="window.__jrn.deleteTemplate('${t.id}')">×</button>
       </div>
     </div>`;
-  }).join('') : `<div class="jrn-empty"><div class="jrn-empty-txt">${isFloorMgr() ? 'Шаблонів для офіціантів ще немає. Створіть перший.' : 'Шаблонів ще немає. Створіть перший.'}</div></div>`;
+  }).join('') : `<div class="jrn-empty"><div class="jrn-empty-txt">${isFloorMgr() ? `Шаблонів для ${mgrWhom()} ще немає. Створіть перший.` : 'Шаблонів ще немає. Створіть перший.'}</div></div>`;
   return `
     <div style="padding:0 14px 8px"><button class="jrn-add-btn" onclick="window.__jrn.openClModal()">+ Шаблон чек-листа</button></div>
     ${list}`;
@@ -417,7 +419,7 @@ function buildClModal() {
         </div>
         ${isFloorMgr() ? `
         <div class="jrn-modal-lbl">Для кого</div>
-        <div class="jrn-dept-row"><button class="jrn-dept-chip sel" disabled>Офіціанти</button></div>
+        <div class="jrn-dept-row"><button class="jrn-dept-chip sel" disabled>${DEPT_LABEL[mgrDept()]}</button></div>
         ` : `
         <div class="jrn-modal-lbl">Для кого</div>
         <div class="jrn-dept-row" id="cl-dept-row">
@@ -669,7 +671,7 @@ export default {
       },
 
       openTaskModal() {
-        _taskDraft = { date: ymd(new Date()), department: isFloorMgr() ? FLOOR_DEPT : 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
+        _taskDraft = { date: ymd(new Date()), department: isFloorMgr() ? mgrDept() : 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
         _taskModal = true;
         rerender();
       },
@@ -768,7 +770,7 @@ export default {
 
       openClModal() {
         _clDraft = {
-          id: null, title: '', kind: 'daily', department: isFloorMgr() ? FLOOR_DEPT : '', deadline: '', remindAt: '',
+          id: null, title: '', kind: 'daily', department: isFloorMgr() ? mgrDept() : '', deadline: '', remindAt: '',
           daily: [newClItem()],
           weekly: { 0: [], 1: [newClItem()], 2: [], 3: [], 4: [], 5: [], 6: [] },
         };
