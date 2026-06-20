@@ -24,6 +24,10 @@ function canEdit() {
   const r = resolveRole();
   return r === 'manager' || r === 'admin' || r === 'director' || r === 'chef';
 }
+// Які підрозділи бачить роль у графіку: шеф — лише кухня; решта — усі
+function deptAllowed(key) {
+  return resolveRole() === 'chef' ? key === 'cooks' : true;
+}
 
 /* ════════════════════════════════════════
    ROLE CONFIG (статичний)
@@ -812,7 +816,7 @@ function renderHub() {
   const venueName = state.venue || localStorage.getItem('barops_venue') || 'Bar Noir';
   const wLabel    = weekLabel(getWeekDates(_weekOffset));
 
-  const deptSections = Object.entries(_rosters).map(([key, r]) => {
+  const deptSections = Object.entries(_rosters).filter(([key]) => deptAllowed(key)).map(([key, r]) => {
     const onShift = r.grid.filter(row => row.some(c => c !== null)).length;
     return `
       <div class="sch-dept-block">
@@ -830,7 +834,7 @@ function renderHub() {
 
   // Зведені запити на вихідні (усі підрозділи) — щоб менеджер бачив одразу на хабі
   const allReqs = [];
-  Object.values(_rosters).forEach(r => (r.requests || []).forEach(req => allReqs.push(req)));
+  Object.entries(_rosters).filter(([key]) => deptAllowed(key)).forEach(([, r]) => (r.requests || []).forEach(req => allReqs.push(req)));
   allReqs.sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1));
   const pendingCount = allReqs.filter(r => r.status === 'pending').length;
   const reqSection = allReqs.length ? `
@@ -1432,6 +1436,7 @@ export function init() {
   window.__sch = {
     goHub()     { _view = 'hub'; _mode = 'view'; re(); },
     goRole(key) {
+      if (!deptAllowed(key)) return;            // шеф — лише кухня
       _role = key; _view = 'role';
       if (canEdit()) { _mode = 'edit'; localStorage.setItem('barops_sch_mode', 'edit'); }  // стрілка → одразу редагування
       re();

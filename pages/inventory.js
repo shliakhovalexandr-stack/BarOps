@@ -36,24 +36,29 @@ let _search          = '';     // пошук товару
 /* ── Параметризація за видом інвентаризації (бар / посуд / далі кухня) ── */
 // kind визначається за маршрутом; bar = стара поведінка (нічого не змінюється).
 const INV_KIND = {
-  bar:      { title: '',                    store: null,      photoCfg: false },
-  dishware: { title: 'Інвентаризація посуд', store: /посуд/i,  photoCfg: true },
+  bar:      { title: '',                      store: null,            photoCfg: false },
+  dishware: { title: 'Інвентаризація посуд',   store: /посуд/i,        photoCfg: true  },
+  kitchen:  { title: 'Інвентаризація кухні',   store: /кух|kitchen/i,  photoCfg: false },
 };
 let _kind        = 'bar';
 let _posMode     = '';         // тип POS закладу ('poster' | 'syrve' | '')
 let _dishStoreId = '';         // id складу для посуду (для акту в Syrve)
+let _kitchenStoreId = '';      // id кухонного складу (інвентаризація шефа)
 let _dishMeta    = {};         // syrveProductId → { customName, hasPhoto, dishId } (посуд)
 let _dishEditPid = null;       // позиція посуду в редагуванні (назва/фото)
 let _dishEditPhoto;            // нове фото base64 (undefined = не міняли)
 let _dishPhotoView = null;     // { pid } фото у фуллскрін
 function kindCfg() { return INV_KIND[_kind] || INV_KIND.bar; }
 function isDish() { return _kind === 'dishware'; }
+function isChef() { return (_role || '').toLowerCase() === 'chef'; }   // шеф рахує лише кухню
+function isKitchen() { return _kind === 'kitchen'; }                   // вид «кухня» (тільки для шефа)
 function posLabel() { return _posMode === 'poster' ? 'Poster' : 'Syrve'; }   // назва POS для міток
 // Хто бачить менеджерський вид (планування/налаштування):
-//   бар — admin/accountant (як було); посуд — ще й manager/director.
+//   бар — admin/accountant (як було); посуд — ще й manager/director; кухня — шеф (керує власною інвентаризацією).
 function canManageInv() {
   const r = (_role || '').toLowerCase();
   if (r === 'admin' || r === 'accountant') return true;
+  if (isKitchen() && r === 'chef') return true;
   return isDish() && (r === 'manager' || r === 'director');
 }
 
@@ -442,7 +447,7 @@ async function loadAll() {
     // бо Syrve self-hosted має одне REST-зʼєднання → паралельний auth ПФ програє гонку й падає.
     const [sessRes, balRes, cfgRes] = await Promise.all([
       fetch(`${API}/api/inventory/sessions?venueId=${_venueId}&kind=${_kind}`, { headers: h }),
-      fetch(`${API}/api/pos/balance/${_venueId}${isDish() ? '?allStores=1' : ''}`, { headers: h }),
+      fetch(`${API}/api/pos/balance/${_venueId}${(isDish() || isChef()) ? '?allStores=1' : ''}`, { headers: h }),
       fetch(`${API}/api/inventory/config?venueId=${_venueId}`, { headers: h }),
     ]);
 
@@ -465,11 +470,14 @@ async function loadAll() {
       const d = await balRes.json();
       _posMode = d.mode || '';            // 'poster' | 'syrve' | '' — для гілки сабміту
       _balance = [];
-      // посуд — лише склад «Посуд»; Poster-бар — склад «Бар»; Syrve-бар — усі повернуті (бекенд уже відфільтрував по syrveStoreId)
+      // посуд — лише склад «Посуд»; шеф — лише склад «Кухня»; Poster-бар — склад «Бар»; Syrve-бар — усі повернуті (бекенд уже відфільтрував по syrveStoreId)
       const stores = isDish()
         ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || ''))
+        : isChef()
+        ? (d.stores || []).filter(s => /кух|kitchen/i.test(s.storeName || ''))
         : (d.mode === 'poster' ? (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '')) : (d.stores || []));
       if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
+      if (isChef() && stores[0]) _kitchenStoreId = stores[0].storeId || '';
       for (const store of stores) {
         for (const item of (store.items || [])) {
           if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
@@ -626,9 +634,9 @@ async function submitInventory(dryRun) {
       body: JSON.stringify({
         items:   syrveItems,
         date:    os.scheduledAt,
-        comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
+        comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : isChef() ? 'Інвентаризація кухні' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
         dryRun:  !!dryRun,
-        ...(isDish() && _dishStoreId ? { storeId: _dishStoreId } : {}),
+        ...(isDish() && _dishStoreId ? { storeId: _dishStoreId } : isChef() && _kitchenStoreId ? { storeId: _kitchenStoreId } : {}),
       }),
     });
     const invD = await invRes.json().catch(() => ({}));
@@ -701,7 +709,7 @@ function buildPage() {
     ${CSS}
     <div class="inv-wrap">
       ${(state.role || '').toLowerCase() === 'accountant' ? `<div style="padding:8px 20px 0;display:flex"><div onclick="window.__barops.openDrawer()" aria-label="Меню" style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);border:0.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0"><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div></div></div>` : `<div style="padding:10px 18px 0;display:flex"><div onclick="window.__barops.navigate('dashboard')" aria-label="Назад" style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>`}
-      ${isDish() ? `<div style="padding:2px 20px 6px"><div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em">${kindCfg().title}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${(state.venue || '')}</div></div>` : ''}
+      ${(isDish() || isKitchen()) ? `<div style="padding:2px 20px 6px"><div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em">${kindCfg().title}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${(state.venue || '')}</div></div>` : ''}
       ${canManageInv() ? roleTabs() : ''}
       <div class="inv-scroll" id="inv-scroll">
         ${_view === 'mgr' ? buildMgr() : buildBar()}
@@ -1507,8 +1515,9 @@ export default {
     _venueId       = state.venueId || localStorage.getItem('barops_venueId');
     _token         = state.token   || localStorage.getItem('barops_token');
     _role          = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
-    _kind          = (state.route === 'dishware') ? 'dishware' : 'bar';
+    _kind          = (state.route === 'dishware') ? 'dishware' : (isChef() ? 'kitchen' : 'bar');
     _dishStoreId   = '';
+    _kitchenStoreId = '';
     _dishMeta      = {};
     _view          = canManageInv() ? 'mgr' : 'bar';
     _submitted     = false;
