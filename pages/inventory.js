@@ -520,6 +520,8 @@ async function loadAll() {
           }
         }
       }
+      // алфавітне сортування (укр. локаль, регістр/латиниця коректно) — для всіх видів
+      _balance.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk', { sensitivity: 'base', numeric: true }));
     }
 
     if (cfgRes.ok) {
