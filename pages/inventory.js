@@ -13,6 +13,9 @@ let _sessions        = [];
 let _balance         = [];     // [{id,name,amount,unit,category}] з Syrve
 let _configs         = {};     // productId → {mode,emptyTareKg,fullTareKg,bottleVolL}
 let _counts          = {};     // productId → {full,partial,kg,sht}
+let _draftByName     = '';     // хто востаннє вносив у спільну чернетку (крос-девайс)
+let _draftAt         = null;   // коли востаннє збережено спільну чернетку
+let _draftSyncTimer  = null;   // debounce автозбереження чернетки на бекенд
 let _openPid         = null;   // accordion: який продукт відкритий
 let _loading         = true;
 let _saving          = false;
@@ -359,10 +362,34 @@ function loadDraft() {
   try {
     if (!openSession()) return;
     const d = JSON.parse(localStorage.getItem(draftKey()) || 'null');
-    if (d && d.counts) _counts = { ..._counts, ...d.counts };
+    // localStorage лише ДОПОВНЮЄ: спільна чернетка з бекенду (вже в _counts) — авторитетна,
+    // локальні дані заповнюють тільки товари, яких ще немає (напр. офлайн-ввід).
+    if (d && d.counts) _counts = { ...d.counts, ..._counts };
   } catch {}
 }
 function clearDraftStorage() { try { localStorage.removeItem(draftKey()); } catch {} }
+
+// Зберегти прогрес: локально (миттєво) + на бекенд (debounce) — щоб інший бармен/пристрій продовжив
+function persistCounts() {
+  saveDraft();
+  syncDraftToServer();
+}
+function syncDraftToServer() {
+  const os = openSession();
+  if (!os) return;
+  clearTimeout(_draftSyncTimer);
+  _draftSyncTimer = setTimeout(async () => {
+    try {
+      await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+        body:    JSON.stringify({ counts: _counts, byName: state.user || '' }),
+      });
+      _draftByName = state.user || _draftByName;
+      _draftAt = new Date().toISOString();
+    } catch {}
+  }, 1500);
+}
 
 /* ── Історія відправлених = завершені сесії з бекенду (крос-девайс) ── */
 async function loadHistItems(sid) {
@@ -418,7 +445,7 @@ function bindLiveInputs() {
       if (!_counts[pid]) _counts[pid] = {};
       _counts[pid][kind] = (e.target.value || '').replace(',', '.');   // кома→крапка (укр. локаль)
       updateConvDisplay(pid);
-      saveDraft();
+      persistCounts();
     };
   });
   const se = document.getElementById('inv-search');
@@ -505,25 +532,22 @@ async function loadAll() {
     // (сток, без декомпозиції), що псує облік. НФ рахуються окремо (на папері / рідною
     // мобільною інвентаризацією Syrve, яка вміє Крок 1). Тут — лише товари (Крок 2).
 
-    // Якщо є відкрита сесія — завантажуємо збережені позиції
+    // Відкрита сесія — тягнемо СПІЛЬНУ чернетку з бекенду (крос-девайс):
+    // ввечері один бармен порахував склад/енотеку → зранку інший продовжує бар на своєму пристрої.
     const os = openSession();
     if (os) {
-      const itemsRes = await fetch(`${API}/api/inventory/sessions/${os.id}/items`, { headers: h });
-      if (itemsRes.ok) {
-        const d = await itemsRes.json();
-        for (const item of (d.items || [])) {
-          const m = item.method;
-          if (!_counts[item.productId]) {
-            if (m === 'kg_to_l') _counts[item.productId] = { full: 0, partial: '' };
-            else if (m === 'kg') _counts[item.productId] = { kg: item.countedQty ? String(item.countedQty) : '' };
-            else if (m === 'ml') _counts[item.productId] = { ml: item.countedQty ? String(item.countedQty) : '' };
-            else                 _counts[item.productId] = { sht: item.countedQty || 0 };
-          }
+      try {
+        const dr = await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, { headers: h });
+        if (dr.ok) {
+          const dd = await dr.json();
+          if (dd.counts && typeof dd.counts === 'object') _counts = { ...dd.counts };
+          _draftByName = dd.draftByName || '';
+          _draftAt     = dd.draftAt || null;
         }
-      }
+      } catch {}
     }
 
-    loadDraft();     // відновити незавершену чернетку (введені залишки до відправки)
+    loadDraft();     // localStorage лише доповнює спільну чернетку (товари, яких у ній ще немає)
   } catch (err) {
     _error = err.message;
   }
@@ -585,6 +609,7 @@ async function deleteSession(sessionId) {
 async function submitInventory(dryRun) {
   const os = openSession();
   if (!os) return;
+  if (!dryRun) clearTimeout(_draftSyncTimer);   // щоб запізнілий автозбереж не відновив чернетку після завершення
   _saving = true; _testMsg = ''; _error = ''; re();
   try {
     // dry-run: НЕ зберігаємо позиції в нашу БД — лише валідуємо документ у Syrve
@@ -854,6 +879,11 @@ function buildBar() {
       </div>
       <div class="inv-prog"><div class="inv-prog-fill" style="width:${pct}%"></div></div>
     </div>
+
+    ${(_draftByName && counted > 0) ? `<div style="margin:0 18px 6px;padding:9px 12px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);font-size:12px;color:var(--text2);font-family:var(--font-b);display:flex;align-items:center;gap:8px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" style="flex-shrink:0"><path d="M17 21v-8H7v8M7 3v5h8M3 7v13a1 1 0 001 1h16a1 1 0 001-1V7l-4-4H4a1 1 0 00-1 1z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="min-width:0">Спільний прогрес · востаннє вносив <b style="color:var(--text1)">${_draftByName}</b>${_draftAt ? ` · ${new Date(_draftAt).toLocaleString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+    </div>` : ''}
 
     ${_error ? `<div class="inv-alert">${_error}</div>` : ''}
     ${_testMsg ? `<div class="inv-alert" style="background:var(--green-bg);border-color:var(--green-border);color:var(--green)">${_testMsg}</div>` : ''}
@@ -1382,7 +1412,7 @@ function on(e) {
     _counts[pid].full = (_counts[pid].full || 0) + 1;
     const el = document.getElementById(`inv-full-${pid}`);
     if (el) el.textContent = _counts[pid].full;
-    updateConvDisplay(pid); saveDraft();
+    updateConvDisplay(pid); persistCounts();
     return;
   }
   if (a === 'full-dec') {
@@ -1390,7 +1420,7 @@ function on(e) {
     _counts[pid].full = Math.max(0, (_counts[pid].full || 0) - 1);
     const el = document.getElementById(`inv-full-${pid}`);
     if (el) el.textContent = _counts[pid].full;
-    updateConvDisplay(pid); saveDraft();
+    updateConvDisplay(pid); persistCounts();
     return;
   }
   if (a === 'sht-inc') {
@@ -1398,7 +1428,7 @@ function on(e) {
     _counts[pid].sht = (_counts[pid].sht || 0) + 1;
     const el = document.getElementById(`inv-sht-${pid}`);
     if (el) el.textContent = _counts[pid].sht;
-    saveDraft();
+    persistCounts();
     return;
   }
   if (a === 'sht-dec') {
@@ -1406,7 +1436,7 @@ function on(e) {
     _counts[pid].sht = Math.max(0, (_counts[pid].sht || 0) - 1);
     const el = document.getElementById(`inv-sht-${pid}`);
     if (el) el.textContent = _counts[pid].sht;
-    saveDraft();
+    persistCounts();
     return;
   }
 
@@ -1528,6 +1558,9 @@ export default {
     _histItems     = {};
     _histMenuId    = null;
     _openPid       = null;
+    _draftByName   = '';
+    _draftAt       = null;
+    clearTimeout(_draftSyncTimer);
     _showSchedForm = false;
     _calOpen       = false;
     _error         = '';
