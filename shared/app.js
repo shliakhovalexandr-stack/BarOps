@@ -563,7 +563,12 @@ export function openVenueMenu(id) {
 export async function archiveVenue(id) {
   const v = MANAGER_VENUES.find(x => x.id === id);
   if (!v) return;
-  if (!confirm(`Архівувати "${v.name}"? Заклад буде прихований, дані збережуться.`)) return;
+  if (!await appConfirm({
+    title:   'Архівувати заклад',
+    msg:     `Архівувати «${v.name}»? Заклад буде прихований, дані збережуться.`,
+    okLabel: 'Архівувати',
+    danger:  true,
+  })) return;
   try {
     const token = localStorage.getItem('barops_token');
     const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}/archive`, {
@@ -581,10 +586,10 @@ export async function archiveVenue(id) {
         renderDrawer();
       }
     } else {
-      alert(data.error || 'Помилка архівування');
+      appAlert(data.error || 'Помилка архівування');
     }
   } catch (e) {
-    alert('Мережева помилка');
+    appAlert('Мережева помилка');
   }
 }
 
@@ -595,9 +600,19 @@ export function editVenue(id, currentName) {
 }
 
 export async function deleteVenue(id, name) {
-  if (!confirm(`Видалити "${name}" назавжди? Всі дані закладу будуть втрачені. Це незворотна дія.`)) return;
+  if (!await appConfirm({
+    title:   'Видалити заклад',
+    msg:     `Видалити «${name}» назавжди? Всі дані закладу будуть втрачені. Це незворотна дія.`,
+    okLabel: 'Видалити',
+    danger:  true,
+  })) return;
   // Друге підтвердження для безпеки
-  if (!confirm(`Ви впевнені? Видалити "${name}" безповоротно?`)) return;
+  if (!await appConfirm({
+    title:   'Точно видалити?',
+    msg:     `Ви впевнені? «${name}» буде видалено безповоротно.`,
+    okLabel: 'Так, видалити',
+    danger:  true,
+  })) return;
   try {
     const token = localStorage.getItem('barops_token');
     const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}`, {
@@ -617,10 +632,10 @@ export async function deleteVenue(id, name) {
         renderDrawer();
       }
     } else {
-      alert(data.error || 'Помилка видалення');
+      appAlert(data.error || 'Помилка видалення');
     }
   } catch (e) {
-    alert('Мережева помилка');
+    appAlert('Мережева помилка');
   }
 }
 
@@ -868,6 +883,57 @@ function showPlanExpired() {
     </button>`;
 
   document.body.appendChild(el);
+}
+
+/* ══════════════════════════════════════
+   10b. STYLED CONFIRM / ALERT (заміна нативних confirm()/alert())
+   ══════════════════════════════════════ */
+// Стильова модалка в дусі застосунку. Повертає Promise<boolean>.
+// cancelLabel=null → лише кнопка OK (режим alert).
+export function appConfirm({ title = 'Підтвердження', msg = '', okLabel = 'OK', cancelLabel = 'Скасувати', danger = false } = {}) {
+  return new Promise(resolve => {
+    document.getElementById('app-confirm-overlay')?.remove();
+
+    const ov = document.createElement('div');
+    ov.id = 'app-confirm-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px';
+
+    const okStyle = danger
+      ? 'background:var(--red);color:#fff;border:none'
+      : 'background:var(--green);color:#000;border:none';
+
+    ov.innerHTML = `
+      <div style="width:100%;max-width:320px;background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+        <div style="font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-bottom:8px">${title}</div>
+        <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:18px">${msg}</div>
+        <div style="display:flex;gap:8px">
+          ${cancelLabel ? `<button id="app-confirm-cancel" style="flex:1;height:44px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);background:var(--bg2);color:var(--text1);border:0.5px solid var(--border)">${cancelLabel}</button>` : ''}
+          <button id="app-confirm-ok" style="flex:1;height:44px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-h);${okStyle}">${okLabel}</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(ov);
+
+    const done = (val) => {
+      ov.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(val);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') done(false);
+      else if (e.key === 'Enter') done(true);
+    };
+
+    ov.addEventListener('click', (e) => { if (e.target === ov) done(false); });
+    ov.querySelector('#app-confirm-ok').addEventListener('click', () => done(true));
+    ov.querySelector('#app-confirm-cancel')?.addEventListener('click', () => done(false));
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+// Стильовий alert (одна кнопка OK)
+export function appAlert(msg, title = 'BarOps') {
+  return appConfirm({ title, msg, okLabel: 'OK', cancelLabel: null });
 }
 
 // Глобальний перехоплювач — ловить 403 plan_expired з будь-якого fetch-запиту
