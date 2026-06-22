@@ -17,6 +17,27 @@ export const state = {
 };
 
 export let MANAGER_VENUES = [];
+export let ARCHIVED_VENUES = [];   // архівовані заклади (для відновлення в шухляді)
+
+// Завантажуємо архівовані заклади (лінива підгрузка при розкритті секції)
+async function loadArchivedVenues() {
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch('https://barops-backend-production.up.railway.app/api/venues/archived', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    const data = await res.json();
+    ARCHIVED_VENUES = (data.venues || []).map(v => ({
+      id:   v.id,
+      name: v.name,
+      pos:  v.posType === 'poster' ? 'Poster' : v.posType === 'manual' ? 'Ручний облік' : 'Syrve',
+    }));
+  } catch {
+    ARCHIVED_VENUES = [];
+  }
+  _archivedLoaded = true;
+  renderDrawer();
+}
 
 // Завантажуємо реальні заклади з бекенду
 async function loadVenuesIntoDrawer() {
@@ -54,6 +75,8 @@ async function loadVenuesIntoDrawer() {
 
 let _drawerOpen = false;
 let _venueMenuId = null; // id закладу з відкритим контекстним меню
+let _archivedOpen = false;   // розкрита секція «Архівовані»
+let _archivedLoaded = false; // чи вже тягнули список архівованих
 let _addSheetOpen = false;
 let _addDraft = { name: '', posType: 'syrve' };
 let _addSaving = false;
@@ -355,6 +378,37 @@ function renderDrawer() {
           </div>
         </div>`:``}
       </div>`).join('')}
+      ${(_archivedOpen || ARCHIVED_VENUES.length > 0) ? `
+      <div onclick="window.__barops.toggleArchived()"
+        style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
+          <rect x="2" y="5" width="12" height="9" rx="1.5" stroke="var(--text2)" stroke-width="1.3"/>
+          <path d="M2 5h12M6 2h4" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M6 8.5h4" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+        <div style="flex:1;font-size:13px;color:var(--text2);font-family:var(--font-b)">Архівовані${_archivedLoaded ? ` (${ARCHIVED_VENUES.length})` : ''}</div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"
+          style="transform:rotate(${_archivedOpen?180:0}deg);transition:transform .2s;flex-shrink:0">
+          <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      ${_archivedOpen ? (
+        !_archivedLoaded
+          ? `<div style="padding:4px 20px 10px;font-size:12px;color:var(--text3);font-family:var(--font-b)">Завантаження…</div>`
+          : ARCHIVED_VENUES.length === 0
+          ? `<div style="padding:4px 20px 10px;font-size:12px;color:var(--text3);font-family:var(--font-b)">Немає архівованих закладів</div>`
+          : ARCHIVED_VENUES.map(v => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 20px">
+              <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--bg4);border:1.5px solid var(--border3)"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.name}</div>
+                <div style="font-size:10px;color:var(--text3);font-family:var(--font-b)">${v.pos}</div>
+              </div>
+              <div onclick="event.stopPropagation();window.__barops.unarchiveVenue('${v.id}')"
+                style="height:30px;padding:0 12px;border-radius:9px;border:0.5px solid var(--green);background:transparent;color:var(--green);font-size:12px;font-family:var(--font-b);display:flex;align-items:center;cursor:pointer;flex-shrink:0">Відновити</div>
+            </div>`).join('')
+      ) : ''}
+      ` : ''}
       <div onclick="window.__barops.addVenuePrompt()"
         style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer">
         <div style="width:8px;height:8px;border-radius:50%;border:1.5px dashed var(--green)"></div>
@@ -487,8 +541,42 @@ export function openDrawer()  {
   renderDrawer();
   // Оновлюємо список закладів кожного разу при відкритті
   if (MANAGER_VENUES.length === 0) loadVenuesIntoDrawer();
+  if (!_archivedLoaded) loadArchivedVenues();   // підтягнути архівовані (лічильник у шухляді)
 }
 export function closeDrawer() { _drawerOpen = false; renderDrawer(); }
+
+// Розгорнути/згорнути секцію «Архівовані» (лінива підгрузка при першому відкритті)
+export function toggleArchived() {
+  _archivedOpen = !_archivedOpen;
+  renderDrawer();
+  if (_archivedOpen && !_archivedLoaded) loadArchivedVenues();
+}
+
+// Відновити архівований заклад → повертається в перемикач і стає активним
+export async function unarchiveVenue(id) {
+  const v = ARCHIVED_VENUES.find(x => x.id === id);
+  if (!v) return;
+  try {
+    const token = localStorage.getItem('barops_token');
+    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}/unarchive`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      ARCHIVED_VENUES = ARCHIVED_VENUES.filter(x => x.id !== id);
+      if (!MANAGER_VENUES.some(x => x.id === id)) {
+        MANAGER_VENUES.push({ id: v.id, name: v.name, pos: v.pos, active: false });
+      }
+      if (ARCHIVED_VENUES.length === 0) _archivedOpen = false;
+      switchVenue(id);   // показуємо відновлений заклад одразу
+    } else {
+      appAlert(data.error || 'Помилка відновлення');
+    }
+  } catch (e) {
+    appAlert('Мережева помилка');
+  }
+}
 
 export function switchVenue(id) {
   MANAGER_VENUES.forEach(v => v.active = v.id === id);
@@ -578,6 +666,9 @@ export async function archiveVenue(id) {
     const data = await res.json();
     if (data.success) {
       MANAGER_VENUES = MANAGER_VENUES.filter(x => x.id !== id);
+      // одразу додаємо в «Архівовані» (живий лічильник, без перезапиту)
+      if (!ARCHIVED_VENUES.some(x => x.id === id)) ARCHIVED_VENUES.unshift({ id: v.id, name: v.name, pos: v.pos });
+      _archivedLoaded = true;
       _venueMenuId = null;
       // Якщо архівували активний — переключаємо на перший
       if (state.venueId === id && MANAGER_VENUES.length > 0) {
@@ -956,7 +1047,7 @@ export async function bootstrap() {
   window.__barops = {
     navigate, goBack, setRole, state,
     openDrawer, closeDrawer, switchVenue, addVenuePrompt, closeAddSheet, addDraftChange, saveNewVenue,
-    openVenueMenu, archiveVenue, deleteVenue, editVenue,
+    openVenueMenu, archiveVenue, deleteVenue, editVenue, toggleArchived, unarchiveVenue,
     startVenueHold(e, id) {
       // НЕ викликаємо preventDefault — інакше на мобільному скасовується click (тап не перемикає заклад)
       this._venueLongPress = false;
