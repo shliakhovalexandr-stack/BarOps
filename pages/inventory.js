@@ -142,7 +142,7 @@ const CSS = `<style id="inv-css">
 .inv-prod.is-open{background:var(--green-bg);border-color:var(--green-border)}
 .inv-prod-row{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
 .inv-pbar{width:3px;height:32px;border-radius:2px;flex-shrink:0}
-.inv-pname{font-size:13px;color:var(--text0);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-pname{font-size:13px;color:var(--text0);font-weight:500;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere;line-height:1.3}
 .inv-pmeta{font-size:10px;color:var(--text2);margin-top:2px}
 .inv-pqty{font-size:16px;font-weight:600;color:var(--green);letter-spacing:-.01em;text-align:right}
 .inv-punit{font-size:10px;color:var(--text3);text-align:right}
@@ -226,7 +226,7 @@ const CSS = `<style id="inv-css">
 /* Product config list */
 .inv-cfg-list{padding:0 20px;display:flex;flex-direction:column;gap:5px}
 .inv-cfg-row{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px}
-.inv-cfg-name{flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inv-cfg-name{flex:1;font-size:13px;color:var(--text1);font-family:var(--font-b);min-width:0;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere;line-height:1.3}
 .inv-cfg-sub{font-size:10px;color:var(--text2);margin-top:2px;font-family:var(--font-b)}
 .inv-mode-group{display:flex;gap:2px;flex-shrink:0}
 .inv-mode-btn{height:26px;border-radius:6px;border:0.5px solid var(--border);background:var(--bg3);font-size:10px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 8px;white-space:nowrap}
