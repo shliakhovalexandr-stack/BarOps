@@ -159,6 +159,8 @@ const CSS = `<style id="inv-css">
 .inv-stdisp{flex:1;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
 .inv-stinp{flex:1;min-width:0;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;text-align:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em;outline:none;-webkit-appearance:none;appearance:none;font-family:inherit;padding:0}
 .inv-stinp::-webkit-outer-spin-button,.inv-stinp::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.inv-add-partial{width:100%;height:38px;border-radius:10px;border:0.5px dashed var(--border2);background:transparent;color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer;margin:2px 0 4px}
+.inv-add-partial:active{background:rgba(255,255,255,.05)}
 .inv-save-next{width:100%;height:42px;border-radius:11px;background:var(--green);color:#000;border:none;font-size:13px;font-weight:600;cursor:pointer}
 .inv-conv{background:var(--bg2);border:0.5px solid var(--green-border);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
 .inv-conv-formula{font-size:11px;color:var(--text2);line-height:1.4}
@@ -283,14 +285,26 @@ const CSS = `<style id="inv-css">
 
 /* ════════════════════════ HELPERS ════════════════════════ */
 
-function computeL(pid, full, partial) {
+// Ваги відкритих пляшок (масив; підтримка старого одиночного поля partial)
+function partialWeights(c) {
+  const arr = Array.isArray(c.partials) ? c.partials : (c.partial != null && c.partial !== '' ? [c.partial] : []);
+  return arr.filter(w => w != null && String(w).trim() !== '');
+}
+// Масив для відображення полів зважування (мінімум одне порожнє)
+function partialsView(c) {
+  const arr = Array.isArray(c.partials) ? c.partials : (c.partial != null && c.partial !== '' ? [c.partial] : []);
+  return arr.length ? arr : [''];
+}
+// Літри = цілі пляшки×обʼєм + КОЖНА відкрита через тару + прямі літри
+function computeL(pid, c) {
   const cfg = _configs[pid];
   if (!cfg || cfg.mode !== 'kg_to_l') return 0;
   const { emptyTareKg: e, fullTareKg: f, bottleVolL: v } = cfg;
-  const diff    = (f - e) || 1;
-  const fullL   = (full || 0) * v;
-  const partialL = Math.max(0, ((parseFloat(partial) || 0) - e) / diff * v);
-  return Math.max(0, fullL + partialL);
+  const diff = (f - e) || 1;
+  let total = (+c.full || 0) * v;
+  for (const w of partialWeights(c)) total += Math.max(0, ((parseFloat(w) || 0) - e) / diff * v);
+  total += parseFloat(String(c.litersAdd || '').replace(',', '.')) || 0;   // пряме введення літрів (інша пляшка)
+  return Math.max(0, Math.round(total * 1000) / 1000);
 }
 
 // Товар у режимі тари, але вага пустої/повної (чи об'єм) не введені
@@ -325,7 +339,7 @@ function modeMismatch(p) {
 function isCounted(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
-  if (m === 'kg_to_l') return (c.full || 0) > 0 || (c.partial || '') !== '';
+  if (m === 'kg_to_l') return (+c.full || 0) > 0 || partialWeights(c).length > 0 || (String(c.litersAdd || '').trim() !== '');
   if (m === 'kg')      return (c.kg || '') !== '';
   if (m === 'ml')      return (c.ml || '') !== '';
   return (c.sht || 0) > 0;
@@ -334,7 +348,7 @@ function isCounted(pid) {
 function getResult(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
-  if (m === 'kg_to_l') return computeL(pid, c.full || 0, c.partial || '');
+  if (m === 'kg_to_l') return computeL(pid, c);
   if (m === 'kg')      return parseFloat(c.kg) || 0;
   if (m === 'ml')      return parseFloat(c.ml) || 0;            // ручний ввід одразу в літрах
   return (c.sht || 0);
@@ -450,6 +464,20 @@ function bindLiveInputs() {
       persistCounts();
     };
   });
+  // Ваги відкритих пляшок (кг→л): кілька полів, кожне через тару
+  document.querySelectorAll('[data-partial-inp]').forEach(inp => {
+    inp.oninput = e => {
+      const pid = e.target.dataset.pid;
+      const idx = +e.target.dataset.idx || 0;
+      if (!_counts[pid]) _counts[pid] = {};
+      const c = _counts[pid];
+      if (!Array.isArray(c.partials)) c.partials = partialsView(c);   // міграція старого поля
+      c.partials[idx] = (e.target.value || '').replace(',', '.');
+      c.partial = c.partials[0] || '';   // дзеркало першої ваги для старої версії (перехідний період)
+      updateConvDisplay(pid);
+      persistCounts();
+    };
+  });
   // Степер-поля (штук / цілі пляшки) — прямий ввід числа, не лише +/−
   document.querySelectorAll('[data-step-inp]').forEach(inp => {
     inp.oninput = e => {
@@ -472,7 +500,7 @@ function bindLiveInputs() {
 function updateConvDisplay(pid) {
   if (modeOf(pid) !== 'kg_to_l') return;   // лише режим зважування з тарою має live-перерахунок
   const c   = _counts[pid] || {};
-  const res = computeL(pid, c.full || 0, c.partial || '');
+  const res = computeL(pid, c);
   const el  = document.getElementById(`inv-conv-res-${pid}`);
   if (el) el.textContent = res.toFixed(3);
 }
@@ -976,7 +1004,7 @@ function productRowHTML(p) {
 function inputPanelHTML(p, c, m) {
   if (m === 'kg_to_l') {
     const cfg = _configs[p.id] || {};
-    const result = computeL(p.id, c.full || 0, c.partial || '');
+    const result = computeL(p.id, c);
     const hasCfg = cfg.bottleVolL > 0;
     return `
       <div class="inv-ipanel">
@@ -986,11 +1014,19 @@ function inputPanelHTML(p, c, m) {
           <input class="inv-stinp" id="inv-full-${p.id}" type="number" inputmode="numeric" value="${c.full || 0}" data-step-inp="full" data-pid="${p.id}" onfocus="this.select()">
           <button class="inv-stbtn" data-a="full-inc" data-pid="${p.id}">+</button>
         </div>
-        <div class="inv-inp-lbl">Відкрита тара — зважити (кг)</div>
+        <div class="inv-inp-lbl">Відкриті пляшки — зважити (кг)</div>
+        ${partialsView(c).map((w, idx) => `
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+            <input class="inv-field" style="flex:1;margin:0" type="text" inputmode="decimal"
+              placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг` : '0.000'}"
+              value="${w || ''}" data-partial-inp data-pid="${p.id}" data-idx="${idx}">
+            ${partialsView(c).length > 1 ? `<button class="inv-stbtn" style="width:40px;height:44px;font-size:18px" data-a="partial-del" data-pid="${p.id}" data-idx="${idx}">×</button>` : ''}
+          </div>`).join('')}
+        <button class="inv-add-partial" data-a="partial-add" data-pid="${p.id}">+ ще відкрита пляшка</button>
+        <div class="inv-inp-lbl">Або додати літри напряму (інша пляшка)</div>
         <input class="inv-field" type="text" inputmode="decimal"
-          placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг` : '0.000'}"
-          value="${c.partial || ''}"
-          data-live-inp="partial" data-pid="${p.id}">
+          placeholder="0.000" value="${c.litersAdd || ''}"
+          data-live-inp="litersAdd" data-pid="${p.id}">
         <div class="inv-conv">
           <div class="inv-conv-formula">
             ${hasCfg ? `Зважування з тарою → літри` : `<span style="color:var(--amber)">⚠ Тару задає менеджер</span>`}
@@ -1414,7 +1450,7 @@ function on(e) {
     _openPid = _openPid === pid ? null : pid;
     if (_openPid && !_counts[pid]) {
       const m = modeOf(pid);
-      if (m === 'kg_to_l') _counts[pid] = { full: 0, partial: '' };
+      if (m === 'kg_to_l') _counts[pid] = { full: 0, partials: [''], litersAdd: '' };
       else if (m === 'kg') _counts[pid] = { kg: '' };
       else                 _counts[pid] = { sht: 0 };
     }
@@ -1423,7 +1459,7 @@ function on(e) {
 
   /* ── BAR: steppers ── */
   if (a === 'full-inc') {
-    if (!_counts[pid]) _counts[pid] = { full: 0, partial: '' };
+    if (!_counts[pid]) _counts[pid] = { full: 0, partials: [''], litersAdd: '' };
     _counts[pid].full = (+_counts[pid].full || 0) + 1;
     const el = document.getElementById(`inv-full-${pid}`);
     if (el) el.value = _counts[pid].full;
@@ -1431,7 +1467,7 @@ function on(e) {
     return;
   }
   if (a === 'full-dec') {
-    if (!_counts[pid]) _counts[pid] = { full: 0, partial: '' };
+    if (!_counts[pid]) _counts[pid] = { full: 0, partials: [''], litersAdd: '' };
     _counts[pid].full = Math.max(0, (+_counts[pid].full || 0) - 1);
     const el = document.getElementById(`inv-full-${pid}`);
     if (el) el.value = _counts[pid].full;
@@ -1452,6 +1488,29 @@ function on(e) {
     const el = document.getElementById(`inv-sht-${pid}`);
     if (el) el.value = _counts[pid].sht;
     persistCounts();
+    return;
+  }
+
+  /* ── BAR: кілька відкритих пляшок (кг→л) ── */
+  if (a === 'partial-add') {
+    if (!_counts[pid]) _counts[pid] = {};
+    const c = _counts[pid];
+    if (!Array.isArray(c.partials)) c.partials = partialsView(c);
+    c.partials.push('');
+    c.partial = c.partials[0] || '';
+    re(); persistCounts();
+    return;
+  }
+  if (a === 'partial-del') {
+    const idx = +t.dataset.idx || 0;
+    if (_counts[pid]) {
+      const c = _counts[pid];
+      if (!Array.isArray(c.partials)) c.partials = partialsView(c);
+      c.partials.splice(idx, 1);
+      if (!c.partials.length) c.partials = [''];
+      c.partial = c.partials[0] || '';
+    }
+    re(); persistCounts();
     return;
   }
 
