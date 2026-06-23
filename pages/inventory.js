@@ -149,22 +149,22 @@ const CSS = `<style id="inv-css">
 .inv-pcheck{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border2);flex-shrink:0}
 
 /* Input panel */
-.inv-ipanel{border-top:0.5px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:10px}
+.inv-ipanel{border-top:0.5px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:7px}
 .inv-inp-lbl{font-size:10px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
-.inv-field{height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;padding:0 14px;font-size:20px;font-weight:700;color:var(--text0);outline:none;width:100%;text-align:center;transition:border-color .2s}
+.inv-field{height:40px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:11px;padding:0 12px;font-size:17px;font-weight:700;color:var(--text0);outline:none;width:100%;text-align:center;transition:border-color .2s}
 .inv-field:focus{border-color:var(--green)}
 .inv-stepper{display:flex;gap:8px;align-items:center}
-.inv-stbtn{width:44px;height:44px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;font-size:20px;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
+.inv-stbtn{width:40px;height:40px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:11px;font-size:18px;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
 .inv-stbtn:active{background:rgba(255,255,255,.08)}
-.inv-stdisp{flex:1;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
-.inv-stinp{flex:1;min-width:0;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;text-align:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em;outline:none;-webkit-appearance:none;appearance:none;font-family:inherit;padding:0}
+.inv-stdisp{flex:1;height:40px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
+.inv-stinp{flex:1;min-width:0;height:40px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:11px;text-align:center;font-size:19px;font-weight:600;color:var(--text0);letter-spacing:-.02em;outline:none;-webkit-appearance:none;appearance:none;font-family:inherit;padding:0}
 .inv-stinp::-webkit-outer-spin-button,.inv-stinp::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.inv-add-partial{width:100%;height:38px;border-radius:10px;border:0.5px dashed var(--border2);background:transparent;color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer;margin:2px 0 4px}
+.inv-add-partial{width:100%;height:34px;border-radius:10px;border:0.5px dashed var(--border2);background:transparent;color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer;margin:0}
 .inv-add-partial:active{background:rgba(255,255,255,.05)}
-.inv-save-next{width:100%;height:42px;border-radius:11px;background:var(--green);color:#000;border:none;font-size:13px;font-weight:600;cursor:pointer}
-.inv-conv{background:var(--bg2);border:0.5px solid var(--green-border);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.inv-save-next{width:100%;height:40px;border-radius:11px;background:var(--green);color:#000;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.inv-conv{background:var(--bg2);border:0.5px solid var(--green-border);border-radius:9px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
 .inv-conv-formula{font-size:11px;color:var(--text2);line-height:1.4}
-.inv-conv-result{font-size:20px;font-weight:700;color:var(--green)}
+.inv-conv-result{font-size:18px;font-weight:700;color:var(--green)}
 .inv-conv-unit{font-size:11px;color:var(--text2);margin-top:2px;text-align:right}
 .inv-syrve-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);text-align:center}
 
@@ -1020,7 +1020,7 @@ function inputPanelHTML(p, c, m) {
             <input class="inv-field" style="flex:1;margin:0" type="text" inputmode="decimal"
               placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг` : '0.000'}"
               value="${w || ''}" data-partial-inp data-pid="${p.id}" data-idx="${idx}">
-            ${partialsView(c).length > 1 ? `<button class="inv-stbtn" style="width:40px;height:44px;font-size:18px" data-a="partial-del" data-pid="${p.id}" data-idx="${idx}">×</button>` : ''}
+            ${partialsView(c).length > 1 ? `<button class="inv-stbtn" data-a="partial-del" data-pid="${p.id}" data-idx="${idx}">×</button>` : ''}
           </div>`).join('')}
         <button class="inv-add-partial" data-a="partial-add" data-pid="${p.id}">+ ще відкрита пляшка</button>
         <div class="inv-inp-lbl">Або додати літри напряму (інша пляшка)</div>
