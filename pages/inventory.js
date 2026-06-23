@@ -1560,6 +1560,9 @@ export default {
     _histItems     = {};
     _histMenuId    = null;
     _openPid       = null;
+    _search        = '';      // не переносити пошук між закладами
+    _cfgFilter     = 'all';   // не переносити фільтр «лише без тари» між закладами
+    _counts        = {};      // лічильники зі спільної чернетки відновить loadAll (інакше текли б між закладами)
     _draftByName   = '';
     _draftAt       = null;
     clearTimeout(_draftSyncTimer);
