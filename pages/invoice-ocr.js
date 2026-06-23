@@ -38,6 +38,15 @@ function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('u
 // базова одиниця товару Syrve (з каталогу за productId; запасний — одиниця з OCR)
 function baseUnitOf(r) { const p = _catalog.products.find(x => x.id === r.productId); return (((p && p.unit) || r.unit || '')).trim(); }
 function isLiterRow(r) { return baseUnitOf(r) === 'л'; }
+// рядок з МІРОЮ (база л або кг): к-сть множимо на міру однієї одиниці з назви (обʼєм л / вага кг)
+function isMeasureRow(r) { const u = baseUnitOf(r); return u === 'л' || u === 'кг'; }
+// вага однієї одиниці в кг із назви: «5 кг», «900 г» (→0.9)
+function parseKg(s) {
+  s = (s || '').toString().toLowerCase().replace(/,/g, '.');
+  let m = s.match(/(\d{1,4}(?:\.\d{1,3})?)\s*кг(?![а-яёa-z])/); if (m) return parseFloat(m[1]);
+  m = s.match(/(\d{1,4}(?:\.\d{1,3})?)\s*г(?![а-яёa-z])/);       if (m) return parseFloat(m[1]) / 1000;
+  return 0;
+}
 // об'єм однієї одиниці в літрах: з OCR (volumeL) або парсимо з назви
 function parseVolL(s) {
   s = (s || '').toString().toLowerCase().replace(/,/g, '.');
@@ -48,10 +57,15 @@ function parseVolL(s) {
   return 0;
 }
 function volOf(r) { return (+r.volumeL > 0) ? +r.volumeL : parseVolL(r.rawName); }
-// amount у БАЗОВІЙ одиниці: для «л» = к-сть × об'єм; інакше = к-сть (× в уп для штучних пачок)
+// міра однієї одиниці в БАЗОВІЙ одиниці: ручне/alias volumeL → з назви (кг для кг-товарів, обʼєм л для л-товарів; л≈кг як запас)
+function measureOf(r) {
+  if (+r.volumeL > 0) return +r.volumeL;
+  return baseUnitOf(r) === 'кг' ? (parseKg(r.rawName) || parseVolL(r.rawName)) : parseVolL(r.rawName);
+}
+// amount у БАЗОВІЙ одиниці: л/кг = к-сть × міра однієї одиниці; шт = к-сть × в уп
 function amountOf(r) {
   const q = +r.qty || 0;
-  const f = isLiterRow(r) ? (volOf(r) || 1) : (+r.unitsPerPack || 1);
+  const f = isMeasureRow(r) ? (measureOf(r) || 1) : (+r.unitsPerPack || 1);
   return Math.round(q * f * 1000) / 1000;
 }
 function matchedCount() { return _rows.filter(r => r.productId).length; }
@@ -210,8 +224,8 @@ function reviewView() {
       </div>
       <div class="io-nums">
         <div class="io-num"><div class="io-num-l">К-сть</div><input type="number" inputmode="decimal" value="${r.qty}" onfocus="this.select()" oninput="window.__io.edit(${i},'qty',this.value)"></div>
-        ${isLiterRow(r)
-          ? `<div class="io-num"><div class="io-num-l">× об'єм л</div><input type="number" inputmode="decimal" value="${volOf(r) || ''}" onfocus="this.select()" oninput="window.__io.edit(${i},'volumeL',this.value)"></div>`
+        ${isMeasureRow(r)
+          ? `<div class="io-num"><div class="io-num-l">× ${baseUnitOf(r) === 'кг' ? 'кг' : "об'єм л"}</div><input type="number" inputmode="decimal" value="${measureOf(r) || ''}" onfocus="this.select()" oninput="window.__io.edit(${i},'volumeL',this.value)"></div>`
           : `<div class="io-num"><div class="io-num-l">× в уп</div><input type="number" inputmode="decimal" value="${r.unitsPerPack}" onfocus="this.select()" oninput="window.__io.edit(${i},'unitsPerPack',this.value)"></div>`}
         <div class="io-num"><div class="io-num-l">= ${baseUnitOf(r) || 'шт'}</div><div class="ro" id="io-amt-${i}">${amountOf(r)}</div></div>
       </div>
@@ -523,8 +537,8 @@ async function submit(aliasesOnly) {
   const items = _rows.filter(r => r.productId).map(r => ({
     rawName: r.rawName, productId: r.productId, productName: r.productName,
     amount: amountOf(r), sum: Number(r.sum) || 0, vatPercent: Number(r.vatPercent) || 0,
-    volumeL: isLiterRow(r) ? (volOf(r) || 0) : 0,        // Крок 2: памʼять обʼєму (л-товари)
-    unitsPerPack: isLiterRow(r) ? 0 : (Number(r.unitsPerPack) || 0),  // памʼять «× в уп» (шт/кг)
+    volumeL: isMeasureRow(r) ? (measureOf(r) || 0) : 0,        // Крок 2: памʼять міри однієї одиниці (л/кг)
+    unitsPerPack: isMeasureRow(r) ? 0 : (Number(r.unitsPerPack) || 0),  // памʼять «× в уп» (шт-пачки)
   }));
   if (!items.length) { alert('Жодного зіставленого товару'); return; }
   if (!aliasesOnly && !_store) { alert('Оберіть склад'); return; }
