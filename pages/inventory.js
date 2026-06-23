@@ -157,6 +157,8 @@ const CSS = `<style id="inv-css">
 .inv-stbtn{width:44px;height:44px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;font-size:20px;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
 .inv-stbtn:active{background:rgba(255,255,255,.08)}
 .inv-stdisp{flex:1;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em}
+.inv-stinp{flex:1;min-width:0;height:44px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:12px;text-align:center;font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em;outline:none;-webkit-appearance:none;appearance:none;font-family:inherit;padding:0}
+.inv-stinp::-webkit-outer-spin-button,.inv-stinp::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .inv-save-next{width:100%;height:42px;border-radius:11px;background:var(--green);color:#000;border:none;font-size:13px;font-weight:600;cursor:pointer}
 .inv-conv{background:var(--bg2);border:0.5px solid var(--green-border);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
 .inv-conv-formula{font-size:11px;color:var(--text2);line-height:1.4}
@@ -445,6 +447,17 @@ function bindLiveInputs() {
       if (!_counts[pid]) _counts[pid] = {};
       _counts[pid][kind] = (e.target.value || '').replace(',', '.');   // кома→крапка (укр. локаль)
       updateConvDisplay(pid);
+      persistCounts();
+    };
+  });
+  // Степер-поля (штук / цілі пляшки) — прямий ввід числа, не лише +/−
+  document.querySelectorAll('[data-step-inp]').forEach(inp => {
+    inp.oninput = e => {
+      const pid  = e.target.dataset.pid;
+      const kind = e.target.dataset.stepInp;   // 'sht' | 'full'
+      if (!_counts[pid]) _counts[pid] = {};
+      _counts[pid][kind] = Math.max(0, parseFloat((e.target.value || '').replace(',', '.')) || 0);  // число (для +/−)
+      if (kind === 'full') updateConvDisplay(pid);
       persistCounts();
     };
   });
@@ -970,7 +983,7 @@ function inputPanelHTML(p, c, m) {
         <div class="inv-inp-lbl">Цілі пляшки (шт)</div>
         <div class="inv-stepper">
           <button class="inv-stbtn" data-a="full-dec" data-pid="${p.id}">−</button>
-          <div class="inv-stdisp" id="inv-full-${p.id}">${c.full || 0}</div>
+          <input class="inv-stinp" id="inv-full-${p.id}" type="number" inputmode="numeric" value="${c.full || 0}" data-step-inp="full" data-pid="${p.id}" onfocus="this.select()">
           <button class="inv-stbtn" data-a="full-inc" data-pid="${p.id}">+</button>
         </div>
         <div class="inv-inp-lbl">Відкрита тара — зважити (кг)</div>
@@ -1023,7 +1036,7 @@ function inputPanelHTML(p, c, m) {
       <div class="inv-inp-lbl">Скільки штук</div>
       <div class="inv-stepper">
         <button class="inv-stbtn" data-a="sht-dec" data-pid="${p.id}">−</button>
-        <div class="inv-stdisp" id="inv-sht-${p.id}">${c.sht || 0}</div>
+        <input class="inv-stinp" id="inv-sht-${p.id}" type="number" inputmode="numeric" value="${c.sht || 0}" data-step-inp="sht" data-pid="${p.id}" onfocus="this.select()">
         <button class="inv-stbtn" data-a="sht-inc" data-pid="${p.id}">+</button>
       </div>
       <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (шт)</div>
@@ -1411,33 +1424,33 @@ function on(e) {
   /* ── BAR: steppers ── */
   if (a === 'full-inc') {
     if (!_counts[pid]) _counts[pid] = { full: 0, partial: '' };
-    _counts[pid].full = (_counts[pid].full || 0) + 1;
+    _counts[pid].full = (+_counts[pid].full || 0) + 1;
     const el = document.getElementById(`inv-full-${pid}`);
-    if (el) el.textContent = _counts[pid].full;
+    if (el) el.value = _counts[pid].full;
     updateConvDisplay(pid); persistCounts();
     return;
   }
   if (a === 'full-dec') {
     if (!_counts[pid]) _counts[pid] = { full: 0, partial: '' };
-    _counts[pid].full = Math.max(0, (_counts[pid].full || 0) - 1);
+    _counts[pid].full = Math.max(0, (+_counts[pid].full || 0) - 1);
     const el = document.getElementById(`inv-full-${pid}`);
-    if (el) el.textContent = _counts[pid].full;
+    if (el) el.value = _counts[pid].full;
     updateConvDisplay(pid); persistCounts();
     return;
   }
   if (a === 'sht-inc') {
     if (!_counts[pid]) _counts[pid] = { sht: 0 };
-    _counts[pid].sht = (_counts[pid].sht || 0) + 1;
+    _counts[pid].sht = (+_counts[pid].sht || 0) + 1;
     const el = document.getElementById(`inv-sht-${pid}`);
-    if (el) el.textContent = _counts[pid].sht;
+    if (el) el.value = _counts[pid].sht;
     persistCounts();
     return;
   }
   if (a === 'sht-dec') {
     if (!_counts[pid]) _counts[pid] = { sht: 0 };
-    _counts[pid].sht = Math.max(0, (_counts[pid].sht || 0) - 1);
+    _counts[pid].sht = Math.max(0, (+_counts[pid].sht || 0) - 1);
     const el = document.getElementById(`inv-sht-${pid}`);
-    if (el) el.textContent = _counts[pid].sht;
+    if (el) el.value = _counts[pid].sht;
     persistCounts();
     return;
   }
