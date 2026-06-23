@@ -216,7 +216,12 @@ function reviewView() {
       : r.source === 'ai' ? `<span class="io-badge ai">AI ${r.confidence || ''}%</span>`
       : r.source === 'manual' ? '<span class="io-badge man">обрано</span>' : '';
     return `<div class="io-row${r.productId ? '' : ' unm'}">
-      <div class="io-raw">${r.rawName}</div>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div class="io-raw" style="flex:1;min-width:0">${r.rawName}</div>
+        <button onclick="window.__io.removeRow(${i})" title="Видалити позицію (постачальник недовіз)" style="flex-shrink:0;width:30px;height:30px;border-radius:8px;border:0.5px solid var(--red-border,#5a2a2a);background:transparent;color:var(--red,#ff6b6b);cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
       <div class="io-prod${r.productId ? '' : ' miss'}" onclick="window.__io.openSearch('product',${i})">
         <div class="io-prod-n${r.productId ? '' : ' ph'}">${r.productId ? r.productName : 'Оберіть товар'}</div>
         ${r.productId ? badge : ''}
@@ -612,6 +617,7 @@ export default {
       reset,
       submit: (aliasesOnly) => submit(aliasesOnly),
       skip: nextOrDone,
+      removeRow: (i) => { if (_rows[i]) { _rows.splice(i, 1); rerender(); } },   // постачальник недовіз → прибрати позицію
       edit: (i, k, v) => {
         if (!_rows[i]) return;
         _rows[i][k] = (k === 'qty' || k === 'unitsPerPack' || k === 'volumeL' || k === 'sum' || k === 'vatPercent') ? (parseFloat(v) || 0) : v;
