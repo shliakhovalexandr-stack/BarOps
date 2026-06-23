@@ -360,6 +360,14 @@ async function processNext() {
   await processFile(_queue.shift());
 }
 
+// Зрозуміле повідомлення замість «Failed to fetch» (це мережевий збій/таймаут сервера, не помилка розпізнавання)
+function friendlyErr(e) {
+  const m = (e && e.message) || '';
+  if (/failed to fetch|networkerror|load failed|502|bad gateway|aborted/i.test(m))
+    return 'Сервер не встиг обробити накладну. Спробуйте ще раз; якщо накладна велика — зніміть її меншими частинами або чіткіше.';
+  return m || 'Помилка';
+}
+
 // Стиснути фото перед відправкою: великі фото з телефону (5–15 МБ) валили OCR у 502
 // (стрибок памʼяті / таймаут на беку). ≤1600px по довшій стороні, JPEG ~0.7, з EXIF-орієнтацією.
 async function compressImage(file, maxDim = 1600, quality = 0.7) {
@@ -395,7 +403,7 @@ async function processFile(f) {
     if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
     _parsed = ocrD.parsed; _supplierHint = ocrD.supplierHint || '';
     await matchAndReview();
-  } catch (e) { _err = e.message; _step = 'error'; rerender(); }
+  } catch (e) { _err = friendlyErr(e); _step = 'error'; rerender(); }
 }
 
 // Кілька фото = ОДНА накладна (сторінки): один OCR-запит з усіма фото → один список позицій
@@ -413,7 +421,7 @@ async function processPages(files) {
     if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
     _parsed = ocrD.parsed; _supplierHint = ocrD.supplierHint || '';
     await matchAndReview();
-  } catch (e) { _err = e.message; _step = 'error'; rerender(); }
+  } catch (e) { _err = friendlyErr(e); _step = 'error'; rerender(); }
 }
 
 // Спільне після OCR: зіставлення товарів/постачальника + рядки + екран перевірки
@@ -537,7 +545,7 @@ async function submit(aliasesOnly) {
     if (_queue.length) { processNext(); }
     else if (aliasesOnly) { _step = 'done'; _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount }; rerender(); }
     else { _result = d; _step = 'done'; rerender(); }
-  } catch (e) { _err = e.message; _step = 'error'; rerender(); }
+  } catch (e) { _err = friendlyErr(e); _step = 'error'; rerender(); }
 }
 
 function nextOrDone() {
