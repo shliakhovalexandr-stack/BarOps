@@ -224,7 +224,7 @@ function reviewView() {
 
   const isAdmin = _role === 'admin';
   const ready = _supplier && _store && _rows.length && _rows.every(r => r.productId);
-  const learnReady = _supplier && matchedCount() >= 1;   // постачальник обовʼязковий — фіксуємо звʼязок постачальник→товари
+  const learnReady = matchedCount() >= 1;   // памʼять ТОВАРІВ працює й без постачальника (venue-wide recall); постачальник памʼятається окремо, якщо є
   const batch = _queueTotal > 1;
   return `<div class="io-scroll">
     <div class="io-card">
@@ -510,7 +510,8 @@ function updateResults() {
 }
 
 async function submit(aliasesOnly) {
-  if (!_supplier) { alert('Оберіть постачальника'); return; }
+  // постачальник обовʼязковий лише для СТВОРЕННЯ накладної; для памʼяті товарів — ні
+  if (!aliasesOnly && !_supplier) { alert('Оберіть постачальника'); return; }
   const items = _rows.filter(r => r.productId).map(r => ({
     rawName: r.rawName, productId: r.productId, productName: r.productName,
     amount: amountOf(r), sum: Number(r.sum) || 0, vatPercent: Number(r.vatPercent) || 0,
@@ -524,7 +525,7 @@ async function submit(aliasesOnly) {
     const res = await fetch(`${API}/api/invoices/submit/${_venueId}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
       body: JSON.stringify({
-        supplierRawName: _supplierRaw, supplierId: _supplier.id, supplierName: _supplier.name,
+        supplierRawName: _supplierRaw, supplierId: _supplier?.id || '', supplierName: _supplier?.name || '',
         invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', storeName: _store?.name || '', conceptionId: _conception?.id || '',
         aliasesOnly: !!aliasesOnly, items,
       }),
