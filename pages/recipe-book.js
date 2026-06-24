@@ -138,15 +138,18 @@ function authHeaders() {
 }
 function roleLc() { return (_role || '').toLowerCase(); }
 
-// Редагувати можуть: власник, менеджер, керуючий, шеф-кухар.
-function isEditable() {
-  return ['admin', 'manager', 'director', 'chef'].includes(roleLc());
+// Редагування за розділом: «Кухня» — лише шеф; «Бар»/«Винна карта» — лише власник (системний менеджер).
+function canEditCat(cat) {
+  const r = roleLc();
+  if (cat === 'kitchen') return r === 'chef';
+  if (cat === 'bar' || cat === 'wine') return r === 'admin';
+  return false;
 }
 
-// Повний екран з описом приготування — лише виконавцям (бармен, кухар, шеф).
-// Решта (офіціант, менеджер, керуючий, власник) бачать рецепт карткою з розгортанням.
+// Повний екран з описом приготування — виконавцям (бармен, кухар, шеф) і власнику (admin).
+// Офіціант/менеджер/керуючий бачать рецепт карткою з розгортанням.
 function isFullView() {
-  return ['bartender', 'cook', 'chef'].includes(roleLc());
+  return ['bartender', 'cook', 'chef', 'admin'].includes(roleLc());
 }
 
 // Дозволені розділи рецептів за роллю:
@@ -282,9 +285,10 @@ function openCropOverlay(srcUrl, onApply) {
 /* ── HTML builders ───────────────────────────────── */
 const CAT_TABS = [['kitchen', 'Кухня'], ['bar', 'Бар'], ['wine', 'Винна карта']];
 function buildGroupsScreen() {
+  const editable = canEditCat(_cat);
   let html = `<div class="rb-topbar">
     <span class="rb-title">Рецепти</span>
-    ${isEditable() ? `<button class="rb-add-btn" onclick="window.__rb.addGroup()">+ Група</button>` : ''}
+    ${editable ? `<button class="rb-add-btn" onclick="window.__rb.addGroup()">+ Група</button>` : ''}
   </div>`;
   const allowed = allowedCats();
   if (allowed.length > 1) {
@@ -296,17 +300,17 @@ function buildGroupsScreen() {
   if (_error) {
     html += `<div class="rb-empty"><div class="rb-empty-icon">⚠️</div>${esc(_error)}</div>`;
   } else if (!groups.length) {
-    html += `<div class="rb-empty"><div class="rb-empty-icon">📖</div>${isEditable() ? `Немає груп у «${catLbl}». Додайте першу.` : `У «${catLbl}» ще немає рецептів.`}</div>`;
+    html += `<div class="rb-empty"><div class="rb-empty-icon">📖</div>${editable ? `Немає груп у «${catLbl}». Додайте першу.` : `У «${catLbl}» ще немає рецептів.`}</div>`;
   } else {
     groups.forEach(g => {
       const count = g.recipes?.length || 0;
       html += `<div class="rb-card" data-gid="${g.id}" onclick="window.__rb.openGroup('${g.id}')">
-        ${isEditable() ? `<div class="rb-drag-handle" onpointerdown="window.__rb.dragStart(event,'${g.id}')" onclick="event.stopPropagation()">${ICON_DRAG}</div>` : ''}
+        ${editable ? `<div class="rb-drag-handle" onpointerdown="window.__rb.dragStart(event,'${g.id}')" onclick="event.stopPropagation()">${ICON_DRAG}</div>` : ''}
         <div style="flex:1;min-width:0">
           <div class="rb-card-title">${esc(g.name)}</div>
           <div class="rb-card-sub">${plural(count,'рецепт','рецепти','рецептів')}</div>
         </div>
-        ${isEditable() ? `<div class="rb-card-actions" onclick="event.stopPropagation()">
+        ${editable ? `<div class="rb-card-actions" onclick="event.stopPropagation()">
           <button class="rb-icon-btn" onclick="window.__rb.editGroup('${g.id}')">${ICON_EDIT}</button>
           <button class="rb-icon-btn danger" onclick="window.__rb.deleteGroup('${g.id}')">${ICON_TRASH}</button>
         </div>` : `<span class="rb-card-arr">${ICON_CHEVRON}</span>`}
@@ -319,14 +323,15 @@ function buildGroupsScreen() {
 function buildRecipesScreen() {
   if (!_selGroup) return '';
   const recipes = _selGroup.recipes || [];
+  const editable = canEditCat(_selGroup.category || 'bar');
   let html = `<div class="rb-topbar">
     <button class="rb-back" onclick="window.__rb.goBack()">${ICON_BACK} Рецепти</button>
-    ${isEditable() ? `<button class="rb-add-btn" onclick="window.__rb.addRecipe()">+ Рецепт</button>` : ''}
+    ${editable ? `<button class="rb-add-btn" onclick="window.__rb.addRecipe()">+ Рецепт</button>` : ''}
   </div>
   <div style="padding:0 16px 8px"><span class="rb-title">${esc(_selGroup.name)}</span></div>
   <div class="rb-list">`;
   if (!recipes.length) {
-    html += `<div class="rb-empty"><div class="rb-empty-icon">🍹</div>${isEditable() ? 'Немає рецептів. Додайте перший.' : 'Рецепти ще не додано.'}</div>`;
+    html += `<div class="rb-empty"><div class="rb-empty-icon">🍹</div>${editable ? 'Немає рецептів. Додайте перший.' : 'Рецепти ще не додано.'}</div>`;
   } else if (isFullView()) {
     // Виконавці (бармен/кухар/шеф) — клік відкриває повний екран з приготуванням
     recipes.forEach(r => {
@@ -336,14 +341,14 @@ function buildRecipesScreen() {
           <div class="rb-card-title">${esc(r.name)}</div>
           <div class="rb-card-sub">${ingCount ? `${ingCount} інгр.` : 'Без інгредієнтів'}</div>
         </div>
-        ${isEditable() ? `<div class="rb-card-actions" onclick="event.stopPropagation()">
+        ${editable ? `<div class="rb-card-actions" onclick="event.stopPropagation()">
           <button class="rb-icon-btn" onclick="window.__rb.editRecipe('${r.id}')">${ICON_EDIT}</button>
           <button class="rb-icon-btn danger" onclick="window.__rb.deleteRecipe('${r.id}')">${ICON_TRASH}</button>
         </div>` : `<span class="rb-card-arr">${ICON_CHEVRON}</span>`}
       </div>`;
     });
   } else {
-    // Офіціант/менеджер/керуючий/власник — картка з розгортанням (склад + фото, без приготування)
+    // Офіціант/менеджер/керуючий — картка з розгортанням (склад + фото, без приготування)
     recipes.forEach(r => { html += buildRecipeCard(r); });
   }
   return html + '</div>';
@@ -353,13 +358,14 @@ function buildRecipesScreen() {
 function buildRecipeCard(r) {
   const ingr = r.ingredients || [];
   const open = _expanded.has(r.id);
+  const editable = canEditCat(_selGroup?.category || 'bar');
   let h = `<div class="rb-rcard">
     <div class="rb-rcard-head" onclick="window.__rb.toggleRecipe('${r.id}')">
       <div style="flex:1;min-width:0">
         <div class="rb-card-title">${esc(r.name)}</div>
         <div class="rb-card-sub">${ingr.length ? `${ingr.length} інгр.` : 'Без інгредієнтів'}</div>
       </div>
-      ${isEditable() ? `<div class="rb-card-actions" onclick="event.stopPropagation()">
+      ${editable ? `<div class="rb-card-actions" onclick="event.stopPropagation()">
         <button class="rb-icon-btn" onclick="window.__rb.editRecipe('${r.id}')">${ICON_EDIT}</button>
         <button class="rb-icon-btn danger" onclick="window.__rb.deleteRecipe('${r.id}')">${ICON_TRASH}</button>
       </div>` : ''}
@@ -387,9 +393,10 @@ function buildRecipeScreen() {
   const steps   = _selRecipe.steps   || '';
   const method  = _selRecipe.method  || '';
   const garnish = _selRecipe.garnish || '';
+  const editable = canEditCat(_selGroup?.category || 'bar');
   let html = `<div class="rb-topbar">
     <button class="rb-back" onclick="window.__rb.goBack()">${ICON_BACK} ${esc(_selGroup?.name || 'Назад')}</button>
-    ${isEditable() ? `<div style="display:flex;gap:8px">
+    ${editable ? `<div style="display:flex;gap:8px">
       <button class="rb-icon-btn" onclick="window.__rb.editRecipe('${_selRecipe.id}')">${ICON_EDIT}</button>
       <button class="rb-icon-btn danger" onclick="window.__rb.deleteRecipe('${_selRecipe.id}')">${ICON_TRASH}</button>
     </div>` : ''}
@@ -432,9 +439,9 @@ function buildEditGroupScreen() {
   <div class="rb-edit-form">
     <div class="rb-title" style="margin-bottom:20px">${isNew ? 'Нова група' : 'Редагувати групу'}</div>
     ${_error ? `<div class="rb-err">${esc(_error)}</div>` : ''}
-    ${allowedCats().length > 1 ? `<div class="rb-field-wrap">
+    ${CAT_TABS.filter(([k]) => canEditCat(k)).length > 1 ? `<div class="rb-field-wrap">
       <div class="rb-field-label">Розділ</div>
-      <div class="rb-catseg">${CAT_TABS.filter(([k]) => allowedCats().includes(k)).map(([k, l]) => `<button class="${_editGroupCat === k ? 'act' : ''}" onclick="window.__rb.onGroupCat('${k}')">${l}</button>`).join('')}</div>
+      <div class="rb-catseg">${CAT_TABS.filter(([k]) => canEditCat(k)).map(([k, l]) => `<button class="${_editGroupCat === k ? 'act' : ''}" onclick="window.__rb.onGroupCat('${k}')">${l}</button>`).join('')}</div>
     </div>` : ''}
     <div class="rb-field-wrap">
       <div class="rb-field-label">Назва групи</div>
@@ -570,7 +577,7 @@ window.__rb = {
 
   /* ── Перетягування груп ── */
   dragStart(e, id) {
-    if (!isEditable() || _drag) return;
+    if (!canEditCat(_cat) || _drag) return;
     e.preventDefault(); e.stopPropagation();
     const list = document.querySelector('.rb-list');
     const el   = list?.querySelector(`.rb-card[data-gid="${id}"]`);
@@ -656,7 +663,7 @@ window.__rb = {
   },
 
   setCat(k)       { if (!allowedCats().includes(k)) return; _cat = k; fullRender(); },
-  onGroupCat(k)   { if (!allowedCats().includes(k)) return; _editGroupCat = k; fullRender(); },
+  onGroupCat(k)   { if (!canEditCat(k)) return; _editGroupCat = k; fullRender(); },
 
   addGroup() {
     _editGroupId = null; _editGroupName = ''; _editGroupCat = _cat; _error = '';   // нова група в активній вкладці
@@ -705,6 +712,7 @@ window.__rb = {
   cancelDel() { _delConfirm = null; fullRender(); },
 
   async confirmDel() {
+    if (_delConfirm && _selGroup && !canEditCat(_selGroup.category || 'bar')) { _delConfirm = null; fullRender(); return; }   // захист: лише дозволений роллю розділ
     if (_delConfirm === 'group' && _selGroup) {
       const gid = _selGroup.id;
       _delConfirm = null;
@@ -769,6 +777,7 @@ window.__rb = {
   },
 
   async saveGroup() {
+    if (!canEditCat(_editGroupCat)) return;   // захист: лише дозволений роллю розділ
     const name = _editGroupName.trim();
     if (!name) { _error = 'Введіть назву групи'; fullRender(); return; }
     _saving = true; _error = ''; fullRender();
@@ -784,9 +793,9 @@ window.__rb = {
   },
 
   async saveRecipe() {
+    if (!_selGroup || !canEditCat(_selGroup.category || 'bar')) return;   // захист: лише дозволений роллю розділ
     const name = _editName.trim();
     if (!name) { _error = 'Введіть назву рецепту'; fullRender(); return; }
-    if (!_selGroup) return;
     const gid = _selGroup.id;
     _saving = true; _error = ''; fullRender();
     try {
