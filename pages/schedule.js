@@ -24,9 +24,9 @@ function canEdit() {
   const r = resolveRole();
   return r === 'manager' || r === 'admin' || r === 'director' || r === 'chef';
 }
-// Які підрозділи бачить роль у графіку: шеф — лише кухня; решта — усі
+// Які підрозділи бачить роль у графіку: кухонні (шеф/кухар) — лише кухня; решта — усі
 function deptAllowed(key) {
-  return resolveRole() === 'chef' ? key === 'cooks' : true;
+  return ['chef', 'cook'].includes(resolveRole()) ? key === 'cooks' : true;
 }
 
 /* ════════════════════════════════════════

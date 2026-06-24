@@ -595,6 +595,7 @@ function buildHTML() {
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))]
+              : state.role === 'cook' ? QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory'].includes(q.route))  // кухар: лише списання/переміщення, графік, інвентар кухні
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
@@ -751,10 +752,11 @@ ${CSS}
     <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю); офіціант — одним блоком без назв -->
     ${state.role === 'waiter' ? waiterTiles(quick)
       : state.role === 'chef' ? dashTiles(quick, true, false, false)
+      : state.role === 'cook' ? dashTiles(quick, false, false)
       : dashTiles(quick, isMgr, !isMgr && !isAcc)}
 
     <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні; офіціанту не показуємо: борги/списання/акциз йому не потрібні) -->
-    ${(!isAcc && !isMgr && state.role !== 'waiter') ? (() => {
+    ${(!isAcc && !isMgr && state.role !== 'waiter' && state.role !== 'cook') ? (() => {
       const dbt = _mini.debts, ex = _mini.excise, wo = s?.writeoffs?.count ?? 0;
       const cell = (route, big, lbl, sub, col) => `
         <div class="d-tcard" onclick="window.__barops.navigate('${route}')">

@@ -153,6 +153,46 @@ const TAB_BAR_WAITER = TAB_BAR_BARTENDER.map(tab => {
   return tab;
 });
 
+// Кухар — кухонний працівник: лише списання/переміщення, графік, інвентаризація кухні
+const TAB_BAR_COOK = [
+  {
+    route: 'dashboard', label: 'Головна',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M3 10.5L11 3l8 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 9.5V18a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+      <path d="M9 19v-5h4v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'schedule', label: 'Графік',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="3" y="4" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 8h16M7 2v4M15 2v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'writeoff', label: 'Списання', fab: true,
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M5 17l2-2 7-7 2 2-7 7-2 2H5v-2z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M12 6l2 2" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'inventory', label: 'Інвентар.',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="3" y="3" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M7 8h8M7 12h6M7 16h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'profile', label: 'Профіль',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M4 19c0-3.9 3.1-7 7-7h.5c3.9 0 6.5 3.1 6.5 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+];
+
 const TAB_BAR_ACCOUNTANT = [
   {
     route: 'dashboard', label: 'Головна',
@@ -824,6 +864,7 @@ function updateTabBarActive() {
   const tabs = state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
              : state.role === 'admin' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
+             : state.role === 'cook' ? TAB_BAR_COOK
              : state.role === 'waiter' ? TAB_BAR_WAITER : TAB_BAR_BARTENDER;
   // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
   const domRoutes = [...el.children].map(c => c.dataset.route || '');
@@ -866,6 +907,7 @@ function renderTabBar() {
              : state.role === 'manager'     ? TAB_BAR_MGR_JOURNAL
              : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
              : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
+             : state.role === 'cook'        ? TAB_BAR_COOK
              : state.role === 'waiter'      ? TAB_BAR_WAITER
              : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {
