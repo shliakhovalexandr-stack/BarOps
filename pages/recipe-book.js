@@ -646,11 +646,13 @@ function buildDelConfirm() {
 /* ── Винна карта: екрани ─────────────────────────── */
 function buildWineCatalog() {
   const editable = canEditCat('wine');
+  const wineGroups = _groups.filter(g => (g.category || '') === 'wine');
+  const hasWine = wineGroups.some(g => (g.recipes || []).length > 0);
   let html = `<div class="rb-topbar">
     <span class="rb-title">Винна карта</span>
     ${editable ? `<div style="display:flex;gap:6px">
-      <button class="rb-add-btn" style="background:var(--bg2);color:var(--text1)" onclick="window.__rb.wineImport()">Імпорт</button>
-      <button class="rb-add-btn" onclick="window.__rb.addWine()">+ Вино</button>
+      ${!hasWine ? `<button class="rb-add-btn" style="background:var(--bg2);color:var(--text1)" onclick="window.__rb.wineImport()">Імпорт</button>` : ''}
+      <button class="rb-add-btn" onclick="window.__rb.addWine()">+ Додати</button>
     </div>` : ''}
   </div>`;
   html += tabsHtml();
@@ -660,7 +662,6 @@ function buildWineCatalog() {
     <div class="rb-wchips">${WINE_SUGARS.map(s => `<button class="rb-wchip${_wineSugars.has(s) ? ' act' : ''}" onclick="window.__rb.toggleWineSugar('${esc(s)}')">${s}</button>`).join('')}</div>
   </div>`;
 
-  const wineGroups = _groups.filter(g => (g.category || '') === 'wine');
   const filterActive = !!(_wineSearch || _wineColors.size || _wineSugars.size);
   let any = false;
   html += `<div class="rb-list">`;
