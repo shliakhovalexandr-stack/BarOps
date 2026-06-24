@@ -51,8 +51,8 @@ const CSS = `<style id="ve-css">
 .ve-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);color:var(--text0);padding:12px 24px;border-radius:12px;font-family:var(--font-b);font-size:14px;border:0.5px solid var(--border);z-index:1000;opacity:0;transition:all .3s ease;pointer-events:none;white-space:nowrap}
 .ve-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .ve-toast.error{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
-.ve-input--saved{border-color:rgba(34,197,94,.5)!important;background:rgba(34,197,94,.04)!important}
-.ve-saved-badge{font-size:10px;color:var(--green,#22c55e);font-family:var(--font-b);margin:-10px 0 12px 2px;display:flex;align-items:center;gap:4px;opacity:.85}
+.ve-input--saved{border-color:rgba(34,197,94,.5)!important;background:rgba(34,197,94,.04)!important;margin-bottom:4px}
+.ve-saved-badge{font-size:10px;color:var(--green,#22c55e);font-family:var(--font-b);margin:0 0 14px 2px;display:flex;align-items:center;gap:4px;opacity:.85}
 .ve-tg-item{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);cursor:pointer;display:flex;flex-direction:column;gap:3px;transition:background .15s}
 .ve-tg-item:active{background:rgba(255,255,255,.1)}
 .ve-tg-name{font-size:13px;color:var(--text0);font-family:var(--font-b)}
@@ -80,7 +80,10 @@ function markSaved(id) {
   const badge = document.createElement('div');
   badge.className = 've-saved-badge';
   badge.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4.5" stroke="#22c55e" stroke-opacity=".5"/><path d="M3 5l1.2 1.3L7 3.5" stroke="#22c55e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Збережено`;
-  el.insertAdjacentElement('afterend', badge);
+  // якщо інпут у flex-рядку (напр. з кнопкою «Знайти») — бейдж ставимо ПІСЛЯ рядка, а не всередину
+  let anchor = el;
+  try { const p = el.parentElement; if (p && getComputedStyle(p).display === 'flex') anchor = p; } catch {}
+  anchor.insertAdjacentElement('afterend', badge);
 }
 
 function extractTopicId(url) {
