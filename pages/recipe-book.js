@@ -25,6 +25,7 @@ let _expanded      = new Set();   // id рецептів, розгорнутих
 let _wineColors = new Set();   // активні фільтри кольору
 let _wineSugars = new Set();   // активні фільтри цукру
 let _wineSearch = '';
+let _openCats   = new Set();   // id розгорнутих категорій вина (за замовч. згорнуті)
 let _editRegion = '', _editSubgroup = '', _editColor = '', _editSugar = '', _editGrape = '', _editCategory = '';
 let _importText = '', _importItems = [], _importReplace = false, _importBusy = false, _importMsg = '';
 let _editRecipeId  = null;
@@ -83,7 +84,8 @@ const CSS = `
 .rb-wchip{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:16px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text2);font-size:12px;font-family:var(--font-b);cursor:pointer}
 .rb-wchip.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .rb-sw{width:12px;height:12px;border-radius:3px;flex-shrink:0;display:inline-block}
-.rb-wcat{background:var(--amber-bg,rgba(224,169,59,.14));color:var(--amber,#e0a93b);font-family:var(--font-h);font-size:15px;font-weight:600;padding:8px 12px;border-radius:8px;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.rb-wcat{background:var(--amber-bg,rgba(224,169,59,.14));color:var(--amber,#e0a93b);font-family:var(--font-h);font-size:15px;font-weight:600;padding:10px 12px;border-radius:8px;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
+.rb-wcat:active{opacity:.7}
 .rb-wcat-n{opacity:.7;font-size:13px;font-weight:500}
 .rb-wsub{color:var(--blue,#5b8def);font-size:12px;font-family:var(--font-b);padding:6px 4px 2px;line-height:1.4}
 .rb-wreg{color:var(--text1);font-size:13px;font-weight:600;font-family:var(--font-b);padding:8px 4px 4px}
@@ -658,13 +660,16 @@ function buildWineCatalog() {
   </div>`;
 
   const wineGroups = _groups.filter(g => (g.category || '') === 'wine');
+  const filterActive = !!(_wineSearch || _wineColors.size || _wineSugars.size);
   let any = false;
   html += `<div class="rb-list">`;
   for (const g of wineGroups) {
     const wines = (g.recipes || []).filter(wineMatch);
     if (!wines.length) continue;
     any = true;
-    html += `<div class="rb-wcat"><span>${esc(g.name)}</span><span class="rb-wcat-n">${wines.length}</span></div>`;
+    const open = filterActive || _openCats.has(g.id);   // при фільтрі — завжди показуємо
+    html += `<div class="rb-wcat" onclick="window.__rb.toggleCat('${g.id}')"><span>${esc(g.name)}</span><span style="display:flex;align-items:center;gap:10px"><span class="rb-wcat-n">${wines.length}</span><span class="rb-rcard-chev${open ? ' open' : ''}">${ICON_CHEVRON}</span></span></div>`;
+    if (!open) continue;   // згорнуто — вина не малюємо
     // згрупувати: підкатегорія → регіон у порядку першої появи; вина — у порядку sortOrder
     const subs = [], map = {};
     for (const w of wines) {
@@ -967,6 +972,7 @@ window.__rb = {
   onGroupCat(k)   { if (!canEditCat(k)) return; _editGroupCat = k; fullRender(); },
 
   /* ── Винна карта ── */
+  toggleCat(id)        { if (_openCats.has(id)) _openCats.delete(id); else _openCats.add(id); fullRender(); },
   wineSearch(v)        { _wineSearch = v; fullRender(); },
   toggleWineColor(k)   { if (_wineColors.has(k)) _wineColors.delete(k); else _wineColors.add(k); fullRender(); },
   toggleWineSugar(s)   { if (_wineSugars.has(s)) _wineSugars.delete(s); else _wineSugars.add(s); fullRender(); },
@@ -1229,7 +1235,7 @@ export function render() {
   _cat = _allowed.includes('bar') ? 'bar' : _allowed[0];
   _editGroupCat = _cat;
   _expanded = new Set();
-  _wineColors = new Set(); _wineSugars = new Set(); _wineSearch = '';
+  _wineColors = new Set(); _wineSugars = new Set(); _wineSearch = ''; _openCats = new Set();
   _importText = ''; _importItems = []; _importReplace = false; _importMsg = '';
 
   if (!document.getElementById('rb-css')) {
