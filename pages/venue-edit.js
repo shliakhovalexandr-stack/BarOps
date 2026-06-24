@@ -274,6 +274,54 @@ async function initOpenChecksSection(venueId) {
       btn.disabled = false; btn.textContent = old;
     }
   });
+
+  // ── Зали закладу: завантажити список з джерела → чекбокси → зберегти ──
+  document.getElementById('btn-load-oc-zones')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-load-oc-zones');
+    btn.disabled = true; const old = btn.textContent; btn.textContent = '⏳ Завантаження…';
+    try {
+      const r = await fetch(`${API}/api/pos/open-checks-sections/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const d = await r.json();
+      if (!r.ok || !d.success) throw new Error(d.error || 'Помилка');
+      if (!d.configured) { showToast('⚠️ Спершу збережіть URL і ключ', 'error'); return; }
+      const saved = new Set(d.saved || []);
+      const list = document.getElementById('oc-zones-list');
+      list.innerHTML = (d.sections || []).length
+        ? d.sections.map(s => `
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
+            <input type="checkbox" data-zone="${escapeHtml(s.name)}" ${saved.has(s.name) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
+            <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${escapeHtml(s.name)}</div></div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-b)">${s.count} чек.</div>
+          </label>`).join('')
+        : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Зали не знайдено (немає відкритих чеків зараз).</div>`;
+      document.getElementById('oc-zones').style.display = 'block';
+    } catch (e) {
+      showToast('⚠️ ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  });
+
+  document.getElementById('btn-save-oc-zones')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-save-oc-zones');
+    btn.disabled = true; const old = btn.textContent; btn.textContent = '⏳ Збереження…';
+    try {
+      const checked = [...document.querySelectorAll('#oc-zones-list input[type=checkbox]:checked')].map(cb => cb.dataset.zone);
+      const r = await fetch(`${API}/api/pos/open-checks-sections/${venueId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body:    JSON.stringify({ sections: checked }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.success) throw new Error(d.error || 'Помилка');
+      showToast(`✅ Збережено залів: ${d.count}${d.count ? '' : ' (показуватимуться всі)'}`);
+      checkStatus();
+    } catch (e) {
+      showToast('⚠️ ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  });
 }
 
 function escapeHtml(str) {
@@ -423,6 +471,13 @@ ${CSS}
       <div style="display:flex;gap:10px">
         <button type="button" id="btn-test-oc" class="ve-btn" style="flex:1;background:transparent;border:1.5px solid var(--green);color:var(--green);height:44px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">🔍 Перевірити</button>
         <button type="button" id="btn-save-oc" class="ve-btn ve-btn-green" style="flex:1;height:44px;border-radius:12px">💾 Зберегти</button>
+      </div>
+
+      <button type="button" id="btn-load-oc-zones" class="ve-btn" style="width:100%;margin-top:10px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);height:42px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">📂 Зали цього закладу</button>
+      <div class="ve-hint" style="margin-top:6px">Джерело віддає зали ВСІХ закладів разом. Познач зали саме цього — показуватимуться лише вони. Порожньо = усі.</div>
+      <div id="oc-zones" style="display:none;margin-top:10px">
+        <div id="oc-zones-list" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
+        <button type="button" id="btn-save-oc-zones" class="ve-btn ve-btn-green" style="width:100%;margin-top:8px;height:40px;border-radius:12px">Зберегти зали</button>
       </div>
     </div>
 
