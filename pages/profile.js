@@ -157,19 +157,7 @@ function planBadge() {
     </div>`;
   }
 
-  if (plan === 'trial') {
-    return `
-    <div class="prof-plan prof-plan--trial">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="8" stroke="var(--amber)" stroke-width="1.4"/>
-        <path d="M10 6v4l2.5 2.5" stroke="var(--amber)" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:600;color:var(--amber);font-family:var(--font-b)">Trial · залишилось ${daysLeft} дн.</div>
-        <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Повний функціонал активний</div>
-      </div>
-    </div>`;
-  }
+  if (plan === 'trial') return '';   // тріал-банер прибрано (повний функціонал; без «null дн.»)
 
   return `
   <div class="prof-plan prof-plan--active">
