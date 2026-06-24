@@ -336,6 +336,7 @@ function tabsHtml() {
 const WINE_COLORS = [['white', 'Біле', '#E0B84B'], ['rose', 'Рожеве', '#E0879F'], ['red', 'Червоне', '#B5413B'], ['orange', 'Помаранчеве', '#D98032']];
 const WINE_SUGARS = ['Брют', 'Екстра Драй', 'Сухе', 'Напівсухе', 'Напівсолодке', 'Солодке'];
 function wineColorMeta(c) { return WINE_COLORS.find(x => x[0] === c) || ['', '', 'transparent']; }
+function normSugar(s) { const t = (s || '').trim().toLowerCase(); return WINE_SUGARS.find(x => x.toLowerCase() === t) || (s || '').trim(); }
 
 function wineMatch(w) {
   if (_wineColors.size && !_wineColors.has(w.color)) return false;
@@ -398,7 +399,7 @@ function parseWinePaste(text) {
     const color = (cells[2] && normColor(cells[2])) || catColor || inferColor(name, cat, cells[4] || '');
     items.push({
       category: cat || 'Вино', subgroup: sub, region: reg, name,
-      color, sugar: cells[3] || '', grape: cells[4] || '', description: cells[5] || '',
+      color, sugar: normSugar(cells[3] || ''), grape: cells[4] || '', description: cells[5] || '',
     });
   }
   return items;
@@ -773,9 +774,11 @@ function buildWineImport() {
   </div>
   <div class="rb-edit-form">
     <div class="rb-title" style="margin-bottom:14px">Імпорт винної карти</div>
-    <div class="rb-wimport-hint">Скопіюй таблицю з Excel/Google Sheets і встав сюди. Колонки рядка: <b>Регіон, Назва, Колір, Цукор, Сорт, Опис</b>. Рядки-заголовки (категорія/підкатегорія) розпізнаються автоматично. Колір береться з тексту або визначається з назви — перевір після імпорту. Імпорт додається до карти <b>поточного закладу</b>.</div>
+    <div class="rb-wimport-hint">Імпорт — для <b>багатьох вин одразу</b> з таблиці. Щоб додати <b>одне вино</b> — простіше кнопкою «+ Вино» (поля окремими інпутами).<br><br>Формат: одне вино = один рядок, колонки <b>Регіон · Назва · Колір · Цукор · Сорт · Опис</b>, розділені <b>табуляцією</b> (з Excel) або знаком «<b>|</b>». <u>Кома НЕ розділювач</u> — назви й описи самі містять коми. Категорія: рядок «<b># Назва</b>», підкатегорія: «<b>## Назва</b>». Колір — словом (біле/червоне/рожеве) або визначиться з назви. Додається до <b>поточного закладу</b>.</div>
     ${_importMsg ? `<div class="rb-err" style="background:rgba(80,200,120,.08);border-color:rgba(80,200,120,.3);color:var(--green)">${esc(_importMsg)}</div>` : ''}
     ${_error ? `<div class="rb-err">${esc(_error)}</div>` : ''}
+    <button class="rb-save-btn" style="background:var(--bg2);color:var(--text0);margin-bottom:16px" onclick="window.__rb.addWine()">✏️ Додати одне вино у формі</button>
+    <div class="rb-field-label" style="margin-bottom:6px">Або масовий імпорт таблицею</div>
     <textarea class="rb-wimport-ta" placeholder="Встав таблицю тут…" oninput="window.__rb.onImportText(this.value)">${esc(_importText)}</textarea>
     <button class="rb-add-ingr-btn" style="margin-top:10px" onclick="window.__rb.parseImport()">Розпізнати</button>
     ${_importItems.length ? buildImportPreview() : ''}
