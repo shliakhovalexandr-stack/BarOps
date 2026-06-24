@@ -39,6 +39,7 @@ let _editPhotoUrl = '';
 let _saving     = false;
 let _delConfirm = null;
 let _drag       = null;   // стан перетягування груп
+let _lastScreenKey = '';  // для збереження скролу при перемалюванні того самого екрана
 
 /* ── CSS ─────────────────────────────────────────── */
 const CSS = `
@@ -651,7 +652,7 @@ function buildWineCatalog() {
   </div>`;
   html += tabsHtml();
   html += `<div class="rb-wfilters">
-    <input class="rb-wsearch" type="search" placeholder="Пошук вина…" value="${esc(_wineSearch)}" oninput="window.__rb.wineSearch(this.value)">
+    <input class="rb-wsearch" id="rb-wsearch-inp" type="text" placeholder="Пошук вина…" value="${esc(_wineSearch)}" oninput="window.__rb.wineSearch(this.value)">
     <div class="rb-wchips">${WINE_COLORS.map(([k, l, c]) => `<button class="rb-wchip${_wineColors.has(k) ? ' act' : ''}" onclick="window.__rb.toggleWineColor('${k}')"><span class="rb-sw" style="background:${c}"></span>${l}</button>`).join('')}</div>
     <div class="rb-wchips">${WINE_SUGARS.map(s => `<button class="rb-wchip${_wineSugars.has(s) ? ' act' : ''}" onclick="window.__rb.toggleWineSugar('${esc(s)}')">${s}</button>`).join('')}</div>
   </div>`;
@@ -819,7 +820,24 @@ function buildScreen() {
 function fullRender() {
   const root = document.getElementById('rb-root');
   if (!root) return;
+  // ключ екрана: якщо не змінився (розгортання картки, фільтр) — зберігаємо скрол
+  const key = `${_cat}|${_screen}|${_selGroup?.id || ''}`;
+  const scEl = root.querySelector('.rb-scroll');
+  const keepScroll = (scEl && key === _lastScreenKey) ? scEl.scrollTop : 0;
+  // зберегти фокус і каретку активного поля (пошук тощо)
+  const act = document.activeElement;
+  const fid = (act && act.id && (act.tagName === 'INPUT' || act.tagName === 'TEXTAREA')) ? act.id : null;
+  const selS = fid ? act.selectionStart : null, selE = fid ? act.selectionEnd : null;
+
   root.innerHTML = `<div class="rb-wrap"><div class="rb-scroll">${buildScreen()}</div></div>${buildDelConfirm()}`;
+  _lastScreenKey = key;
+
+  const sc = root.querySelector('.rb-scroll');
+  if (sc) sc.scrollTop = keepScroll;
+  if (fid) {
+    const el = document.getElementById(fid);
+    if (el) { el.focus(); try { if (selS != null) el.setSelectionRange(selS, selE); } catch {} }
+  }
 }
 
 /* ── Data ────────────────────────────────────────── */
