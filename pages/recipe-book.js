@@ -20,6 +20,13 @@ let _editGroupId   = null;
 let _editGroupName = '';
 let _editGroupCat  = 'bar';   // категорія групи у формі створення/редагування
 let _expanded      = new Set();   // id рецептів, розгорнутих карткою (режим картки)
+
+// Винна карта
+let _wineColors = new Set();   // активні фільтри кольору
+let _wineSugars = new Set();   // активні фільтри цукру
+let _wineSearch = '';
+let _editRegion = '', _editSubgroup = '', _editColor = '', _editSugar = '', _editGrape = '', _editCategory = '';
+let _importText = '', _importItems = [], _importReplace = false, _importBusy = false, _importMsg = '';
 let _editRecipeId  = null;
 let _editName      = '';
 let _editIngredients = [];
@@ -67,6 +74,36 @@ const CSS = `
 .rb-rcard-photo{width:100%;border-radius:10px;object-fit:cover;max-height:240px;display:block;margin-top:10px}
 .rb-rcard-empty{color:var(--text2);font-size:13px;font-family:var(--font-b);padding:6px 0}
 @keyframes rbfade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+/* Винна карта (каталог) */
+.rb-wfilters{padding:0 16px 8px;display:flex;flex-direction:column;gap:8px}
+.rb-wsearch{width:100%;background:var(--bg1);border:0.5px solid var(--border);border-radius:10px;padding:9px 12px;font-size:14px;color:var(--text0);font-family:var(--font-b);box-sizing:border-box;outline:none}
+.rb-wsearch:focus{border-color:var(--green)}
+.rb-wchips{display:flex;flex-wrap:wrap;gap:6px}
+.rb-wchip{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:16px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text2);font-size:12px;font-family:var(--font-b);cursor:pointer}
+.rb-wchip.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.rb-sw{width:12px;height:12px;border-radius:3px;flex-shrink:0;display:inline-block}
+.rb-wcat{background:var(--amber-bg,rgba(224,169,59,.14));color:var(--amber,#e0a93b);font-family:var(--font-h);font-size:15px;font-weight:600;padding:8px 12px;border-radius:8px;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.rb-wcat-n{opacity:.7;font-size:13px;font-weight:500}
+.rb-wsub{color:var(--blue,#5b8def);font-size:12px;font-family:var(--font-b);padding:6px 4px 2px;line-height:1.4}
+.rb-wreg{color:var(--text1);font-size:13px;font-weight:600;font-family:var(--font-b);padding:8px 4px 4px}
+.rb-wrow{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.rb-wrow-head{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;user-select:none}
+.rb-wrow-head:active{opacity:.7}
+.rb-wname{font-size:14px;font-weight:600;color:var(--text0);line-height:1.25;overflow-wrap:anywhere}
+.rb-wmeta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.rb-wbody{padding:0 12px 12px 34px;animation:rbfade .18s ease}
+.rb-winfo{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.rb-winfo span{color:var(--text2)}.rb-winfo b{color:var(--text0);font-weight:600;text-align:right}
+.rb-wdesc{font-size:13px;color:var(--text1);font-family:var(--font-b);line-height:1.6;margin-top:10px;white-space:pre-wrap}
+.rb-wcolorseg{display:flex;gap:6px;flex-wrap:wrap}
+.rb-wcolorseg button{display:flex;align-items:center;gap:6px;flex:1;min-width:72px;justify-content:center;height:40px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text2);font-size:12px;font-family:var(--font-b);cursor:pointer}
+.rb-wcolorseg button.act{border-color:var(--green);color:var(--text0);background:var(--green-bg)}
+.rb-wimport-ta{width:100%;min-height:150px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:12px;font-size:12px;color:var(--text0);font-family:var(--font-mono);box-sizing:border-box;outline:none;resize:vertical;line-height:1.5}
+.rb-wimport-hint{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:10px}
+.rb-wimport-prev{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:12px;margin:12px 0;max-height:280px;overflow-y:auto}
+.rb-wimport-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;color:var(--text1);font-family:var(--font-b)}
+.rb-wimport-cat{font-size:12px;color:var(--amber,#e0a93b);font-weight:600;margin:8px 0 4px;font-family:var(--font-b)}
+.rb-wcheck{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text1);font-family:var(--font-b);margin:8px 0;cursor:pointer}
 .rb-empty{text-align:center;padding:48px 24px;color:var(--text2);font-size:14px;font-family:var(--font-b);line-height:1.6}
 .rb-empty-icon{font-size:36px;margin-bottom:12px}
 .rb-recipe-detail{padding:0 16px 24px}
@@ -153,10 +190,10 @@ function isFullView() {
 }
 
 // Дозволені розділи рецептів за роллю:
-//  • бармен — лише «Бар»;  • кухар/шеф — лише «Кухня»;  • решта — усі три.
+//  • бармен — «Бар» + «Винна карта»;  • кухар/шеф — лише «Кухня»;  • решта — усі три.
 function allowedCats() {
   const r = roleLc();
-  if (r === 'bartender') return ['bar'];
+  if (r === 'bartender') return ['bar', 'wine'];
   if (r === 'cook' || r === 'chef') return ['kitchen'];
   return ['kitchen', 'bar', 'wine'];
 }
@@ -284,16 +321,92 @@ function openCropOverlay(srcUrl, onApply) {
 
 /* ── HTML builders ───────────────────────────────── */
 const CAT_TABS = [['kitchen', 'Кухня'], ['bar', 'Бар'], ['wine', 'Винна карта']];
+
+// Стрічка вкладок Кухня/Бар/Винна карта (лише дозволені роллю; ховається, якщо одна)
+function tabsHtml() {
+  const allowed = allowedCats();
+  if (allowed.length <= 1) return '';
+  return `<div class="rb-tabs">${CAT_TABS.filter(([k]) => allowed.includes(k)).map(([k, l]) => `<button class="rb-tab${_cat === k ? ' act' : ''}" onclick="window.__rb.setCat('${k}')">${l}</button>`).join('')}</div>`;
+}
+
+/* ── Винна карта ──────────────────────────────────── */
+const WINE_COLORS = [['white', 'Біле', '#E0B84B'], ['rose', 'Рожеве', '#E0879F'], ['red', 'Червоне', '#B5413B'], ['orange', 'Помаранчеве', '#D98032']];
+const WINE_SUGARS = ['Брют', 'Екстра Драй', 'Сухе', 'Напівсухе', 'Напівсолодке', 'Солодке'];
+function wineColorMeta(c) { return WINE_COLORS.find(x => x[0] === c) || ['', '', 'transparent']; }
+
+function wineMatch(w) {
+  if (_wineColors.size && !_wineColors.has(w.color)) return false;
+  if (_wineSugars.size && !_wineSugars.has((w.sugar || '').trim())) return false;
+  if (_wineSearch) {
+    const hay = `${w.name} ${w.grape} ${w.region} ${w.subgroup} ${w.steps}`.toLowerCase();
+    if (!hay.includes(_wineSearch.toLowerCase())) return false;
+  }
+  return true;
+}
+
+// Текстовий колір → ключ
+function normColor(t) {
+  const s = (t || '').toLowerCase();
+  if (/(черв|red|rosso|rouge|tinto)/.test(s)) return 'red';
+  if (/(рожев|ros[eé]|rosa|rosato|rosado)/.test(s)) return 'rose';
+  if (/(помаранч|orange|оранж)/.test(s)) return 'orange';
+  if (/(біл|white|bianco|blanc|branco|weiss)/.test(s)) return 'white';
+  return '';
+}
+// Здогад кольору з назви/категорії/сорту (колір у таблиці — заливка, у текст не копіюється).
+// Невпевнено → '' (нейтральний маркер), щоб не фарбувати все в біле.
+function inferColor(name, cat, grape) {
+  const hay = `${name} ${cat} ${grape}`.toLowerCase();
+  if (/(rosso|rouge|tinto|\bnero\b|червон|bardolino|montepulciano|корвіна|санджовезе|merlot|cabernet|primitivo|negroamaro|санджо)/.test(hay)) return 'red';
+  if (/(ros[eé]|rosato|rosado|chiaretto|ramato|рожев)/.test(hay)) return 'rose';
+  if (/(orange|помаранч|оранж)/.test(hay)) return 'orange';
+  if (/(bianco|blanc|branco|\bwhite\b|weiss|біле|grigio|gris|verdejo|chardonnay|sauvignon|riesling|глера|москато|піно гріджио|просекко|prosecco|lambrusco)/.test(hay)) return 'white';
+  return '';
+}
+
+// Парсер вставленої таблиці (TSV з Excel/Google Sheets). Колонки рядка вина:
+// [Регіон, Назва, Колір(заливка→порожньо), Цукор, Сорт, Опис]. Рядок-заголовок: текст лише в 1-й клітинці.
+function parseWinePaste(text) {
+  const items = [];
+  let cat = '', sub = '', reg = '', catColor = '';
+  for (const raw of (text || '').split(/\r?\n/)) {
+    if (!raw.trim()) continue;
+    const line = raw.trim();
+    // Явні маркери (для готового блоку): "# Категорія" / "## Підкатегорія"
+    if (/^##\s+/.test(line)) { sub = line.replace(/^##\s+/, '').replace(/\s*\(\d+\)\s*$/, '').trim(); reg = ''; continue; }
+    if (/^#\s+/.test(line))  { cat = line.replace(/^#\s+/, '').replace(/\s*\(\d+\)\s*$/, '').trim(); sub = ''; reg = ''; catColor = normColor(cat); continue; }
+
+    const cells = raw.split('\t').map(c => c.trim());
+    const name = cells[1] || '';
+    // Пропустити рядок-шапку колонок (Назва/Вино/Wine/Найменування…)
+    if (/^(назв|вино|wine|name|найменув)/i.test(name)) continue;
+
+    if (!name) {                                  // рядок-заголовок (текст лише в 1-й клітинці)
+      const h = (cells[0] || '').trim();
+      if (!h) continue;
+      const stripped = h.replace(/\s*\(\d+\)\s*$/, '').trim();   // прибрати "(7)"
+      if (/[.;]\s/.test(stripped)) { sub = stripped; reg = ''; }                      // підкатегорія = речення
+      else { cat = stripped; sub = ''; reg = ''; catColor = normColor(cat); }         // інакше категорія
+      continue;
+    }
+    if (cells[0]) reg = cells[0];   // регіон (порожній → успадковуємо через merge)
+    // колір: явний текст → з категорії (напр. «Червоне вино») → здогад із назви
+    const color = (cells[2] && normColor(cells[2])) || catColor || inferColor(name, cat, cells[4] || '');
+    items.push({
+      category: cat || 'Вино', subgroup: sub, region: reg, name,
+      color, sugar: cells[3] || '', grape: cells[4] || '', description: cells[5] || '',
+    });
+  }
+  return items;
+}
+
 function buildGroupsScreen() {
   const editable = canEditCat(_cat);
   let html = `<div class="rb-topbar">
     <span class="rb-title">Рецепти</span>
     ${editable ? `<button class="rb-add-btn" onclick="window.__rb.addGroup()">+ Група</button>` : ''}
   </div>`;
-  const allowed = allowedCats();
-  if (allowed.length > 1) {
-    html += `<div class="rb-tabs">${CAT_TABS.filter(([k]) => allowed.includes(k)).map(([k, l]) => `<button class="rb-tab${_cat === k ? ' act' : ''}" onclick="window.__rb.setCat('${k}')">${l}</button>`).join('')}</div>`;
-  }
+  html += tabsHtml();
   html += `<div class="rb-list">`;
   const groups = _groups.filter(g => (g.category || 'bar') === _cat);
   const catLbl = (CAT_TABS.find(c => c[0] === _cat) || [, ''])[1];
@@ -510,10 +623,12 @@ function buildEditRecipeScreen() {
 function buildDelConfirm() {
   if (!_delConfirm) return '';
   const isGroup = _delConfirm === 'group';
+  const isWine = _cat === 'wine';
+  const noun = isGroup ? 'групу' : (isWine ? 'вино' : 'рецепт');
   const name = isGroup ? _selGroup?.name : _selRecipe?.name;
   return `<div class="rb-del-overlay" onclick="event.target===this&&window.__rb.cancelDel()">
     <div class="rb-del-sheet">
-      <div class="rb-del-title">Видалити ${isGroup ? 'групу' : 'рецепт'}?</div>
+      <div class="rb-del-title">Видалити ${noun}?</div>
       <div class="rb-del-sub">${isGroup ? `«${esc(name)}» та всі рецепти в ній буде видалено назавжди.` : `«${esc(name)}» буде видалено назавжди.`}</div>
       <div class="rb-del-btns">
         <button class="rb-del-btn danger" onclick="window.__rb.confirmDel()">Видалити</button>
@@ -523,8 +638,174 @@ function buildDelConfirm() {
   </div>`;
 }
 
+/* ── Винна карта: екрани ─────────────────────────── */
+function buildWineCatalog() {
+  const editable = canEditCat('wine');
+  let html = `<div class="rb-topbar">
+    <span class="rb-title">Винна карта</span>
+    ${editable ? `<div style="display:flex;gap:6px">
+      <button class="rb-add-btn" style="background:var(--bg2);color:var(--text1)" onclick="window.__rb.wineImport()">Імпорт</button>
+      <button class="rb-add-btn" onclick="window.__rb.addWine()">+ Вино</button>
+    </div>` : ''}
+  </div>`;
+  html += tabsHtml();
+  html += `<div class="rb-wfilters">
+    <input class="rb-wsearch" type="search" placeholder="Пошук вина…" value="${esc(_wineSearch)}" oninput="window.__rb.wineSearch(this.value)">
+    <div class="rb-wchips">${WINE_COLORS.map(([k, l, c]) => `<button class="rb-wchip${_wineColors.has(k) ? ' act' : ''}" onclick="window.__rb.toggleWineColor('${k}')"><span class="rb-sw" style="background:${c}"></span>${l}</button>`).join('')}</div>
+    <div class="rb-wchips">${WINE_SUGARS.map(s => `<button class="rb-wchip${_wineSugars.has(s) ? ' act' : ''}" onclick="window.__rb.toggleWineSugar('${esc(s)}')">${s}</button>`).join('')}</div>
+  </div>`;
+
+  const wineGroups = _groups.filter(g => (g.category || '') === 'wine');
+  let any = false;
+  html += `<div class="rb-list">`;
+  for (const g of wineGroups) {
+    const wines = (g.recipes || []).filter(wineMatch);
+    if (!wines.length) continue;
+    any = true;
+    html += `<div class="rb-wcat"><span>${esc(g.name)}</span><span class="rb-wcat-n">${wines.length}</span></div>`;
+    // згрупувати: підкатегорія → регіон у порядку першої появи; вина — у порядку sortOrder
+    const subs = [], map = {};
+    for (const w of wines) {
+      const sub = (w.subgroup || '').trim(), reg = (w.region || '').trim();
+      if (!map[sub]) { map[sub] = { regs: [], byReg: {} }; subs.push(sub); }
+      if (!map[sub].byReg[reg]) { map[sub].byReg[reg] = []; map[sub].regs.push(reg); }
+      map[sub].byReg[reg].push(w);
+    }
+    for (const sub of subs) {
+      if (sub) html += `<div class="rb-wsub">${esc(sub)}</div>`;
+      for (const reg of map[sub].regs) {
+        if (reg) html += `<div class="rb-wreg">${esc(reg)}</div>`;
+        for (const w of map[sub].byReg[reg]) html += buildWineRow(w, editable);
+      }
+    }
+  }
+  if (!any) {
+    const filtered = _wineColors.size || _wineSugars.size || _wineSearch;
+    html += `<div class="rb-empty"><div class="rb-empty-icon">🍷</div>${filtered ? 'Нічого не знайдено за фільтром.' : (editable ? 'Карта порожня. Додайте вино або імпортуйте наявну.' : 'Винну карту ще не додано.')}</div>`;
+  }
+  return html + `</div>`;
+}
+
+function buildWineRow(w, editable) {
+  const open = _expanded.has(w.id);
+  const swc = wineColorMeta(w.color)[2];
+  let h = `<div class="rb-wrow">
+    <div class="rb-wrow-head" onclick="window.__rb.toggleRecipe('${w.id}')">
+      <span class="rb-sw" style="${w.color ? `background:${swc}` : 'background:transparent;border:1px dashed var(--border)'}"></span>
+      <div style="flex:1;min-width:0">
+        <div class="rb-wname">${esc(w.name)}</div>
+        <div class="rb-wmeta">${[w.sugar, w.grape].filter(Boolean).map(esc).join(' · ')}</div>
+      </div>
+      ${editable ? `<button class="rb-icon-btn" onclick="event.stopPropagation();window.__rb.editWine('${w.id}')">${ICON_EDIT}</button>` : ''}
+      <span class="rb-rcard-chev${open ? ' open' : ''}">${ICON_CHEVRON}</span>
+    </div>`;
+  if (open) {
+    h += `<div class="rb-wbody">`;
+    const info = [];
+    if (w.region) info.push(['Регіон', w.region]);
+    if (w.grape)  info.push(['Сорт', w.grape]);
+    if (w.sugar)  info.push(['Цукор', w.sugar]);
+    info.forEach(([k, v]) => h += `<div class="rb-winfo"><span>${k}</span><b>${esc(v)}</b></div>`);
+    if (w.steps) h += `<div class="rb-wdesc">${esc(w.steps)}</div>`;
+    if (!info.length && !w.steps) h += `<div class="rb-rcard-empty">Деталі ще не додано.</div>`;
+    if (editable) h += `<button class="rb-icon-btn danger" style="margin-top:10px;padding:8px 12px" onclick="window.__rb.deleteWine('${w.id}')">${ICON_TRASH} Видалити</button>`;
+    h += `</div>`;
+  }
+  return h + `</div>`;
+}
+
+function buildWineForm() {
+  const isNew = !_editRecipeId;
+  const wineGroups = _groups.filter(g => (g.category || '') === 'wine');
+  return `<div class="rb-topbar">
+    <button class="rb-back" onclick="window.__rb.goBack()">${ICON_BACK} ${isNew ? 'Нове вино' : 'Редагування'}</button>
+  </div>
+  <div class="rb-edit-form">
+    <div class="rb-title" style="margin-bottom:20px">${isNew ? 'Нове вино' : 'Редагувати вино'}</div>
+    ${_error ? `<div class="rb-err">${esc(_error)}</div>` : ''}
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Назва</div>
+      <input class="rb-input" id="rb-w-name" type="text" placeholder="Lambrusco dell'Emilia Bianco…" value="${esc(_editName)}" oninput="window.__rb.onWine('name',this.value)">
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Категорія</div>
+      <input class="rb-input" list="rb-wcats" type="text" placeholder="Ігристе вино, Біле вино…" value="${esc(_editCategory)}" oninput="window.__rb.onWine('category',this.value)">
+      <datalist id="rb-wcats">${wineGroups.map(g => `<option value="${esc(g.name)}">`).join('')}</datalist>
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Підкатегорія <span style="color:var(--text2);font-size:10px;text-transform:none;letter-spacing:0">(необов'язково)</span></div>
+      <input class="rb-input" type="text" placeholder="Північ Італії. Легкі та ароматні…" value="${esc(_editSubgroup)}" oninput="window.__rb.onWine('subgroup',this.value)">
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Регіон</div>
+      <input class="rb-input" type="text" placeholder="Veneto, Іспанія, Франція…" value="${esc(_editRegion)}" oninput="window.__rb.onWine('region',this.value)">
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Колір</div>
+      <div class="rb-wcolorseg">${WINE_COLORS.map(([k, l, c]) => `<button class="${_editColor === k ? 'act' : ''}" onclick="window.__rb.onWine('color','${k}')"><span class="rb-sw" style="background:${c}"></span>${l}</button>`).join('')}</div>
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Цукор</div>
+      <div class="rb-wcolorseg" style="flex-wrap:wrap">${WINE_SUGARS.map(s => `<button class="${_editSugar === s ? 'act' : ''}" onclick="window.__rb.onWine('sugar','${esc(s)}')">${s}</button>`).join('')}</div>
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Сорт винограду</div>
+      <input class="rb-input" type="text" placeholder="Глера 90%, Піно Неро 10%…" value="${esc(_editGrape)}" oninput="window.__rb.onWine('grape',this.value)">
+    </div>
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Опис</div>
+      <textarea class="rb-textarea" placeholder="Смак, аромат, післясмак…" oninput="window.__rb.onWine('steps',this.value)">${esc(_editSteps)}</textarea>
+    </div>
+    <button class="rb-save-btn" onclick="window.__rb.saveWine()" ${_saving ? 'disabled' : ''}>${_saving ? 'Збереження…' : 'Зберегти'}</button>
+  </div>`;
+}
+
+function buildWineImport() {
+  return `<div class="rb-topbar">
+    <button class="rb-back" onclick="window.__rb.goBack()">${ICON_BACK} Імпорт винної карти</button>
+  </div>
+  <div class="rb-edit-form">
+    <div class="rb-title" style="margin-bottom:14px">Імпорт винної карти</div>
+    <div class="rb-wimport-hint">Скопіюй таблицю з Excel/Google Sheets і встав сюди. Колонки рядка: <b>Регіон, Назва, Колір, Цукор, Сорт, Опис</b>. Рядки-заголовки (категорія/підкатегорія) розпізнаються автоматично. Колір береться з тексту або визначається з назви — перевір після імпорту. Імпорт додається до карти <b>поточного закладу</b>.</div>
+    ${_importMsg ? `<div class="rb-err" style="background:rgba(80,200,120,.08);border-color:rgba(80,200,120,.3);color:var(--green)">${esc(_importMsg)}</div>` : ''}
+    ${_error ? `<div class="rb-err">${esc(_error)}</div>` : ''}
+    <textarea class="rb-wimport-ta" placeholder="Встав таблицю тут…" oninput="window.__rb.onImportText(this.value)">${esc(_importText)}</textarea>
+    <button class="rb-add-ingr-btn" style="margin-top:10px" onclick="window.__rb.parseImport()">Розпізнати</button>
+    ${_importItems.length ? buildImportPreview() : ''}
+    ${_importItems.length ? `
+      <label class="rb-wcheck"><input type="checkbox" ${_importReplace ? 'checked' : ''} onchange="window.__rb.toggleImportReplace()"> Замінити поточну винну карту (видалити наявну)</label>
+      <button class="rb-save-btn" onclick="window.__rb.doImport()" ${_importBusy ? 'disabled' : ''}>${_importBusy ? 'Імпорт…' : `Імпортувати ${_importItems.length} вин`}</button>
+    ` : ''}
+  </div>`;
+}
+
+function buildImportPreview() {
+  // зведення по кольорах — щоб одразу помітити перекіс (напр. усе «біле»)
+  const cc = {};
+  for (const it of _importItems) { const k = it.color || ''; cc[k] = (cc[k] || 0) + 1; }
+  const colorSummary = Object.entries(cc).map(([c, n]) => `${wineColorMeta(c)[1] || 'без кольору'} ${n}`).join(' · ');
+
+  let h = `<div class="rb-wimport-hint" style="margin:10px 0 0">Кольори: ${esc(colorSummary)}</div><div class="rb-wimport-prev">`;
+  let curCat = null, curSub = null, curReg = null;
+  for (const it of _importItems) {
+    if (it.category !== curCat) { curCat = it.category; curSub = null; curReg = null; h += `<div class="rb-wimport-cat">${esc(it.category)}</div>`; }
+    const sub = it.subgroup || '';
+    if (sub !== curSub) { curSub = sub; curReg = null; if (sub) h += `<div class="rb-wsub" style="padding-left:6px">${esc(sub)}</div>`; }
+    const reg = it.region || '';
+    if (reg !== curReg) { curReg = reg; if (reg) h += `<div style="padding-left:6px;color:var(--text2);font-size:11px;font-family:var(--font-b)">${esc(reg)}</div>`; }
+    const swc = wineColorMeta(it.color)[2];
+    h += `<div class="rb-wimport-row" style="padding-left:6px"><span class="rb-sw" style="background:${it.color ? swc : 'transparent'};${it.color ? '' : 'border:1px dashed var(--border)'}"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</span><span style="color:var(--text2)">${esc(it.sugar)}</span></div>`;
+  }
+  return h + `</div>`;
+}
+
 function buildScreen() {
   if (_loading) return `<div class="rb-loading-wrap">Завантаження…</div>`;
+  if (_cat === 'wine') {
+    if (_screen === 'wine-edit')   return buildWineForm();
+    if (_screen === 'wine-import') return buildWineImport();
+    return buildWineCatalog();
+  }
   switch (_screen) {
     case 'recipes':     return buildRecipesScreen();
     case 'recipe':      return buildRecipeScreen();
@@ -556,6 +837,7 @@ async function loadGroups() {
 window.__rb = {
   goBack() {
     _error = '';
+    if (_screen === 'wine-edit' || _screen === 'wine-import') { _screen = 'groups'; fullRender(); return; }
     if (_screen === 'recipe')      { _screen = 'recipes'; fullRender(); return; }
     if (_screen === 'recipes')     { _screen = 'groups'; _selGroup = null; fullRender(); return; }
     if (_screen === 'edit-group')  { _screen = 'groups'; fullRender(); return; }
@@ -662,8 +944,104 @@ window.__rb = {
     _screen = 'recipe'; fullRender();
   },
 
-  setCat(k)       { if (!allowedCats().includes(k)) return; _cat = k; fullRender(); },
+  setCat(k)       { if (!allowedCats().includes(k)) return; _cat = k; _screen = 'groups'; _selGroup = null; _expanded = new Set(); fullRender(); },
   onGroupCat(k)   { if (!canEditCat(k)) return; _editGroupCat = k; fullRender(); },
+
+  /* ── Винна карта ── */
+  wineSearch(v)        { _wineSearch = v; fullRender(); },
+  toggleWineColor(k)   { if (_wineColors.has(k)) _wineColors.delete(k); else _wineColors.add(k); fullRender(); },
+  toggleWineSugar(s)   { if (_wineSugars.has(s)) _wineSugars.delete(s); else _wineSugars.add(s); fullRender(); },
+  onWine(field, v) {
+    if (field === 'name') _editName = v;
+    else if (field === 'steps') _editSteps = v;
+    else if (field === 'category') _editCategory = v;
+    else if (field === 'subgroup') _editSubgroup = v;
+    else if (field === 'region') _editRegion = v;
+    else if (field === 'grape') _editGrape = v;
+    else if (field === 'color') { _editColor = v; fullRender(); }
+    else if (field === 'sugar') { _editSugar = v; fullRender(); }
+  },
+
+  addWine() {
+    if (!canEditCat('wine')) return;
+    const wg = _groups.filter(g => (g.category || '') === 'wine');
+    _editRecipeId = null; _editName = ''; _editSteps = '';
+    _editCategory = wg[0]?.name || ''; _editSubgroup = ''; _editRegion = '';
+    _editColor = ''; _editSugar = ''; _editGrape = ''; _error = '';
+    _screen = 'wine-edit'; fullRender();
+    setTimeout(() => document.getElementById('rb-w-name')?.focus(), 100);
+  },
+
+  editWine(id) {
+    const g = _groups.find(x => (x.category || '') === 'wine' && (x.recipes || []).some(r => r.id === id));
+    const w = g && g.recipes.find(r => r.id === id);
+    if (!w) return;
+    _selGroup = g;
+    _editRecipeId = w.id; _editName = w.name || ''; _editSteps = w.steps || '';
+    _editCategory = g.name; _editSubgroup = w.subgroup || ''; _editRegion = w.region || '';
+    _editColor = w.color || ''; _editSugar = w.sugar || ''; _editGrape = w.grape || ''; _error = '';
+    _screen = 'wine-edit'; fullRender();
+  },
+
+  deleteWine(id) {
+    const g = _groups.find(x => (x.category || '') === 'wine' && (x.recipes || []).some(r => r.id === id));
+    const w = g && g.recipes.find(r => r.id === id);
+    if (!w) return;
+    _selGroup = g; _selRecipe = w; _delConfirm = 'recipe'; fullRender();
+  },
+
+  async saveWine() {
+    if (!canEditCat('wine')) return;
+    const name = _editName.trim();
+    const catName = _editCategory.trim();
+    if (!name) { _error = 'Введіть назву вина'; fullRender(); return; }
+    if (!catName) { _error = 'Введіть категорію'; fullRender(); return; }
+    _saving = true; _error = ''; fullRender();
+    try {
+      // знайти/створити групу-категорію (category='wine')
+      let group = _groups.find(g => (g.category || '') === 'wine' && g.name === catName);
+      if (!group) {
+        const gr = await fetch(`${API}/api/recipe-book/groups`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ venueId: _venueId, name: catName, category: 'wine' }) });
+        const gd = await gr.json();
+        if (!gd.success || !gd.group?.id) { _error = gd.error || 'Помилка створення категорії'; _saving = false; fullRender(); return; }
+        group = gd.group;
+      }
+      const isNew = !_editRecipeId;
+      const url = isNew ? `${API}/api/recipe-book/recipes` : `${API}/api/recipe-book/recipes/${_editRecipeId}`;
+      const body = { groupId: group.id, venueId: _venueId, name, steps: _editSteps, region: _editRegion, subgroup: _editSubgroup, color: _editColor, sugar: _editSugar, grape: _editGrape };
+      const res = await fetch(url, { method: isNew ? 'POST' : 'PUT', headers: authHeaders(), body: JSON.stringify(body) });
+      const data = await res.json();
+      if (data.success) { _screen = 'groups'; await loadGroups(); }
+      else { _error = data.error || 'Помилка збереження'; }
+    } catch { _error = 'Немає зʼєднання'; }
+    _saving = false; fullRender();
+  },
+
+  /* ── Імпорт ── */
+  wineImport() {
+    if (!canEditCat('wine')) return;
+    _importText = ''; _importItems = []; _importReplace = false; _importMsg = ''; _error = '';
+    _screen = 'wine-import'; fullRender();
+  },
+  onImportText(v)        { _importText = v; },
+  toggleImportReplace()  { _importReplace = !_importReplace; },
+  parseImport() {
+    _importItems = parseWinePaste(_importText);
+    _importMsg = _importItems.length ? `Розпізнано ${_importItems.length} вин.` : '';
+    _error = _importItems.length ? '' : 'Не вдалося розпізнати рядки. Перевір формат вставки.';
+    fullRender();
+  },
+  async doImport() {
+    if (!canEditCat('wine') || !_importItems.length) return;
+    _importBusy = true; _error = ''; _importMsg = ''; fullRender();
+    try {
+      const res = await fetch(`${API}/api/recipe-book/import`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ venueId: _venueId, items: _importItems, replace: _importReplace }) });
+      const data = await res.json();
+      if (data.success) { _importItems = []; _importText = ''; _screen = 'groups'; await loadGroups(); }
+      else { _error = data.error || 'Помилка імпорту'; }
+    } catch { _error = 'Немає зʼєднання'; }
+    _importBusy = false; fullRender();
+  },
 
   addGroup() {
     _editGroupId = null; _editGroupName = ''; _editGroupCat = _cat; _error = '';   // нова група в активній вкладці
@@ -832,6 +1210,8 @@ export function render() {
   _cat = _allowed.includes('bar') ? 'bar' : _allowed[0];
   _editGroupCat = _cat;
   _expanded = new Set();
+  _wineColors = new Set(); _wineSugars = new Set(); _wineSearch = '';
+  _importText = ''; _importItems = []; _importReplace = false; _importMsg = '';
 
   if (!document.getElementById('rb-css')) {
     const s = document.createElement('style');
