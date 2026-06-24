@@ -699,6 +699,15 @@ async function submitInventory(dryRun) {
   if (!os) return;
   if (!dryRun) clearTimeout(_draftSyncTimer);   // щоб запізнілий автозбереж не відновив чернетку після завершення
   _saving = true; _testMsg = ''; _error = ''; re();
+  // Підтягнути СПІЛЬНУ чернетку й злити — щоб відправити/перевірити ВСЕ, що ввели обидва бармени,
+  // а не лише цей пристрій (інакше позиції іншого пішли б у Syrve як 0).
+  try {
+    const dr = await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, { headers: { Authorization: `Bearer ${_token}` } });
+    if (dr.ok) {
+      const dd = await dr.json();
+      if (dd.counts && typeof dd.counts === 'object') _counts = { ...dd.counts, ..._counts };  // локальні найсвіжіші перекривають, чужі доповнюють
+    }
+  } catch {}
   try {
     // dry-run: НЕ зберігаємо позиції в нашу БД — лише валідуємо документ у Syrve
     if (!dryRun) {
