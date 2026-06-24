@@ -211,7 +211,33 @@ async function initOpenChecksSection(venueId) {
   const urlEl  = document.getElementById('oc-url');
   const keyEl  = document.getElementById('oc-key');
   const hintEl = document.getElementById('oc-key-hint');
+  const statEl = document.getElementById('oc-status');
   if (!urlEl) return;
+
+  const setStat = (txt, kind) => {
+    if (!statEl) return;
+    const c = kind === 'ok'   ? { bg: 'var(--green-bg)', bd: 'var(--green-border)', fg: 'var(--green)' }
+            : kind === 'warn' ? { bg: 'var(--amber-bg)', bd: 'var(--amber-border)', fg: 'var(--amber)' }
+            : kind === 'off'  ? { bg: 'var(--bg2)',       bd: 'var(--border)',       fg: 'var(--text2)' }
+            :                   { bg: 'var(--bg2)',       bd: 'var(--border)',       fg: 'var(--text2)' };
+    statEl.style.background = c.bg; statEl.style.borderColor = c.bd; statEl.style.color = c.fg;
+    statEl.textContent = txt;
+  };
+
+  // Жива перевірка зʼєднання — смикаємо проксі й показуємо стан
+  async function checkStatus() {
+    setStat('Перевірка стану…', 'load');
+    try {
+      const r = await fetch(`${API}/api/pos/open-tables/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const d = await r.json().catch(() => ({}));
+      if (d.configured === false)      setStat('○ Не підключено — вкажіть URL і ключ', 'off');
+      else if (!r.ok)                  setStat('⚠ Налаштовано, але джерело не відповідає: ' + (d.error || r.status), 'warn');
+      else                             setStat(`✅ Підключено · ${d.count != null ? d.count : (d.checks || []).length} відкритих чеків`, 'ok');
+    } catch (e) {
+      setStat('⚠ Помилка перевірки: ' + (e.message || 'мережа'), 'warn');
+    }
+  }
+
   try {
     const r = await fetch(`${API}/api/pos/open-checks-config/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
     if (r.ok) {
@@ -220,6 +246,10 @@ async function initOpenChecksSection(venueId) {
       if (hintEl) hintEl.textContent = d.hasKey ? '✓ Ключ збережено (новий — лише щоб змінити)' : 'Ключ ще не заданий';
     }
   } catch {}
+
+  checkStatus();   // авто-перевірка при відкритті налаштувань
+  document.getElementById('btn-test-oc')?.addEventListener('click', checkStatus);
+
   document.getElementById('btn-save-oc')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-save-oc');
     btn.disabled = true; const old = btn.textContent; btn.textContent = '⏳ Збереження…';
@@ -234,6 +264,7 @@ async function initOpenChecksSection(venueId) {
       keyEl.value = '';
       if (hintEl) hintEl.textContent = d.hasKey ? '✓ Ключ збережено' : 'Ключ не заданий';
       showToast('✅ Джерело збережено');
+      checkStatus();   // одразу перевірити зʼєднання після збереження
     } catch (e) {
       showToast('⚠️ ' + e.message, 'error');
     } finally {
@@ -379,13 +410,17 @@ ${CSS}
     <!-- Відкриті столи — зовнішнє API (софт колеги, читає POS-термінал) -->
     <div class="ve-sec">🍽️ Відкриті столи (зовнішнє API)</div>
     <div class="ve-card">
+      <div id="oc-status" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;font-size:13px;font-weight:600;font-family:var(--font-b);margin-bottom:10px;background:var(--bg2);color:var(--text2);border:0.5px solid var(--border)">Перевірка стану…</div>
       <div class="ve-hint" style="margin-bottom:8px">Живі неоплачені чеки із залу — для менеджера. Дані з зовнішнього сервісу, що читає POS-термінал. Ключ зберігається на сервері й не показується.</div>
       <div class="ve-label">URL джерела</div>
       <input class="ve-input" id="oc-url" type="url" placeholder="https://...supabase.co/functions/v1/open-checks-api">
       <div class="ve-label">X-API-Key</div>
       <input class="ve-input" id="oc-key" type="password" placeholder="залиш порожнім — збережений ключ не зміниться">
       <div id="oc-key-hint" style="font-size:11px;font-family:var(--font-b);color:var(--text3);margin:-4px 0 10px"></div>
-      <button type="button" id="btn-save-oc" class="ve-btn ve-btn-green" style="width:100%;height:44px;border-radius:12px">💾 Зберегти джерело</button>
+      <div style="display:flex;gap:10px">
+        <button type="button" id="btn-test-oc" class="ve-btn" style="flex:1;background:transparent;border:1.5px solid var(--green);color:var(--green);height:44px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">🔍 Перевірити</button>
+        <button type="button" id="btn-save-oc" class="ve-btn ve-btn-green" style="flex:1;height:44px;border-radius:12px">💾 Зберегти</button>
+      </div>
     </div>
 
     <!-- POS інтеграція — динамічна секція -->
