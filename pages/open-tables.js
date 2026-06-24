@@ -35,8 +35,12 @@ const CSS = `<style id="ot-styles">
 .ot-kpi-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.05em;text-transform:uppercase}
 .ot-kpi-val{font-family:var(--font-h);font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1;margin-top:4px;color:var(--text0)}
 .ot-kpi.warn .ot-kpi-val{color:var(--amber)}
-.ot-sec{padding:14px 20px 2px;font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--text0);display:flex;align-items:center;justify-content:space-between}
-.ot-sec-cnt{font-size:11px;color:var(--text2);font-family:var(--font-b)}
+.ot-sec{padding:16px 20px 2px;font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0);display:flex;align-items:center;justify-content:space-between}
+.ot-sec-cnt{font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:400}
+.ot-zone{padding:10px 20px 4px;font-family:var(--font-b);font-size:12.5px;font-weight:600;color:var(--text1);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ot-zone::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--text3,var(--text2));flex-shrink:0;margin-right:-4px}
+.ot-zone-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ot-zone-cnt{font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:400;flex-shrink:0}
 .ot-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;margin:0 20px 8px;overflow:hidden}
 .ot-card.warn{border-color:var(--amber-border)}
 .ot-card.crit{border-color:var(--red-border)}
@@ -161,17 +165,36 @@ function buildPage() {
       <div class="ot-empty">Зараз немає відкритих столів 🎉</div></div>`;
   }
 
-  // групування по ЗАКЛАДУ (establishment) — зали (section) повторюються між закладами
+  // групування: ЗАКЛАД (establishment) → ЗОНА (section, як у POS-терміналі).
+  // Заклад-заголовок показуємо лише коли точок кілька (напр. Тераса = кілька establishment).
   const byEst = {};
+  const estOrder = [];
   checks.forEach((c, i) => {
     const e = c.establishment || 'Заклад';
-    (byEst[e] = byEst[e] || []).push({ c, i });
+    if (!byEst[e]) { byEst[e] = []; estOrder.push(e); }
+    byEst[e].push({ c, i });
   });
+  const multiEst = estOrder.length > 1;
 
-  const body = Object.entries(byEst).map(([est, rows]) => `
-    <div class="ot-sec">${est}<span class="ot-sec-cnt">${rows.length} · ${money(rows.reduce((s, x) => s + (+x.c.total_uah || 0), 0))} ₴</span></div>
-    ${rows.map(({ c, i }) => cardHTML(c, i)).join('')}
-  `).join('');
+  const sumOf = rows => money(rows.reduce((s, x) => s + (+x.c.total_uah || 0), 0));
+
+  const body = estOrder.map(est => {
+    const rows = byEst[est];
+    // згрупувати по зоні (section) у порядку першої появи
+    const byZone = {}; const zoneOrder = [];
+    rows.forEach(r => {
+      const z = (r.c.section || '').trim() || 'Без зони';
+      if (!byZone[z]) { byZone[z] = []; zoneOrder.push(z); }
+      byZone[z].push(r);
+    });
+    const zonesHtml = zoneOrder.map(z => {
+      const zr = byZone[z];
+      return `<div class="ot-zone"><span class="ot-zone-name">${z}</span><span class="ot-zone-cnt">${zr.length} · ${sumOf(zr)} ₴</span></div>
+        ${zr.map(({ c, i }) => cardHTML(c, i)).join('')}`;
+    }).join('');
+    const estHeader = multiEst ? `<div class="ot-sec">${est}<span class="ot-sec-cnt">${rows.length} · ${sumOf(rows)} ₴</span></div>` : '';
+    return estHeader + zonesHtml;
+  }).join('');
 
   return `<div class="ot-wrap">${CSS}${header()}
     <div class="ot-scroll" id="ot-scroll">
