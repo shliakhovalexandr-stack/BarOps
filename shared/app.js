@@ -150,6 +150,15 @@ const TAB_BAR_WAITER = TAB_BAR_BARTENDER.map(tab => {
       <path d="M7.5 11h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </svg>`,
   };
+  // Журнал → Рецепти (Журнал переїхав у плитки дашборду)
+  if (tab.route === 'journal') return {
+    route: 'recipe-book', label: 'Рецепти',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="4" y="2" width="11" height="15" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M7 6h5M7 9h5M7 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M15 6h2a1 1 0 011 1v10a1 1 0 01-1 1H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  };
   return tab;
 });
 

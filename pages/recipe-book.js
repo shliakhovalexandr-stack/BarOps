@@ -15,8 +15,10 @@ let _screen      = 'groups';
 let _selGroup    = null;
 let _selRecipe   = null;
 
+let _cat           = 'kitchen';   // активна вкладка Рецептів: 'kitchen' | 'bar' | 'wine'
 let _editGroupId   = null;
 let _editGroupName = '';
+let _editGroupCat  = 'kitchen';   // категорія групи у формі створення/редагування
 let _editRecipeId  = null;
 let _editName      = '';
 let _editIngredients = [];
@@ -39,6 +41,12 @@ const CSS = `
 .rb-title{font-family:var(--font-h);font-size:22px;font-weight:600;color:var(--text0);letter-spacing:-.02em;flex:1}
 .rb-add-btn{display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--green);color:#000;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
 .rb-list{padding:0 16px}
+.rb-tabs{display:flex;gap:6px;padding:4px 16px 12px}
+.rb-tab{flex:1;height:36px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text2);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.rb-tab.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.rb-catseg{display:flex;gap:6px;margin-bottom:14px}
+.rb-catseg button{flex:1;height:40px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.rb-catseg button.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .rb-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:opacity .15s;user-select:none}
 .rb-card:active{opacity:.7}
 .rb-card-title{font-size:15px;font-weight:600;color:var(--text0);margin-bottom:3px}
@@ -243,17 +251,22 @@ function openCropOverlay(srcUrl, onApply) {
 }
 
 /* ── HTML builders ───────────────────────────────── */
+const CAT_TABS = [['kitchen', 'Кухня'], ['bar', 'Бар'], ['wine', 'Винна карта']];
 function buildGroupsScreen() {
   let html = `<div class="rb-topbar">
     <span class="rb-title">Рецепти</span>
     ${isEditable() ? `<button class="rb-add-btn" onclick="window.__rb.addGroup()">+ Група</button>` : ''}
-  </div><div class="rb-list">`;
+  </div>`;
+  html += `<div class="rb-tabs">${CAT_TABS.map(([k, l]) => `<button class="rb-tab${_cat === k ? ' act' : ''}" onclick="window.__rb.setCat('${k}')">${l}</button>`).join('')}</div>`;
+  html += `<div class="rb-list">`;
+  const groups = _groups.filter(g => (g.category || 'kitchen') === _cat);
+  const catLbl = (CAT_TABS.find(c => c[0] === _cat) || [, ''])[1];
   if (_error) {
     html += `<div class="rb-empty"><div class="rb-empty-icon">⚠️</div>${esc(_error)}</div>`;
-  } else if (!_groups.length) {
-    html += `<div class="rb-empty"><div class="rb-empty-icon">📖</div>${isEditable() ? 'Немає груп. Додайте першу групу рецептів.' : 'Рецепти ще не додано.'}</div>`;
+  } else if (!groups.length) {
+    html += `<div class="rb-empty"><div class="rb-empty-icon">📖</div>${isEditable() ? `Немає груп у «${catLbl}». Додайте першу.` : `У «${catLbl}» ще немає рецептів.`}</div>`;
   } else {
-    _groups.forEach(g => {
+    groups.forEach(g => {
       const count = g.recipes?.length || 0;
       html += `<div class="rb-card" data-gid="${g.id}" onclick="window.__rb.openGroup('${g.id}')">
         ${isEditable() ? `<div class="rb-drag-handle" onpointerdown="window.__rb.dragStart(event,'${g.id}')" onclick="event.stopPropagation()">${ICON_DRAG}</div>` : ''}
@@ -351,6 +364,10 @@ function buildEditGroupScreen() {
   <div class="rb-edit-form">
     <div class="rb-title" style="margin-bottom:20px">${isNew ? 'Нова група' : 'Редагувати групу'}</div>
     ${_error ? `<div class="rb-err">${esc(_error)}</div>` : ''}
+    <div class="rb-field-wrap">
+      <div class="rb-field-label">Розділ</div>
+      <div class="rb-catseg">${CAT_TABS.map(([k, l]) => `<button class="${_editGroupCat === k ? 'act' : ''}" onclick="window.__rb.onGroupCat('${k}')">${l}</button>`).join('')}</div>
+    </div>
     <div class="rb-field-wrap">
       <div class="rb-field-label">Назва групи</div>
       <input class="rb-input" id="rb-g-name" type="text" placeholder="Коктейлі, Лимонади…" value="${esc(_editGroupName)}" oninput="window.__rb.onGroupName(this.value)">
@@ -564,8 +581,11 @@ window.__rb = {
     _screen = 'recipe'; fullRender();
   },
 
+  setCat(k)       { _cat = k; fullRender(); },
+  onGroupCat(k)   { _editGroupCat = k; fullRender(); },
+
   addGroup() {
-    _editGroupId = null; _editGroupName = ''; _error = '';
+    _editGroupId = null; _editGroupName = ''; _editGroupCat = _cat; _error = '';   // нова група в активній вкладці
     _screen = 'edit-group'; fullRender();
     setTimeout(() => document.getElementById('rb-g-name')?.focus(), 100);
   },
@@ -573,7 +593,7 @@ window.__rb = {
   editGroup(id) {
     const g = _groups.find(x => x.id === id);
     if (!g) return;
-    _editGroupId = g.id; _editGroupName = g.name; _error = '';
+    _editGroupId = g.id; _editGroupName = g.name; _editGroupCat = g.category || 'kitchen'; _error = '';
     _screen = 'edit-group'; fullRender();
     setTimeout(() => document.getElementById('rb-g-name')?.focus(), 100);
   },
@@ -680,7 +700,7 @@ window.__rb = {
     try {
       const isNew = !_editGroupId;
       const url = isNew ? `${API}/api/recipe-book/groups` : `${API}/api/recipe-book/groups/${_editGroupId}`;
-      const res  = await fetch(url, { method: isNew ? 'POST' : 'PUT', headers: authHeaders(), body: JSON.stringify({ venueId: _venueId, name }) });
+      const res  = await fetch(url, { method: isNew ? 'POST' : 'PUT', headers: authHeaders(), body: JSON.stringify({ venueId: _venueId, name, category: _editGroupCat }) });
       const data = await res.json();
       if (data.success) { _screen = 'groups'; await loadGroups(); }
       else { _error = data.error || 'Помилка збереження'; }

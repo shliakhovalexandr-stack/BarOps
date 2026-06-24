@@ -421,7 +421,7 @@ function dashTiles(quick, isMgr, showHero, compactOps = isMgr) {
 function waiterTiles(quick) {
   const byR = {};
   for (const q of quick) byR[q.route] = q;   // лукап із власних плиток офіціанта
-  const order = ['my-shift', 'dishware', 'cash', 'stop-list', 'schedule'];
+  const order = ['my-shift', 'journal', 'dishware', 'cash', 'stop-list', 'schedule'];
   const seen = new Set();
   const tiles = [];
   for (const r of order) if (byR[r]) { tiles.push(byR[r]); seen.add(r); }
@@ -594,7 +594,7 @@ function buildHTML() {
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
-              : state.role === 'waiter' ? [QUICK_MY_SHIFT, ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))]
+              : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
               : state.role === 'cook' ? QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory'].includes(q.route))  // кухар: лише списання/переміщення, графік, інвентар кухні
               : QUICK_BARTENDER;
   const s     = _stats;
