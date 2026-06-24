@@ -285,6 +285,12 @@ const CSS = `<style id="inv-css">
 
 /* ════════════════════════ HELPERS ════════════════════════ */
 
+// Сума додаткових значень, що плюсуються (літри/штуки): кілька замірів з різних місць
+function sumAdds(arr) {
+  if (!Array.isArray(arr)) return 0;
+  return arr.reduce((s, w) => s + (parseFloat(String(w).replace(',', '.')) || 0), 0);
+}
+
 // Ваги відкритих пляшок (масив; підтримка старого одиночного поля partial)
 function partialWeights(c) {
   const arr = Array.isArray(c.partials) ? c.partials : (c.partial != null && c.partial !== '' ? [c.partial] : []);
@@ -341,8 +347,8 @@ function isCounted(pid) {
   const m = modeOf(pid);
   if (m === 'kg_to_l') return (+c.full || 0) > 0 || partialWeights(c).length > 0 || (String(c.litersAdd || '').trim() !== '');
   if (m === 'kg')      return (c.kg || '') !== '';
-  if (m === 'ml')      return (c.ml || '') !== '';
-  return (c.sht || 0) > 0;
+  if (m === 'ml')      return (c.ml || '') !== '' || sumAdds(c.adds) > 0;
+  return (+c.sht || 0) > 0 || sumAdds(c.adds) > 0;
 }
 
 function getResult(pid) {
@@ -350,8 +356,8 @@ function getResult(pid) {
   const m = modeOf(pid);
   if (m === 'kg_to_l') return computeL(pid, c);
   if (m === 'kg')      return parseFloat(c.kg) || 0;
-  if (m === 'ml')      return parseFloat(c.ml) || 0;            // ручний ввід одразу в літрах
-  return (c.sht || 0);
+  if (m === 'ml')      return Math.round(((parseFloat(c.ml) || 0) + sumAdds(c.adds)) * 1000) / 1000;  // основне + додаткові заміри
+  return (+c.sht || 0) + sumAdds(c.adds);                                                              // штуки: основне + додаткові
 }
 
 // одиниця за способом обліку (для підписів/історії)
@@ -461,6 +467,19 @@ function bindLiveInputs() {
       if (!_counts[pid]) _counts[pid] = {};
       _counts[pid][kind] = (e.target.value || '').replace(',', '.');   // кома→крапка (укр. локаль)
       updateConvDisplay(pid);
+      updateAddTotal(pid);   // основне значення ml змінилось → оновити суму, якщо є дод. заміри
+      persistCounts();
+    };
+  });
+  // Додаткові значення (літри/штуки), що сумуються
+  document.querySelectorAll('[data-add-inp]').forEach(inp => {
+    inp.oninput = e => {
+      const pid = e.target.dataset.pid;
+      const idx = +e.target.dataset.idx || 0;
+      if (!_counts[pid]) _counts[pid] = {};
+      if (!Array.isArray(_counts[pid].adds)) _counts[pid].adds = [];
+      _counts[pid].adds[idx] = (e.target.value || '').replace(',', '.');
+      updateAddTotal(pid);
       persistCounts();
     };
   });
@@ -486,6 +505,7 @@ function bindLiveInputs() {
       if (!_counts[pid]) _counts[pid] = {};
       _counts[pid][kind] = Math.max(0, parseFloat((e.target.value || '').replace(',', '.')) || 0);  // число (для +/−)
       if (kind === 'full') updateConvDisplay(pid);
+      if (kind === 'sht') updateAddTotal(pid);   // основне значення штук змінилось → оновити суму
       persistCounts();
     };
   });
@@ -503,6 +523,31 @@ function updateConvDisplay(pid) {
   const res = computeL(pid, c);
   const el  = document.getElementById(`inv-conv-res-${pid}`);
   if (el) el.textContent = res.toFixed(3);
+}
+
+// Живе оновлення підсумку «= разом» для ml/sht з кількома значеннями (без повного ре-рендера)
+function updateAddTotal(pid) {
+  const el = document.getElementById(`inv-addtot-${pid}`);
+  if (!el) return;
+  const m = modeOf(pid);
+  const total = getResult(pid);
+  el.textContent = `= ${m === 'sht' ? total : total.toFixed(3)} ${m === 'sht' ? 'шт' : 'л'} разом`;
+}
+
+// Рядки додаткових значень (літри/штуки), кнопка «+ ще значення» і підсумок. Спільне для ml і sht.
+function addsHTML(p, unit) {
+  const c = _counts[p.id] || {};
+  const adds = Array.isArray(c.adds) ? c.adds : [];
+  return `
+    ${adds.map((w, idx) => `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <input class="inv-field" style="flex:1;margin:0" type="text" inputmode="decimal"
+          placeholder="+ ${unit}" value="${w || ''}" data-add-inp data-pid="${p.id}" data-idx="${idx}">
+        <button class="inv-stbtn" data-a="add-del" data-pid="${p.id}" data-idx="${idx}">×</button>
+      </div>`).join('')}
+    <button class="inv-add-partial" data-a="add-row" data-pid="${p.id}">+ ще значення</button>
+    ${adds.length ? `<div class="inv-syrve-hint" style="color:var(--green)" id="inv-addtot-${p.id}">= ${unit === 'шт' ? getResult(p.id) : getResult(p.id).toFixed(3)} ${unit} разом</div>` : ''}
+  `;
 }
 
 /* ════════════════════════ API ════════════════════════ */
@@ -1061,6 +1106,7 @@ function inputPanelHTML(p, c, m) {
         <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0.000" value="${c.ml || ''}"
           data-live-inp="ml" data-pid="${p.id}">
+        ${addsHTML(p, 'л')}
         <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (л)</div>
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
@@ -1075,6 +1121,7 @@ function inputPanelHTML(p, c, m) {
         <input class="inv-stinp" id="inv-sht-${p.id}" type="number" inputmode="numeric" value="${c.sht || 0}" data-step-inp="sht" data-pid="${p.id}" onfocus="this.select()">
         <button class="inv-stbtn" data-a="sht-inc" data-pid="${p.id}">+</button>
       </div>
+      ${addsHTML(p, 'шт')}
       <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (шт)</div>
       <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
     </div>
@@ -1479,7 +1526,7 @@ function on(e) {
     _counts[pid].sht = (+_counts[pid].sht || 0) + 1;
     const el = document.getElementById(`inv-sht-${pid}`);
     if (el) el.value = _counts[pid].sht;
-    persistCounts();
+    updateAddTotal(pid); persistCounts();
     return;
   }
   if (a === 'sht-dec') {
@@ -1487,7 +1534,23 @@ function on(e) {
     _counts[pid].sht = Math.max(0, (+_counts[pid].sht || 0) - 1);
     const el = document.getElementById(`inv-sht-${pid}`);
     if (el) el.value = _counts[pid].sht;
-    persistCounts();
+    updateAddTotal(pid); persistCounts();
+    return;
+  }
+  /* ── BAR: додаткові значення (літри/штуки), що сумуються ── */
+  if (a === 'add-row') {
+    if (!_counts[pid]) _counts[pid] = {};
+    if (!Array.isArray(_counts[pid].adds)) _counts[pid].adds = [];
+    _counts[pid].adds.push('');
+    re(); persistCounts();
+    return;
+  }
+  if (a === 'add-del') {
+    const idx = +t.dataset.idx || 0;
+    if (_counts[pid] && Array.isArray(_counts[pid].adds)) {
+      _counts[pid].adds.splice(idx, 1);
+    }
+    re(); persistCounts();
     return;
   }
 
