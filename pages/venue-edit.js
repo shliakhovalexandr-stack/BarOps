@@ -275,25 +275,25 @@ async function initOpenChecksSection(venueId) {
     }
   });
 
-  // ── Зали закладу: завантажити список з джерела → чекбокси → зберегти ──
+  // ── Заклади (establishment) цього BarOps-закладу: завантажити довідник → чекбокси → зберегти ──
   document.getElementById('btn-load-oc-zones')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-load-oc-zones');
     btn.disabled = true; const old = btn.textContent; btn.textContent = '⏳ Завантаження…';
     try {
-      const r = await fetch(`${API}/api/pos/open-checks-sections/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const r = await fetch(`${API}/api/pos/open-checks-establishments/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
       const d = await r.json();
       if (!r.ok || !d.success) throw new Error(d.error || 'Помилка');
       if (!d.configured) { showToast('⚠️ Спершу збережіть URL і ключ', 'error'); return; }
-      const saved = new Set(d.saved || []);
+      const saved = new Set((d.saved || []).map(Number));
       const list = document.getElementById('oc-zones-list');
-      list.innerHTML = (d.sections || []).length
-        ? d.sections.map(s => `
+      list.innerHTML = (d.establishments || []).length
+        ? d.establishments.map(e => `
           <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
-            <input type="checkbox" data-zone="${escapeHtml(s.name)}" ${saved.has(s.name) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
-            <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${escapeHtml(s.name)}</div></div>
-            <div style="font-size:11px;color:var(--text3);font-family:var(--font-b)">${s.count} чек.</div>
+            <input type="checkbox" data-est-id="${e.id}" ${saved.has(Number(e.id)) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
+            <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${escapeHtml(e.name)}</div><div style="font-size:10px;color:var(--text3);font-family:var(--font-b)">id ${e.id}</div></div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-b)">${e.count} чек.</div>
           </label>`).join('')
-        : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Зали не знайдено (немає відкритих чеків зараз).</div>`;
+        : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Закладів не знайдено.</div>`;
       document.getElementById('oc-zones').style.display = 'block';
     } catch (e) {
       showToast('⚠️ ' + e.message, 'error');
@@ -306,15 +306,15 @@ async function initOpenChecksSection(venueId) {
     const btn = document.getElementById('btn-save-oc-zones');
     btn.disabled = true; const old = btn.textContent; btn.textContent = '⏳ Збереження…';
     try {
-      const checked = [...document.querySelectorAll('#oc-zones-list input[type=checkbox]:checked')].map(cb => cb.dataset.zone);
-      const r = await fetch(`${API}/api/pos/open-checks-sections/${venueId}`, {
+      const checked = [...document.querySelectorAll('#oc-zones-list input[type=checkbox]:checked')].map(cb => Number(cb.dataset.estId));
+      const r = await fetch(`${API}/api/pos/open-checks-establishments/${venueId}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body:    JSON.stringify({ sections: checked }),
+        body:    JSON.stringify({ establishments: checked }),
       });
       const d = await r.json();
       if (!r.ok || !d.success) throw new Error(d.error || 'Помилка');
-      showToast(`✅ Збережено залів: ${d.count}${d.count ? '' : ' (показуватимуться всі)'}`);
+      showToast(`✅ Збережено точок: ${d.count}${d.count ? '' : ' (показуватимуться всі)'}`);
       checkStatus();
     } catch (e) {
       showToast('⚠️ ' + e.message, 'error');
@@ -473,11 +473,11 @@ ${CSS}
         <button type="button" id="btn-save-oc" class="ve-btn ve-btn-green" style="flex:1;height:44px;border-radius:12px">💾 Зберегти</button>
       </div>
 
-      <button type="button" id="btn-load-oc-zones" class="ve-btn" style="width:100%;margin-top:10px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);height:42px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">📂 Зали цього закладу</button>
-      <div class="ve-hint" style="margin-top:6px">Джерело віддає зали ВСІХ закладів разом. Познач зали саме цього — показуватимуться лише вони. Порожньо = усі.</div>
+      <button type="button" id="btn-load-oc-zones" class="ve-btn" style="width:100%;margin-top:10px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);height:42px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">📂 Заклади (точки) цього BarOps-закладу</button>
+      <div class="ve-hint" style="margin-top:6px">Джерело віддає чеки ВСІЄЇ мережі. Познач точки саме цього закладу (Тераса = кілька: Ресторан/Теніс/Баллон…). Порожньо = усі.</div>
       <div id="oc-zones" style="display:none;margin-top:10px">
-        <div id="oc-zones-list" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
-        <button type="button" id="btn-save-oc-zones" class="ve-btn ve-btn-green" style="width:100%;margin-top:8px;height:40px;border-radius:12px">Зберегти зали</button>
+        <div id="oc-zones-list" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
+        <button type="button" id="btn-save-oc-zones" class="ve-btn ve-btn-green" style="width:100%;margin-top:8px;height:40px;border-radius:12px">Зберегти вибір</button>
       </div>
     </div>
 

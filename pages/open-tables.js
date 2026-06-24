@@ -161,15 +161,15 @@ function buildPage() {
       <div class="ot-empty">Зараз немає відкритих столів 🎉</div></div>`;
   }
 
-  // групування по залах (section)
-  const bySec = {};
+  // групування по ЗАКЛАДУ (establishment) — зали (section) повторюються між закладами
+  const byEst = {};
   checks.forEach((c, i) => {
-    const s = c.section || 'Без залу';
-    (bySec[s] = bySec[s] || []).push({ c, i });
+    const e = c.establishment || 'Заклад';
+    (byEst[e] = byEst[e] || []).push({ c, i });
   });
 
-  const body = Object.entries(bySec).map(([sec, rows]) => `
-    <div class="ot-sec">${sec}<span class="ot-sec-cnt">${rows.length} · ${money(rows.reduce((s, x) => s + (+x.c.total_uah || 0), 0))} ₴</span></div>
+  const body = Object.entries(byEst).map(([est, rows]) => `
+    <div class="ot-sec">${est}<span class="ot-sec-cnt">${rows.length} · ${money(rows.reduce((s, x) => s + (+x.c.total_uah || 0), 0))} ₴</span></div>
     ${rows.map(({ c, i }) => cardHTML(c, i)).join('')}
   `).join('');
 
@@ -197,6 +197,7 @@ function cardHTML(c, i) {
         <div class="ot-mid">
           <div class="ot-waiter">${c.waiter || '—'}</div>
           <div class="ot-meta">
+            ${c.section ? `<span>${c.section}</span>` : ''}
             <span>${c.guests != null ? c.guests : '—'} гост.</span>
             <span class="ot-dur${durCl}">висить ${durLabel(c.opened_at)}</span>
           </div>
