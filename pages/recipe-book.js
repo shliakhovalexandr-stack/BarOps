@@ -98,8 +98,8 @@ const CSS = `
 .rb-winfo{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px}
 .rb-winfo span{color:var(--text2)}.rb-winfo b{color:var(--text0);font-weight:600;text-align:right}
 .rb-wdesc{font-size:13px;color:var(--text1);font-family:var(--font-b);line-height:1.6;margin-top:10px;white-space:pre-wrap}
-.rb-wcolorseg{display:flex;gap:6px;flex-wrap:wrap}
-.rb-wcolorseg button{display:flex;align-items:center;gap:6px;flex:1;min-width:72px;justify-content:center;height:40px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text2);font-size:12px;font-family:var(--font-b);cursor:pointer}
+.rb-wcolorseg{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.rb-wcolorseg button{display:flex;align-items:center;gap:6px;justify-content:center;height:44px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text2);font-size:13px;font-family:var(--font-b);cursor:pointer;padding:0 8px;box-sizing:border-box}
 .rb-wcolorseg button.act{border-color:var(--green);color:var(--text0);background:var(--green-bg)}
 .rb-wimport-ta{width:100%;min-height:150px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:12px;font-size:12px;color:var(--text0);font-family:var(--font-mono);box-sizing:border-box;outline:none;resize:vertical;line-height:1.5}
 .rb-wimport-hint{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:10px}
@@ -755,7 +755,7 @@ function buildWineForm() {
     </div>
     <div class="rb-field-wrap">
       <div class="rb-field-label">Цукор</div>
-      <div class="rb-wcolorseg" style="flex-wrap:wrap">${WINE_SUGARS.map(s => `<button class="${_editSugar === s ? 'act' : ''}" onclick="window.__rb.onWine('sugar','${esc(s)}')">${s}</button>`).join('')}</div>
+      <div class="rb-wcolorseg">${WINE_SUGARS.map(s => `<button class="${_editSugar === s ? 'act' : ''}" onclick="window.__rb.onWine('sugar','${esc(s)}')">${s}</button>`).join('')}</div>
     </div>
     <div class="rb-field-wrap">
       <div class="rb-field-label">Сорт винограду</div>
