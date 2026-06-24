@@ -198,25 +198,6 @@ function buildHTML() {
   const s = _stats;
   const initials = name !== '—' ? name.split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?' : '?';
 
-  // KPI картки з реальних даних
-  const mgrKpi = [
-    { label:'Накладних сьогодні',  val: String(s?.invoices?.count ?? '—'),   sub: s ? `${Math.round(s.invoices?.total||0).toLocaleString('uk-UA')} ₴` : '—',      color:'var(--green)', pct: Math.min(100, (s?.invoices?.count||0)*10) },
-    { label:'Команда закладу',     val: String(s?.teamCount ?? '—'),          sub: 'активних барменів',                                                              color:'var(--teal)',  pct: Math.min(100, (s?.teamCount||0)*20) },
-    { label:'Списань сьогодні',    val: String(s?.writeoffs?.count ?? '—'),   sub: Object.entries(s?.writeoffs?.byCategory||{}).map(([k,v])=>`${k}: ${v}`).join(' · ') || 'немає', color:'var(--amber)', pct: Math.min(100, (s?.writeoffs?.count||0)*10) },
-    { label:'Вартість запасів',    val: s ? `${Math.round((s.stockValue||0)/1000)}k ₴` : '—', sub: 'поточний залишок',                                              color:'var(--purple)',pct: 70 },
-    { label:'Критичних залишків',  val: String(s?.critical?.length ?? '—'),   sub: s?.critical?.[0]?.name || 'все норм',                                            color: (s?.critical?.length > 0) ? 'var(--red)' : 'var(--green)', pct: Math.min(100, (s?.critical?.length||0)*20) },
-    { label:'Активна зміна',       val: s?.shift ? '✓' : '—',                sub: s?.shift ? `${s.shift.user}` : 'немає',                                           color: s?.shift ? 'var(--green)' : 'var(--text2)', pct: s?.shift ? 100 : 0 },
-  ];
-
-  const barKpi = [
-    { label:'Списань сьогодні',   val: String(s?.writeoffs?.count ?? '—'), sub: 'в поточну зміну',    color:'var(--amber)', pct: Math.min(100, (s?.writeoffs?.count||0)*20) },
-    { label:'Накладних',          val: String(s?.invoices?.count ?? '—'),  sub: 'сьогодні',            color:'var(--green)', pct: Math.min(100, (s?.invoices?.count||0)*10) },
-    { label:'Критичних залишків', val: String(s?.critical?.length ?? '—'), sub: s?.critical?.[0]?.name || 'все норм', color:(s?.critical?.length > 0)?'var(--red)':'var(--green)', pct:50 },
-    { label:'Активна зміна',      val: s?.shift ? '✓' : '—',              sub: s?.shift ? 'відкрита' : 'не відкрита', color: s?.shift ? 'var(--green)' : 'var(--text2)', pct: s?.shift ? 100 : 0 },
-  ];
-
-  const kpi = isMgr ? mgrKpi : barKpi;
-
   return `
 ${CSS}
 <div class="prof-wrap">
@@ -238,35 +219,8 @@ ${CSS}
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="prof-stats-row">
-      <div class="prof-stat">
-        <div class="prof-stat-val" style="color:var(--green)">${s?.invoices?.count ?? '—'}</div>
-        <div class="prof-stat-lbl">Накладних</div>
-      </div>
-      <div class="prof-stat">
-        <div class="prof-stat-val" style="color:${(s?.writeoffs?.count > 0)?'var(--amber)':'var(--green)'}">${s?.writeoffs?.count ?? '—'}</div>
-        <div class="prof-stat-lbl">Списань</div>
-      </div>
-      <div class="prof-stat">
-        <div class="prof-stat-val" style="color:${(s?.critical?.length > 0)?'var(--red)':'var(--green)'}">${s?.critical?.length ?? '—'}</div>
-        <div class="prof-stat-lbl">Алертів</div>
-      </div>
-    </div>
-
     <!-- План -->
     ${planBadge()}
-
-    <!-- KPI -->
-    <div class="prof-sec">Статистика сьогодні</div>
-    <div class="prof-kpi-grid">
-      ${kpi.map(k => `
-      <div class="prof-kpi">
-        <div class="prof-kpi-val" style="color:${k.color}">${k.val}</div>
-        <div class="prof-kpi-lbl">${k.label}</div>
-        <div class="prof-kpi-sub">${k.sub}</div>
-      </div>`).join('')}
-    </div>
 
     <!-- Команда (тільки менеджер) -->
     ${isMgr && _team?.length ? `

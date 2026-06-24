@@ -262,6 +262,9 @@ function renderDrawer() {
   const el = document.getElementById('app-drawer-wrap');
   if (!el) return;
   if ((state.role || '').toLowerCase() === 'accountant') { renderAccountantDrawer(el); return; }
+  // Керувати закладами (додати/редагувати/архівувати/видалити/відновити) може лише власник (admin),
+  // не звичайний менеджер/керуючий.
+  const canManageVenues = (state.role || '').toLowerCase() === 'admin';
   const prevScroll = el.querySelector('[data-drawer-scroll]')?.scrollTop || 0;
   el.innerHTML = `
   <div id="app-drawer-overlay"
@@ -318,11 +321,11 @@ function renderDrawer() {
       <div style="position:relative">
         <div
           onclick="window.__barops.switchVenue('${v.id}')"
-          oncontextmenu="event.preventDefault();event.stopPropagation();window.__barops.openVenueMenu('${v.id}');return false"
+          ${canManageVenues ? `oncontextmenu="event.preventDefault();event.stopPropagation();window.__barops.openVenueMenu('${v.id}');return false"
           data-long-press-id="${v.id}"
           ontouchstart="window.__barops.startVenueHold(event,'${v.id}')"
           ontouchend="window.__barops.endVenueHold(event,'${v.id}')"
-          ontouchmove="window.__barops.moveVenueHold()"
+          ontouchmove="window.__barops.moveVenueHold()"` : ''}
           style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
                  background:${v.id===_venueMenuId?'rgba(255,255,255,.04)':v.active?'rgba(168,139,255,.08)':'transparent'};
                  transition:background .12s">
@@ -336,7 +339,7 @@ function renderDrawer() {
           </div>
           ${v.active?`<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M2 7l3 3 7-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>`:`
+          </svg>`: (canManageVenues ? `
           <div onclick="event.stopPropagation();window.__barops.openVenueMenu('${v.id}')"
             style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;
                    border-radius:6px;cursor:pointer;opacity:.4">
@@ -345,9 +348,9 @@ function renderDrawer() {
               <circle cx="7" cy="7" r="1" fill="var(--text2)"/>
               <circle cx="7" cy="11" r="1" fill="var(--text2)"/>
             </svg>
-          </div>`}
+          </div>` : '')}
         </div>
-        ${v.id===_venueMenuId?`
+        ${(canManageVenues && v.id===_venueMenuId)?`
         <div style="margin:0 12px 8px;border-radius:12px;background:var(--bg3);
                     border:0.5px solid var(--border2);overflow:hidden">
           <div onclick="window.__barops.editVenue('${v.id}','${v.name}')"
@@ -378,7 +381,7 @@ function renderDrawer() {
           </div>
         </div>`:``}
       </div>`).join('')}
-      ${(_archivedOpen || ARCHIVED_VENUES.length > 0) ? `
+      ${(canManageVenues && (_archivedOpen || ARCHIVED_VENUES.length > 0)) ? `
       <div onclick="window.__barops.toggleArchived()"
         style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
@@ -409,11 +412,12 @@ function renderDrawer() {
             </div>`).join('')
       ) : ''}
       ` : ''}
+      ${canManageVenues ? `
       <div onclick="window.__barops.addVenuePrompt()"
         style="display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer">
         <div style="width:8px;height:8px;border-radius:50%;border:1.5px dashed var(--green)"></div>
         <div style="font-size:13px;color:var(--green);font-family:var(--font-b)">+ Підключити заклад</div>
-      </div>
+      </div>` : ''}
     </div>
     <div style="padding:12px 20px 32px;border-top:1px solid var(--border)">
       <div onclick="localStorage.clear();window.__barops.navigate('auth');window.__barops.closeDrawer()"
