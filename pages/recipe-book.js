@@ -376,7 +376,8 @@ function parseWinePaste(text) {
     if (/^##\s+/.test(line)) { sub = line.replace(/^##\s+/, '').replace(/\s*\(\d+\)\s*$/, '').trim(); reg = ''; continue; }
     if (/^#\s+/.test(line))  { cat = line.replace(/^#\s+/, '').replace(/\s*\(\d+\)\s*$/, '').trim(); sub = ''; reg = ''; catColor = normColor(cat); continue; }
 
-    const cells = raw.split('\t').map(c => c.trim());
+    // розділювач: табуляція (з Excel) або вертикальна риска «|» (надійно копіюється)
+    const cells = (raw.includes('\t') ? raw.split('\t') : raw.split(/\s*\|\s*/)).map(c => c.trim());
     const name = cells[1] || '';
     // Пропустити рядок-шапку колонок (Назва/Вино/Wine/Найменування…)
     if (/^(назв|вино|wine|name|найменув)/i.test(name)) continue;
