@@ -737,8 +737,8 @@ function buildWineForm() {
     </div>
     <div class="rb-field-wrap">
       <div class="rb-field-label">Категорія</div>
-      <input class="rb-input" list="rb-wcats" type="text" placeholder="Ігристе вино, Біле вино…" value="${esc(_editCategory)}" oninput="window.__rb.onWine('category',this.value)">
-      <datalist id="rb-wcats">${wineGroups.map(g => `<option value="${esc(g.name)}">`).join('')}</datalist>
+      <input class="rb-input" id="rb-w-cat" type="text" placeholder="Назва категорії…" value="${esc(_editCategory)}" oninput="window.__rb.onWine('category',this.value)">
+      ${wineGroups.length ? `<div class="rb-wchips" style="margin-top:8px">${wineGroups.map(g => `<button class="rb-wchip${_editCategory === g.name ? ' act' : ''}" onclick="window.__rb.pickCat('${g.id}')">${esc(g.name)}</button>`).join('')}</div>` : ''}
     </div>
     <div class="rb-field-wrap">
       <div class="rb-field-label">Підкатегорія <span style="color:var(--text2);font-size:10px;text-transform:none;letter-spacing:0">(необов'язково)</span></div>
@@ -976,6 +976,7 @@ window.__rb = {
 
   /* ── Винна карта ── */
   toggleCat(id)        { if (_openCats.has(id)) _openCats.delete(id); else _openCats.add(id); fullRender(); },
+  pickCat(id)          { const g = _groups.find(x => x.id === id); if (g) { _editCategory = g.name; fullRender(); } },
   wineSearch(v)        { _wineSearch = v; fullRender(); },
   toggleWineColor(k)   { if (_wineColors.has(k)) _wineColors.delete(k); else _wineColors.add(k); fullRender(); },
   toggleWineSugar(s)   { if (_wineSugars.has(s)) _wineSugars.delete(s); else _wineSugars.add(s); fullRender(); },
