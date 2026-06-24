@@ -45,6 +45,11 @@ const QUICK_MY_SHIFT = { route:'my-shift', badge:null, label:'Моя зміна'
   svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
        <path d="M3.5 15.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
 
+const QUICK_RECIPE_BOOK = { route:'recipe-book', badge:null, label:'Рецепти', hint:'Рецепти кухні', color:'var(--green-bg)', iconColor:'var(--green)',
+  svg:`<rect x="3" y="2" width="9" height="14" rx="1.3" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M5.5 5.5h4M5.5 8.5h4M5.5 11.5h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+       <path d="M12 4.5h2a1 1 0 011 1v9a1 1 0 01-1 1H6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>` };
+
 const QUICK_BARTENDER = [
   { route:'debts',     badge:null, label:'Борги',     hint:'Відкриті рахунки та борги',  color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -326,7 +331,7 @@ function quickGrid(items) {
 // ── Нова головна: плитки-сітка по секціях ──────────────────
 function tileByRoute() {
   const m = {};
-  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
 // Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист
@@ -338,11 +343,11 @@ const SECTIONS_MGR = [
   ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
   ['Ревізія',          ['dishware']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
-  ['Облік',            ['recipe-book']],
 ];
 const SECTIONS_WORKER = [
   ['Аналітика', ['performance']],   // лише для тих, у кого є плитка (напр. шеф-кухар)
   ['Операції',  ['writeoff', 'inventory', 'dishware', 'ordering', 'ocr', 'excise']],
+  ['Рецепти',   ['recipe-book']],   // напр. кухар — рецепти кухні
   ['Моя зміна', ['cash', 'stop-list', 'debts', 'schedule', 'current-shift']],
 ];
 
@@ -595,7 +600,7 @@ function buildHTML() {
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
-              : state.role === 'cook' ? QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory'].includes(q.route))  // кухар: лише списання/переміщення, графік, інвентар кухні
+              : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory'].includes(q.route)), QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар кухні + рецепти кухні
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();

@@ -15,10 +15,11 @@ let _screen      = 'groups';
 let _selGroup    = null;
 let _selRecipe   = null;
 
-let _cat           = 'kitchen';   // активна вкладка Рецептів: 'kitchen' | 'bar' | 'wine'
+let _cat           = 'bar';   // активна вкладка Рецептів: 'kitchen' | 'bar' | 'wine'
 let _editGroupId   = null;
 let _editGroupName = '';
-let _editGroupCat  = 'kitchen';   // категорія групи у формі створення/редагування
+let _editGroupCat  = 'bar';   // категорія групи у формі створення/редагування
+let _expanded      = new Set();   // id рецептів, розгорнутих карткою (режим картки)
 let _editRecipeId  = null;
 let _editName      = '';
 let _editIngredients = [];
@@ -55,6 +56,17 @@ const CSS = `
 .rb-card-actions{display:flex;gap:8px;flex-shrink:0}
 .rb-icon-btn{background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text1)}
 .rb-icon-btn.danger{color:#ff5c5c}
+/* Картка рецепту з розгортанням (офіціант/менеджер/керуючий/власник) */
+.rb-rcard{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.rb-rcard-head{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none}
+.rb-rcard-head:active{opacity:.7}
+.rb-rcard-chev{color:var(--text2);flex-shrink:0;transition:transform .2s;transform:rotate(90deg)}
+.rb-rcard-chev.open{transform:rotate(-90deg)}
+.rb-rcard-body{padding:0 16px 14px;animation:rbfade .18s ease}
+.rb-rcard-ingr{background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:0 12px;margin-top:2px}
+.rb-rcard-photo{width:100%;border-radius:10px;object-fit:cover;max-height:240px;display:block;margin-top:10px}
+.rb-rcard-empty{color:var(--text2);font-size:13px;font-family:var(--font-b);padding:6px 0}
+@keyframes rbfade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
 .rb-empty{text-align:center;padding:48px 24px;color:var(--text2);font-size:14px;font-family:var(--font-b);line-height:1.6}
 .rb-empty-icon{font-size:36px;margin-bottom:12px}
 .rb-recipe-detail{padding:0 16px 24px}
@@ -124,9 +136,26 @@ function authHeaders() {
   const token = localStorage.getItem('barops_token');
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
+function roleLc() { return (_role || '').toLowerCase(); }
+
+// Редагувати можуть: власник, менеджер, керуючий, шеф-кухар.
 function isEditable() {
-  const r = (_role || '').toUpperCase();
-  return r === 'ADMIN' || r === 'MANAGER' || r === 'DIRECTOR';
+  return ['admin', 'manager', 'director', 'chef'].includes(roleLc());
+}
+
+// Повний екран з описом приготування — лише виконавцям (бармен, кухар, шеф).
+// Решта (офіціант, менеджер, керуючий, власник) бачать рецепт карткою з розгортанням.
+function isFullView() {
+  return ['bartender', 'cook', 'chef'].includes(roleLc());
+}
+
+// Дозволені розділи рецептів за роллю:
+//  • бармен — лише «Бар»;  • кухар/шеф — лише «Кухня»;  • решта — усі три.
+function allowedCats() {
+  const r = roleLc();
+  if (r === 'bartender') return ['bar'];
+  if (r === 'cook' || r === 'chef') return ['kitchen'];
+  return ['kitchen', 'bar', 'wine'];
 }
 
 /* ── SVG icons ───────────────────────────────────── */
@@ -257,9 +286,12 @@ function buildGroupsScreen() {
     <span class="rb-title">Рецепти</span>
     ${isEditable() ? `<button class="rb-add-btn" onclick="window.__rb.addGroup()">+ Група</button>` : ''}
   </div>`;
-  html += `<div class="rb-tabs">${CAT_TABS.map(([k, l]) => `<button class="rb-tab${_cat === k ? ' act' : ''}" onclick="window.__rb.setCat('${k}')">${l}</button>`).join('')}</div>`;
+  const allowed = allowedCats();
+  if (allowed.length > 1) {
+    html += `<div class="rb-tabs">${CAT_TABS.filter(([k]) => allowed.includes(k)).map(([k, l]) => `<button class="rb-tab${_cat === k ? ' act' : ''}" onclick="window.__rb.setCat('${k}')">${l}</button>`).join('')}</div>`;
+  }
   html += `<div class="rb-list">`;
-  const groups = _groups.filter(g => (g.category || 'kitchen') === _cat);
+  const groups = _groups.filter(g => (g.category || 'bar') === _cat);
   const catLbl = (CAT_TABS.find(c => c[0] === _cat) || [, ''])[1];
   if (_error) {
     html += `<div class="rb-empty"><div class="rb-empty-icon">⚠️</div>${esc(_error)}</div>`;
@@ -295,7 +327,8 @@ function buildRecipesScreen() {
   <div class="rb-list">`;
   if (!recipes.length) {
     html += `<div class="rb-empty"><div class="rb-empty-icon">🍹</div>${isEditable() ? 'Немає рецептів. Додайте перший.' : 'Рецепти ще не додано.'}</div>`;
-  } else {
+  } else if (isFullView()) {
+    // Виконавці (бармен/кухар/шеф) — клік відкриває повний екран з приготуванням
     recipes.forEach(r => {
       const ingCount = (r.ingredients || []).length;
       html += `<div class="rb-card" onclick="window.__rb.openRecipe('${r.id}')">
@@ -309,8 +342,43 @@ function buildRecipesScreen() {
         </div>` : `<span class="rb-card-arr">${ICON_CHEVRON}</span>`}
       </div>`;
     });
+  } else {
+    // Офіціант/менеджер/керуючий/власник — картка з розгортанням (склад + фото, без приготування)
+    recipes.forEach(r => { html += buildRecipeCard(r); });
   }
   return html + '</div>';
+}
+
+// Картка рецепту з inline-розгортанням: склад + фото (без опису приготування)
+function buildRecipeCard(r) {
+  const ingr = r.ingredients || [];
+  const open = _expanded.has(r.id);
+  let h = `<div class="rb-rcard">
+    <div class="rb-rcard-head" onclick="window.__rb.toggleRecipe('${r.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="rb-card-title">${esc(r.name)}</div>
+        <div class="rb-card-sub">${ingr.length ? `${ingr.length} інгр.` : 'Без інгредієнтів'}</div>
+      </div>
+      ${isEditable() ? `<div class="rb-card-actions" onclick="event.stopPropagation()">
+        <button class="rb-icon-btn" onclick="window.__rb.editRecipe('${r.id}')">${ICON_EDIT}</button>
+        <button class="rb-icon-btn danger" onclick="window.__rb.deleteRecipe('${r.id}')">${ICON_TRASH}</button>
+      </div>` : ''}
+      <span class="rb-rcard-chev${open ? ' open' : ''}">${ICON_CHEVRON}</span>
+    </div>`;
+  if (open) {
+    h += `<div class="rb-rcard-body">`;
+    if (ingr.length) {
+      h += `<div class="rb-rcard-ingr">`;
+      ingr.forEach(i => {
+        h += `<div class="rb-ingr-row"><span class="rb-ingr-name">${esc(i.name)}</span><span class="rb-ingr-qty">${i.qty} ${esc(i.unit)}</span></div>`;
+      });
+      h += `</div>`;
+    }
+    if (r.photoUrl) h += `<img class="rb-rcard-photo" src="${r.photoUrl}" alt="">`;
+    if (!ingr.length && !r.photoUrl) h += `<div class="rb-rcard-empty">Склад і фото ще не додано.</div>`;
+    h += `</div>`;
+  }
+  return h + `</div>`;
 }
 
 function buildRecipeScreen() {
@@ -364,10 +432,10 @@ function buildEditGroupScreen() {
   <div class="rb-edit-form">
     <div class="rb-title" style="margin-bottom:20px">${isNew ? 'Нова група' : 'Редагувати групу'}</div>
     ${_error ? `<div class="rb-err">${esc(_error)}</div>` : ''}
-    <div class="rb-field-wrap">
+    ${allowedCats().length > 1 ? `<div class="rb-field-wrap">
       <div class="rb-field-label">Розділ</div>
-      <div class="rb-catseg">${CAT_TABS.map(([k, l]) => `<button class="${_editGroupCat === k ? 'act' : ''}" onclick="window.__rb.onGroupCat('${k}')">${l}</button>`).join('')}</div>
-    </div>
+      <div class="rb-catseg">${CAT_TABS.filter(([k]) => allowedCats().includes(k)).map(([k, l]) => `<button class="${_editGroupCat === k ? 'act' : ''}" onclick="window.__rb.onGroupCat('${k}')">${l}</button>`).join('')}</div>
+    </div>` : ''}
     <div class="rb-field-wrap">
       <div class="rb-field-label">Назва групи</div>
       <input class="rb-input" id="rb-g-name" type="text" placeholder="Коктейлі, Лимонади…" value="${esc(_editGroupName)}" oninput="window.__rb.onGroupName(this.value)">
@@ -491,7 +559,13 @@ window.__rb = {
   openGroup(id) {
     _selGroup = _groups.find(g => g.id === id) || null;
     if (!_selGroup) return;
+    _expanded = new Set();
     _screen = 'recipes'; fullRender();
+  },
+
+  toggleRecipe(id) {
+    if (_expanded.has(id)) _expanded.delete(id); else _expanded.add(id);
+    fullRender();
   },
 
   /* ── Перетягування груп ── */
@@ -581,8 +655,8 @@ window.__rb = {
     _screen = 'recipe'; fullRender();
   },
 
-  setCat(k)       { _cat = k; fullRender(); },
-  onGroupCat(k)   { _editGroupCat = k; fullRender(); },
+  setCat(k)       { if (!allowedCats().includes(k)) return; _cat = k; fullRender(); },
+  onGroupCat(k)   { if (!allowedCats().includes(k)) return; _editGroupCat = k; fullRender(); },
 
   addGroup() {
     _editGroupId = null; _editGroupName = ''; _editGroupCat = _cat; _error = '';   // нова група в активній вкладці
@@ -593,7 +667,7 @@ window.__rb = {
   editGroup(id) {
     const g = _groups.find(x => x.id === id);
     if (!g) return;
-    _editGroupId = g.id; _editGroupName = g.name; _editGroupCat = g.category || 'kitchen'; _error = '';
+    _editGroupId = g.id; _editGroupName = g.name; _editGroupCat = g.category || 'bar'; _error = '';
     _screen = 'edit-group'; fullRender();
     setTimeout(() => document.getElementById('rb-g-name')?.focus(), 100);
   },
@@ -643,6 +717,7 @@ window.__rb = {
       const rid = _selRecipe.id;
       const gid = _selGroup.id;
       _delConfirm = null;
+      _expanded.delete(rid);
       try {
         await fetch(`${API}/api/recipe-book/recipes/${rid}`, { method: 'DELETE', headers: authHeaders() });
         _selRecipe = null; _screen = 'recipes';
@@ -743,6 +818,11 @@ export function render() {
   _selRecipe   = null;
   _delConfirm  = null;
   _editPhotoUrl = '';
+  // Активна вкладка за роллю: «Бар» якщо доступна, інакше перша дозволена (кухар/шеф → «Кухня»)
+  const _allowed = allowedCats();
+  _cat = _allowed.includes('bar') ? 'bar' : _allowed[0];
+  _editGroupCat = _cat;
+  _expanded = new Set();
 
   if (!document.getElementById('rb-css')) {
     const s = document.createElement('style');
