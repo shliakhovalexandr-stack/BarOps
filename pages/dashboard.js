@@ -78,6 +78,10 @@ const QUICK_CURRENT_SHIFT = { route:'current-shift', badge:null, label:'Пото
        <path d="M3 16c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
        <circle cx="14.5" cy="4.5" r="1.2" fill="currentColor" opacity=".7"/>` };
 
+const QUICK_OPEN_TABLES = { route:'open-tables', badge:null, label:'Відкриті столи', hint:'Живі неоплачені чеки із залу (POS)', color:'var(--red-bg)', iconColor:'var(--red)',
+  svg:`<rect x="2.5" y="4.5" width="13" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M5.5 12.5v2.5M12.5 12.5v2.5M4 15h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
+
 const QUICK_PLAYLIST = { route:'playlist', badge:null, label:'Плей-лист', hint:'Страви на продаж + облік по офіціантах', color:'var(--green-bg)', iconColor:'var(--green)',
   svg:`<circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.3"/>
        <circle cx="9" cy="9" r="3.6" stroke="currentColor" stroke-width="1.3"/>
@@ -101,6 +105,7 @@ const QUICK_MANAGER = [
   QUICK_DIGEST,
   QUICK_PERFORMANCE,
   QUICK_DISCIPLINE,
+  QUICK_OPEN_TABLES,
   QUICK_CURRENT_SHIFT,
   QUICK_PLAYLIST,
   { route:'debts',    badge:null, label:'Борги',            hint:'Відкриті рахунки та борги',    color:'var(--amber-bg)',  iconColor:'var(--amber)',

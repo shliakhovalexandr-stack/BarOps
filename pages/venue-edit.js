@@ -201,7 +201,45 @@ async function loadVenue(venueId) {
     } else if (_draft.posType === 'poster') {
       setTimeout(() => initPosterSection(_venue.id), 300);
     }
+    setTimeout(() => initOpenChecksSection(_venue.id), 300);   // «Відкриті столи» — для будь-якого POS
   }
+}
+
+// Секція «Відкриті столи» (зовнішнє API) — завантаження + збереження URL/ключа
+async function initOpenChecksSection(venueId) {
+  const authToken = localStorage.getItem('barops_token');
+  const urlEl  = document.getElementById('oc-url');
+  const keyEl  = document.getElementById('oc-key');
+  const hintEl = document.getElementById('oc-key-hint');
+  if (!urlEl) return;
+  try {
+    const r = await fetch(`${API}/api/pos/open-checks-config/${venueId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.url) urlEl.value = d.url;
+      if (hintEl) hintEl.textContent = d.hasKey ? '✓ Ключ збережено (новий — лише щоб змінити)' : 'Ключ ще не заданий';
+    }
+  } catch {}
+  document.getElementById('btn-save-oc')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-save-oc');
+    btn.disabled = true; const old = btn.textContent; btn.textContent = '⏳ Збереження…';
+    try {
+      const r = await fetch(`${API}/api/pos/open-checks-config/${venueId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body:    JSON.stringify({ url: urlEl.value.trim(), key: keyEl.value.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.success) throw new Error(d.error || 'Помилка');
+      keyEl.value = '';
+      if (hintEl) hintEl.textContent = d.hasKey ? '✓ Ключ збережено' : 'Ключ не заданий';
+      showToast('✅ Джерело збережено');
+    } catch (e) {
+      showToast('⚠️ ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  });
 }
 
 function escapeHtml(str) {
@@ -336,6 +374,18 @@ ${CSS}
 
       <div class="ve-label">POS-система</div>
       ${ddHTML('ve-pos', POS_OPTIONS, _draft.posType, 'pickPos')}
+    </div>
+
+    <!-- Відкриті столи — зовнішнє API (софт колеги, читає POS-термінал) -->
+    <div class="ve-sec">🍽️ Відкриті столи (зовнішнє API)</div>
+    <div class="ve-card">
+      <div class="ve-hint" style="margin-bottom:8px">Живі неоплачені чеки із залу — для менеджера. Дані з зовнішнього сервісу, що читає POS-термінал. Ключ зберігається на сервері й не показується.</div>
+      <div class="ve-label">URL джерела</div>
+      <input class="ve-input" id="oc-url" type="url" placeholder="https://...supabase.co/functions/v1/open-checks-api">
+      <div class="ve-label">X-API-Key</div>
+      <input class="ve-input" id="oc-key" type="password" placeholder="залиш порожнім — збережений ключ не зміниться">
+      <div id="oc-key-hint" style="font-size:11px;font-family:var(--font-b);color:var(--text3);margin:-4px 0 10px"></div>
+      <button type="button" id="btn-save-oc" class="ve-btn ve-btn-green" style="width:100%;height:44px;border-radius:12px">💾 Зберегти джерело</button>
     </div>
 
     <!-- POS інтеграція — динамічна секція -->
