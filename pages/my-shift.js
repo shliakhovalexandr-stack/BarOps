@@ -139,6 +139,14 @@ function dataView(d) {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </div>
 
+    ${d.toHandOver != null ? `
+    <!-- Скільки здати (готівкові продажі − взято з каси) -->
+    <div class="ms-card" style="border-color:var(--green-border,rgba(80,200,120,.35))">
+      <div class="ms-lbl">Скільки здати</div>
+      <div class="ms-big" style="color:${d.toHandOver < 0 ? 'var(--amber)' : 'var(--green)'}">${fmtUAH(d.toHandOver)}</div>
+      <div class="ms-sub2">готівкові продажі ${fmtUAH(d.cashSales)} − взято з каси ${fmtUAH(d.cashTaken)}</div>
+    </div>` : ''}
+
     <!-- Топ моїх страв -->
     <div class="ms-sec">Топ моїх страв</div>
     <div class="ms-card">${dishes}</div>
