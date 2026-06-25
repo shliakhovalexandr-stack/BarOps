@@ -16,6 +16,7 @@ let _checks     = [];
 let _count      = 0;
 let _fetchedAt  = null;
 let _openKeys   = new Set();   // розгорнуті чеки (склад)
+let _staleOpen  = false;       // розгорнутий розділ «Застряглі» (>24г)
 let _pollTimer  = null;
 
 /* ════════ CSS ════════ */
@@ -41,6 +42,10 @@ const CSS = `<style id="ot-styles">
 .ot-zone::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--text3,var(--text2));flex-shrink:0;margin-right:-4px}
 .ot-zone-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ot-zone-cnt{font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:400;flex-shrink:0}
+.ot-stale-hdr{margin:20px 20px 6px;padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;user-select:none;font-family:var(--font-b);font-size:13px;font-weight:600;color:var(--text1)}
+.ot-stale-hdr:active{opacity:.7}
+.ot-stale-chev{transition:transform .2s;color:var(--text2)}
+.ot-stale-hdr.open .ot-stale-chev{transform:rotate(180deg)}
 .ot-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;margin:0 20px 8px;overflow:hidden}
 .ot-card.warn{border-color:var(--amber-border)}
 .ot-card.crit{border-color:var(--red-border)}
@@ -150,59 +155,74 @@ function buildPage() {
   }
 
   const checks = _checks.slice().sort((a, b) => durMins(b.opened_at) - durMins(a.opened_at));   // найстаріші зверху
-  const total  = checks.reduce((s, c) => s + (+c.total_uah || 0), 0);
-  const stale  = checks.filter(c => staleLevel(c.opened_at) >= 1).length;
-
-  const kpi = `
-    <div class="ot-kpi-row">
-      <div class="ot-kpi"><div class="ot-kpi-lbl">Відкритих</div><div class="ot-kpi-val">${checks.length}</div></div>
-      <div class="ot-kpi"><div class="ot-kpi-lbl">Сума, ₴</div><div class="ot-kpi-val">${money(total)}</div></div>
-      <div class="ot-kpi${stale ? ' warn' : ''}"><div class="ot-kpi-lbl">Висять &gt;3г</div><div class="ot-kpi-val">${stale}</div></div>
-    </div>`;
 
   if (!checks.length) {
     return `<div class="ot-wrap">${CSS}${header()}${_error ? `<div class="ot-alert">${_error}</div>` : ''}
       <div class="ot-empty">Зараз немає відкритих столів 🎉</div></div>`;
   }
 
-  // групування: ЗАКЛАД (establishment) → ЗОНА (section, як у POS-терміналі).
-  // Заклад-заголовок показуємо лише коли точок кілька (напр. Тераса = кілька establishment).
-  const byEst = {};
-  const estOrder = [];
-  checks.forEach((c, i) => {
-    const e = c.establishment || 'Заклад';
-    if (!byEst[e]) { byEst[e] = []; estOrder.push(e); }
-    byEst[e].push({ c, i });
-  });
-  const multiEst = estOrder.length > 1;
+  // Поділ: живі (≤24г) і ЗАСТРЯГЛІ (>24г — майже напевно незакриті в POS)
+  const STALE_MIN = 24 * 60;
+  const live = [], stale = [];
+  checks.forEach((c, i) => { (durMins(c.opened_at) >= STALE_MIN ? stale : live).push({ c, i }); });
 
-  const sumOf = rows => money(rows.reduce((s, x) => s + (+x.c.total_uah || 0), 0));
+  const liveSum   = live.reduce((s, x) => s + (+x.c.total_uah || 0), 0);
+  const liveWatch = live.filter(x => staleLevel(x.c.opened_at) >= 1).length;   // 3–24г серед живих
 
-  const body = estOrder.map(est => {
-    const rows = byEst[est];
-    // згрупувати по зоні (section) у порядку першої появи
-    const byZone = {}; const zoneOrder = [];
-    rows.forEach(r => {
-      const z = (r.c.section || '').trim() || 'Без зони';
-      if (!byZone[z]) { byZone[z] = []; zoneOrder.push(z); }
-      byZone[z].push(r);
-    });
-    const zonesHtml = zoneOrder.map(z => {
-      const zr = byZone[z];
-      return `<div class="ot-zone"><span class="ot-zone-name">${z}</span><span class="ot-zone-cnt">${zr.length} · ${sumOf(zr)} ₴</span></div>
-        ${zr.map(({ c, i }) => cardHTML(c, i)).join('')}`;
-    }).join('');
-    const estHeader = multiEst ? `<div class="ot-sec">${est}<span class="ot-sec-cnt">${rows.length} · ${sumOf(rows)} ₴</span></div>` : '';
-    return estHeader + zonesHtml;
-  }).join('');
+  const kpi = `
+    <div class="ot-kpi-row">
+      <div class="ot-kpi"><div class="ot-kpi-lbl">Відкритих</div><div class="ot-kpi-val">${live.length}</div></div>
+      <div class="ot-kpi"><div class="ot-kpi-lbl">Сума, ₴</div><div class="ot-kpi-val">${money(liveSum)}</div></div>
+      <div class="ot-kpi${liveWatch ? ' warn' : ''}"><div class="ot-kpi-lbl">Висять &gt;3г</div><div class="ot-kpi-val">${liveWatch}</div></div>
+    </div>`;
+
+  const liveBody = live.length
+    ? renderGroups(live)
+    : `<div class="ot-empty" style="padding:32px 24px">Живих столів зараз немає 🎉${stale.length ? '<br><span style="font-size:12px;color:var(--text3)">Нижче — застряглі чеки.</span>' : ''}</div>`;
+
+  let staleBody = '';
+  if (stale.length) {
+    const staleSum = stale.reduce((s, x) => s + (+x.c.total_uah || 0), 0);
+    staleBody = `
+      <div class="ot-stale-hdr${_staleOpen ? ' open' : ''}" onclick="window.__ot.toggleStale()">
+        <span>⚠️ Застряглі · понад добу</span>
+        <span class="ot-sec-cnt" style="display:flex;align-items:center;gap:6px">${stale.length} · ${money(staleSum)} ₴
+          <svg class="ot-stale-chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+      ${_staleOpen ? renderGroups(stale) : ''}`;
+  }
 
   return `<div class="ot-wrap">${CSS}${header()}
     <div class="ot-scroll" id="ot-scroll">
       ${_error ? `<div class="ot-alert">${_error}</div>` : ''}
       ${kpi}
-      ${body}
+      ${liveBody}
+      ${staleBody}
     </div>
   </div>`;
+}
+
+function sumRows(rows) { return money(rows.reduce((s, x) => s + (+x.c.total_uah || 0), 0)); }
+
+// Групування рядків: ЗАКЛАД (establishment) → ЗОНА (section), як у POS-терміналі.
+// Заклад-заголовок показуємо лише коли точок кілька (напр. Тераса = кілька establishment).
+function renderGroups(rows) {
+  const byEst = {}; const estOrder = [];
+  rows.forEach(r => { const e = r.c.establishment || 'Заклад'; if (!byEst[e]) { byEst[e] = []; estOrder.push(e); } byEst[e].push(r); });
+  const multiEst = estOrder.length > 1;
+  return estOrder.map(est => {
+    const er = byEst[est];
+    const byZone = {}; const zoneOrder = [];
+    er.forEach(r => { const z = (r.c.section || '').trim() || 'Без зони'; if (!byZone[z]) { byZone[z] = []; zoneOrder.push(z); } byZone[z].push(r); });
+    const zonesHtml = zoneOrder.map(z => {
+      const zr = byZone[z];
+      return `<div class="ot-zone"><span class="ot-zone-name">${z}</span><span class="ot-zone-cnt">${zr.length} · ${sumRows(zr)} ₴</span></div>
+        ${zr.map(({ c, i }) => cardHTML(c, i)).join('')}`;
+    }).join('');
+    const estHeader = multiEst ? `<div class="ot-sec">${est}<span class="ot-sec-cnt">${er.length} · ${sumRows(er)} ₴</span></div>` : '';
+    return estHeader + zonesHtml;
+  }).join('');
 }
 
 function cardHTML(c, i) {
@@ -249,6 +269,7 @@ export function init() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   window.__ot = {
     toggle(key) { if (_openKeys.has(key)) _openKeys.delete(key); else _openKeys.add(key); re(); },
+    toggleStale() { _staleOpen = !_staleOpen; re(); },
   };
   loadOpenTables();
   _pollTimer = setInterval(() => {
