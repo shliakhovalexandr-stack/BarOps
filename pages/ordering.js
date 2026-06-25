@@ -12,6 +12,7 @@ const API = 'https://barops-backend-production.up.railway.app';
 ════════════════════════ */
 let _suppliers    = [];   // { id, name, contact, orderDays, supplierProducts:[{id,productId,productName}] }
 let _balanceItems = [];   // { id, name, amount, unit, category } — з Syrve
+let _kitchenIds   = new Set();   // id товарів з кухонних складів (для зонування шефа/кухаря)
 let _barQtys      = {};   // productId → qty для заявки бармена
 let _barComments  = {};   // productId → comment string
 let _barUnits     = {};   // productId → обрана одиниця (Ящ/пл/л/шт/кг)
@@ -234,6 +235,8 @@ const CSS = `<style id="ord-css">
 function getBalance(productId) {
   return _balanceItems.find(b => b.id === productId) || null;
 }
+// Шеф/кухар замовляють лише кухонне (товари з кухонних складів)
+function isKitchenRole() { const r = (state.role || '').toLowerCase(); return r === 'chef' || r === 'cook'; }
 function getSuggest(productId) {
   return (_suggest || []).find(s => s.id === productId) || null;
 }
@@ -290,10 +293,13 @@ async function loadData() {
     const bData = await fetchBalanceRetry(3);
     if (bData?.stores) {
       _balanceItems = [];
+      _kitchenIds = new Set();
       for (const store of bData.stores) {
+        const isKitchenStore = /кухн|kitchen/i.test(store.storeName || store.name || '');
         for (const item of store.items) {
           if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
             _balanceItems.push(item);
+            if (isKitchenStore && item.id) _kitchenIds.add(item.id);
           }
         }
       }
@@ -318,8 +324,9 @@ function barSuppliersHTML() {
     </div>`;
   }
 
-  return _suppliers.map(s => {
-    const prods = (s.supplierProducts || []).map(sp => {
+  const kitchenOnly = isKitchenRole() && _kitchenIds.size > 0;   // фільтр діє, лише коли баланс уже завантажено
+  const blocks = _suppliers.map(s => {
+    let prods = (s.supplierProducts || []).map(sp => {
       const bal = getBalance(sp.productId);
       const hasCustom = sp.customName && sp.customName !== sp.productName;
       return {
@@ -332,6 +339,11 @@ function barSuppliersHTML() {
         col:         statusColor(bal ? stockStatus(bal.amount || 0) : 'ok'),
       };
     });
+    // Шеф/кухар: показуємо лише кухонні товари; постачальника без них — ховаємо
+    if (kitchenOnly) {
+      prods = prods.filter(p => _kitchenIds.has(p.productId));
+      if (!prods.length) return '';
+    }
 
     const isOpen   = _openSuppliers.has(s.id);
     const totalQty = prods.reduce((a, p) => a + p.qty, 0);
@@ -404,7 +416,15 @@ function barSuppliersHTML() {
       </div>
       ${inner}
     </div>`;
-  }).join('');
+  }).filter(Boolean);
+
+  if (!blocks.length && kitchenOnly) {
+    return `<div class="ord-empty"><div class="ord-empty-icon">🍳</div>
+      <div class="ord-empty-title">Немає кухонних товарів</div>
+      <div class="ord-empty-sub">У постачальників не призначено товарів з кухонного складу. Зверніться до менеджера.</div>
+    </div>`;
+  }
+  return blocks.join('');
 }
 
 function renderBartender() {
