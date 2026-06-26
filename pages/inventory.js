@@ -600,7 +600,7 @@ async function loadAll() {
 
     if (balRes.ok) {
       const d = await balRes.json();
-      _posMode = d.mode || '';            // 'poster' | 'syrve' | '' — для гілки сабміту
+      _posMode = d.mode || '';            // 'poster' | 'selfhosted' | 'cloud' | '' (з detectSyrveMode; НЕ 'syrve')
       _balance = [];
       // посуд — лише склад «Посуд»; кухня (шеф/кухар) — лише склад «Кухня»; Poster-бар — склад «Бар»; Syrve-бар — усі повернуті
       const stores = isDish()
@@ -639,7 +639,7 @@ async function loadAll() {
     // Бекенд розкладе їх на товари за тех-картами (КРОК-1); тут лише лічимо в базовій одиниці.
     // Бар-сесія: НФ бару+загальні; кухня: НФ кухні+загальні. Посуд/Poster — без НФ.
     _preps = []; _prepById = {};
-    if (!isDish() && _posMode === 'syrve') {
+    if (!isDish() && _posMode === 'selfhosted') {   // balance.mode = 'selfhosted'|'cloud'|'poster' (НЕ 'syrve')
       try {
         const pr = await fetch(`${API}/api/pos/preparations/${_venueId}`, { headers: h });
         if (pr.ok) {
