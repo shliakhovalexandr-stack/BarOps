@@ -11,8 +11,10 @@ const API = 'https://barops-backend-production.up.railway.app';
 let _venueId = null, _token = null, _role = null;
 let _sessions        = [];
 let _balance         = [];     // [{id,name,amount,unit,category}] з Syrve
+let _preps           = [];     // напівфабрикати (PREPARED) по складу: [{id,name,unit,scope,stock}] — розкладаються на товари на бекенді
+let _prepById        = {};     // id → НФ (швидкий lookup для modeOf/isCounted)
 let _configs         = {};     // productId → {mode,emptyTareKg,fullTareKg,bottleVolL}
-let _counts          = {};     // productId → {full,partial,kg,sht}
+let _counts          = {};     // productId → {full,partial,kg,sht,nf}
 let _draftByName     = '';     // хто востаннє вносив у спільну чернетку (крос-девайс)
 let _draftAt         = null;   // коли востаннє збережено спільну чернетку
 let _draftSyncTimer  = null;   // debounce автозбереження чернетки на бекенд
@@ -330,7 +332,10 @@ function syrveDefaultMode(pid) {
   return 'ml';                                         // рідина (л/мл) → ручний мл → літри
 }
 
+function isPrep(pid) { return !!_prepById[pid]; }
+
 function modeOf(pid) {
+  if (isPrep(pid)) return 'nf';                       // напівфабрикат — лічба в базовій одиниці (кг/л), без тари
   if (_configs[pid]?.mode) return _configs[pid].mode;
   return syrveDefaultMode(pid);
 }
@@ -346,6 +351,7 @@ function modeMismatch(p) {
 function isCounted(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
+  if (m === 'nf')      return (parseFloat(c.nf) || 0) > 0;
   if (m === 'kg_to_l') return (+c.full || 0) > 0 || partialWeights(c).length > 0 || (String(c.litersAdd || '').trim() !== '');
   if (m === 'kg')      return (c.kg || '') !== '';
   if (m === 'ml')      return (c.ml || '') !== '' || sumAdds(c.adds) > 0;
@@ -355,6 +361,7 @@ function isCounted(pid) {
 function getResult(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
+  if (m === 'nf')      return parseFloat(c.nf) || 0;        // НФ — кількість у базовій одиниці (бекенд декомпозує)
   if (m === 'kg_to_l') return computeL(pid, c);
   if (m === 'kg')      return parseFloat(c.kg) || 0;
   if (m === 'ml')      return Math.round(((parseFloat(c.ml) || 0) + sumAdds(c.adds)) * 1000) / 1000;  // основне + додаткові заміри
@@ -498,6 +505,17 @@ function bindLiveInputs() {
       persistCounts();
     };
   });
+  // Напівфабрикат — одне число в базовій одиниці (кг/л); бекенд декомпозує на товари
+  document.querySelectorAll('[data-nf-inp]').forEach(inp => {
+    inp.oninput = e => {
+      const pid = e.target.dataset.pid;
+      if (!_counts[pid]) _counts[pid] = {};
+      _counts[pid].nf = (e.target.value || '').replace(',', '.');
+      const bar = document.getElementById(`inv-nfbar-${pid}`);
+      if (bar) bar.style.background = (parseFloat(_counts[pid].nf) || 0) > 0 ? 'var(--green)' : 'var(--bg3)';
+      persistCounts();
+    };
+  });
   // Степер-поля (штук / цілі пляшки) — прямий ввід числа, не лише +/−
   document.querySelectorAll('[data-step-inp]').forEach(inp => {
     inp.oninput = e => {
@@ -617,9 +635,23 @@ async function loadAll() {
       for (const cfg of (d.configs || [])) _configs[cfg.productId] = cfg;
     }
 
-    // Напівфабрикати в інвентаризацію BarOps НЕ підтягуємо: Syrve-API кладе їх лише в Крок 2
-    // (сток, без декомпозиції), що псує облік. НФ рахуються окремо (на папері / рідною
-    // мобільною інвентаризацією Syrve, яка вміє Крок 1). Тут — лише товари (Крок 2).
+    // Напівфабрикати (PREPARED) по складу — ОКРЕМО після balance (одне REST-зʼєднання Syrve).
+    // Бекенд розкладе їх на товари за тех-картами (КРОК-1); тут лише лічимо в базовій одиниці.
+    // Бар-сесія: НФ бару+загальні; кухня: НФ кухні+загальні. Посуд/Poster — без НФ.
+    _preps = []; _prepById = {};
+    if (!isDish() && _posMode === 'syrve') {
+      try {
+        const pr = await fetch(`${API}/api/pos/preparations/${_venueId}`, { headers: h });
+        if (pr.ok) {
+          const pd = await pr.json();
+          const allow = isKitchen() ? ['kitchen', 'general'] : ['bar', 'general'];
+          _preps = (pd.preparations || [])
+            .filter(p => p.id && allow.includes(p.scope))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk', { sensitivity: 'base', numeric: true }));
+          for (const p of _preps) _prepById[p.id] = p;
+        }
+      } catch { /* НФ опційні — без них інвента працює як раніше */ }
+    }
 
     // Відкрита сесія — тягнемо СПІЛЬНУ чернетку з бекенду (крос-девайс):
     // ввечері один бармен порахував склад/енотеку → зранку інший продовжує бар на своєму пристрої.
@@ -725,10 +757,15 @@ async function submitInventory(dryRun) {
           method:      m,
         };
       });
+      // НФ — як окремі позиції історії (method='nf'); у Syrve підуть РОЗКЛАДЕНІ товари, не НФ
+      const prepItems = _preps.filter(p => p.id && isCounted(p.id)).map(p => {
+        const cq = getResult(p.id), sq = p.stock || 0;
+        return { productId: p.id, productName: p.name, countedQty: cq, systemQty: sq, fillPct: sq > 0 ? Math.round(cq / sq * 100) : 0, method: 'nf' };
+      });
       const saveRes = await fetch(`${API}/api/inventory/sessions/${os.id}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items: [...items, ...prepItems] }),
       });
       if (!saveRes.ok) throw new Error('Помилка збереження позицій');
     }
@@ -750,12 +787,15 @@ async function submitInventory(dryRun) {
     }
 
     // Документ інвентаризації в Syrve Office. dryRun=true → check (валідує, нічого не створює)
-    const syrveItems = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
+    // НФ йдуть окремим полем preparations → бекенд декомпозує в товари й додає до items.
+    const syrveItems  = _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
+    const prepPayload = _preps.filter(p => p.id && isCounted(p.id)).map(p => ({ productId: p.id, amount: getResult(p.id) }));
     const invRes = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
       body: JSON.stringify({
-        items:   syrveItems,
+        items:        syrveItems,
+        preparations: prepPayload,
         date:    os.scheduledAt,
         comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : isKitchen() ? 'Інвентаризація кухні' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
         dryRun:  !!dryRun,
@@ -765,13 +805,16 @@ async function submitInventory(dryRun) {
     const invD = await invRes.json().catch(() => ({}));
     if (!invRes.ok || !invD.success) throw new Error(invD.error || (dryRun ? 'Перевірка не пройшла' : 'Не вдалося створити документ у Syrve Office'));
 
+    const dec    = invD.decompo;
+    const decTxt = dec ? ` · ${dec.nfCount} НФ→товари${dec.unresolvedCount ? `, ${dec.unresolvedCount} не розкладено` : ''}${dec.chartsLoadFailed ? ' ⚠ тех-карти не завантажились' : ''}` : '';
+
     if (dryRun) {
-      _testMsg = `✓ Перевірка пройшла: Syrve прийме документ · ${invD.itemCount} поз. Нічого не створено.`;
+      _testMsg = `✓ Перевірка пройшла: Syrve прийме документ · ${invD.itemCount} поз.${decTxt} Нічого не створено.`;
       _saving = false; re();
       return;
     }
 
-    _syrveMsg = `Документ створено в Syrve Office · ${invD.itemCount} поз.`;
+    _syrveMsg = `Документ створено в Syrve Office · ${invD.itemCount} поз.${decTxt}`;
     clearDraftStorage();            // чистимо чернетку, поки сесія ще open (draftKey коректний)
     await changeStatus(os.id, 'done');   // сесія стає «завершеною» → зʼявиться в Історії (бекенд)
     _submitted = true; _counts = {};
@@ -959,8 +1002,8 @@ function buildBar() {
   }
 
   // Активна сесія
-  const counted = _balance.filter(p => isCounted(p.id)).length;
-  const total   = _balance.length;
+  const counted = _balance.filter(p => isCounted(p.id)).length + _preps.filter(p => isCounted(p.id)).length;
+  const total   = _balance.length + _preps.length;
   const pct     = total > 0 ? Math.round(counted / total * 100) : 0;
 
   return `
@@ -995,6 +1038,16 @@ function buildBar() {
           : `<div style="text-align:center;padding:20px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
       })()}
     </div>
+
+    ${(!isDish() && _preps.length) ? `
+    <div style="margin:16px 18px 4px;font-size:11px;font-weight:600;color:var(--purple);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em">Напівфабрикати <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">· розкладуться на товари</span></div>
+    <div class="inv-prod-list">
+      ${(() => {
+        const pl = _preps.filter(matchSearch);
+        return pl.length ? pl.map(prepRowHTML).join('')
+          : `<div style="text-align:center;padding:14px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
+      })()}
+    </div>` : ''}
 
     <div class="inv-actions">
       <button class="inv-btn-test" data-a="test-submit" ${_saving ? 'disabled' : ''}>
@@ -1052,6 +1105,26 @@ function productRowHTML(p) {
       ${isOpen ? inputPanelHTML(p, c, m) : ''}
     </div>
   `;
+}
+
+// Рядок напівфабрикату: одне поле кількості в базовій одиниці (кг/л). Бекенд розкладе на товари.
+function prepRowHTML(p) {
+  const c = _counts[p.id] || {};
+  const counted = (parseFloat(c.nf) || 0) > 0;
+  return `
+    <div class="inv-prod${counted ? ' entered' : ''}">
+      <div class="inv-prod-row" style="cursor:default">
+        <div class="inv-pbar" id="inv-nfbar-${p.id}" style="background:${counted ? 'var(--green)' : 'var(--bg3)'}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="inv-pname">${p.name} <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border,rgba(168,139,255,.4));border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span></div>
+          <div class="inv-pmeta">↳ розкладеться на товари</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <input class="inv-field" style="width:88px;margin:0;height:38px;font-size:16px" type="text" inputmode="decimal" placeholder="0" value="${c.nf || ''}" data-nf-inp data-pid="${p.id}" onfocus="this.select()">
+          <span class="inv-punit" style="min-width:20px;text-align:left">${p.unit || ''}</span>
+        </div>
+      </div>
+    </div>`;
 }
 
 // Ввід у вкладці «Рахунок». Спосіб (mode) задає менеджер у «Одиниці» — тут перемикача немає,
@@ -1705,6 +1778,8 @@ export default {
     _histItems     = {};
     _histMenuId    = null;
     _openPid       = null;
+    _preps         = [];      // НФ перезавантажить loadAll за складом закладу
+    _prepById      = {};
     _search        = '';      // не переносити пошук між закладами
     _cfgFilter     = 'all';   // не переносити фільтр «лише без тари» між закладами
     _counts        = {};      // лічильники зі спільної чернетки відновить loadAll (інакше текли б між закладами)
