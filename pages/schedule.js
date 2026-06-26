@@ -251,6 +251,7 @@ async function loadRosters() {
       const pub = pubByUser[p.id] || {};
       return weekDates.map(w => {
         const slot = emp[dateKey(w.date)];
+        if (slot && slot.cleared) return null;           // явно очищена клітинка — перекриває публікацію
         if (slot) return { s: slot.start, e: slot.end, station: slot.station || null };
         if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
         // бармени — мережево (будь-який заклад); решта — лише свій заклад
@@ -288,6 +289,7 @@ function saveShiftToStorage(roleKey, pi, di, value) {
   if (!raw[_venueId]) raw[_venueId] = {};
   if (!raw[_venueId][empId]) raw[_venueId][empId] = {};
   if (value === null) { delete raw[_venueId][empId][dk]; }
+  else if (value.cleared) { raw[_venueId][empId][dk] = { cleared: true }; }   // тумбстоун: порожньо, перекриває публікацію
   else { raw[_venueId][empId][dk] = { start: value.s, end: value.e, station: value.station || null }; }
   localStorage.setItem('barops_schedule_v1', JSON.stringify(raw));
 }
@@ -1271,6 +1273,14 @@ function renderCellSheet() {
         <svg id="sch-off-check" style="margin-left:auto;flex-shrink:0;display:${isShift?'none':'block'}" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
       </div>
 
+      ${cell ? `
+      <div style="padding:8px 20px 0">
+        <button onclick="window.__sch.clearCell()" style="width:100%;height:44px;border-radius:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.10);color:#71717A;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>
+          Прибрати — зробити порожньою
+        </button>
+      </div>` : ''}
+
       <div class="sch-sh-btns">
         <button class="sch-sbt sch-sbt-sec" onclick="window.__sch.closeCellSheet()">Скасувати</button>
         <button class="sch-sbt sch-sbt-cta" onclick="window.__sch.saveCell()">Зберегти</button>
@@ -1625,6 +1635,19 @@ export function init() {
       _rosters[roleKey].grid[pi][di] = value;
       saveShiftToStorage(roleKey, pi, di, isOff ? null : value);   // зняти зміну, якщо вихідний
       saveDayOffToStorage(roleKey, pi, di, isOff);                  // поставити/зняти вихідний
+      _cellSheet = null;
+      document.getElementById('sch-cell-ov')?.remove();
+      re();
+    },
+
+    // Прибрати клітинку → порожньо (ані зміна, ані вихідний). Тумбстоун перекриває
+    // опубліковану зміну до наступної публікації; повторна публікація (full-replace) прибере її назовсім.
+    clearCell() {
+      if (!_cellSheet) return;
+      const { roleKey, pi, di } = _cellSheet;
+      _rosters[roleKey].grid[pi][di] = null;
+      saveShiftToStorage(roleKey, pi, di, { cleared: true });   // тумбстоун «порожньо»
+      saveDayOffToStorage(roleKey, pi, di, false);               // зняти вихідний, якщо був
       _cellSheet = null;
       document.getElementById('sch-cell-ov')?.remove();
       re();

@@ -30,6 +30,25 @@ function cashFor(name) {
   const nm = (name || '').trim().toLowerCase();
   return _cash.filter(c => (c.sourceName || '').trim().toLowerCase() === nm);
 }
+// Готівка «до здачі» по офіціанту: бекенд (cashHandover.byWaiter) — джерело істини;
+// локальний фолбек на час розкату/якщо бекенд старий (готівкові продажі − вилучено з каси).
+const CASH_RE = /готівк|готивк|налічн|наличн|cash|каса/i;
+function nkey(s) { return String(s || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+function cashSalesOf(payments) {
+  let s = 0; for (const p of (payments || [])) if (CASH_RE.test(p.label || '')) s += Number(p.sum || 0) || 0;
+  return Math.round(s * 100) / 100;
+}
+function handoverFor(w) {
+  const ch = _data && _data.cashHandover;
+  if (ch) {
+    const e = (ch.byWaiter && ch.byWaiter[nkey(w.name)])
+      || (Array.isArray(ch.withdrawalOnly) && ch.withdrawalOnly.find(x => nkey(x.name) === nkey(w.name)));
+    if (e) return { cashSales: e.cashSales || 0, withdrawn: e.cashWithdrawn || 0, toHandOver: e.toHandOver || 0 };
+  }
+  const cashSales = cashSalesOf(w.payments);
+  const withdrawn = cashFor(w.name).reduce((s, c) => s + (c.amount || 0), 0);
+  return { cashSales, withdrawn, toHandOver: Math.round((cashSales - withdrawn) * 100) / 100 };
+}
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -78,6 +97,21 @@ const CSS = `<style id="cs-css">
 .cs-spin{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--green);animation:csSpin .7s linear infinite;margin:48px auto}
 @keyframes csSpin{to{transform:rotate(360deg)}}
 .cs-err{background:var(--red-bg,#2a1212);border:0.5px solid var(--red-border,#5c2d2d);border-radius:12px;padding:14px;font-size:12px;color:var(--red);font-family:var(--font-b);margin-top:8px}
+/* готівка до здачі — сумарна плашка */
+.cs-ho-card{background:linear-gradient(135deg,rgba(80,200,120,.14),rgba(80,200,120,.03));border:0.5px solid var(--green-border,#2d5c3a);border-radius:16px;padding:14px 16px;margin-bottom:14px}
+.cs-ho-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em}
+.cs-ho-val{font-family:var(--font-h);font-size:28px;font-weight:800;color:var(--green);line-height:1;margin-top:6px}
+.cs-ho-val.neg{color:var(--amber,#FBBF24)}
+.cs-ho-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:7px}
+/* «до здачі» на картці офіціанта */
+.cs-ho-chip{font-family:var(--font-h);font-size:12px;font-weight:700;color:var(--green);text-align:right;margin-top:3px}
+.cs-ho-chip.neg{color:var(--amber,#FBBF24)}
+.cs-ho-box{margin-top:10px;padding:10px 12px;background:var(--green-bg,#15291c);border:0.5px solid var(--green-border,#2d5c3a);border-radius:10px}
+.cs-ho-box-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text1);font-family:var(--font-b);padding:2px 0}
+.cs-ho-box-row b{font-family:var(--font-h);color:var(--text0)}
+.cs-ho-box-tot{border-top:0.5px solid var(--green-border,#2d5c3a);margin-top:5px;padding-top:6px;font-size:13px;color:var(--text0)}
+.cs-ho-box-tot b{color:var(--green);font-size:15px}
+.cs-ho-box-tot.neg b{color:var(--amber,#FBBF24)}
 </style>`;
 
 function initials(name) {
@@ -123,6 +157,8 @@ function waiterCard(w) {
   const open = _openId === w.id;
   const outs = cashFor(w.name);
   const outsTotal = outs.reduce((s, c) => s + (c.amount || 0), 0);
+  const ho = handoverFor(w);
+  const showHo = !w.cashOnly && (ho.cashSales > 0 || ho.withdrawn > 0);   // cashOnly вже показує «−X з каси»
   return `
   <div class="cs-card">
     <div class="cs-row" onclick="window.__cs.toggle('${w.id.replace(/'/g, "\\'")}')">
@@ -137,6 +173,7 @@ function waiterCard(w) {
         ${w.cashOnly
           ? `<div class="cs-sum" style="color:var(--red)">−${money(outsTotal)}</div><div class="cs-sum-lbl">з каси</div>`
           : `<div class="cs-sum">${money(w.sum)}</div><div class="cs-sum-lbl">виторг</div>`}
+        ${showHo ? `<div class="cs-ho-chip ${ho.toHandOver < 0 ? 'neg' : ''}">здати ${money(ho.toHandOver)}</div>` : ''}
       </div>
       <svg class="cs-chev ${open ? 'open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
     </div>
@@ -165,6 +202,12 @@ function waiterCard(w) {
           <div class="cs-table-sum" style="color:var(--red)">−${money(c.amount)}</div>
         </div>`).join('')}
       ` : ''}
+      ${showHo ? `
+      <div class="cs-ho-box">
+        <div class="cs-ho-box-row"><span>Готівкові продажі</span><b>${money(ho.cashSales)}</b></div>
+        <div class="cs-ho-box-row"><span>− Вилучено з каси</span><b style="color:var(--red)">−${money(ho.withdrawn)}</b></div>
+        <div class="cs-ho-box-row cs-ho-box-tot ${ho.toHandOver < 0 ? 'neg' : ''}"><span>До здачі</span><b>${money(ho.toHandOver)}</b></div>
+      </div>` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -172,6 +215,13 @@ function waiterCard(w) {
 // Офіціанти, що мають вилучення з каси, але ще НЕ зʼявились у POS (немає продажів) →
 // синтетичні картки лише з відʼємним показником. «Вчорашня каса» (без sourceId) сюди не йде.
 function extraCashWaiters(posWaiters) {
+  // Бекенд дав авторитетний список «лише вилучення» (не зіставлені з жодним POS-офіціантом —
+  // у т.ч. зіставлення через posName) → беремо його, щоб уникнути дубль-карток.
+  const wo = _data && _data.cashHandover && _data.cashHandover.withdrawalOnly;
+  if (Array.isArray(wo)) {
+    return wo.map(e => ({ id: 'cw:' + e.name, name: e.name, orders: 0, guests: 0, sum: 0, payments: [], cashOnly: true }));
+  }
+  // Фолбек (старий бекенд без cashHandover): локальна евристика по імені sourceName
   const have = new Set((posWaiters || []).map(w => (w.name || '').trim().toLowerCase()));
   const map = new Map();
   for (const c of _cash) {
@@ -199,12 +249,24 @@ function body() {
         <div class="cs-empty-txt">${_day === todayIso() ? 'Сьогодні ще немає продажів по офіціантах.' : 'Цього дня не було продажів по офіціантах.'}<br>Дані з POS.</div>
       </div>`;
     } else {
+      // Готівка до здачі — сума по всіх картках (WYSIWYG); «Вчорашня каса» — окремо як памʼятка
+      const totalHandover = allW.reduce((s, w) => s + handoverFor(w).toHandOver, 0);
+      const drawer = (_data && _data.cashHandover && typeof _data.cashHandover.drawerWithdrawn === 'number')
+        ? _data.cashHandover.drawerWithdrawn
+        : _cash.filter(c => !c.sourceId).reduce((s, c) => s + (c.amount || 0), 0);
+      const showHoCard = Math.round(totalHandover) !== 0 || drawer > 0;
       inner = `
       <div class="cs-kpis">
         <div class="cs-kpi"><div class="cs-kpi-val">${allW.length}</div><div class="cs-kpi-lbl">Офіціантів</div></div>
         <div class="cs-kpi"><div class="cs-kpi-val">${d.totalOrders}</div><div class="cs-kpi-lbl">Чеків</div></div>
         <div class="cs-kpi"><div class="cs-kpi-val" style="color:var(--green)">${money(d.totalSum)}</div><div class="cs-kpi-lbl">Виторг</div></div>
       </div>
+      ${showHoCard ? `
+      <div class="cs-ho-card">
+        <div class="cs-ho-lbl">💵 Готівка до здачі · всі офіціанти</div>
+        <div class="cs-ho-val ${totalHandover < 0 ? 'neg' : ''}">${money(totalHandover)}</div>
+        <div class="cs-ho-sub">готівкові продажі − вилучення з каси по кожному${drawer > 0 ? ` · з вчорашньої каси окремо вилучено <span style="color:var(--red)">−${money(drawer)}</span>` : ''}</div>
+      </div>` : ''}
       ${allW.map(waiterCard).join('')}`;
     }
   }
