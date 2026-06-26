@@ -637,14 +637,15 @@ async function loadAll() {
 
     // Напівфабрикати (PREPARED) по складу — ОКРЕМО після balance (одне REST-зʼєднання Syrve).
     // Бекенд розкладе їх на товари за тех-картами (КРОК-1); тут лише лічимо в базовій одиниці.
-    // Бар-сесія: НФ бару+загальні; кухня: НФ кухні+загальні. Посуд/Poster — без НФ.
+    // СТРОГО за складом: бар-сесія → лише НФ бару; кухня → лише НФ кухні. «Загальні» — нікому
+    // (щоб не задвоювати: інакше один НФ порахували б і бармен, і кухар). Посуд/Poster — без НФ.
     _preps = []; _prepById = {};
     if (!isDish() && _posMode === 'selfhosted') {   // balance.mode = 'selfhosted'|'cloud'|'poster' (НЕ 'syrve')
       try {
         const pr = await fetch(`${API}/api/pos/preparations/${_venueId}`, { headers: h });
         if (pr.ok) {
           const pd = await pr.json();
-          const allow = isKitchen() ? ['kitchen', 'general'] : ['bar', 'general'];
+          const allow = isKitchen() ? ['kitchen'] : ['bar'];
           _preps = (pd.preparations || [])
             .filter(p => p.id && allow.includes(p.scope))
             .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk', { sensitivity: 'base', numeric: true }));
