@@ -1274,7 +1274,7 @@ function renderCellSheet() {
       </div>
 
       ${cell ? `
-      <div style="padding:8px 20px 0">
+      <div style="padding:2px 20px 14px">
         <button onclick="window.__sch.clearCell()" style="width:100%;height:44px;border-radius:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.10);color:#71717A;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>
           Прибрати — зробити порожньою
