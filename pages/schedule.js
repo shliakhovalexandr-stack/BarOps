@@ -1105,7 +1105,7 @@ function renderRoleView(roleKey) {
         </table>
       </div>
       ${(roleKey === 'bartenders' && canEdit() && _mode === 'edit')
-        ? `<button class="sch-add" style="width:calc(100% - 36px);box-sizing:border-box;margin:2px 18px 16px" onclick="window.__sch.openBarPicker()">+ Додати бармена у графік</button>` : ''}
+        ? `<button class="sch-add" style="width:calc(100% - 36px);box-sizing:border-box;margin:2px 18px 16px" onclick="window.__sch.openBarPicker()">Бармени графіка</button>` : ''}
       <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
       ${procChips}
       ${coverageSection}
@@ -1328,8 +1328,8 @@ function renderBarPicker() {
   <div class="sch-ov" id="sch-bar-ov" onclick="window.__sch.closeBarOv(event)">
     <div class="sch-sheet">
       <div class="sch-sh-handle"></div>
-      <div class="sch-sh-title">Додати бармена у графік</div>
-      <div class="sch-sh-sub">Введіть ім'я — без прив'язки до акаунта</div>
+      <div class="sch-sh-title">Бармени графіка</div>
+      <div class="sch-sh-sub">Додайте за іменем або приберіть ✕ зі списку</div>
       <div style="display:flex;gap:8px;padding:8px 14px 12px">
         <input id="sch-bar-name" placeholder="Ім'я бармена" autocomplete="off"
           style="flex:1;background:#1F1F22;border:0.5px solid rgba(168,139,255,0.30);border-radius:10px;padding:0 12px;height:44px;font-size:15px;color:#fff;outline:none;font-family:inherit"
