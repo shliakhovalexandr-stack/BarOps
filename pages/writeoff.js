@@ -77,8 +77,12 @@ let _prepsLoaded  = false;
 function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
-// Групи Syrve, які НЕ списуються як товар (обладнання/інвентар/господарче) — ховаємо з каталогу
-const NON_CONSUMABLE_RE = /обладнан|інвентар|господар|пакуванн|пакувальн|спецодяг|уніформ|малоцін|мшп|меблі|текстиль/i;
+// НЕ списується як товар — ховаємо з каталогу. За ГРУПОЮ Syrve (надійніше) або за НАЗВОЮ (durable посуд/інвентар).
+const NON_CONSUMABLE_CAT_RE  = /обладнан|інвентар|господар|пакуван|спецодяг|уніформ|малоцін|мшп|меблі|текстиль|посуд|прибор|хімі|мийн|одноразов|витратн.{0,3}матер/i;
+const NON_CONSUMABLE_NAME_RE = /ложк|виделк|рукавичк|прихватк|ємкіст|ємніст|контейнер|гастроєм|відро|зонт витяж|витяжк|блендер|міксер|серветк|щітк|губк|таця|піднос|друшляк|шумівк|тертк|термометр|дошк обробн|дошк розділ|лоток для/i;
+function isNonConsumable(name, category) {
+  return NON_CONSUMABLE_CAT_RE.test(category || '') || NON_CONSUMABLE_NAME_RE.test(name || '');
+}
 // Звітний вид однаковий за функціями для менеджера й шефа, але підписи — кухонні для шефа (без слова «Менеджер»)
 function woIsKitchenMgr() { return (state.role || '').toLowerCase() === 'chef'; }
 
@@ -2543,7 +2547,7 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v5_${vId}`;   // v5 — усі склади + category, без обладнання/інвентарю
+    const prodsKey = `barops_prods_v6_${vId}`;   // v6 — фільтр не-харчових груп розширено (категорія+назва)
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
@@ -2565,7 +2569,7 @@ export default {
               const zone = /бар|bar/i.test(store.storeName || '') ? 'bar' : /кухн|kitchen/i.test(store.storeName || '') ? 'kitchen' : '';
               for (const item of (store.items || [])) {
                 if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !fresh.find(p=>p.id===item.id)) {
-                  if (NON_CONSUMABLE_RE.test(item.category || '')) continue;   // обладнання/інвентар — не списуємо як товар
+                  if (isNonConsumable(item.name, item.category)) continue;   // обладнання/інвентар/посуд — не списуємо як товар
                   fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit), zone, category: item.category || '' });
                 }
               }
