@@ -760,8 +760,9 @@ ${CSS}
       : state.role === 'cook' ? dashTiles(quick, false, false)
       : dashTiles(quick, isMgr, !isMgr && !isAcc)}
 
-    <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні; офіціанту не показуємо: борги/списання/акциз йому не потрібні) -->
-    ${(!isAcc && !isMgr && state.role !== 'waiter' && state.role !== 'cook') ? (() => {
+    <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні). Не показуємо: офіціанту/кухарю/шефу
+         (борги/акциз — бар-операції; у шефа акцизу нема), менеджеру/бухгалтеру (мають свої екрани). -->
+    ${(!isAcc && !isMgr && state.role !== 'waiter' && state.role !== 'cook' && state.role !== 'chef') ? (() => {
       const dbt = _mini.debts, ex = _mini.excise, wo = s?.writeoffs?.count ?? 0;
       const cell = (route, big, lbl, sub, col) => `
         <div class="d-tcard" onclick="window.__barops.navigate('${route}')">
