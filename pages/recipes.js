@@ -369,37 +369,54 @@ function applyFilter() {
   });
 }
 
+const RCHK = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// Рядок мульти-селект-шита (data-val для оновлення на місці; «__all__» = «Всі»)
+function recRow(dataVal, label, sub, onclick, sel) {
+  return `<div class="rec-section-row ${sel ? 'sel' : ''}" data-val="${dataVal}" onclick="${onclick}">
+    <div style="flex:1;min-width:0"><div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${label}</div>${sub ? `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${sub}</div>` : ''}</div>
+    <span class="rec-chk">${sel ? RCHK : ''}</span>
+  </div>`;
+}
+// Оновити галочки в шиті на місці (без ререндеру/перебудови — скрол лишається)
+function recUpdateChecks(listId, set) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.querySelectorAll('.rec-section-row').forEach(rowEl => {
+    const dv  = rowEl.dataset.val;
+    const sel = dv === '__all__' ? set.size === 0 : set.has(dv);
+    rowEl.classList.toggle('sel', sel);
+    const chk = rowEl.querySelector('.rec-chk');
+    if (chk) chk.innerHTML = sel ? RCHK : '';
+  });
+}
+function sectionRowsHTML(cats) {
+  return recRow('__all__', 'Всі розділи', '', 'window.__rec.selectSection(null)', _catSet.size === 0)
+    + cats.map(c => recRow(c.replace(/"/g, '&quot;'), c, '', `window.__rec.toggleSection('${c.replace(/'/g, "\\'")}')`, _catSet.has(c))).join('');
+}
+
 function openSectionFilter() {
   const existing = document.getElementById('rec-section-sheet');
-  if (existing) { existing.remove(); return; }
+  if (existing) { closeSectionFilter(); return; }
   const cats = [...new Set(_dishes.map(d => d.category).filter(Boolean))].sort();
-  const isAll = _catSet.size === 0;
   const sheet = document.createElement('div');
   sheet.id = 'rec-section-sheet';
   sheet.className = 'rec-sheet-ov open';
   sheet.style.cssText = 'position:fixed;inset:0;z-index:200';
   sheet.innerHTML = `
-    <div class="rec-sheet" style="max-height:75vh;overflow-y:auto">
+    <div class="rec-sheet" style="max-height:85vh">
       <div class="rec-sheet-handle"></div>
-      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">Розділ меню</div>
-      <div class="rec-section-row ${isAll ? 'sel' : ''}" onclick="window.__rec.selectSection(null)">
-        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">Всі розділи</div>
-        ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-      </div>
-      ${cats.map(c => `
-      <div class="rec-section-row ${_catSet.has(c) ? 'sel' : ''}" onclick="window.__rec.toggleSection('${c.replace(/'/g,"\\'")}')">
-        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">${c}</div>
-        ${_catSet.has(c) ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-      </div>`).join('')}
-      <div style="height:24px"></div>
+      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);flex-shrink:0">Розділ меню</div>
+      <div class="rec-sheet-scroll" id="rec-section-list">${sectionRowsHTML(cats)}</div>
     </div>`;
   sheet.addEventListener('click', e => { if (e.target === sheet) closeSectionFilter(); });
   document.body.appendChild(sheet);
 }
 
+// Закриття застосовує фільтр (один ререндер списку); під час вибору ререндеру немає.
 function closeSectionFilter() {
   const s = document.getElementById('rec-section-sheet');
   if (s) s.remove();
+  re();
 }
 
 function selectSection(cat) {
@@ -407,48 +424,32 @@ function selectSection(cat) {
   if (cat) _catSet.add(cat);
   saveCats();
   closeSectionFilter();
-  re();
 }
 
+// Мульти-вибір: лише оновлюємо галочки на місці (скрол не стрибає, без ререндеру сторінки)
 function toggleSection(cat) {
   if (_catSet.has(cat)) _catSet.delete(cat);
   else _catSet.add(cat);
   saveCats();
-  closeSectionFilter();
-  openSectionFilter();
-  re();
+  recUpdateChecks('rec-section-list', _catSet);
 }
 
 function openStoreFilter() {
   const existing = document.getElementById('rec-store-sheet');
-  if (existing) { existing.remove(); return; }
+  if (existing) { closeStoreFilter(); return; }
   const stores = [...new Set(_dishes.map(d => d.store).filter(Boolean))].sort();
   if (stores.length === 0) return;
-  const isAll = _storeSet.size === 0;
+  const rows = recRow('__all__', 'Всі склади', '', 'window.__rec.selectAllStores()', _storeSet.size === 0)
+    + stores.map(s => recRow(s.replace(/"/g, '&quot;'), s, `${_dishes.filter(d => d.store === s).length} страв`, `window.__rec.toggleStore('${s.replace(/'/g,"\\'")}')`, _storeSet.has(s))).join('');
   const sheet = document.createElement('div');
   sheet.id = 'rec-store-sheet';
   sheet.className = 'rec-sheet-ov open';
   sheet.style.cssText = 'position:fixed;inset:0;z-index:200';
   sheet.innerHTML = `
-    <div class="rec-sheet" style="max-height:75vh;overflow-y:auto">
+    <div class="rec-sheet" style="max-height:85vh">
       <div class="rec-sheet-handle"></div>
-      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">Склад</div>
-      <div class="rec-section-row ${isAll ? 'sel' : ''}" onclick="window.__rec.selectAllStores()">
-        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">Всі склади</div>
-        ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-      </div>
-      ${stores.map(s => {
-        const dishCount = _dishes.filter(d => d.store === s).length;
-        return `
-      <div class="rec-section-row ${_storeSet.has(s) ? 'sel' : ''}" onclick="window.__rec.toggleStore('${s.replace(/'/g,"\\'")}')">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${s}</div>
-          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${dishCount} страв</div>
-        </div>
-        ${_storeSet.has(s) ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-      </div>`;
-      }).join('')}
-      <div style="height:24px"></div>
+      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);flex-shrink:0">Склад</div>
+      <div class="rec-sheet-scroll" id="rec-store-list">${rows}</div>
     </div>`;
   sheet.addEventListener('click', e => { if (e.target === sheet) closeStoreFilter(); });
   document.body.appendChild(sheet);
@@ -457,54 +458,38 @@ function openStoreFilter() {
 function closeStoreFilter() {
   const s = document.getElementById('rec-store-sheet');
   if (s) s.remove();
+  re();
 }
 
 function selectAllStores() {
   _storeSet.clear();
   saveStores();
   closeStoreFilter();
-  re();
 }
 
 function toggleStore(store) {
   if (_storeSet.has(store)) _storeSet.delete(store);
   else _storeSet.add(store);
   saveStores();
-  closeStoreFilter();
-  openStoreFilter();
-  re();
+  recUpdateChecks('rec-store-list', _storeSet);
 }
 
 function openGoodsCatFilter() {
   const existing = document.getElementById('rec-goodscat-sheet');
-  if (existing) { existing.remove(); return; }
+  if (existing) { closeGoodsCatFilter(); return; }
   const cats = [...new Set(_dishes.map(d => d.goodsCategory).filter(Boolean))].sort();
   if (cats.length === 0) return;
-  const isAll = _goodsCatSet.size === 0;
+  const rows = recRow('__all__', 'Всі категорії', '', 'window.__rec.selectAllGoodsCats()', _goodsCatSet.size === 0)
+    + cats.map(c => recRow(c.replace(/"/g, '&quot;'), c, `${_dishes.filter(d => d.goodsCategory === c).length} страв`, `window.__rec.toggleGoodsCat('${c.replace(/'/g,"\\'")}')`, _goodsCatSet.has(c))).join('');
   const sheet = document.createElement('div');
   sheet.id = 'rec-goodscat-sheet';
   sheet.className = 'rec-sheet-ov open';
   sheet.style.cssText = 'position:fixed;inset:0;z-index:200';
   sheet.innerHTML = `
-    <div class="rec-sheet" style="max-height:75vh;overflow-y:auto">
+    <div class="rec-sheet" style="max-height:85vh">
       <div class="rec-sheet-handle"></div>
-      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)">Категорія товарів</div>
-      <div class="rec-section-row ${isAll ? 'sel' : ''}" onclick="window.__rec.selectAllGoodsCats()">
-        <div style="flex:1;font-size:14px;color:var(--text0);font-family:var(--font-b)">Всі категорії</div>
-        ${isAll ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-      </div>
-      ${cats.map(c => {
-        const dishCount = _dishes.filter(d => d.goodsCategory === c).length;
-        return `
-      <div class="rec-section-row ${_goodsCatSet.has(c) ? 'sel' : ''}" onclick="window.__rec.toggleGoodsCat('${c.replace(/'/g,"\\'")}')">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${c}</div>
-          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:1px">${dishCount} страв</div>
-        </div>
-        ${_goodsCatSet.has(c) ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-      </div>`;
-      }).join('')}
-      <div style="height:24px"></div>
+      <div style="padding:0 16px 12px;font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);flex-shrink:0">Категорія товарів</div>
+      <div class="rec-sheet-scroll" id="rec-goodscat-list">${rows}</div>
     </div>`;
   sheet.addEventListener('click', e => { if (e.target === sheet) closeGoodsCatFilter(); });
   document.body.appendChild(sheet);
@@ -513,22 +498,20 @@ function openGoodsCatFilter() {
 function closeGoodsCatFilter() {
   const s = document.getElementById('rec-goodscat-sheet');
   if (s) s.remove();
+  re();
 }
 
 function selectAllGoodsCats() {
   _goodsCatSet.clear();
   saveGoodsCats();
   closeGoodsCatFilter();
-  re();
 }
 
 function toggleGoodsCat(cat) {
   if (_goodsCatSet.has(cat)) _goodsCatSet.delete(cat);
   else _goodsCatSet.add(cat);
   saveGoodsCats();
-  closeGoodsCatFilter();
-  openGoodsCatFilter();
-  re();
+  recUpdateChecks('rec-goodscat-list', _goodsCatSet);
 }
 
 function clearAllFilters() {
