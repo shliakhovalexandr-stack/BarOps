@@ -359,7 +359,12 @@ function tileSub(route, hint) {
   if (route === 'performance' && d && d.bar && d.bar.revPerHour != null) return stat(`${fmtMoney(d.bar.revPerHour)}/год`, 'var(--blue)');
   if (route === 'playlist'    && _mini.playlist != null)                 return stat(`${_mini.playlist} страв`, 'var(--text1)');
   if (route === 'journal'     && cl && cl.total)                         return stat(`Чек-листи ${cl.done}/${cl.total}`, cl.done >= cl.total ? 'var(--green)' : 'var(--amber)');
-  if (route === 'stock'       && _stats && _stats.critical) { const n = _stats.critical.length; return stat(n ? `${n} критичних` : 'все норм', n ? 'var(--red)' : 'var(--green)'); }
+  if (route === 'stock') {
+    // Кухонні критичні залишки в _stats.critical не рахуються (reorderPoint — барна система) →
+    // шефу/кухарю не показуємо оманливе «все норм»; нейтральний підпис без бар-статусу.
+    if (['chef', 'cook'].includes(state.role)) return `<div class="d-tile-hint">Поточні залишки</div>`;
+    if (_stats && _stats.critical) { const n = _stats.critical.length; return stat(n ? `${n} критичних` : 'все норм', n ? 'var(--red)' : 'var(--green)'); }
+  }
   return hint ? `<div class="d-tile-hint">${hint}</div>` : '';
 }
 
