@@ -77,6 +77,8 @@ let _prepsLoaded  = false;
 function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
+// Звітний вид однаковий за функціями для менеджера й шефа, але підписи — кухонні для шефа (без слова «Менеджер»)
+function woIsKitchenMgr() { return (state.role || '').toLowerCase() === 'chef'; }
 
 // Дозволена зона товарів у писанні за роллю (Poster: є склади Бар/Кухня).
 // bartender→бар, кухар/шеф→кухня, адмін/менеджер/керуючий/бухгалтер→усі.
@@ -1148,7 +1150,7 @@ function renderManager() {
     </div>
     <div style="flex:1">
       <div class="wo-title">Списання</div>
-      <div class="wo-sub">Менеджер · ${state.venue}</div>
+      <div class="wo-sub">${woIsKitchenMgr() ? 'Кухня' : 'Менеджер'} · ${state.venue}</div>
     </div>
     <div style="background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--purple);font-family:var(--font-b)">Звіт</div>
   </div>
@@ -1232,8 +1234,8 @@ function renderManager() {
         </div>`;
     })()}
 
-    <!-- Add (manager can too) -->
-    <div class="wo-sec">Списання менеджера</div>
+    <!-- Add (manager / kitchen lead) -->
+    <div class="wo-sec">${woIsKitchenMgr() ? 'Додати списання' : 'Списання менеджера'}</div>
     <div style="padding:0 14px">
       <div class="wo-add" onclick="window.__wo.openForm()">
         <div class="wo-add-icon">
@@ -1241,7 +1243,7 @@ function renderManager() {
         </div>
         <div>
           <div class="wo-add-text">Зафіксувати списання</div>
-          <div class="wo-add-sub">З облікового запису менеджера</div>
+          <div class="wo-add-sub">${woIsKitchenMgr() ? 'Бій · Псування · Дегустація · Інше' : 'З облікового запису менеджера'}</div>
         </div>
       </div>
     </div>
@@ -1309,7 +1311,7 @@ function renderManager() {
     <div class="wo-sec" style="padding-top:14px">Звіт</div>
     <div class="wo-report-card">
       <div class="wo-rc-title">Звіт по списаннях</div>
-      <div class="wo-rc-sub">Деталізований звіт з розбивкою по категоріях, позиціях і барменах за обраний період.</div>
+      <div class="wo-rc-sub">Деталізований звіт з розбивкою по категоріях, позиціях і ${woIsKitchenMgr() ? 'кухарях' : 'барменах'} за обраний період.</div>
       <div class="wo-rc-btns">
         <button class="wo-rcbtn wo-rcbtn-pdf" onclick="window.__wo.exportReport('pdf')">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="2" y="1" width="8" height="10" rx="1.5" stroke="#fff" stroke-width="1"/><path d="M4 4h4M4 6.5h4M4 9h2" stroke="#fff" stroke-width="1" stroke-linecap="round"/></svg>PDF
