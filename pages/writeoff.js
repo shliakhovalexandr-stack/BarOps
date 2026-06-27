@@ -77,6 +77,8 @@ let _prepsLoaded  = false;
 function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
+// Групи Syrve, які НЕ списуються як товар (обладнання/інвентар/господарче) — ховаємо з каталогу
+const NON_CONSUMABLE_RE = /обладнан|інвентар|господар|пакуванн|пакувальн|спецодяг|уніформ|малоцін|мшп|меблі|текстиль/i;
 // Звітний вид однаковий за функціями для менеджера й шефа, але підписи — кухонні для шефа (без слова «Менеджер»)
 function woIsKitchenMgr() { return (state.role || '').toLowerCase() === 'chef'; }
 
@@ -2541,7 +2543,7 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v4_${vId}`;   // v4 — тепер усі склади (бар+кухня), фільтр зони на фронті
+    const prodsKey = `barops_prods_v5_${vId}`;   // v5 — усі склади + category, без обладнання/інвентарю
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
@@ -2563,7 +2565,8 @@ export default {
               const zone = /бар|bar/i.test(store.storeName || '') ? 'bar' : /кухн|kitchen/i.test(store.storeName || '') ? 'kitchen' : '';
               for (const item of (store.items || [])) {
                 if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !fresh.find(p=>p.id===item.id)) {
-                  fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit), zone });
+                  if (NON_CONSUMABLE_RE.test(item.category || '')) continue;   // обладнання/інвентар — не списуємо як товар
+                  fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit), zone, category: item.category || '' });
                 }
               }
             }
