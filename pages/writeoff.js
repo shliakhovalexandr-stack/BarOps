@@ -77,8 +77,6 @@ let _prepsLoaded  = false;
 function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
-// Підпис звітного виду: для кухні (шеф/кухар) — «Кухня», інакше «Менеджер»
-function woMgrLabel() { return roleZone() === 'kitchen' ? 'Кухня' : 'Менеджер'; }
 
 // Дозволена зона товарів у писанні за роллю (Poster: є склади Бар/Кухня).
 // bartender→бар, кухар/шеф→кухня, адмін/менеджер/керуючий/бухгалтер→усі.
@@ -1150,7 +1148,7 @@ function renderManager() {
     </div>
     <div style="flex:1">
       <div class="wo-title">Списання</div>
-      <div class="wo-sub">${woMgrLabel()} · ${state.venue}</div>
+      <div class="wo-sub">Менеджер · ${state.venue}</div>
     </div>
     <div style="background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--purple);font-family:var(--font-b)">Звіт</div>
   </div>
@@ -1234,8 +1232,8 @@ function renderManager() {
         </div>`;
     })()}
 
-    <!-- Add (manager/kitchen) -->
-    <div class="wo-sec">${roleZone() === 'kitchen' ? 'Додати списання' : 'Списання менеджера'}</div>
+    <!-- Add (manager can too) -->
+    <div class="wo-sec">Списання менеджера</div>
     <div style="padding:0 14px">
       <div class="wo-add" onclick="window.__wo.openForm()">
         <div class="wo-add-icon">
@@ -1243,7 +1241,7 @@ function renderManager() {
         </div>
         <div>
           <div class="wo-add-text">Зафіксувати списання</div>
-          <div class="wo-add-sub">${roleZone() === 'kitchen' ? 'Бій · Псування · Дегустація · Інше' : 'З облікового запису менеджера'}</div>
+          <div class="wo-add-sub">З облікового запису менеджера</div>
         </div>
       </div>
     </div>
@@ -2385,9 +2383,9 @@ async function deleteWriteoff(id) {
 ════════════════════════ */
 export default {
   async render() {
-    // Звітний вид (періоди тиждень/місяць + повна історія) — менеджерам/адміну/керуючому ТА кухні (шеф/кухар).
-    // Бармен лишається на операційному виді. Шеф/кухар скоупляться до кухні (переміщення кухня→бар, кухонні ПФ).
-    _view       = ['admin', 'manager', 'director', 'chef', 'cook'].includes((state.role || '').toLowerCase()) ? 'manager' : 'bartender';
+    // Шеф = 1:1 із системним менеджером (звітний вид: періоди тиждень/місяць + повна історія).
+    // Кухар = 1:1 з барменом (операційний вид). Бармен/офіціант/бухгалтер — операційний.
+    _view       = ['admin', 'manager', 'director', 'chef'].includes((state.role || '').toLowerCase()) ? 'manager' : 'bartender';
     _catFilter  = 'all';
     _formOpen   = false;
     _formStep   = 1;
