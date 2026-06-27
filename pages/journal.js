@@ -179,7 +179,7 @@ function fmtDateShort(iso) {
 }
 function canManage() {
   const r = (_role || '').toLowerCase();
-  return r === 'admin' || r === 'manager' || r === 'director';
+  return r === 'admin' || r === 'manager' || r === 'director' || r === 'chef';   // шеф = керівник кухні (вид скоупиться до кухні через isFloorMgr/mgrDept)
 }
 // Менеджер залу: його журнал стосується ЛИШЕ офіціантів (шаблони/чек-листи/завдання).
 // Адмін і керуючий бачать усі підрозділи.
