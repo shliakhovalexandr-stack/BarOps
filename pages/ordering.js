@@ -30,6 +30,7 @@ let _openSuppliers = new Set();
 let _submitted     = false;
 let _myOrderId     = null;    // id поданої заявки бармена (для редагування поки не «виконано»)
 let _mgrTab        = 'orders';
+let _mgrZone       = 'bar';   // адмін/менеджер: перемикач Бар/Кухня в закупці (шеф завжди kitchen)
 let _suggest        = null;   // підказки закупівлі (рух за 7 днів + залишок) з /ordering-suggestions
 let _suggestLoading = false;
 let _suggestOnlyLow = false;  // фільтр «лише те, що треба замовити»
@@ -235,8 +236,15 @@ const CSS = `<style id="ord-css">
 function getBalance(productId) {
   return _balanceItems.find(b => b.id === productId) || null;
 }
-// Шеф/кухар замовляють лише кухонне (товари з кухонних складів)
+// Шеф/кухар — кухонна закупка; бармен — барна; адмін/менеджер — перемикач (_mgrZone)
 function isKitchenRole() { const r = (state.role || '').toLowerCase(); return r === 'chef' || r === 'cook'; }
+function isOrderMgr() { const r = (state.role || '').toLowerCase(); return r === 'admin' || r === 'manager' || r === 'director' || r === 'chef'; }
+function orderZone() {
+  const r = (state.role || '').toLowerCase();
+  if (r === 'chef' || r === 'cook') return 'kitchen';
+  if (r === 'admin' || r === 'manager' || r === 'director') return _mgrZone;
+  return 'bar';   // бармен
+}
 function getSuggest(productId) {
   return (_suggest || []).find(s => s.id === productId) || null;
 }
@@ -280,7 +288,7 @@ async function loadData() {
     const h = { Authorization: `Bearer ${_token}` };
 
     // Постачальники — швидко з DB, без ретраю
-    const sRes  = await fetch(`${API}/api/suppliers?venueId=${_venueId}`, { headers: h });
+    const sRes  = await fetch(`${API}/api/suppliers?venueId=${_venueId}&zone=${orderZone()}`, { headers: h });
     const sData = await sRes.json();
     if (sData.success) {
       _suppliers     = sData.suppliers || [];
@@ -293,14 +301,9 @@ async function loadData() {
     const bData = await fetchBalanceRetry(3);
     if (bData?.stores) {
       _balanceItems = [];
-      _kitchenIds = new Set();
       for (const store of bData.stores) {
-        const isKitchenStore = /кухн|kitchen/i.test(store.storeName || store.name || '');
         for (const item of store.items) {
-          if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
-            _balanceItems.push(item);
-            if (isKitchenStore && item.id) _kitchenIds.add(item.id);
-          }
+          if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) _balanceItems.push(item);
         }
       }
       partialRefreshSupps(); // оновлюємо тільки рядки товарів
@@ -324,9 +327,8 @@ function barSuppliersHTML() {
     </div>`;
   }
 
-  const kitchenOnly = isKitchenRole() && _kitchenIds.size > 0;   // фільтр діє, лише коли баланс уже завантажено
   const blocks = _suppliers.map(s => {
-    let prods = (s.supplierProducts || []).map(sp => {
+    const prods = (s.supplierProducts || []).map(sp => {
       const bal = getBalance(sp.productId);
       const hasCustom = sp.customName && sp.customName !== sp.productName;
       return {
@@ -339,11 +341,6 @@ function barSuppliersHTML() {
         col:         statusColor(bal ? stockStatus(bal.amount || 0) : 'ok'),
       };
     });
-    // Шеф/кухар: показуємо лише кухонні товари; постачальника без них — ховаємо
-    if (kitchenOnly) {
-      prods = prods.filter(p => _kitchenIds.has(p.productId));
-      if (!prods.length) return '';
-    }
 
     const isOpen   = _openSuppliers.has(s.id);
     const totalQty = prods.reduce((a, p) => a + p.qty, 0);
@@ -418,10 +415,10 @@ function barSuppliersHTML() {
     </div>`;
   }).filter(Boolean);
 
-  if (!blocks.length && kitchenOnly) {
+  if (!blocks.length && isKitchenRole()) {
     return `<div class="ord-empty"><div class="ord-empty-icon">🍳</div>
-      <div class="ord-empty-title">Немає кухонних товарів</div>
-      <div class="ord-empty-sub">У постачальників не призначено товарів з кухонного складу. Зверніться до менеджера.</div>
+      <div class="ord-empty-title">Кухонних постачальників ще немає</div>
+      <div class="ord-empty-sub">Шеф-кухар додає постачальників кухні у вкладці «Постачальники».</div>
     </div>`;
   }
   return blocks.join('');
@@ -859,20 +856,25 @@ function renderManager() {
     </div>
     <div style="flex:1">
       <div class="ord-title">Замовлення</div>
-      <div class="ord-sub">Менеджер · ${state.venue}</div>
+      <div class="ord-sub">${isKitchenRole() ? 'Кухня' : 'Менеджер'} · ${state.venue}</div>
     </div>
   </div>
 
   <div class="ord-scroll">
+    ${(isOrderMgr() && !isKitchenRole()) ? `
+    <div style="display:flex;gap:6px;margin:0 18px 12px;padding:3px;background:var(--bg2);border-radius:11px;border:0.5px solid var(--border)">
+      <button onclick="window.__ord.setMgrZone('bar')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='bar'?'var(--bg3)':'transparent'};color:${_mgrZone==='bar'?'var(--text0)':'var(--text2)'}">🍸 Бар</button>
+      <button onclick="window.__ord.setMgrZone('kitchen')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='kitchen'?'var(--bg3)':'transparent'};color:${_mgrZone==='kitchen'?'var(--text0)':'var(--text2)'}">🍳 Кухня</button>
+    </div>` : ''}
     <div class="ord-mgr-tabs">
       <button class="ord-mt ${_mgrTab==='orders'?'act':''}"     onclick="window.__ord.setMgrTab('orders')">Замовлення</button>
-      <button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>
+      ${orderZone() === 'bar' ? `<button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>` : ''}
       <button class="ord-mt ${_mgrTab==='suppliers'?'act':''}"  onclick="window.__ord.setMgrTab('suppliers')">Постачальники</button>
       <button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>
     </div>
 
     ${_mgrTab === 'orders' ? mgrOrdersHTML() : ''}
-    ${_mgrTab === 'suggest' ? suggestHTML() : ''}
+    ${(_mgrTab === 'suggest' && orderZone() === 'bar') ? suggestHTML() : ''}
 
     ${_mgrTab === 'suppliers' ? `
       <div class="ord-sec">Постачальники
@@ -963,7 +965,7 @@ function customHTML() {
    BUILD + RENDER
 ════════════════════════ */
 function buildHTML() {
-  const body = (state.role === 'admin' || state.role === 'manager' || state.role === 'director') ? renderManager() : renderBartender();
+  const body = isOrderMgr() ? renderManager() : renderBartender();   // chef = кухонний «менеджер» закупки
   return `${CSS}<div class="ord-wrap">${body}</div>`;
 }
 function fullRender() {
@@ -1145,7 +1147,7 @@ async function submitOrder() {
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-      body:    JSON.stringify({ venueId: _venueId, suppliers }),
+      body:    JSON.stringify({ venueId: _venueId, suppliers, zone: orderZone() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.success) {
@@ -1167,7 +1169,7 @@ function resetOrder() { _submitted = false; fullRender(); }   // _myOrderId ли
 // Бармен: відновити свою ще не виконану заявку (щоб зайти й виправити навіть після перезаходу)
 async function loadMyOrder() {
   try {
-    const res  = await fetch(`${API}/api/orders?venueId=${_venueId}&mine=1`, { headers: { Authorization: `Bearer ${_token}` } });
+    const res  = await fetch(`${API}/api/orders?venueId=${_venueId}&mine=1&zone=${orderZone()}`, { headers: { Authorization: `Bearer ${_token}` } });
     const data = await res.json().catch(() => ({}));
     if (!data.success) return;
     const editable = (data.data || []).find(o => o.status === 'pending' || o.status === 'approved');
@@ -1189,7 +1191,7 @@ async function loadOrders() {
   _ordersLoading = true;
   fullRender();
   try {
-    const res  = await fetch(`${API}/api/orders?venueId=${_venueId}`, {
+    const res  = await fetch(`${API}/api/orders?venueId=${_venueId}&zone=${orderZone()}`, {
       headers: { Authorization: `Bearer ${_token}` },
     });
     const data = await res.json();
@@ -1265,6 +1267,15 @@ async function markOrderDone(id) {
    MANAGER ACTIONS
 ════════════════════════ */
 function setMgrTab(tab) { _mgrTab = tab; fullRender(); if (tab === 'suggest' && _suggest === null) loadSuggest(); }
+// Адмін/менеджер: перемкнути зону закупки (Бар↔Кухня) — перезавантажити постачальників+заявки
+function setMgrZone(z) {
+  if ((z !== 'bar' && z !== 'kitchen') || _mgrZone === z) return;
+  _mgrZone = z; _mgrTab = 'orders';
+  _suppliers = []; _orders = []; _suggest = null; _loading = true;
+  fullRender();
+  loadData();    // постачальники нової зони (+ баланс)
+  loadOrders();  // заявки нової зони
+}
 
 /* ── Supplier CRUD ── */
 function openSuppAdd() {
@@ -1308,7 +1319,7 @@ async function saveSuppEdit() {
       name: _suppDraft.name.trim(), contact: _suppDraft.contact.trim(), orderDays: _suppDraft.orderDays.trim(),
       fop: (_suppDraft.fop||'').trim(), paymentForm: (_suppDraft.paymentForm||'').trim(),
     };
-    if (!isEdit) body.venueId = _venueId;
+    if (!isEdit) { body.venueId = _venueId; body.zone = orderZone(); }   // новий постачальник — у поточну зону (бар/кухня)
 
     const res  = await fetch(url, {
       method,
@@ -1546,7 +1557,7 @@ export default {
   init() {
     window.__ord = {
       toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, clearOrderConfirm, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
-      setMgrTab, loadSuggest, toggleSuggestLow,
+      setMgrTab, setMgrZone, loadSuggest, toggleSuggestLow,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       closeConfirm, confirmYes,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
@@ -1561,7 +1572,7 @@ export default {
     // ПОСЛІДОВНО: обидва ходять у Syrve (один REST-слот) — паралельний loadSuggest
     // програвав гонку балансу й повертався порожнім
     loadData().then(() => loadSuggest());
-    if (state.role === 'admin' || state.role === 'manager' || state.role === 'director') loadOrders();
-    else loadMyOrder();   // бармен: підтягнути свою ще не виконану заявку для редагування
+    if (isOrderMgr()) loadOrders();   // шеф теж бачить кухонні заявки
+    else loadMyOrder();   // бармен/кухар: підтягнути свою ще не виконану заявку для редагування
   },
 };
