@@ -162,6 +162,15 @@ const TAB_BAR_WAITER = TAB_BAR_BARTENDER.map(tab => {
   return tab;
 });
 
+// Шеф — як бармен (Рецепти/Накладна/Журнал), але Рецепти і Журнал міняємо місцями (рішення юзера)
+const TAB_BAR_CHEF = (() => {
+  const t = [...TAB_BAR_BARTENDER];
+  const ri = t.findIndex(x => x.route === 'recipe-book');
+  const ji = t.findIndex(x => x.route === 'journal');
+  if (ri >= 0 && ji >= 0) { const tmp = t[ri]; t[ri] = t[ji]; t[ji] = tmp; }
+  return t;
+})();
+
 // Кухар — кухонний працівник: лише списання/переміщення, графік, інвентаризація кухні
 const TAB_BAR_COOK = [
   {
@@ -874,6 +883,7 @@ function updateTabBarActive() {
              : state.role === 'admin' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
              : state.role === 'cook' ? TAB_BAR_COOK
+             : state.role === 'chef' ? TAB_BAR_CHEF
              : state.role === 'waiter' ? TAB_BAR_WAITER : TAB_BAR_BARTENDER;
   // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
   const domRoutes = [...el.children].map(c => c.dataset.route || '');
@@ -917,6 +927,7 @@ function renderTabBar() {
              : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
              : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
              : state.role === 'cook'        ? TAB_BAR_COOK
+             : state.role === 'chef'        ? TAB_BAR_CHEF
              : state.role === 'waiter'      ? TAB_BAR_WAITER
              : TAB_BAR_BARTENDER;
   el.innerHTML = tabs.map(tab => {

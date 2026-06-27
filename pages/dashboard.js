@@ -355,6 +355,10 @@ const SECTIONS_WORKER = [
 function tileSub(route, hint) {
   const d = _mini.digest, cl = _mini.checklist;
   const stat = (txt, color) => `<div class="d-tile-stat" style="color:${color || 'var(--text2)'}">${txt}</div>`;
+  // Кухонні ролі (шеф/кухар): підписи плиток про кухню, не про бар
+  const kitchen = ['chef', 'cook'].includes((state.role || '').toLowerCase());
+  if (kitchen && route === 'performance') return `<div class="d-tile-hint">Виторг кухні на годину-кухаря</div>`;
+  if (kitchen && route === 'inventory')   return `<div class="d-tile-hint">Перерахунок товару</div>`;
   if (route === 'digest'      && d && d.profit != null)                  return stat(`Прибуток ${fmtMoney(d.profit)}`, 'var(--green)');
   if (route === 'performance' && d && d.bar && d.bar.revPerHour != null) return stat(`${fmtMoney(d.bar.revPerHour)}/год`, 'var(--blue)');
   if (route === 'playlist'    && _mini.playlist != null)                 return stat(`${_mini.playlist} страв`, 'var(--text1)');
