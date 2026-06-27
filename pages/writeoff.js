@@ -932,8 +932,9 @@ function renderBartender() {
 
 function prodListHTML() {
   const q = _prodSearch.toLowerCase();
-  // Poster: у переміщенні — товари складу-джерела; у писанні — за роллю
-  const zoneF = _isPosterWo ? (_formMode === 'transfer' ? transferSourceZone() : woAllowedZone()) : null;
+  // Зона товарів: у переміщенні — склад-джерело; у писанні — за роллю (бармен→бар, кухар/шеф→кухня, мгр→усі).
+  // Для Syrve теж (раніше було лише Poster) — бо тепер вантажимо всі склади.
+  const zoneF = _formMode === 'transfer' ? transferSourceZone() : woAllowedZone();
   const list = _prods.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!zoneF || p.zone === zoneF));
   if (list.length === 0) {
     return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_prods.length===0?'Завантаження товарів…':'Нічого не знайдено'}</div>`;
@@ -1786,7 +1787,7 @@ async function submitForm() {
     isPrep:  !!_selProd?.isPrep,
     scope:   _selProd?.isPrep
                ? (_selProd.scope === 'kitchen' ? 'kitchen' : _selProd.scope === 'bar' ? 'bar' : roleZone())
-               : (_isPosterWo ? (_selProd?.zone || 'bar') : 'bar'),   // Poster: за зоною товару (Бар/Кухня)
+               : (_selProd?.zone === 'kitchen' ? 'kitchen' : _selProd?.zone === 'bar' ? 'bar' : roleZone()),   // за складом товару (бар/кухня); фолбек — зона ролі
     valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
     reasonId:    _isPosterWo ? _selReasonId : undefined,    // причина Poster (reason_id)
@@ -2540,7 +2541,7 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v3_${vId}`;
+    const prodsKey = `barops_prods_v4_${vId}`;   // v4 — тепер усі склади (бар+кухня), фільтр зони на фронті
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
@@ -2551,7 +2552,8 @@ export default {
       ;(async () => {
         try {
           const tkn = localStorage.getItem('barops_token');
-          const res = await fetch(`${API}/api/pos/balance/${vId}`, {
+          // усі склади (бар+кухня+загальні) → фронт фільтрує за зоною ролі (woAllowedZone)
+          const res = await fetch(`${API}/api/pos/balance/${vId}?allStores=1`, {
             headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
           });
           if (res.ok) {
