@@ -609,7 +609,7 @@ function buildHTML() {
               : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
-              : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory'].includes(q.route)), QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар кухні + рецепти кухні
+              : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар, замовлення (кухонні заявки) + рецепти кухні
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
