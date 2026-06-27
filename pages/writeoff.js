@@ -78,7 +78,7 @@ function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
 // НЕ списується як товар — ховаємо з каталогу. За ГРУПОЮ Syrve (надійніше) або за НАЗВОЮ (durable посуд/інвентар).
-const NON_CONSUMABLE_CAT_RE  = /обладнан|інвентар|господар|пакуван|спецодяг|уніформ|малоцін|мшп|меблі|текстиль|посуд|прибор|хімі|мийн|одноразов|витратн.{0,3}матер/i;
+const NON_CONSUMABLE_CAT_RE  = /обладнан|інвентар|посуд|господар|хоз|мебел|меблі|тара|пакуван|спецодяг|уніформ|малоцін|мшп|текстиль|старо[ея]|удаля|прибор|хімі|мийн|одноразов/i;
 const NON_CONSUMABLE_NAME_RE = /ложк|виделк|рукавичк|прихватк|ємкіст|ємніст|контейнер|гастроєм|відро|зонт витяж|витяжк|блендер|міксер|серветк|щітк|губк|таця|піднос|друшляк|шумівк|тертк|термометр|дошк обробн|дошк розділ|лоток для/i;
 function isNonConsumable(name, category) {
   return NON_CONSUMABLE_CAT_RE.test(category || '') || NON_CONSUMABLE_NAME_RE.test(name || '');
@@ -2547,7 +2547,7 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v6_${vId}`;   // v6 — фільтр не-харчових груп розширено (категорія+назва)
+    const prodsKey = `barops_prods_v7_${vId}`;   // v7 — фільтр під реальні групи Syrve (Хоз/Мебель/Тара/Старое...)
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
