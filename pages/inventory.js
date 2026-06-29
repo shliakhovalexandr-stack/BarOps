@@ -49,10 +49,15 @@ let _kind        = 'bar';
 let _posMode     = '';         // тип POS закладу ('poster' | 'syrve' | '')
 let _dishStoreId = '';         // id складу для посуду (для акту в Syrve)
 let _kitchenStoreId = '';      // id кухонного складу (інвентаризація шефа)
-let _dishMeta    = {};         // syrveProductId → { customName, hasPhoto, dishId } (посуд)
+let _dishMeta    = {};         // syrveProductId → { customName, hasPhoto, photoCount, dishId } (посуд)
 let _dishEditPid = null;       // позиція посуду в редагуванні (назва/фото)
 let _dishEditPhotos = null;    // [] масив base64 фото в редагуванні; null = завантаження
-let _dishPhotoView = null;     // { pid, photos } картка-галерея (photos: null=завантаження | масив)
+let _dishPhotoView = null;     // { pid } картка-галерея офіціанта (фото беремо з кешу)
+let _dishExpanded  = null;     // pid розгорнутої картки в менеджерському списку (інлайн)
+let _dishPhotoCache = {};      // dishId → повний масив фото (кеш; гріється при завантаженні мініатюр)
+const _dishLoading   = new Set(); // dishId, для яких фото зараз вантажаться (дедуп)
+const _dishOptimized = new Set(); // dishId, які вже перевірено/перестиснуто (щоб не повторювати)
+function isMgrRole() { return ['admin', 'manager', 'director'].includes((_role || '').toLowerCase()); }
 function kindCfg() { return INV_KIND[_kind] || INV_KIND.bar; }
 function isDish() { return _kind === 'dishware'; }
 function isChef() { return (_role || '').toLowerCase() === 'chef'; }
@@ -299,6 +304,12 @@ const CSS = `<style id="inv-css">
 .dw-card-gal::-webkit-scrollbar{height:4px}.dw-card-gal::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .dw-card-gal img{height:64vh;max-width:88vw;border-radius:12px;object-fit:contain;background:var(--bg2);scroll-snap-align:center;flex-shrink:0}
 .dw-card-hint{padding:30px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px}
+/* інлайн-розгортання в менеджерському списку */
+.inv-cfg-row.dw-open{background:var(--bg2);border-radius:12px 12px 0 0}
+.dw-expand{background:var(--bg2);border-radius:0 0 12px 12px;margin-bottom:4px;overflow:hidden;animation:dwOv .16s ease}
+.dw-gal-inline{display:flex;overflow-x:auto;gap:8px;padding:2px 12px 12px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.dw-gal-inline::-webkit-scrollbar{height:4px}.dw-gal-inline::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.dw-gal-inline img{height:230px;max-width:80vw;border-radius:12px;object-fit:contain;background:var(--bg1);scroll-snap-align:center;flex-shrink:0}
 .dw-file{position:absolute;inset:0;opacity:0;cursor:pointer}
 </style>`;
 
@@ -937,18 +948,18 @@ function dishEditHTML() {
       ` : ''}
     </div>`;
 }
-// Картка-галерея перегляду фото позиції (кілька фото — горизонтальний свайп)
+// Картка-галерея перегляду фото позиції (офіціант). Кілька фото — горизонтальний свайп.
 function dishPhotoHTML() {
   if (!_dishPhotoView) return '';
   const p     = _balance.find(x => x.id === _dishPhotoView.pid);
   const meta  = p ? (_dishMeta[p.id] || {}) : {};
   const name  = p ? (meta.customName || p.name || 'Посуд') : 'Посуд';
-  const ph    = _dishPhotoView.photos;   // null=завантаження | масив
+  const ph    = meta.dishId ? _dishPhotoCache[meta.dishId] : [];   // undefined=завантаження | масив
   return `
     <div class="dw-card-ov" data-a="dw-photo-vclose">
       <div class="dw-card">
         <div class="dw-card-title">${name}</div>
-        ${ph === null
+        ${ph === undefined
           ? `<div class="dw-card-hint">Завантаження…</div>`
           : ph.length
             ? `<div class="dw-card-gal">${ph.map(src => `<img src="${src}" alt="">`).join('')}</div>`
@@ -957,18 +968,27 @@ function dishPhotoHTML() {
     </div>`;
 }
 
-// Підвантажити фото-мініатюри рядків (перше фото). Картка-галерея й редактор — у хендлерах.
+// Підвантажити мініатюри рядків. Тягнемо повний масив фото ОДИН раз і кешуємо —
+// тоді розгортання картки/перегляд офіціанта миттєві (без повторного запиту).
 function loadDishImgs() {
   if (!isDish()) return;
   for (const p of _balance) {
     const meta = _dishMeta[p.id];
     if (!meta || !meta.hasPhoto || !meta.dishId) continue;
-    ['dwc-img-' + p.id, 'dwt-' + p.id].forEach(elId => {
-      const img = document.getElementById(elId);
-      if (!img || img.dataset.l) return;
-      img.dataset.l = '1';
-      fetch(`${API}/api/dishware/items/${meta.dishId}/photo`, { headers: { Authorization: `Bearer ${_token}` } })
-        .then(r => r.json()).then(d => { if (d.photoUrl) img.src = d.photoUrl; }).catch(() => {});
+    const dishId = meta.dishId;
+    const setThumbs = src => ['dwc-img-' + p.id, 'dwt-' + p.id].forEach(id => {
+      const img = document.getElementById(id);
+      if (img && src && !img.dataset.s) { img.src = src; img.dataset.s = '1'; }
+    });
+    if (_dishPhotoCache[dishId]) { setThumbs(_dishPhotoCache[dishId][0]); continue; }
+    if (_dishLoading.has(dishId)) continue;
+    _dishLoading.add(dishId);
+    fetchDishPhotos(dishId).then(arr => {
+      _dishLoading.delete(dishId);
+      _dishPhotoCache[dishId] = arr;
+      setThumbs(arr[0]);
+      // якщо саме цю позицію відкрито — оновити галерею
+      if (_dishExpanded === p.id || (_dishPhotoView && _dishPhotoView.pid === p.id)) re();
     });
   }
 }
@@ -978,6 +998,60 @@ function fetchDishPhotos(dishId) {
     .then(r => r.json())
     .then(d => Array.isArray(d.photos) ? d.photos : (d.photoUrl ? [d.photoUrl] : []))
     .catch(() => []);
+}
+// Гарантувати, що фото позиції завантажені в кеш (для розгортання/перегляду)
+function ensureDishPhotos(dishId, pid) {
+  if (_dishPhotoCache[dishId]) { maybeOptimize(dishId); return; }
+  if (_dishLoading.has(dishId)) return;
+  _dishLoading.add(dishId);
+  fetchDishPhotos(dishId).then(arr => {
+    _dishLoading.delete(dishId);
+    _dishPhotoCache[dishId] = arr;
+    re();
+    maybeOptimize(dishId);
+  });
+}
+// Перестиснути старі важкі фото (тільки менеджер) і зберегти меншими — далі вантажаться швидко
+function maybeOptimize(dishId) {
+  if (!isMgrRole() || _dishOptimized.has(dishId)) return;
+  const arr = _dishPhotoCache[dishId];
+  if (!Array.isArray(arr) || !arr.length) return;
+  const LARGE = 400_000;   // base64-довжина ~ >300 КБ — фото явно не стиснене
+  if (!arr.some(s => (s || '').length > LARGE)) { _dishOptimized.add(dishId); return; }
+  _dishOptimized.add(dishId);
+  Promise.all(arr.map(s => (s || '').length > LARGE ? recompressDataUrl(s).catch(() => s) : Promise.resolve(s)))
+    .then(small => {
+      const before = arr.reduce((n, s) => n + (s || '').length, 0);
+      const after  = small.reduce((n, s) => n + (s || '').length, 0);
+      if (after >= before) return;   // не поменшало — лишаємо як є
+      _dishPhotoCache[dishId] = small;
+      re();                          // мініатюри й картка перемалюються з нового кешу
+      fetch(`${API}/api/dishware/items/${dishId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+        body: JSON.stringify({ photos: small }),
+      }).catch(() => {});
+    });
+}
+// Перестиснути base64-dataURL: масштаб до 800px + JPEG 0.70 (як compressToBase64, але з готового рядка)
+function recompressDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', 0.70));
+    };
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = dataUrl;
+  });
 }
 
 // Стиснення фото як у рецептах (canvas → JPEG 0.70, макс 800px) — щоб швидко вантажилось/збереглось
@@ -1302,18 +1376,30 @@ function dishCfgHTML() {
       ${list.map(p => {
         const meta = _dishMeta[p.id] || {};
         const nm   = meta.customName || p.name;
+        const open = _dishExpanded === p.id;
+        const cnt  = meta.photoCount || (meta.hasPhoto ? 1 : 0);
+        const ph   = meta.dishId ? _dishPhotoCache[meta.dishId] : [];   // undefined=вантажиться
         return `
-          <div class="inv-cfg-row">
-            <div class="dwc-thumb" data-a="dw-photo-view" data-pid="${p.id}">
+          <div class="inv-cfg-row${open ? ' dw-open' : ''}">
+            <div class="dwc-thumb" data-a="dw-expand" data-pid="${p.id}">
               ${meta.hasPhoto ? `<img id="dwc-img-${p.id}" alt="">` : '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="11" rx="2" stroke="var(--text3)" stroke-width="1.2"/><circle cx="9" cy="9.5" r="2.2" stroke="var(--text3)" stroke-width="1.2"/></svg>'}
             </div>
-            <div style="flex:1;min-width:0">
-              <div class="inv-cfg-name">${nm}</div>
+            <div style="flex:1;min-width:0;cursor:pointer" data-a="dw-expand" data-pid="${p.id}">
+              <div class="inv-cfg-name">${nm}${cnt > 1 ? ` <span style="color:var(--text3);font-weight:400">· ${cnt} фото</span>` : ''}${meta.hasPhoto ? ` <span style="color:var(--text3);font-size:11px">${open ? '▲' : '▾'}</span>` : ''}</div>
               <div class="inv-cfg-sub">у ${posLabel()}: ${p.syrveName || p.name}</div>
               <div class="inv-cfg-sub" style="color:var(--blue)">залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>
             </div>
             <button class="inv-mode-btn" data-a="dw-edit" data-pid="${p.id}" style="width:auto;padding:0 10px">✎ Назва/фото</button>
-          </div>`;
+          </div>
+          ${open ? `<div class="dw-expand">${
+            !meta.hasPhoto
+              ? `<div class="dw-card-hint" style="padding:14px">Фото немає — додайте через «✎ Назва/фото»</div>`
+              : ph === undefined
+                ? `<div class="dw-card-hint" style="padding:14px">Завантаження…</div>`
+                : ph.length
+                  ? `<div class="dw-gal-inline">${ph.map(src => `<img src="${src}" alt="">`).join('')}</div>`
+                  : `<div class="dw-card-hint" style="padding:14px">Фото немає</div>`
+          }</div>` : ''}`;
       }).join('')}
     </div>`;
 }
@@ -1769,27 +1855,41 @@ function on(e) {
     return;
   }
 
-  /* ── ПОСУД: фото-перегляд карткою + редагування назви/фото ── */
+  /* ── ПОСУД: розгортання картки (менеджер) / перегляд (офіціант) / редагування ── */
+  // Менеджерський список: тап по назві/мініатюрі розгортає картку з фото інлайн
+  if (a === 'dw-expand') {
+    if (_dishExpanded === pid) { _dishExpanded = null; re(); return; }
+    _dishExpanded = pid; re();
+    const meta = _dishMeta[pid];
+    if (meta && meta.hasPhoto && meta.dishId) ensureDishPhotos(meta.dishId, pid);
+    return;
+  }
+  // Офіціант: перегляд фото карткою (з кешу — миттєво, якщо мініатюра вже завантажилась)
   if (a === 'dw-photo-view') {
     const meta = _dishMeta[pid];
     if (!meta || !meta.hasPhoto || !meta.dishId) return;
-    _dishPhotoView = { pid, photos: null }; re();
-    fetchDishPhotos(meta.dishId).then(arr => {
-      if (_dishPhotoView && _dishPhotoView.pid === pid) { _dishPhotoView.photos = arr; re(); }
-    });
+    _dishPhotoView = { pid }; re();
+    ensureDishPhotos(meta.dishId, pid);
     return;
   }
   if (a === 'dw-photo-vclose') { _dishPhotoView = null; re(); return; }
   if (a === 'dw-edit') {
-    _dishEditPid = pid; _dishEditPhotos = null; re();
+    _dishEditPid = pid;
     const meta = _dishMeta[pid];
     if (meta && meta.hasPhoto && meta.dishId) {
-      fetchDishPhotos(meta.dishId).then(arr => {
-        if (_dishEditPid === pid) { _dishEditPhotos = arr; re(); }
-      });
+      if (_dishPhotoCache[meta.dishId]) {
+        _dishEditPhotos = _dishPhotoCache[meta.dishId].slice();
+      } else {
+        _dishEditPhotos = null;   // покаже «Завантаження…»
+        fetchDishPhotos(meta.dishId).then(arr => {
+          _dishPhotoCache[meta.dishId] = arr;
+          if (_dishEditPid === pid) { _dishEditPhotos = arr.slice(); re(); }
+        });
+      }
     } else {
       _dishEditPhotos = [];
     }
+    re();
     return;
   }
   if (a === 'dw-edit-close') { _dishEditPid = null; _dishEditPhotos = null; re(); return; }
@@ -1832,6 +1932,11 @@ function on(e) {
         _dishMeta[p.id] = { customName: d.item.customName || '', hasPhoto: !!d.item.hasPhoto, photoCount: d.item.photoCount || 0, dishId: d.item.id };
         const bi = _balance.find(x => x.id === p.id);
         if (bi) bi.name = d.item.customName || bi.syrveName || bi.name;
+        // оновлюємо кеш фото, щоб картка/мініатюра одразу показали збережене (вже стиснене)
+        if (d.item.id) {
+          _dishPhotoCache[d.item.id] = Array.isArray(_dishEditPhotos) ? _dishEditPhotos.slice() : [];
+          _dishOptimized.add(d.item.id);   // щойно збережені фото вже стиснені — не чіпаємо
+        }
       }
       _saving = false; _dishEditPid = null; _dishEditPhotos = null; re();
     }).catch(() => { _saving = false; re(); });
