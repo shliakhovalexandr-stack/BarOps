@@ -953,6 +953,29 @@ function loadDishImgs() {
   }
 }
 
+// Стиснення фото як у рецептах (canvas → JPEG 0.70, макс 800px) — щоб швидко вантажилось/збереглось
+function compressToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.70));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
+    img.src = url;
+  });
+}
+
 function roleTabs() {
   return `
     <div class="inv-role-tabs">
@@ -1731,9 +1754,13 @@ function on(e) {
   if (a === 'dw-photo-file') {
     const f = t.files && t.files[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => { _dishEditPhoto = String(reader.result || ''); re(); };
-    reader.readAsDataURL(f);
+    compressToBase64(f)
+      .then(dataUrl => { _dishEditPhoto = dataUrl; re(); })
+      .catch(() => {   // фолбек — без стиснення
+        const reader = new FileReader();
+        reader.onload = () => { _dishEditPhoto = String(reader.result || ''); re(); };
+        reader.readAsDataURL(f);
+      });
     return;
   }
   if (a === 'dw-edit-save') {
