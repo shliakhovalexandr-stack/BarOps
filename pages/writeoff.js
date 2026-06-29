@@ -90,7 +90,8 @@ function woIsKitchenMgr() { return (state.role || '').toLowerCase() === 'chef'; 
 // bartender→бар, кухар/шеф→кухня, адмін/менеджер/керуючий/бухгалтер→усі.
 function woAllowedZone() {
   const r = (state.role || '').toLowerCase();
-  if (r === 'bartender' || r === 'barman') return 'bar';
+  // Кухня (шеф/кухар) — фокус на кухонних товарах (бар ховаємо). Бармен бачить УСЕ —
+  // бо бар бере й спільні «кухонні» інгредієнти (молоко, цукор, фрукти, сік). Мгр/адмін — усе.
   if (r === 'cook' || r === 'chef') return 'kitchen';
   return null;
 }
