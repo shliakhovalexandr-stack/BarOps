@@ -95,6 +95,15 @@ function woAllowedZone() {
   if (r === 'cook' || r === 'chef') return 'kitchen';
   return null;
 }
+// Зона ВЛАСНИХ списань (список/акт/історія/KPI): кухня (шеф/кухар) керує лише кухонними,
+// бар (бармен/менеджер/керуючий) — лише барними, адмін — усіма. Щоб «Надіслати» не зачіпало чужу зону.
+function woViewZone() {
+  const r = (state.role || '').toLowerCase();
+  if (r === 'cook' || r === 'chef') return 'kitchen';
+  if (r === 'admin') return null;
+  return 'bar';
+}
+function inWoZone(w) { const z = woViewZone(); return z === null || (w.scope || 'bar') === z; }
 // Зона-джерело для переміщення: показуємо товари складу, ЗВІДКИ переміщуємо
 function transferSourceZone() {
   const r = (state.role || '').toLowerCase();
@@ -223,7 +232,7 @@ function inPeriod(ts, period) {
 
 // KPI за період. sentOnly=true — лише надіслані (для менеджера)
 function getMgrKpi(period, sentOnly) {
-  const list  = _writeoffs.filter(w => inPeriod(w.ts, period) && (!sentOnly || w.sentAt));
+  const list  = _writeoffs.filter(w => inWoZone(w) && inPeriod(w.ts, period) && (!sentOnly || w.sentAt));
   const loss  = list.reduce((s,w) => s + itemLoss(w), 0);
   const lossR = Math.round(loss);
   return { count: list.length.toString(), loss: lossR>0 ? lossR+'₴' : '—' };
@@ -610,7 +619,7 @@ function woCardHTML(w) {
 
 function woList() {
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const filtered = [..._writeoffs].reverse().filter(w => !w.sentAt && (_catFilter === 'all' || w.cat === _catFilter));
+  const filtered = [..._writeoffs].reverse().filter(w => !w.sentAt && inWoZone(w) && (_catFilter === 'all' || w.cat === _catFilter));
   const todayItems = filtered.filter(w => new Date(w.ts || 0) >= todayStart);
   const prevItems  = filtered.filter(w => new Date(w.ts || 0) < todayStart);
 
@@ -730,7 +739,7 @@ function renderBartender() {
     <!-- Syrve send -->
     ${(() => {
       // Ненадіслані позиції з товаром
-      const sendWo = _writeoffs.filter(w => w.prodId && !w.sentAt);
+      const sendWo = _writeoffs.filter(w => w.prodId && !w.sentAt && inWoZone(w));
       return `<div style="margin:12px 14px 0;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
         <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
@@ -748,7 +757,7 @@ function renderBartender() {
     })()}
 
     <!-- Історія (надіслані, по даті) -->
-    ${historyHTML(_writeoffs.filter(w => w.sentAt), 'Історія')}
+    ${historyHTML(_writeoffs.filter(w => w.sentAt && inWoZone(w)), 'Історія')}
 
     <div style="height:16px"></div>
   </div>
@@ -1155,7 +1164,7 @@ function summaryHTML() {
 ════════════════════════ */
 function renderManager() {
   const kpi   = getMgrKpi(_mgrPeriod, true);   // менеджер бачить лише надіслані за період
-  const unsentWo = _writeoffs.filter(w => w.prodId && !w.sentAt);   // ненадіслані позиції з товаром
+  const unsentWo = _writeoffs.filter(w => w.prodId && !w.sentAt && inWoZone(w));   // ненадіслані позиції з товаром
 
   return `
   <div class="wo-topbar" style="flex-shrink:0">
@@ -1210,7 +1219,7 @@ function renderManager() {
 
     <!-- Unsent -->
     ${(() => {
-      const unsent = [..._writeoffs].filter(w => !w.sentAt).reverse();
+      const unsent = [..._writeoffs].filter(w => !w.sentAt && inWoZone(w)).reverse();
       if (!unsent.length) return `
         <div class="wo-sec">Не відправлені</div>
         <div style="margin:0 14px 8px;padding:18px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;text-align:center">
@@ -1340,7 +1349,7 @@ function renderManager() {
     </div>
 
     <!-- Історія (надіслані, по даті) -->
-    ${historyHTML(_writeoffs.filter(w => w.sentAt && inPeriod(w.ts, _mgrPeriod)), 'Історія')}
+    ${historyHTML(_writeoffs.filter(w => w.sentAt && inWoZone(w) && inPeriod(w.ts, _mgrPeriod)), 'Історія')}
 
     <!-- Form overlay -->
     <div class="wo-form-overlay ${_formOpen?'open':''}" id="wo-form-overlay"
@@ -2090,7 +2099,7 @@ async function sendActToSyrve() {
   if (!vId || !token) { alert('Немає авторизації або venueId'); return; }
 
   // Ненадіслані позиції з товаром
-  const sendItems = _writeoffs.filter(w => w.prodId && !w.sentAt);
+  const sendItems = _writeoffs.filter(w => w.prodId && !w.sentAt && inWoZone(w));
   if (!sendItems.length) { alert('Немає списань з товаром для надсилання'); return; }
 
   // Завантажуємо збережені склади з бекенду
