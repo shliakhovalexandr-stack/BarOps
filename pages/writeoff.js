@@ -938,10 +938,18 @@ function renderBartender() {
 
 function prodListHTML() {
   const q = _prodSearch.toLowerCase();
-  // Зона товарів: у переміщенні — склад-джерело; у писанні — за роллю (бармен→бар, кухар/шеф→кухня, мгр→усі).
-  // Для Syrve теж (раніше було лише Poster) — бо тепер вантажимо всі склади.
-  const zoneF = _formMode === 'transfer' ? transferSourceZone() : woAllowedZone();
-  const list = _prods.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!zoneF || p.zone === zoneF));
+  let list;
+  if (_formMode === 'transfer') {
+    // Переміщення — строго склад-джерело (звідки переносимо)
+    const src = transferSourceZone();
+    list = _prods.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!src || p.zone === src));
+  } else {
+    // Писання — ПОБЛАЖЛИВО: ховаємо лише ПРОТИЛЕЖНУ зону; невідому-зону (склад не «бар/кухня») показуємо всім,
+    // щоб барні товари на інакше названому складі не зникали в бармена. Менеджер/адмін — усе.
+    const allowed  = woAllowedZone();                                              // 'bar' | 'kitchen' | null
+    const hideZone = allowed === 'bar' ? 'kitchen' : allowed === 'kitchen' ? 'bar' : null;
+    list = _prods.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!hideZone || p.zone !== hideZone));
+  }
   if (list.length === 0) {
     return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_prods.length===0?'Завантаження товарів…':'Нічого не знайдено'}</div>`;
   }
