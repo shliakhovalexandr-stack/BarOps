@@ -860,11 +860,11 @@ function renderHub() {
   const netLabel = (ROLE_CONFIG[netKey]?.label || 'Зміни').toUpperCase();
   const netScope = netKey === 'bartenders' ? 'вся мережа' : (state.venue || 'свій заклад');
 
+  // На хабі (огляд усіх підрозділів) публікації немає — вона в режимі редагування підрозділу
+  // (кнопки «Редагувати»). У не-редакторів лишається бронювання вихідних.
   const bar = !canEdit()
     ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`
-    : _mode === 'edit'
-    ? `<div class="sch-bar"><button class="sch-cta-sec" onclick="window.__sch.setMode('view')">Скасувати</button><button class="sch-cta" style="flex:2" onclick="window.__sch.setMode('view')">Зберегти зміни</button></div>`
-    : `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`;
+    : '';
 
   return CSS + `
   <div class="sch-wrap">
