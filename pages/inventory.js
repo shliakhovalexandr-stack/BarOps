@@ -18,6 +18,15 @@ let _counts          = {};     // productId → {full,partial,kg,sht,nf}
 let _draftByName     = '';     // хто востаннє вносив у спільну чернетку (крос-девайс)
 let _draftAt         = null;   // коли востаннє збережено спільну чернетку
 let _draftSyncTimer  = null;   // debounce автозбереження чернетки на бекенд
+// Розподіл позицій між офіціантами (ЛИШЕ посуд): менеджер «фарбує» позиції на офіціанта,
+// офіціант бачить лише свої. assign = { productId: userId } прив'язаний до активної сесії.
+let _assign          = {};     // productId → userId (робоча копія)
+let _assignMode      = false;  // менеджерський режим розподілу (замість назва+фото)
+let _assignSessionId = null;   // сесія, до якої прив'язаний _assign
+let _assignBrush     = null;   // обраний офіціант для фарбування ('__clear__' = знімати)
+let _assignSaveTimer = null;   // debounce збереження розподілу на бекенд
+let _waiters         = [];     // [{id,name,...}] офіціанти закладу (для пікера)
+let _myUserId;                 // id поточного юзера з JWT (для фільтра «мої позиції»)
 let _openPid         = null;   // accordion: який продукт відкритий
 let _loading         = true;
 let _saving          = false;
@@ -72,6 +81,41 @@ function canManageInv() {
   if (isKitchen() && r === 'chef') return true;
   return isDish() && (r === 'manager' || r === 'director');
 }
+
+// ── Розподіл позицій (посуд) ──
+function myUserId() {
+  if (_myUserId !== undefined) return _myUserId;
+  try { _myUserId = JSON.parse(atob((_token || '').split('.')[1] || '')).id || null; } catch { _myUserId = null; }
+  return _myUserId;
+}
+// Сесія, до якої прив'язуємо розподіл: відкрита, інакше найближча запланована
+function assignSession() {
+  return _sessions.find(s => s.status === 'open')
+    || _sessions.filter(s => s.status === 'scheduled')
+        .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))[0]
+    || null;
+}
+// Перечитати _assign з активної сесії (після завантаження/перезавантаження сесій)
+function syncAssignFromSession() {
+  const s = assignSession();
+  _assignSessionId = s ? s.id : null;
+  let a = {};
+  if (s && s.assignJson) { try { const o = JSON.parse(s.assignJson); if (o && typeof o === 'object') a = o; } catch { /* ignore */ } }
+  _assign = a;
+}
+function hasAssign() { return _assign && Object.keys(_assign).length > 0; }
+// Чи фільтрувати вид для поточного виконавця (офіціант при активному розподілі)
+function assignFilterOn() { return isDish() && !canManageInv() && hasAssign(); }
+// Позиції, видимі поточному виконавцю: офіціанту при розподілі — лише його, інакше всі
+function myBalance() {
+  if (assignFilterOn()) { const me = myUserId(); return _balance.filter(p => _assign[p.id] === me); }
+  return _balance;
+}
+function waiterById(id) { return _waiters.find(w => w.id === id) || null; }
+function waiterShort(id) { const w = waiterById(id); if (!w) return '—'; const n = (w.name || '').trim(); return n.split(/\s+/)[0] || n || '—'; }
+// Стабільний колір-акцент офіціанта (за позицією в списку) — для чипів розподілу
+const _ASSIGN_COLORS = ['#7c9cff', '#34d399', '#f59e0b', '#f472b6', '#a78bfa', '#22d3ee', '#fb7185', '#84cc16'];
+function waiterColor(id) { const i = Math.max(0, _waiters.findIndex(w => w.id === id)); return _ASSIGN_COLORS[i % _ASSIGN_COLORS.length]; }
 
 // Які scope ПФ показувати за роллю (бар/кухня/загальні)
 function prepScopesForRole() {
@@ -265,6 +309,24 @@ const CSS = `<style id="inv-css">
 /* Alert */
 .inv-alert{margin:0 20px 8px;border-radius:12px;padding:10px 13px;font-size:12px;line-height:1.5;background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
 
+/* Розподіл позицій між офіціантами (посуд) */
+.dw-asg-note{margin:4px 18px 12px;padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
+.dw-asg-bar{margin:2px 14px 8px;padding:12px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border)}
+.dw-asg-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.dw-asg-chips{display:flex;flex-wrap:wrap;gap:6px}
+.dw-asg-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:18px;border:0.5px solid var(--border);background:var(--bg1);font-size:13px;font-family:var(--font-b);font-weight:600;cursor:pointer}
+.dw-asg-chip.on{font-weight:700}
+.dw-asg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.dw-asg-actions{display:flex;gap:8px;margin-top:10px}
+.dw-asg-act{flex:1;height:38px;border-radius:11px;border:none;background:var(--purple-bg);color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.dw-asg-act:disabled{background:var(--bg1);color:var(--text3);cursor:default}
+.dw-asg-act.ghost{flex:0 0 auto;padding:0 14px;background:var(--bg1);color:var(--text2);border:0.5px solid var(--border)}
+.dw-asg-prog{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.dw-asg-pchip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-family:var(--font-b);color:var(--text1);background:var(--bg1);border-radius:14px;padding:3px 9px}
+.asg-row{cursor:pointer}
+.dw-asg-tag{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;padding:5px 10px;border-radius:16px;border:0.5px solid var(--border);font-size:12px;font-weight:700;font-family:var(--font-b)}
+.dw-asg-tag.empty{color:var(--text3);border-style:dashed;font-weight:400}
+
 /* Confirm dialog (власне вікно замість нативного confirm) */
 .inv-cfm-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px}
 .inv-cfm{width:100%;max-width:320px;background:var(--bg1);border:0.5px solid var(--border);border-radius:18px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
@@ -425,6 +487,25 @@ function loadDraft() {
   } catch {}
 }
 function clearDraftStorage() { try { localStorage.removeItem(draftKey()); } catch {} }
+
+// Зберегти розподіл позицій на бекенд (debounce) — прив'язаний до активної сесії
+function saveAssign() {
+  const sid = _assignSessionId;
+  if (!sid) return;
+  clearTimeout(_assignSaveTimer);
+  _assignSaveTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API}/api/inventory/sessions/${sid}/assign`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+        body:    JSON.stringify({ assign: _assign }),
+      });
+      // тримаємо assignJson сесії синхронним (щоб ресинк не відкотив)
+      const s = _sessions.find(x => x.id === sid);
+      if (s && res.ok) s.assignJson = Object.keys(_assign).length ? JSON.stringify(_assign) : null;
+    } catch { /* best-effort */ }
+  }, 700);
+}
 
 // Зберегти прогрес: локально (миттєво) + на бекенд (debounce) — щоб інший бармен/пристрій продовжив
 function persistCounts() {
@@ -614,6 +695,7 @@ async function loadAll() {
       const d = await sessRes.json();
       _sessions = d.sessions || [];
     }
+    syncAssignFromSession();   // розподіл позицій із активної сесії (посуд)
 
     // Для посуду — мета (назва від менеджера + фото) по позиціях
     if (isDish()) {
@@ -621,8 +703,15 @@ async function loadAll() {
         const dr = await fetch(`${API}/api/dishware/items?venueId=${_venueId}`, { headers: h });
         const dd = await dr.json();
         _dishMeta = {};
-        for (const it of (dd.items || [])) _dishMeta[it.syrveProductId] = { customName: it.customName || '', hasPhoto: !!it.hasPhoto, dishId: it.id };
+        for (const it of (dd.items || [])) _dishMeta[it.syrveProductId] = { customName: it.customName || '', hasPhoto: !!it.hasPhoto, photoCount: it.photoCount || 0, dishId: it.id };
       } catch { _dishMeta = {}; }
+      // Офіціанти закладу для пікера розподілу (лише менеджеру; не блокуємо рендер)
+      if (canManageInv()) {
+        fetch(`${API}/api/auth/team?venueId=${_venueId}`, { headers: h })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d && d.team) { _waiters = d.team.filter(m => (m.role || '').toLowerCase() === 'waiter' && m.status !== 'deleted'); re(); } })
+          .catch(() => {});
+      }
     }
 
     if (balRes.ok) {
@@ -715,6 +804,7 @@ async function scheduleSession() {
     const d = await res.json();
     if (!d.success) throw new Error(d.error);
     _sessions.unshift(d.session);
+    syncAssignFromSession();
     _showSchedForm = false; _schedDate = '';
   } catch (err) {
     _error = err.message;
@@ -733,6 +823,7 @@ async function changeStatus(sessionId, status) {
     if (!d.success) throw new Error(d.error);
     const idx = _sessions.findIndex(s => s.id === sessionId);
     if (idx >= 0) _sessions[idx] = { ..._sessions[idx], ...d.session };
+    syncAssignFromSession();
   } catch (err) {
     _error = err.message;
   }
@@ -747,6 +838,7 @@ async function deleteSession(sessionId) {
       headers: { Authorization: `Bearer ${_token}` },
     });
     _sessions = _sessions.filter(s => s.id !== sessionId);
+    syncAssignFromSession();
     try { localStorage.removeItem(`barops_inv_draft_${_venueId}_${sessionId}`); } catch {}
     if (wasOpen) _counts = {};   // активну видалили — скидаємо введений рахунок
   } catch (err) {
@@ -1126,16 +1218,27 @@ function buildBar() {
     `;
   }
 
-  // Активна сесія
-  const counted = _balance.filter(p => isCounted(p.id)).length + _preps.filter(p => isCounted(p.id)).length;
-  const total   = _balance.length + _preps.length;
+  // Активна сесія. Офіціанту при розподілі рахуємо лише його позиції.
+  const mine    = myBalance();
+  const counted = mine.filter(p => isCounted(p.id)).length + _preps.filter(p => isCounted(p.id)).length;
+  const total   = mine.length + _preps.length;
   const pct     = total > 0 ? Math.round(counted / total * 100) : 0;
+
+  // Офіціанту нічого не призначено — окремий екран
+  if (assignFilterOn() && mine.length === 0) {
+    return `
+      <div class="inv-locked-center">
+        <div class="inv-lock-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="1.5"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="inv-locked-title">Вам не призначено позицій</div>
+        <div class="inv-locked-sub">Менеджер розподілив підрахунок між офіціантами. Зачекайте на свою частину або зверніться до менеджера.</div>
+      </div>`;
+  }
 
   return `
     <div class="inv-session-hdr">
       <div class="inv-sh-eyebrow">
         <span class="inv-sh-dot"></span>
-        <span class="inv-sh-lbl">Активна сесія</span>
+        <span class="inv-sh-lbl">${assignFilterOn() ? 'Ваша частина' : 'Активна сесія'}</span>
         <span class="inv-sh-time">${fmtDateShort(os.scheduledAt)}</span>
       </div>
       <div class="inv-sh-count">
@@ -1155,10 +1258,11 @@ function buildBar() {
     ${_testMsg ? `<div class="inv-alert" style="background:var(--green-bg);border-color:var(--green-border);color:var(--green)">${_testMsg}</div>` : ''}
     ${total === 0 ? `<div style="padding:20px 18px;font-size:13px;color:var(--text2);font-family:var(--font-b);text-align:center">Залишки ${posLabel()} не завантажено. Перевірте підключення.</div>` : ''}
 
+    ${assignFilterOn() ? `<div style="margin:0 18px 8px;padding:9px 12px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);font-size:12px;color:var(--purple);font-family:var(--font-b)">Ваша частина — ${mine.length} позиц. Менеджер розподілив підрахунок.</div>` : ''}
     ${searchBoxHTML()}
     <div class="inv-prod-list">
       ${(() => {
-        const list = _balance.filter(matchSearch);
+        const list = mine.filter(matchSearch);
         return list.length ? list.map(p => productRowHTML(p)).join('')
           : `<div style="text-align:center;padding:20px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
       })()}
@@ -1174,17 +1278,24 @@ function buildBar() {
       })()}
     </div>` : ''}
 
-    <div class="inv-actions">
-      <button class="inv-btn-test" data-a="test-submit" ${_saving ? 'disabled' : ''}>
-        🧪 Тест відправки (нічого не створює)
-      </button>
-      <button class="inv-btn-green" data-a="submit" ${_saving ? 'disabled' : ''}>
-        ${_saving
-          ? '<div class="spin-sm"></div> Зберігаємо…'
-          : '<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Завершити інвентаризацію'
-        }
-      </button>
-    </div>
+    ${assignFilterOn()
+      ? `<div class="inv-actions">
+          <div style="padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.5;text-align:center">
+            Порахували свою частину (${counted}/${total})? Дані зберігаються автоматично — <b style="color:var(--text1)">завершить інвентаризацію менеджер</b>, коли всі закінчать.
+          </div>
+        </div>`
+      : `<div class="inv-actions">
+          <button class="inv-btn-test" data-a="test-submit" ${_saving ? 'disabled' : ''}>
+            🧪 Тест відправки (нічого не створює)
+          </button>
+          <button class="inv-btn-green" data-a="submit" ${_saving ? 'disabled' : ''}>
+            ${_saving
+              ? '<div class="spin-sm"></div> Зберігаємо…'
+              : '<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Завершити інвентаризацію'
+            }
+          </button>
+        </div>`
+    }
   `;
 }
 
@@ -1356,11 +1467,12 @@ function buildMgr() {
     ${historyHTML()}
 
     <div class="inv-sec" style="margin-top:8px">
-      ${isDish() ? 'Налаштування посуду · назва + фото' : 'Одиниці вимірювання'}
+      ${isDish() ? (_assignMode ? 'Розподіл між офіціантами' : 'Налаштування посуду · назва + фото') : 'Одиниці вимірювання'}
+      ${isDish() ? `<button class="inv-sec-link" data-a="asg-toggle">${_assignMode ? '⚙ Назва+фото' : '👥 Розподілити'}</button>` : ''}
     </div>
     ${_balance.length === 0
       ? `<div style="padding:8px 18px 16px;font-size:13px;color:var(--text2);font-family:var(--font-b)">${isDish() ? 'Склад «Посуд» порожній або не завантажено.' : `Залишки ${posLabel()} не завантажено. Підключіть ${posLabel()} у Налаштуваннях закладу.`}</div>`
-      : (isDish() ? dishCfgHTML() : productConfigHTML())
+      : (isDish() ? (_assignMode ? dishAssignHTML() : dishCfgHTML()) : productConfigHTML())
     }
     <div style="height:28px"></div>
   `;
@@ -1400,6 +1512,71 @@ function dishCfgHTML() {
                   ? `<div class="dw-gal-inline">${ph.map(src => `<img src="${src}" alt="">`).join('')}</div>`
                   : `<div class="dw-card-hint" style="padding:14px">Фото немає</div>`
           }</div>` : ''}`;
+      }).join('')}
+    </div>`;
+}
+
+/* ── Посуд: розподіл позицій між офіціантами (менеджер «фарбує») ── */
+function dishAssignHTML() {
+  if (!_assignSessionId) {
+    return `<div class="dw-asg-note">Спершу заплануйте інвентаризацію (розділ «Сесії» вище) — розподіл прив'язується до неї.</div>`;
+  }
+  if (!_waiters.length) {
+    return `<div class="dw-asg-note">Немає офіціантів у закладі. Додайте їх у розділі «Команда», щоб розподіляти позиції.</div>`;
+  }
+  // прогрес по кожному офіціанту (за злитою чернеткою _counts)
+  const prog = {}; let assignedTotal = 0;
+  for (const p of _balance) {
+    const uid = _assign[p.id]; if (!uid) continue;
+    assignedTotal++;
+    const r = prog[uid] || (prog[uid] = { done: 0, total: 0 });
+    r.total++; if (isCounted(p.id)) r.done++;
+  }
+  const unassigned = _balance.length - assignedTotal;
+  const list = _balance.filter(matchSearch);
+  const brushName = _assignBrush === '__clear__' ? 'зняти' : _assignBrush ? waiterShort(_assignBrush) : null;
+
+  return `
+    <div class="dw-asg-bar">
+      <div class="dw-asg-lbl">Хто рахує (оберіть, тоді торкайтесь позицій):</div>
+      <div class="dw-asg-chips">
+        ${_waiters.map(w => `
+          <button class="dw-asg-chip${_assignBrush === w.id ? ' on' : ''}" data-a="asg-brush" data-uid="${w.id}"
+            style="${_assignBrush === w.id ? `background:${waiterColor(w.id)};border-color:${waiterColor(w.id)};color:#fff` : `border-color:${waiterColor(w.id)}55;color:var(--text1)`}">
+            <span class="dw-asg-dot" style="background:${waiterColor(w.id)}"></span>${waiterShort(w.id)}
+          </button>`).join('')}
+        <button class="dw-asg-chip${_assignBrush === '__clear__' ? ' on' : ''}" data-a="asg-brush" data-uid="__clear__"
+          style="${_assignBrush === '__clear__' ? 'background:var(--text2);border-color:var(--text2);color:var(--bg1)' : 'border-color:var(--border);color:var(--text2)'}">✕ зняти</button>
+      </div>
+      <div class="dw-asg-actions">
+        <button class="dw-asg-act" data-a="asg-all" ${_assignBrush ? '' : 'disabled'}>${brushName ? `Усі видимі → ${brushName}` : 'Оберіть офіціанта ↑'}</button>
+        ${assignedTotal ? `<button class="dw-asg-act ghost" data-a="asg-reset">Скинути все</button>` : ''}
+      </div>
+      <div class="dw-asg-prog">
+        ${_waiters.filter(w => prog[w.id]).map(w => `<span class="dw-asg-pchip"><span class="dw-asg-dot" style="background:${waiterColor(w.id)}"></span>${waiterShort(w.id)} ${prog[w.id].done}/${prog[w.id].total}</span>`).join('')}
+        <span class="dw-asg-pchip" style="color:var(--text3)">не призначено ${unassigned}</span>
+      </div>
+    </div>
+    ${searchBoxHTML()}
+    <div class="inv-cfg-list">
+      ${list.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>` : ''}
+      ${list.map(p => {
+        const meta = _dishMeta[p.id] || {};
+        const nm   = meta.customName || p.name;
+        const uid  = _assign[p.id];
+        return `
+          <div class="inv-cfg-row asg-row" data-a="dw-assign" data-pid="${p.id}">
+            <div class="dwc-thumb">
+              ${meta.hasPhoto ? `<img id="dwc-img-${p.id}" alt="">` : '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="11" rx="2" stroke="var(--text3)" stroke-width="1.2"/><circle cx="9" cy="9.5" r="2.2" stroke="var(--text3)" stroke-width="1.2"/></svg>'}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="inv-cfg-name">${nm}</div>
+              <div class="inv-cfg-sub">залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>
+            </div>
+            ${uid
+              ? `<span class="dw-asg-tag" style="background:${waiterColor(uid)}1f;color:${waiterColor(uid)};border-color:${waiterColor(uid)}55"><span class="dw-asg-dot" style="background:${waiterColor(uid)}"></span>${waiterShort(uid)}</span>`
+              : `<span class="dw-asg-tag empty">—</span>`}
+          </div>`;
       }).join('')}
     </div>`;
 }
@@ -1855,6 +2032,30 @@ function on(e) {
     return;
   }
 
+  /* ── ПОСУД: розподіл позицій між офіціантами (менеджер) ── */
+  if (a === 'asg-toggle') { _assignMode = !_assignMode; if (_assignMode) syncAssignFromSession(); re(); return; }
+  if (a === 'asg-brush') {
+    const uid = t.dataset.uid;
+    _assignBrush = (_assignBrush === uid) ? null : uid;   // повторний клік знімає вибір
+    re(); return;
+  }
+  if (a === 'dw-assign') {
+    if (!_assignBrush) { _error = 'Оберіть офіціанта вгорі, тоді торкайтесь позицій'; re(); setTimeout(() => { _error = ''; re(); }, 1800); return; }
+    if (_assignBrush === '__clear__') delete _assign[pid];
+    else _assign[pid] = _assignBrush;
+    saveAssign(); re(); return;
+  }
+  if (a === 'asg-all') {
+    if (!_assignBrush) return;
+    const visible = _balance.filter(matchSearch);
+    for (const p of visible) {
+      if (_assignBrush === '__clear__') delete _assign[p.id];
+      else _assign[p.id] = _assignBrush;
+    }
+    saveAssign(); re(); return;
+  }
+  if (a === 'asg-reset') { _assign = {}; saveAssign(); re(); return; }
+
   /* ── ПОСУД: розгортання картки (менеджер) / перегляд (офіціант) / редагування ── */
   // Менеджерський список: тап по назві/мініатюрі розгортає картку з фото інлайн
   if (a === 'dw-expand') {
@@ -1973,6 +2174,13 @@ export default {
     _draftByName   = '';
     _draftAt       = null;
     clearTimeout(_draftSyncTimer);
+    _assign        = {};       // розподіл відновить loadAll із сесії (інакше тік би між закладами)
+    _assignMode    = false;
+    _assignBrush   = null;
+    _assignSessionId = null;
+    _waiters       = [];
+    _myUserId      = undefined;   // переderive з поточного токена
+    clearTimeout(_assignSaveTimer);
     _showSchedForm = false;
     _calOpen       = false;
     _error         = '';
