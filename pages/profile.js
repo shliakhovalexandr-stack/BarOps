@@ -5,7 +5,7 @@
 
 import { navigate, state } from '../shared/app.js';
 import { pushSupported, pushPermission, subscribePush, unsubscribePush } from '../shared/push.js';
-import { getTheme, setTheme as applyThemeChoice } from '../shared/theme.js';
+import { setTheme as applyThemeChoice, isLightActive } from '../shared/theme.js';
 
 const POS_SYSTEMS = {
   manual:     { name: 'Вручну',     icon: '✋', color: 'var(--text2)' },
@@ -47,8 +47,8 @@ const CSS = `<style id="prof-css">
 .prof-stat-val{font-family:var(--font-h);font-size:20px;font-weight:600;line-height:1;letter-spacing:-.02em}
 .prof-stat-lbl{font-size:10px;color:var(--text2);margin-top:5px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;line-height:1.3}
 .prof-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 20px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
-.prof-theme-seg{display:inline-flex;gap:3px;padding:3px;background:var(--bg3);border-radius:10px}
-.prof-theme-opt{padding:6px 11px;border:none;border-radius:8px;background:transparent;color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;white-space:nowrap}
+.prof-theme-seg{display:inline-flex;gap:4px;padding:4px;background:var(--bg3);border-radius:12px}
+.prof-theme-opt{width:40px;height:34px;display:flex;align-items:center;justify-content:center;border:none;border-radius:9px;background:transparent;color:var(--text2);cursor:pointer}
 .prof-theme-opt.on{background:var(--green);color:var(--fab-ink)}
 .prof-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px}
 .prof-kpi{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px}
@@ -295,8 +295,12 @@ ${CSS}
       <div class="prof-setting-row">
         <div class="prof-setting-lbl">Тема оформлення</div>
         <div class="prof-theme-seg">
-          ${[['system','Системна'],['light','Світла'],['dark','Темна']].map(([v,l]) =>
-            `<button class="prof-theme-opt ${getTheme()===v?'on':''}" onclick="window.__prof.setTheme('${v}')">${l}</button>`).join('')}
+          <button class="prof-theme-opt ${!isLightActive()?'on':''}" onclick="window.__prof.setTheme('dark')" aria-label="Темна" title="Темна">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button class="prof-theme-opt ${isLightActive()?'on':''}" onclick="window.__prof.setTheme('light')" aria-label="Світла" title="Світла">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </button>
         </div>
       </div>
     </div>
