@@ -45,6 +45,11 @@ const QUICK_MY_SHIFT = { route:'my-shift', badge:null, label:'Моя зміна'
   svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
        <path d="M3.5 15.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
 
+const QUICK_TEAM = { route:'team', badge:null, label:'Команда', hint:'Кухарі та шеф-кухарі', color:'var(--purple-bg)', iconColor:'var(--purple)',
+  svg:`<circle cx="6.5" cy="6" r="2.4" stroke="currentColor" stroke-width="1.3"/>
+       <circle cx="12.6" cy="6.6" r="1.9" stroke="currentColor" stroke-width="1.2"/>
+       <path d="M2.4 15c0-2.5 1.9-4 4.1-4s4.1 1.5 4.1 4M10.6 14.4c.1-2 1.4-3.2 3-3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
+
 const QUICK_RECIPE_BOOK = { route:'recipe-book', badge:null, label:'Рецепти', hint:'Рецепти кухні', color:'var(--green-bg)', iconColor:'var(--green)',
   svg:`<rect x="3" y="2" width="9" height="14" rx="1.3" stroke="currentColor" stroke-width="1.3"/>
        <path d="M5.5 5.5h4M5.5 8.5h4M5.5 11.5h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
@@ -331,16 +336,16 @@ function quickGrid(items) {
 // ── Нова головна: плитки-сітка по секціях ──────────────────
 function tileByRoute() {
   const m = {};
-  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_TEAM]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
 // Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист
-const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'inventory'];
+const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'team', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'inventory'];
 
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
-  ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
+  ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'team', 'recipes']],
   ['Ревізія',          ['dishware']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
 ];
