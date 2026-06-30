@@ -864,7 +864,7 @@ function renderHub() {
     ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`
     : _mode === 'edit'
     ? `<div class="sch-bar"><button class="sch-cta-sec" onclick="window.__sch.setMode('view')">Скасувати</button><button class="sch-cta" style="flex:2" onclick="window.__sch.setMode('view')">Зберегти зміни</button></div>`
-    : `<div class="sch-bar"><div class="sch-bar-icon" onclick=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`;
+    : `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`;
 
   return CSS + `
   <div class="sch-wrap">
@@ -1061,7 +1061,7 @@ function renderRoleView(roleKey) {
   ).join('');
 
   const bar = canEdit()
-    ? `<div class="sch-bar"><div class="sch-bar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`
+    ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`
     : `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`;
 
   const editPill = canEdit()
