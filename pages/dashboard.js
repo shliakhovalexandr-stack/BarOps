@@ -37,7 +37,7 @@ let _mini            = { digest: null, checklist: null, playlist: null, tasks: n
 
 const VENUE_COLORS = [
   'var(--green)', 'var(--amber)', 'var(--purple)',
-  'var(--red)', '#4FA8E8', '#E24B4A',
+  'var(--red)', 'var(--blue)', 'var(--teal)',
 ];
 
 /* ════════════════════════
@@ -707,7 +707,7 @@ ${CSS}
 
     <!-- Header -->
     <div class="d-header">
-      <div style="font-family:'Geist',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--text2);letter-spacing:-.02em;margin-bottom:10px">bar<span style="color:#A88BFF">ops.</span></div>
+      <div style="font-family:'Geist',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--text2);letter-spacing:-.02em;margin-bottom:10px">bar<span style="color:var(--green)">ops.</span></div>
       <div class="d-venue-row">
         <div style="display:flex;align-items:center;gap:10px">
           ${(isMgr || (state.role || '').toLowerCase() === 'accountant') ? `
@@ -772,7 +772,7 @@ ${CSS}
         <div class="d-alert-sub">Щоб не пропускати чек-листи, завдання й нагадування</div>
       </div>
       <button onclick="window.__dash.enablePush()" ${_pushBusy ? 'disabled' : ''}
-        style="height:32px;padding:0 14px;border-radius:18px;border:none;background:var(--purple);color:#fff;font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;white-space:nowrap;flex-shrink:0">${_pushBusy ? '…' : 'Увімкнути'}</button>
+        style="height:32px;padding:0 14px;border-radius:18px;border:none;background:var(--purple);color:var(--fab-ink);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;white-space:nowrap;flex-shrink:0">${_pushBusy ? '…' : 'Увімкнути'}</button>
       <button onclick="window.__dash.dismissPushNudge()" style="margin-left:6px;width:26px;height:26px;border:none;background:transparent;color:var(--text3);font-size:16px;cursor:pointer;flex-shrink:0">×</button>
     </div>` : ''}
 
