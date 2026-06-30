@@ -34,6 +34,8 @@
 html, body {
   height: 100%;
   overflow: hidden;
+  /* без pull-to-refresh / overscroll-«стрибка» на рівні документа (Android APK/TWA) */
+  overscroll-behavior: none;
 }
 body {
   display: flex;
@@ -108,6 +110,8 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  /* зупиняємо «протікання» скролу в браузер: без pull-to-refresh і overscroll-пружини (Android APK/TWA) */
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   transition: opacity 250ms ease, transform 250ms ease;
