@@ -401,20 +401,24 @@ const CSS = `<style id="inv-css">
 .loc-tab.full .loc-tab-n{color:var(--green)}
 .loc-tab-n{font-size:11px;color:var(--text3);font-weight:700}
 .loc-cog{padding:8px 11px;color:var(--text2)}
-.loc-mgmt-hdr{display:flex;align-items:center;gap:10px;padding:6px 14px 10px}
-.loc-back{background:none;border:none;color:var(--purple);font-size:14px;font-family:var(--font-b);font-weight:600;cursor:pointer;padding:4px 0}
-.loc-mgmt-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0)}
-.loc-create{display:flex;gap:8px;padding:0 14px}
-.loc-add-btn{flex-shrink:0;width:46px;border-radius:11px;border:none;background:var(--green);color:#000;font-size:22px;font-weight:700;cursor:pointer}
-.loc-add-btn:disabled{opacity:.5;cursor:default}
-.loc-hint{margin:10px 14px;font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
-.loc-list{padding:0 14px;display:flex;flex-direction:column;gap:8px}
-.loc-row{display:flex;align-items:center;gap:8px;padding:12px;border-radius:13px;background:var(--bg2);border:0.5px solid var(--border)}
+.loc-mgmt-hdr{display:flex;align-items:center;gap:8px;padding:4px 16px 14px}
+.loc-back{background:none;border:none;color:var(--green);font-size:13px;font-family:var(--font-b);font-weight:600;cursor:pointer;padding:6px 8px 6px 0;flex-shrink:0}
+.loc-mgmt-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0)}
+.loc-inp{flex:1;min-width:0;height:46px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:15px;font-weight:500;color:var(--text0);outline:none;font-family:var(--font-b);text-align:left}
+.loc-inp:focus{border-color:var(--green-border)}
+.loc-inp::placeholder{color:var(--text3);font-weight:400}
+.loc-create{display:flex;gap:8px;align-items:center;padding:0 16px}
+.loc-add-btn{flex-shrink:0;width:46px;height:46px;border-radius:12px;border:none;background:var(--green);color:var(--fab-ink);font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.loc-add-btn:disabled{opacity:.45;cursor:default}
+.loc-hint{margin:12px 16px 2px;font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
+.loc-empty{text-align:center;padding:30px 24px;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.5}
+.loc-list{padding:10px 16px 0;display:flex;flex-direction:column;gap:8px}
+.loc-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border)}
 .loc-row-main{flex:1;min-width:0;cursor:pointer}
-.loc-row-name{font-size:15px;font-weight:600;font-family:var(--font-b);color:var(--text0)}
-.loc-row-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
-.loc-row-act{flex-shrink:0;padding:7px 12px;border-radius:10px;border:none;background:var(--purple-bg);color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer}
-.loc-row-del{flex-shrink:0;width:34px;height:34px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text3);font-size:15px;cursor:pointer}
+.loc-row-name{font-size:15px;font-weight:600;font-family:var(--font-b);color:var(--text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loc-row-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
+.loc-row-act{flex-shrink:0;padding:8px 12px;border-radius:10px;border:none;background:var(--green-bg);color:var(--green);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.loc-row-del{flex-shrink:0;width:34px;height:34px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text3);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .loc-pick-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:0.5px solid var(--border);cursor:pointer}
 .loc-pick-row.on{background:var(--purple-bg)}
 .loc-pick-box{flex-shrink:0;width:24px;height:24px;border-radius:7px;border:1.5px solid var(--border2,var(--border));background:var(--bg1);display:flex;align-items:center;justify-content:center}
@@ -1520,12 +1524,12 @@ function locMgmtHTML() {
     </div>
     ${_error ? `<div class="inv-alert">${_error}</div>` : ''}
     <div class="loc-create">
-      <input class="inv-field" id="loc-new-name" type="text" value="${(_locNewName || '').replace(/"/g, '&quot;')}" placeholder="Новий склад (Холодильник, Морозилка…)" style="margin:0">
+      <input class="loc-inp" id="loc-new-name" type="text" value="${(_locNewName || '').replace(/"/g, '&quot;')}" placeholder="Новий склад — напр. Холодильник">
       <button class="loc-add-btn" data-a="loc-create" ${_saving ? 'disabled' : ''}>＋</button>
     </div>
     <div class="loc-hint">Кухар створює склади й вносить туди товари. Товар може бути на кількох складах — у Syrve піде <b>сума</b>.</div>
     ${_locations.length === 0
-      ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Ще немає складів. Створіть перший вище.</div>`
+      ? `<div class="loc-empty">Ще немає складів.<br>Створіть перший вище 👆</div>`
       : `<div class="loc-list">
           ${_locations.map(l => `
             <div class="loc-row">
@@ -1553,8 +1557,8 @@ function locEditorHTML() {
       <button class="loc-back" data-a="loc-editor-close">‹ Склади</button>
       <div class="loc-mgmt-title">Товари складу · ${chosen}</div>
     </div>
-    <div class="loc-create" style="margin-bottom:6px">
-      <input class="inv-field" id="loc-name" type="text" value="${(loc.name || '').replace(/"/g, '&quot;')}" placeholder="Назва складу" style="margin:0">
+    <div class="loc-create">
+      <input class="loc-inp" id="loc-name" type="text" value="${(loc.name || '').replace(/"/g, '&quot;')}" placeholder="Назва складу">
     </div>
     ${(() => {
       const others = _locations.filter(l => l.id !== loc.id && (l.products || []).length);
@@ -1572,7 +1576,7 @@ function locEditorHTML() {
         const on = inLoc.has(p.id);
         return `
           <div class="loc-pick-row${on ? ' on' : ''}" data-a="loc-prod-toggle" data-pid="${p.id}">
-            <div class="loc-pick-box">${on ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</div>
+            <div class="loc-pick-box">${on ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="var(--fab-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</div>
             <div style="flex:1;min-width:0">
               <div class="inv-cfg-name">${p.name}${isPrep(p.id) ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
               <div class="inv-cfg-sub">${p.unit || ''}${p.amount != null ? ` · залишок ${p.amount.toFixed(0)}` : ''}</div>

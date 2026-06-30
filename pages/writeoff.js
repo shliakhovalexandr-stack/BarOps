@@ -1780,6 +1780,8 @@ async function submitForm() {
           items:    [{ productName: updated.prod, productId: updated.prodId, qty: vol, unit: uLbl }],
           category: CAT[finalCat]?.label || finalCat || 'Інше',
           reason:   updated.reason || null,
+          accountId:   updated.accountId   || null,
+          accountName: updated.accountName || null,
           venueId:  vId,
         });
         if (saved?.data?.id) {
@@ -1839,6 +1841,8 @@ async function submitForm() {
       items: [{ productName: entry.prod, productId: entry.prodId, qty: vol, unit: uLbl }],
       category: CAT[finalCat]?.label || finalCat || 'Інше',
       reason:   entry.reason || null,
+      accountId:   entry.accountId   || null,
+      accountName: entry.accountName || null,
       venueId:  vId,
     });
     if (saved?.data?.id) {
@@ -2493,8 +2497,8 @@ export default {
             unitKey:     uKey,
             valColor:    CAT[catKey]?.color || 'var(--text0)',
             reason:      w.reason || '',
-            accountId:   localAcc.accountId   || null,
-            accountName: localAcc.accountName || null,
+            accountId:   w.accountId   || localAcc.accountId   || null,   // бекенд (крос-девайс) → фолбек локальний кеш (старі записи)
+            accountName: w.accountName || localAcc.accountName || null,
             time:        hhmm,
             dateStr:     `${dd} · ${hhmm}`,
             ts:          w.createdAt,
