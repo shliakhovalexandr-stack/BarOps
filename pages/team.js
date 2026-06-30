@@ -553,8 +553,8 @@ ${CSS}
     </button>` : ''}
   </div>
 
-  <!-- Venue selector -->
-  ${_venues.length > 1 ? `
+  <!-- Venue selector — лише мережеві ролі (admin/accountant/director); шеф/менеджер прив'язані до свого закладу -->
+  ${(_venues.length > 1 && ['admin', 'accountant', 'director'].includes((state.role || '').toLowerCase())) ? `
   <div style="padding:0 14px 10px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none">
     ${_venues.map(v => { const vn = v.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'"); return `
       <div onclick="window.__tm.switchTeamVenue('${v.id}','${vn}')"
