@@ -4,6 +4,7 @@
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
+import { pushSupported, pushPermission, subscribePush } from '../shared/push.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
@@ -14,6 +15,16 @@ let _activeVenueId   = '';   // id активного закладу
 let _activeVenueName = '';   // назва активного закладу
 let _venues          = [];   // список закладів з сервера
 let _stats           = null; // дані з /api/stats
+let _checklistPending = 0;   // невиконані пункти чек-листів сьогодні (in-app нагадування)
+let _pushBusy        = false; // йде підписка на push
+
+// Нудж «увімкнути сповіщення» сховано на N днів (після dismiss)
+function pushNudgeDismissed() {
+  try { const t = +localStorage.getItem('barops_pushnudge_off') || 0; return Date.now() < t; } catch { return false; }
+}
+function showPushNudge() {
+  return pushSupported() && pushPermission() === 'default' && !pushNudgeDismissed();
+}
 let _syrveStats      = null; // дані з /api/stats/syrve (виторг + накладні) — повільне довантаження
 let _syrveLoading    = false;
 let _loading         = true;
@@ -613,6 +624,9 @@ function buildHTML() {
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
+  // Бейдж невиконаних чек-листів на тайлі «Журнал» (лише працівникам — у менеджерів своя аналітика)
+  const _showChk = !isMgr && !isAcc && _checklistPending > 0;
+  const _jt = tileByRoute()['journal']; if (_jt) _jt.badge = _showChk ? String(_checklistPending) : null;
 
   // KPI з реальних даних
   const kpi = isMgr ? [
@@ -746,6 +760,34 @@ ${CSS}
         </button>`) : ''}
       </div>
     </div>
+
+    <!-- Нудж: увімкнути push-сповіщення (коли ще не вирішено) -->
+    ${showPushNudge() ? `
+    <div class="d-alert" style="border-color:var(--purple-border);background:var(--purple-bg)">
+      <div class="d-alert-icon" style="background:var(--purple-bg2,rgba(168,139,255,.18))">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" stroke="var(--purple)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="d-alert-title" style="color:var(--purple)">Увімкніть сповіщення</div>
+        <div class="d-alert-sub">Щоб не пропускати чек-листи, завдання й нагадування</div>
+      </div>
+      <button onclick="window.__dash.enablePush()" ${_pushBusy ? 'disabled' : ''}
+        style="height:32px;padding:0 14px;border-radius:18px;border:none;background:var(--purple);color:#fff;font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;white-space:nowrap;flex-shrink:0">${_pushBusy ? '…' : 'Увімкнути'}</button>
+      <button onclick="window.__dash.dismissPushNudge()" style="margin-left:6px;width:26px;height:26px;border:none;background:transparent;color:var(--text3);font-size:16px;cursor:pointer;flex-shrink:0">×</button>
+    </div>` : ''}
+
+    <!-- In-app нагадування: невиконані чек-листи (дубль push) -->
+    ${_showChk ? `
+    <div class="d-alert" style="border-color:var(--amber-border,rgba(245,158,11,.4));background:var(--amber-bg)" onclick="window.__barops.navigate('journal')">
+      <div class="d-alert-icon" style="background:var(--amber-bg)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="var(--amber)" stroke-width="1.5"/><path d="M8 8h8M8 12h8M8 16h5" stroke="var(--amber)" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="d-alert-title" style="color:var(--amber)">Невиконані чек-листи: ${_checklistPending}</div>
+        <div class="d-alert-sub">Торкніться, щоб відкрити Журнал</div>
+      </div>
+      <span style="color:var(--amber);font-size:18px;opacity:.6">›</span>
+    </div>` : ''}
 
     <!-- Alerts: критичні залишки -->
     ${s?.critical?.length ? s.critical.slice(0, 2).map(p => `
@@ -991,6 +1033,8 @@ export default {
     _pendingDayoff  = [];
     _syrveStats     = null;
     _mini           = { digest: null, checklist: null, playlist: null, tasks: null, debts: null, excise: null };
+    _checklistPending = 0;
+    _pushBusy       = false;
     loadSeenNotifs();
     return buildHTML();
   },
@@ -1014,6 +1058,21 @@ export default {
         _venueSheetOpen = false;
         navigate('venue-edit', { params: { venueId: id, venueName: v ? v.name : '' } });
       },
+      async enablePush() {
+        if (_pushBusy) return;
+        _pushBusy = true; fullRender();
+        const ok = await subscribePush();
+        _pushBusy = false;
+        if (!ok && pushPermission() === 'denied') {
+          try { localStorage.setItem('barops_pushnudge_off', String(Date.now() + 30 * 864e5)); } catch {}
+          alert('Сповіщення заблоковані в налаштуваннях. Увімкніть їх для застосунку в налаштуваннях телефона/браузера.');
+        }
+        fullRender();
+      },
+      dismissPushNudge() {
+        try { localStorage.setItem('barops_pushnudge_off', String(Date.now() + 3 * 864e5)); } catch {}  // сховати на 3 дні
+        fullRender();
+      },
     };
 
     // Синхронізуємо активний заклад з глобального state (перемикання в drawer)
@@ -1027,6 +1086,7 @@ export default {
     await loadVenues();
     await loadStats();
     loadMiniStats();
+    loadChecklistReminder();   // in-app нагадування про чек-листи (усі ролі)
     if (isMgrRole()) { loadSyrveStats(); loadPendingOrders(); loadPendingDayoff(); }
   },
 };
@@ -1058,6 +1118,21 @@ async function loadPendingDayoff() {
     const data = await res.json();
     if (data.success) {
       _pendingDayoff = (data.requests || []).filter(r => r.status === 'pending');
+      fullRender();
+    }
+  } catch { /* silent */ }
+}
+
+// In-app нагадування: рахуємо невиконані пункти чек-листів сьогодні (дубль push)
+async function loadChecklistReminder() {
+  const venueId = _activeVenueId || state.venueId || localStorage.getItem('barops_venueId');
+  const tok = localStorage.getItem('barops_token') || state.token;
+  if (!venueId || !tok) return;
+  try {
+    const res = await fetch(`${API}/api/checklists/today?venueId=${venueId}`, { headers: { Authorization: `Bearer ${tok}` } });
+    const d = await res.json();
+    if (d.success) {
+      _checklistPending = (d.checklists || []).reduce((n, c) => n + Math.max(0, (c.total || 0) - (c.doneCount || 0)), 0);
       fullRender();
     }
   } catch { /* silent */ }
