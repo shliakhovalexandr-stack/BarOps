@@ -813,7 +813,10 @@ function toggleSuggestLow() { _suggestOnlyLow = !_suggestOnlyLow; fullRender(); 
 
 function suggestHTML() {
   if (_suggestLoading) return `<div style="padding:30px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px">Аналізую рух за 7 днів…</div>`;
-  const all = (_suggest || []).filter(s => (s.sold7days || 0) > 0);
+  // зональний фільтр: кухня бачить kitchen+both+невідоме; бар — bar+both+невідоме (ховаємо протилежну зону)
+  const _z = orderZone();
+  const zoneOk = s => { const sz = s.zone || ''; return sz === '' || sz === 'both' || sz === _z; };
+  const all = (_suggest || []).filter(s => (s.sold7days || 0) > 0 && zoneOk(s));
   if (!all.length) {
     return `<div style="padding:24px 16px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Немає даних про рух за тиждень.<br>Перевір, що для закладу налаштовано POS і є продажі за тиждень.
       <div style="margin-top:12px"><button onclick="window.__ord.loadSuggest(true)" style="height:36px;padding:0 16px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button></div></div>`;
@@ -868,13 +871,13 @@ function renderManager() {
     </div>` : ''}
     <div class="ord-mgr-tabs">
       <button class="ord-mt ${_mgrTab==='orders'?'act':''}"     onclick="window.__ord.setMgrTab('orders')">Замовлення</button>
-      ${orderZone() === 'bar' ? `<button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>` : ''}
+      <button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>
       <button class="ord-mt ${_mgrTab==='suppliers'?'act':''}"  onclick="window.__ord.setMgrTab('suppliers')">Постачальники</button>
       <button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>
     </div>
 
     ${_mgrTab === 'orders' ? mgrOrdersHTML() : ''}
-    ${(_mgrTab === 'suggest' && orderZone() === 'bar') ? suggestHTML() : ''}
+    ${_mgrTab === 'suggest' ? suggestHTML() : ''}
 
     ${_mgrTab === 'suppliers' ? `
       <div class="ord-sec">Постачальники
