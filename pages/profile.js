@@ -5,6 +5,7 @@
 
 import { navigate, state } from '../shared/app.js';
 import { pushSupported, pushPermission, subscribePush, unsubscribePush } from '../shared/push.js';
+import { getTheme, setTheme as applyThemeChoice } from '../shared/theme.js';
 
 const POS_SYSTEMS = {
   manual:     { name: 'Вручну',     icon: '✋', color: 'var(--text2)' },
@@ -46,6 +47,9 @@ const CSS = `<style id="prof-css">
 .prof-stat-val{font-family:var(--font-h);font-size:20px;font-weight:600;line-height:1;letter-spacing:-.02em}
 .prof-stat-lbl{font-size:10px;color:var(--text2);margin-top:5px;font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;line-height:1.3}
 .prof-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 20px 8px;font-family:var(--font-b);display:flex;justify-content:space-between;align-items:center}
+.prof-theme-seg{display:inline-flex;gap:3px;padding:3px;background:var(--bg3);border-radius:10px}
+.prof-theme-opt{padding:6px 11px;border:none;border-radius:8px;background:transparent;color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;white-space:nowrap}
+.prof-theme-opt.on{background:var(--green);color:var(--fab-ink)}
 .prof-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px}
 .prof-kpi{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px}
 .prof-kpi-val{font-family:var(--font-h);font-size:22px;font-weight:600;line-height:1;letter-spacing:-.02em}
@@ -285,6 +289,18 @@ ${CSS}
       </div>
     </div>
 
+    <!-- Вигляд (тема) -->
+    <div class="prof-sec">Вигляд</div>
+    <div class="prof-settings">
+      <div class="prof-setting-row">
+        <div class="prof-setting-lbl">Тема оформлення</div>
+        <div class="prof-theme-seg">
+          ${[['system','Системна'],['light','Світла'],['dark','Темна']].map(([v,l]) =>
+            `<button class="prof-theme-opt ${getTheme()===v?'on':''}" onclick="window.__prof.setTheme('${v}')">${l}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+
     <!-- Сповіщення -->
     <div class="prof-sec">Сповіщення</div>
     <div class="prof-settings">
@@ -447,7 +463,10 @@ function setPushToggle(on) {
   if (knob) knob.style.left = on ? '18px' : '2px';
 }
 
-window.__prof = { closeShiftAndLogout, togglePush };
+window.__prof = {
+  closeShiftAndLogout, togglePush,
+  setTheme(t) { applyThemeChoice(t); updateView(); },
+};
 
 export default {
   render() {

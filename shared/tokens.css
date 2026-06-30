@@ -105,6 +105,80 @@
   --dur-fast:    120ms;
   --dur-normal:  220ms;
   --dur-slow:    380ms;
+
+  /* ── Theme helpers ── */
+  --fab-ink: #000000;          /* іконка/текст на фіолетовому акценті (темна тема: світлий фіолет → чорне) */
+  --nav-bg:  rgba(10,10,10,0.92);
+  --status-ink: #FFFFFF;       /* статус-бар/іконки чипа */
+}
+
+/* ============================================================
+   СВІТЛА ТЕМА — перекриває ті самі токени. Вмикається класом
+   .light на <html> (перемикач у Профілі). Темна = :root (дефолт).
+   ============================================================ */
+html.light {
+  --bg:  #F3F3F6;
+  --bg1: #FFFFFF;
+  --bg2: #FFFFFF;
+  --bg3: rgba(20,18,30,0.05);
+  --bg4: rgba(20,18,30,0.08);
+  --bg5: rgba(20,18,30,0.08);
+
+  --border:  rgba(20,18,30,0.10);
+  --border2: rgba(20,18,30,0.16);
+  --border3: rgba(20,18,30,0.24);
+
+  --glass-bg:     #FFFFFF;
+  --glass-border: rgba(20,18,30,0.10);
+
+  /* Бренд-фіолетовий (--green-* за легасі-назвою) — темніший, щоб читався на світлому */
+  --green:        #7C3AED;
+  --green-d:      #6D28D9;
+  --green-l:      #8B5CF6;
+  --green-bg:     rgba(124,58,237,0.11);
+  --green-border: rgba(124,58,237,0.30);
+  --grad-primary: #7C3AED;
+  --grad-aurora:  #7C3AED;
+  --grad-violet:  #6D28D9;
+
+  --purple:        #7C3AED;
+  --purple-bg:     rgba(124,58,237,0.11);
+  --purple-border: rgba(124,58,237,0.28);
+  --indigo:        #7C3AED;
+  --indigo-bg:     rgba(124,58,237,0.11);
+  --indigo-border: rgba(124,58,237,0.28);
+
+  --amber:        #C98A16;
+  --amber-bg:     rgba(201,138,22,0.13);
+  --amber-border: rgba(201,138,22,0.32);
+  --gold:         #C98A16;
+  --gold-bg:      rgba(201,138,22,0.13);
+  --gold-border:  rgba(201,138,22,0.32);
+
+  --red:        #D14343;
+  --red-d:      #B83232;
+  --red-bg:     rgba(209,67,67,0.10);
+  --red-border: rgba(209,67,67,0.26);
+
+  --success:        #1E9E68;
+  --success-bg:     rgba(30,158,104,0.12);
+  --success-border: rgba(30,158,104,0.30);
+  --teal:           #1E9E68;
+  --teal-bg:        rgba(30,158,104,0.12);
+  --teal-border:    rgba(30,158,104,0.30);
+
+  --blue:        #3F72B5;
+  --blue-bg:     rgba(63,114,181,0.12);
+  --blue-border: rgba(63,114,181,0.26);
+
+  --text0: #181820;
+  --text1: #5F5F6B;
+  --text2: #84848F;
+  --text3: #ADADB8;
+
+  --nav-bg:     rgba(255,255,255,0.92);
+  --status-ink: #181820;
+  --fab-ink:    #FFFFFF;   /* світла тема: фіолет темніший → текст/іконка білі */
 }
 
 /* Global tabular-nums — numeric alignment everywhere inside the shell */

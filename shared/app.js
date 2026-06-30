@@ -5,6 +5,8 @@
 
 'use strict';
 
+import { applyTheme } from './theme.js';
+
 /* ══════════════════════════════════════
    1. ГЛОБАЛЬНИЙ СТАН
    ══════════════════════════════════════ */
@@ -1116,6 +1118,7 @@ window.fetch = async (...args) => {
    11. BOOTSTRAP
    ══════════════════════════════════════ */
 export async function bootstrap() {
+  applyTheme();   // синхронізувати клас теми + колір статус-бара (інлайн-скрипт уже зняв блимання)
   window.__barops = {
     navigate, goBack, setRole, state,
     openDrawer, closeDrawer, switchVenue, addVenuePrompt, closeAddSheet, addDraftChange, saveNewVenue,

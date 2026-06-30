@@ -6,6 +6,17 @@
 <!-- Заборона авто-перекладу Chrome/браузера: застосунок завжди українською
      (інакше машинний переклад калічить — «Повар», «Солнце» замість «неділя» тощо) -->
 <meta name="google" content="notranslate"/>
+<!-- Тема: застосувати ще ДО CSS, щоб не блимало темним при світлій темі -->
+<script>
+(function(){
+  try {
+    var t = localStorage.getItem('barops_theme') || 'dark';
+    var dark = !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var light = t === 'light' || (t === 'system' && !dark);
+    document.documentElement.classList.toggle('light', light);
+  } catch(e){}
+})();
+</script>
 <title>BarOps</title>
 <meta name="description" content="Розумний помічник для барменів: інвентаризація, накладні, списання"/>
 <meta name="theme-color" content="#000000"/>
@@ -44,7 +55,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background-color: var(--bg);
+  transition: background-color .25s ease;
 }
 
 /* ── Aurora removed ── */
@@ -56,9 +68,10 @@ body {
 #phone {
   position: relative; z-index: 1;
   width: var(--phone-w);
-  background: #000;
+  background-color: var(--bg);
+  transition: background-color .25s ease;
   border-radius: var(--r-phone);
-  border: 0.5px solid rgba(255,255,255,0.08);
+  border: 0.5px solid var(--border);
   box-shadow: 0 30px 60px -20px rgba(0,0,0,0.5);
   display: flex;
   flex-direction: column;
