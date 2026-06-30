@@ -208,7 +208,7 @@ async function loadRosters() {
           for (const rq of ((await dRes.json()).requests || [])) {
             const rk = roleKeyForRole(rq.role);
             if (!rk) continue;
-            (dayoffByRole[rk] ||= []).push({ id: rq.id, who: rq.userName || 'Співробітник', day: formatReqDates(rq.dates), note: rq.note || '', status: rq.status || 'pending', userId: rq.userId || '', dates: rq.dates || [] });
+            (dayoffByRole[rk] ||= []).push({ id: rq.id, who: rq.userName || 'Співробітник', day: formatReqDates(rq.dates), note: rq.note || '', status: rq.status || 'pending', userId: rq.userId || '', dates: rq.dates || [], decidedByName: rq.decidedByName || '' });
           }
         }
       } catch (err) { console.warn('[Schedule] dayoff error:', err); }
@@ -863,7 +863,7 @@ function renderHub() {
         ${req.status === 'pending'
           ? `<button class="sch-rbtn ap" onclick="window.__sch.hubApproveReq('${req.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
              <button class="sch-rbtn rj" onclick="window.__sch.hubRejectReq('${req.id}')" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
-          : `<span style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'};white-space:nowrap">${STATUS_LABEL[req.status] || req.status}</span>`}
+          : `<div style="text-align:right;white-space:nowrap"><div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}</div>`}
       </div>`).join('')}
     </div>` : '';
 
@@ -1067,7 +1067,10 @@ function renderRoleView(roleKey) {
       ${req.status === 'pending'
         ? `<button class="sch-rbtn ap" onclick="window.__sch.approveReq('${roleKey}',${ri})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
            <button class="sch-rbtn rj" onclick="window.__sch.rejectReq('${roleKey}',${ri})" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
-        : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`
+        : `<div style="text-align:right;white-space:nowrap">
+             <div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>
+             ${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}
+           </div>`
       }
     </div>`
   ).join('');
