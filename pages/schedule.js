@@ -731,6 +731,7 @@ const CSS = `<style id="sch-css">
 .sch-dept-block{margin:0 14px 12px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden}
 .sch-dept-head{display:flex;align-items:center;gap:8px;padding:13px 14px 9px}
 .sch-dept-chev{width:26px;height:26px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sch-edit-btn{height:28px;padding:0 13px;border-radius:9px;border:none;background:var(--purple,#a88bff);color:#fff;font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;flex-shrink:0;white-space:nowrap}
 .sch-dept-block .sch-grid-wrap{margin:0 12px 12px}
 .sch-hist{display:flex;align-items:center;gap:10px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px}
 .sch-hist-dates{font-size:13px;font-weight:600;color:#fff}
@@ -826,9 +827,11 @@ function renderHub() {
           <div style="width:8px;height:8px;border-radius:3px;background:${r.color};flex-shrink:0"></div>
           <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">${r.label}</div>
           <div style="font-size:11px;color:#52525B">${r.people.length} · ${onShift} на зміні</div>
-          <div class="sch-dept-chev" onclick="window.__sch.goRole('${key}')">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-          </div>
+          ${canEdit()
+            ? `<button class="sch-edit-btn" onclick="window.__sch.goRole('${key}')">Редагувати</button>`
+            : `<div class="sch-dept-chev" onclick="window.__sch.goRole('${key}')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+              </div>`}
         </div>
         ${renderDeptTable(key)}
       </div>`;
