@@ -162,14 +162,20 @@ const TAB_BAR_WAITER = TAB_BAR_BARTENDER.map(tab => {
   return tab;
 });
 
-// Шеф — як бармен (Рецепти/Накладна/Журнал), але Рецепти і Журнал міняємо місцями (рішення юзера)
-const TAB_BAR_CHEF = (() => {
-  const t = [...TAB_BAR_BARTENDER];
-  const ri = t.findIndex(x => x.route === 'recipe-book');
-  const ji = t.findIndex(x => x.route === 'journal');
-  if (ri >= 0 && ji >= 0) { const tmp = t[ri]; t[ri] = t[ji]; t[ji] = tmp; }
-  return t;
-})();
+// Шеф — як бармен, але «Журнал» у таб-барі замінено на «Команду»
+// (Журнал лишається плиткою на дашборді; рішення юзера 2026-06-30)
+const TAB_BAR_CHEF = TAB_BAR_BARTENDER.map(tab => {
+  if (tab.route === 'journal') return {
+    route: 'team', label: 'Команда',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 18c0-2.9 2.2-5 5-5s5 2.1 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="15.5" cy="8.5" r="2.3" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M13.6 13.1c2 .2 3.7 1.9 3.7 4.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  };
+  return tab;
+});
 
 // Кухар — кухонний працівник: лише списання/переміщення, графік, інвентаризація кухні
 const TAB_BAR_COOK = [
