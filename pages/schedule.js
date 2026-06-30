@@ -69,12 +69,23 @@ function cellInner(zone, time) {
 /* ════════════════════════════════════════
    DEFAULTS — стандартні години зміни
 ════════════════════════════════════════ */
-const DEFAULTS = {
+const BASE_DEFAULTS = {
   cooks:      { s: '08:00', e: '18:00' },
   bartenders: { s: '09:00', e: '23:00' },
   waiters:    { s: '11:00', e: '23:00' },
   cleaners:   { s: '06:00', e: '14:00' },
 };
+const DEFAULTS = JSON.parse(JSON.stringify(BASE_DEFAULTS));   // робоча копія (мутується + персиститься)
+function defaultsKey() { return 'barops_sch_def_' + (_venueId || state.venueId || localStorage.getItem('barops_venueId') || ''); }
+// Відновити стандартні зміни закладу з localStorage (інакше скидались на захардкоджені)
+function loadDefaults() {
+  for (const k of Object.keys(BASE_DEFAULTS)) DEFAULTS[k] = { ...BASE_DEFAULTS[k] };   // reset до бази (без bleed між закладами)
+  try {
+    const d = JSON.parse(localStorage.getItem(defaultsKey()) || 'null');
+    if (d) for (const k of Object.keys(DEFAULTS)) if (d[k] && d[k].s && d[k].e) DEFAULTS[k] = { s: d[k].s, e: d[k].e };
+  } catch { /* ignore */ }
+}
+function persistDefaults() { try { localStorage.setItem(defaultsKey(), JSON.stringify(DEFAULTS)); } catch { /* ignore */ } }
 
 /* ════════════════════════════════════════
    WEEK HELPERS
@@ -418,6 +429,7 @@ async function loadNetwork() {
 
 async function reloadData() {
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+  loadDefaults();   // стандартні зміни цього закладу (per-venue)
   if (canEdit()) await loadRosters();
   else { await Promise.all([loadStations(), loadRosterOrders()]); await loadNetwork(); }   // станції+порядок паралельно
 }
@@ -1441,7 +1453,7 @@ export async function render() {
   _cellSheet  = null;
   _weekOffset = 0;
   _bookOffset = 0;
-  await reloadData();
+  await reloadData();   // reloadData відновлює і стандартні зміни (loadDefaults)
   return renderHub();
 }
 
@@ -1748,7 +1760,7 @@ export function init() {
       if (!_defaultsSheet) return;
       const s = document.getElementById('sch-def-start')?.value;
       const e = document.getElementById('sch-def-end')?.value;
-      if (s && e) { DEFAULTS[_defaultsSheet].s = s; DEFAULTS[_defaultsSheet].e = e; }
+      if (s && e) { DEFAULTS[_defaultsSheet].s = s; DEFAULTS[_defaultsSheet].e = e; persistDefaults(); }
       _defaultsSheet = null;
       document.getElementById('sch-def-ov')?.remove();
       re();
