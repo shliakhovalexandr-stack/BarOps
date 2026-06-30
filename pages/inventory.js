@@ -113,6 +113,15 @@ function syncAssignFromSession() {
   _assign = a;
 }
 function hasAssign() { return _assign && Object.keys(_assign).length > 0; }
+// Розподіл із попередньої сесії (найсвіжіша інша сесія з непорожнім assignJson) — для «скопіювати»
+function prevAssignMap() {
+  const cand = _sessions
+    .filter(s => s.id !== _assignSessionId && s.assignJson)
+    .map(s => { try { const o = JSON.parse(s.assignJson); return (o && typeof o === 'object' && Object.keys(o).length) ? { s, o } : null; } catch { return null; } })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.s.scheduledAt || b.s.createdAt || 0) - new Date(a.s.scheduledAt || a.s.createdAt || 0));
+  return cand[0] ? cand[0].o : null;
+}
 // Чи фільтрувати вид для поточного виконавця (офіціант при активному розподілі)
 function assignFilterOn() { return isDish() && !canManageInv() && hasAssign(); }
 // Позиції, видимі поточному виконавцю: офіціанту при розподілі — лише його, інакше всі
@@ -130,20 +139,23 @@ function waiterColor(id) { const i = Math.max(0, _waiters.findIndex(w => w.id ==
 function locMode() { return isKitchen() && _locations.length > 0; }   // режим підрахунку по складах
 function locById(id) { return _locations.find(l => l.id === id) || null; }
 // productId-и, не додані до жодного складу (віртуальний «Без складу»)
+// На склад можна класти і товари, і НФ
+function prodById(id) { return _balance.find(x => x.id === id) || _prepById[id] || null; }
+function locPool() { return [..._balance, ..._preps]; }   // усе, що можна додати на склад
 function unassignedProductIds() {
   const inSome = new Set();
   for (const l of _locations) for (const pid of (l.products || [])) inSome.add(pid);
-  return _balance.filter(p => !inSome.has(p.id)).map(p => p.id);
+  return locPool().filter(p => !inSome.has(p.id)).map(p => p.id);
 }
 // productId-и складу (для LOC_NONE — невіднесені)
 function locProductIds(locId) {
   if (locId === LOC_NONE) return unassignedProductIds();
-  const l = locById(locId); return l ? (l.products || []).filter(pid => _balance.find(x => x.id === pid)) : [];
+  const l = locById(locId); return l ? (l.products || []).filter(pid => prodById(pid)) : [];
 }
-// Синтетичні рядки складу для підрахунку: id="locId::productId", productId=реальний
+// Синтетичні рядки складу для підрахунку: id="locId::productId", productId=реальний (товар АБО НФ)
 function locRows(locId) {
   return locProductIds(locId).map(pid => {
-    const p = _balance.find(x => x.id === pid); if (!p) return null;
+    const p = prodById(pid); if (!p) return null;
     return { ...p, id: `${locId}::${pid}`, productId: pid, locId, amount: null };   // amount per-склад невідомий
   }).filter(Boolean);
 }
@@ -166,8 +178,8 @@ function locSummedRows() {
     sums[pid] = (sums[pid] || 0) + getResult(`${t.id}::${pid}`);
   }
   return Object.entries(sums).map(([pid, amount]) => {
-    const p = _balance.find(x => x.id === pid) || {};
-    return { productId: pid, productName: p.name || '', amount, systemQty: p.amount || 0, method: modeOf(pid) };
+    const p = prodById(pid) || {};
+    return { productId: pid, productName: p.name || '', amount, systemQty: (p.amount != null ? p.amount : p.stock) || 0, method: modeOf(pid), isPrep: isPrep(pid) };
   });
 }
 
@@ -407,6 +419,9 @@ const CSS = `<style id="inv-css">
 .loc-pick-row.on{background:var(--purple-bg)}
 .loc-pick-box{flex-shrink:0;width:24px;height:24px;border-radius:7px;border:1.5px solid var(--border2,var(--border));background:var(--bg1);display:flex;align-items:center;justify-content:center}
 .loc-pick-row.on .loc-pick-box{background:var(--purple);border-color:var(--purple)}
+.loc-copy-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 14px 8px}
+.loc-copy-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b)}
+.loc-copy-chip{padding:5px 10px;border-radius:14px;border:0.5px solid var(--purple-border);background:var(--purple-bg);color:var(--purple);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
 
 /* Confirm dialog (власне вікно замість нативного confirm) */
 .inv-cfm-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -1012,11 +1027,13 @@ async function submitInventory(dryRun) {
     }
   } catch {}
   const loc = locMode();   // кухня по складах → відправляємо СУМУ по товару
+  const locSum = loc ? locSummedRows() : null;   // сума по складах (товари+НФ), рахуємо раз
   try {
     // dry-run: НЕ зберігаємо позиції в нашу БД — лише валідуємо документ у Syrve
     if (!dryRun) {
+      // у режимі складів historyitems = сума по складах (товари з method, НФ з 'nf'); flat — як було
       const items = loc
-        ? locSummedRows().map(r => ({
+        ? locSum.map(r => ({
             productId: r.productId, productName: r.productName, countedQty: r.amount,
             systemQty: r.systemQty, fillPct: r.systemQty > 0 ? Math.round(r.amount / r.systemQty * 100) : 0, method: r.method,
           }))
@@ -1033,8 +1050,9 @@ async function submitInventory(dryRun) {
               method:      m,
             };
           });
-      // НФ — як окремі позиції історії (method='nf'); у Syrve підуть РОЗКЛАДЕНІ товари, не НФ
-      const prepItems = _preps.filter(p => p.id && isCounted(p.id)).map(p => {
+      // НФ — як окремі позиції історії (method='nf'); у Syrve підуть РОЗКЛАДЕНІ товари, не НФ.
+      // У режимі складів НФ уже в items (через locSum) → тут порожньо, щоб не задвоїти.
+      const prepItems = loc ? [] : _preps.filter(p => p.id && isCounted(p.id)).map(p => {
         const cq = getResult(p.id), sq = p.stock || 0;
         return { productId: p.id, productName: p.name, countedQty: cq, systemQty: sq, fillPct: sq > 0 ? Math.round(cq / sq * 100) : 0, method: 'nf' };
       });
@@ -1064,10 +1082,13 @@ async function submitInventory(dryRun) {
 
     // Документ інвентаризації в Syrve Office. dryRun=true → check (валідує, нічого не створює)
     // НФ йдуть окремим полем preparations → бекенд декомпозує в товари й додає до items.
+    // у режимі складів: товари → items, НФ → preparations (бекенд декомпозує) — обидва із суми по складах
     const syrveItems  = loc
-      ? locSummedRows().map(r => ({ productId: r.productId, amount: r.amount }))
+      ? locSum.filter(r => !r.isPrep).map(r => ({ productId: r.productId, amount: r.amount }))
       : _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
-    const prepPayload = _preps.filter(p => p.id && isCounted(p.id)).map(p => ({ productId: p.id, amount: getResult(p.id) }));
+    const prepPayload = loc
+      ? locSum.filter(r => r.isPrep).map(r => ({ productId: r.productId, amount: r.amount }))
+      : _preps.filter(p => p.id && isCounted(p.id)).map(p => ({ productId: p.id, amount: getResult(p.id) }));
     const invRes = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
@@ -1434,7 +1455,7 @@ function buildBar() {
       })()}
     </div>`}
 
-    ${(!isDish() && _preps.length) ? `
+    ${(!isDish() && !loc && _preps.length) ? `
     <div style="margin:16px 18px 4px;font-size:11px;font-weight:600;color:var(--purple);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.05em">Напівфабрикати <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">· розкладуться на товари</span></div>
     <div class="inv-prod-list">
       ${(() => {
@@ -1480,7 +1501,7 @@ function locCountHTML() {
     ${searchBoxHTML()}
     <div class="inv-prod-list">
       ${rows.length
-        ? rows.map(p => productRowHTML(p)).join('')
+        ? rows.map(p => isPrep(p.productId) ? prepRowHTML(p) : productRowHTML(p)).join('')
         : `<div style="text-align:center;padding:20px;color:var(--text2);font-family:var(--font-b);font-size:13px">${
             _search ? 'Нічого не знайдено'
             : _locActive === LOC_NONE ? 'Усі товари віднесено до складів 👍'
@@ -1525,8 +1546,8 @@ function locEditorHTML() {
   const loc = locById(_locEditId);
   if (!loc) { _locEditId = null; return locMgmtHTML(); }
   const inLoc = new Set(loc.products || []);
-  const list = _balance.filter(matchSearch);
-  const chosen = (loc.products || []).filter(pid => _balance.find(x => x.id === pid)).length;
+  const list = locPool().filter(matchSearch);
+  const chosen = (loc.products || []).filter(pid => prodById(pid)).length;
   return `
     <div class="loc-mgmt-hdr">
       <button class="loc-back" data-a="loc-editor-close">‹ Склади</button>
@@ -1535,6 +1556,14 @@ function locEditorHTML() {
     <div class="loc-create" style="margin-bottom:6px">
       <input class="inv-field" id="loc-name" type="text" value="${(loc.name || '').replace(/"/g, '&quot;')}" placeholder="Назва складу" style="margin:0">
     </div>
+    ${(() => {
+      const others = _locations.filter(l => l.id !== loc.id && (l.products || []).length);
+      return others.length ? `
+        <div class="loc-copy-row">
+          <span class="loc-copy-lbl">Скопіювати товари зі складу:</span>
+          ${others.map(o => `<button class="loc-copy-chip" data-a="loc-copy-from" data-lid="${o.id}">${o.name} (${o.products.length})</button>`).join('')}
+        </div>` : '';
+    })()}
     <div class="loc-hint">Торкніться товарів, що зберігаються в цьому складі. Той самий товар можна додати і в інший склад.</div>
     ${searchBoxHTML()}
     <div class="inv-cfg-list">
@@ -1545,7 +1574,7 @@ function locEditorHTML() {
           <div class="loc-pick-row${on ? ' on' : ''}" data-a="loc-prod-toggle" data-pid="${p.id}">
             <div class="loc-pick-box">${on ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</div>
             <div style="flex:1;min-width:0">
-              <div class="inv-cfg-name">${p.name}</div>
+              <div class="inv-cfg-name">${p.name}${isPrep(p.id) ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
               <div class="inv-cfg-sub">${p.unit || ''}${p.amount != null ? ` · залишок ${p.amount.toFixed(0)}` : ''}</div>
             </div>
           </div>`;
@@ -1807,6 +1836,7 @@ function dishAssignHTML() {
         <button class="dw-asg-act" data-a="asg-all" ${_assignBrush ? '' : 'disabled'}>${brushName ? `Усі видимі → ${brushName}` : 'Оберіть офіціанта ↑'}</button>
         ${assignedTotal ? `<button class="dw-asg-act ghost" data-a="asg-reset">Скинути все</button>` : ''}
       </div>
+      ${(!assignedTotal && prevAssignMap()) ? `<div class="dw-asg-actions" style="margin-top:6px"><button class="dw-asg-act ghost" style="flex:1" data-a="asg-copy-prev">📋 Скопіювати розподіл з минулої інвентаризації</button></div>` : ''}
       <div class="dw-asg-prog">
         ${_waiters.filter(w => prog[w.id]).map(w => `<span class="dw-asg-pchip"><span class="dw-asg-dot" style="background:${waiterColor(w.id)}"></span>${waiterShort(w.id)} ${prog[w.id].done}/${prog[w.id].total}</span>`).join('')}
         <span class="dw-asg-pchip" style="color:var(--text3)">не призначено ${unassigned}</span>
@@ -2299,6 +2329,12 @@ function on(e) {
     _confirm = { title: 'Видалити склад', msg: `Видалити склад «${l ? l.name : ''}»? Самі товари лишаться в Syrve.`, okLabel: 'Видалити', danger: true, run: () => deleteLocation(lid) };
     re(); return;
   }
+  if (a === 'loc-copy-from') {
+    const src = locById(t.dataset.lid); const dst = locById(_locEditId);
+    if (!src || !dst) return;
+    dst.products = [...new Set([...(dst.products || []), ...(src.products || [])])];   // об'єднання, без дублів
+    saveLocProducts(_locEditId); re(); return;
+  }
   if (a === 'loc-prod-toggle') {
     const l = locById(_locEditId); if (!l) return;
     l.products = l.products || [];
@@ -2330,6 +2366,12 @@ function on(e) {
     saveAssign(); re(); return;
   }
   if (a === 'asg-reset') { _assign = {}; saveAssign(); re(); return; }
+  if (a === 'asg-copy-prev') {
+    const prev = prevAssignMap(); if (!prev) return;
+    const valid = {};   // лише наявні товари + наявні офіціанти
+    for (const [pd, uid] of Object.entries(prev)) if (_balance.find(x => x.id === pd) && _waiters.find(w => w.id === uid)) valid[pd] = uid;
+    _assign = valid; saveAssign(); re(); return;
+  }
 
   /* ── ПОСУД: розгортання картки (менеджер) / перегляд (офіціант) / редагування ── */
   // Менеджерський список: тап по назві/мініатюрі розгортає картку з фото інлайн
