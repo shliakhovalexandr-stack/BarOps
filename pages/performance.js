@@ -320,10 +320,33 @@ function compareView() {
 
 function isChef() { return (state.role || '').toLowerCase() === 'chef'; }
 
-// Таби залежать від ролі: шеф бачить лише «Страви» (кухня); решта — повний набір + «Страви»
+// Кухонний overview-екран (аналог «Заклад», але по кухні) — для шефа
+function kitchenOverviewView() {
+  if (_loading) return `<div class="pf-load">Рахую виторг кухні й години кухарів…</div>`;
+  if (_err)     return `<div class="pf-empty"><div class="pf-empty-txt">${esc(_err)}</div></div>`;
+  const k = _venueData && _venueData.kitchen;
+  if (!k || !k.days || !k.days.length) {
+    return `<div class="pf-empty"><div class="pf-empty-txt">Немає даних кухні за період.<br>Перевір, що заклад на Syrve і графік кухарів заповнено.</div></div>`;
+  }
+  const t = k.totals || {};
+  const noHours = !(t && t.daysWithShift);
+  const warn = noHours ? `<div class="pf-empty" style="margin-bottom:8px;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
+      <div class="pf-empty-txt">⚠ Графік змін кухарів за період не заповнено, тож «виторг/год» порахувати неможливо.<br>
+      Заповни графік кухарів у розділі <b style="color:var(--amber)">«Графіки»</b> — і метрика зʼявиться автоматично.</div></div>` : '';
+  return `
+    ${warn}
+    <div class="pf-sec" style="padding-top:8px;font-size:11px;color:var(--text1)">🍳 Кухня</div>
+    ${kpiCards(t, k.prev, CFG_KIT)}
+    <div class="pf-note">«—» у виторгу/год — день без графіка кухарів або ще не закритий. Кухня = усі НЕ барні місця приготування.</div>
+    ${dailyTable(k.days, 'Кухня · по днях')}
+    <div style="height:24px"></div>`;
+}
+
+// Таби залежать від ролі: шеф — «Кухня» (аналіз) + «Страви»; решта — повний набір + «Страви»
 function tabsHTML() {
   if (isChef()) {
-    return `<div class="pf-tabs"><button class="pf-tab sel" onclick="window.__perf.setTab('kitchen')">Страви</button></div>`;
+    const t = (key, label) => `<button class="pf-tab ${_tab === key ? 'sel' : ''}" onclick="window.__perf.setTab('${key}')">${label}</button>`;
+    return `<div class="pf-tabs">${t('kov', 'Кухня')}${t('kitchen', 'Страви')}</div>`;
   }
   const r = (state.role || '').toLowerCase();
   const t = (key, label) => `<button class="pf-tab ${_tab === key ? 'sel' : ''}" onclick="window.__perf.setTab('${key}')">${label}</button>`;
@@ -355,6 +378,7 @@ ${CSS}
     </div>
 
     ${_tab === 'venue' ? venueView()
+    : _tab === 'kov'     ? kitchenOverviewView()
     : _tab === 'top'     ? topView()
     : _tab === 'kitchen' ? kitchenView()
     : _tab === 'hours'   ? hoursView()
@@ -376,7 +400,9 @@ async function loadVenue() {
   _loading = true; _err = ''; rerender();
   const { from, to } = range();
   try {
-    const r = await fetch(`${API}/api/performance/bar?venueId=${venueId}&from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token()}` } });
+    // шеф бачить лише кухню → окремий ендпоінт без барних даних
+    const ep = isChef() ? 'kitchen' : 'bar';
+    const r = await fetch(`${API}/api/performance/${ep}?venueId=${venueId}&from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'Помилка');
     _venueData = d;
@@ -439,7 +465,7 @@ async function loadCompare() {
 }
 
 function loadCurrent() {
-  _tab === 'venue'   ? loadVenue()
+  (_tab === 'venue' || _tab === 'kov') ? loadVenue()   // 'kov' бере кухонний блок з /performance/bar
   : _tab === 'top'     ? loadTopItems()
   : _tab === 'kitchen' ? loadKitchen()
   : _tab === 'hours'   ? loadHours()
@@ -449,7 +475,7 @@ function loadCurrent() {
 /* ════════════════════════  MODULE  ════════════════════════ */
 export default {
   render() {
-    _tab = isChef() ? 'kitchen' : 'venue';   // шеф одразу на «Страви»
+    _tab = isChef() ? 'kov' : 'venue';   // шеф одразу на «Кухня» (аналіз)
     _period = 14; _venueData = null; _topItems = null; _kitchen = null; _hours = null; _compare = null; _loading = false; _err = '';
     return buildHTML();
   },
@@ -458,7 +484,7 @@ export default {
       setTab(t) {
         if (_tab === t) return;
         _tab = t;
-        if (t === 'venue')        _venueData ? rerender() : loadVenue();
+        if (t === 'venue' || t === 'kov') _venueData ? rerender() : loadVenue();
         else if (t === 'top')     _topItems  ? rerender() : loadTopItems();
         else if (t === 'kitchen') _kitchen   ? rerender() : loadKitchen();
         else if (t === 'hours')   _hours     ? rerender() : loadHours();
