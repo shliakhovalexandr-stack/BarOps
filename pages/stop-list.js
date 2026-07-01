@@ -180,7 +180,8 @@ function fmtSyncedAt(iso) {
    CARD BUILDERS
 ════════════════════════ */
 function stopCard(item) {
-  // Позиція у стоп-листі Syrve = недоступна для продажу (незалежно від фіз. залишку)
+  // Позиція у стоп-листі Syrve. Якщо ще є фіз. залишок (кілька порцій) — «Обмежено» (жовтий),
+  // якщо залишку немає — «Стоп» (червоний).
   const hasStock = typeof item.stock === 'number' && item.stock > 0;
   const cardClass = item.urgency === 'critical' ? 'crit' : item.urgency === 'high' ? 'high' : 'med';
 
@@ -192,7 +193,7 @@ function stopCard(item) {
           <div class="sl-card-name">${item.name}</div>
           <div class="sl-card-cat">${item.topStore ? `<span style="font-weight:700;color:var(--text1)">${item.topStore}</span> · ` : ''}${item.category || '—'} · ${item.reasonLabel}</div>
         </div>
-        <div class="sl-urgency ${item.urgency}">${urgencyLabel(item.urgency)}</div>
+        <div class="sl-urgency ${hasStock ? 'high' : 'critical'}">${hasStock ? 'ОБМЕЖ.' : 'СТОП'}</div>
       </div>
       <div class="sl-card-metrics">
         <div class="sl-metric">
@@ -205,7 +206,7 @@ function stopCard(item) {
         </div>
         <div class="sl-metric">
           <div class="sl-metric-lbl">Статус</div>
-          <div class="sl-metric-val red">Стоп</div>
+          <div class="sl-metric-val ${hasStock ? 'amber' : 'red'}">${hasStock ? 'Обмежено' : 'Стоп'}</div>
         </div>
       </div>
     </div>
