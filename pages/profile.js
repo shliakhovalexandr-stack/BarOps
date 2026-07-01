@@ -469,7 +469,14 @@ function setPushToggle(on) {
 
 window.__prof = {
   closeShiftAndLogout, togglePush,
-  setTheme(t) { applyThemeChoice(t); updateView(); },
+  setTheme(t) {
+    applyThemeChoice(t);   // застосовує тему (клас + плавний transition)
+    // оновлюємо лише активний стан двох кнопок — БЕЗ ре-рендера всієї сторінки (не «оновлює» профіль)
+    const light = isLightActive();
+    const btns = document.querySelectorAll('.prof-theme-seg .prof-theme-opt');
+    if (btns[0]) btns[0].classList.toggle('on', !light);   // 🌙 темна
+    if (btns[1]) btns[1].classList.toggle('on', light);    // ☀️ світла
+  },
 };
 
 export default {
