@@ -2424,8 +2424,11 @@ function initContextMenu() {
 function initSwipe() {
   if (_swipeListenerAdded) return;
   _swipeListenerAdded = true;
-  let sx = 0, sy = 0, activeCard = null;
+  let sx = 0, sy = 0, activeCard = null, onAction = false;
   document.addEventListener('touchstart', e => {
+    // Тап по кнопці «Змінити/Видалити» — це НЕ свайп: не рухаємо картку, даємо onclick спрацювати
+    onAction = !!e.target.closest('.wo-swipe-edit, .wo-swipe-del');
+    if (onAction) return;
     const wrap = e.target.closest('.wo-swipe-wrap');
     const card = wrap?.querySelector('.wo-card');
     if (activeCard && activeCard !== card) {
@@ -2440,13 +2443,14 @@ function initSwipe() {
     card.style.transition = 'none';
   }, { passive: true });
   document.addEventListener('touchmove', e => {
-    if (!activeCard) return;
+    if (onAction || !activeCard) return;
     const dx = e.touches[0].clientX - sx;
     const dy = Math.abs(e.touches[0].clientY - sy);
     if (dy > 12 && dy > Math.abs(dx)) { activeCard = null; return; }
     if (dx < 0) activeCard.style.transform = `translateX(${Math.max(dx, -152)}px)`;
   }, { passive: true });
   document.addEventListener('touchend', e => {
+    if (onAction) { onAction = false; return; }   // клік по кнопці дії відпрацює сам, картку не чіпаємо
     if (!activeCard) return;
     const dx = e.changedTouches[0].clientX - sx;
     activeCard.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1)';
