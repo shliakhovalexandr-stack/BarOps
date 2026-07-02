@@ -633,12 +633,16 @@ function woCardHTML(w) {
 // Ярлик рахунку списання (для групування денного списку)
 function woAcctLabel(w) { return w.accountName || 'Без рахунку'; }
 
-// Підрозділ позиції (Бар/Кухня): цільовий склад товару → фолбек баланс _prods → фолбек власник scope.
+// Підрозділ позиції (Бар/Кухня): цільовий склад товару → баланс _prods → ПФ _preps → scope → назва.
 function woDeptOf(w) {
   if (w.storeZone === 'kitchen' || w.storeZone === 'bar') return w.storeZone;
   const p = _prods.find(x => x.id === w.prodId);
   if (p && (p.zone === 'kitchen' || p.zone === 'bar')) return p.zone;
-  return w.scope === 'kitchen' ? 'kitchen' : 'bar';
+  const pr = _preps.find(x => x.id === w.prodId);                       // напівфабрикати (НФ/ПФ) — не в балансі, окремий список
+  if (pr && pr.scope) return pr.scope === 'bar' ? 'bar' : 'kitchen';    // ПФ: bar→бар, kitchen/general→кухня
+  if (w.scope === 'kitchen' || w.scope === 'bar') return w.scope;
+  if (/^\s*(НФ|ПФ)\b/i.test(w.prod || '')) return 'kitchen';           // напівфабрикат за назвою (старий запис без scope) — кухня
+  return 'bar';
 }
 
 // Групуємо позиції по рахунку; кожна група згортається/розгортається по кліку.
@@ -2672,6 +2676,12 @@ export default {
           console.warn('[Writeoff] Товари не завантажились:', e.message);
         }
       })();
+    }
+
+    // ПФ (напівфабрикати) для ТОЧНОГО поділу Бар/Кухня у ролей, що бачать обидва підрозділи (адмін).
+    // Фоново, не блокує рендер; після завантаження перемальовуємо список.
+    if (woViewZone() === null && !_prepsLoaded && !_prepsLoading) {
+      loadPreps().then(() => fullRender()).catch(() => {});
     }
 
     return buildHTML();
