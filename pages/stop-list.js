@@ -7,6 +7,8 @@ import { navigate, state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
 /* ════════════════════════
    MODULE STATE
 ════════════════════════ */
@@ -190,7 +192,7 @@ function stopCard(item) {
     <div class="sl-card-top">
       <div class="sl-card-row1">
         <div>
-          <div class="sl-card-name">${item.name}</div>
+          <div class="sl-card-name">${esc(item.name)}</div>
           <div class="sl-card-cat">${item.topStore ? `<span style="font-weight:700;color:var(--text1)">${item.topStore}</span> · ` : ''}${item.category || '—'} · ${item.reasonLabel}</div>
         </div>
         <div class="sl-urgency ${hasStock ? 'high' : 'critical'}">${hasStock ? 'ОБМЕЖ.' : 'СТОП'}</div>
@@ -219,7 +221,7 @@ function riskCard(item) {
   return `
   <div class="sl-risk-item">
     <div class="sl-risk-row1">
-      <div class="sl-risk-name">${item.name}</div>
+      <div class="sl-risk-name">${esc(item.name)}</div>
       <div class="sl-risk-eta ${urgency}">Малий залишок</div>
     </div>
     <div class="sl-risk-bar-bg">

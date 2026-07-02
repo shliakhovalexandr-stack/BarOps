@@ -4,6 +4,8 @@
 
 import { navigate, state } from '../shared/app.js';
 
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
 const STOCK = [
   { id:1,  emoji:'🥃', name:"Johnnie Walker Black 0.7л",  cat:'Віскі',      qty:2.8,  unit:'л', norm:2.1, status:'ok'  },
   { id:2,  emoji:'🌿', name:"Hendrick's Gin 0.7л",        cat:'Джин',       qty:0.4,  unit:'л', norm:0.7, status:'low' },
@@ -114,7 +116,7 @@ function showEditModal(item) {
   overlay.id = 'stk-modal';
   overlay.innerHTML = `
     <div class="stk-modal">
-      <div class="stk-modal-title">${item.name}</div>
+      <div class="stk-modal-title">${esc(item.name)}</div>
 
       <div style="display:flex;gap:6px;margin-bottom:16px">
         <button id="stk-tab-cat" onclick="window.__stk.switchTab('cat')"
@@ -343,7 +345,7 @@ ${CSS}
           oncontextmenu="return false">
           <div class="stk-row" ${posId}>
             <div style="flex:1;min-width:0">
-              <div class="stk-name">${s.name}</div>
+              <div class="stk-name">${esc(s.name)}</div>
               <div class="stk-bar"><div class="stk-bar-fill" style="width:${pct}%;background:${color}"></div></div>
             </div>
             <div style="text-align:right;min-width:70px;flex-shrink:0">

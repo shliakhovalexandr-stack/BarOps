@@ -303,7 +303,7 @@ function dayDetailHTML() {
           const loss = itemLoss(w);
           return `<div style="padding:11px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:12px;margin-bottom:8px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-              <div style="font-size:14px;color:var(--text0);font-family:var(--font-b);flex:1;min-width:0">${w.prod}</div>
+              <div style="font-size:14px;color:var(--text0);font-family:var(--font-b);flex:1;min-width:0">${esc(w.prod)}</div>
               <div style="font-family:var(--font-h);font-weight:700;font-size:14px;color:${CAT[w.cat]?.color||'var(--text0)'};flex-shrink:0">${w.vol||'—'}</div>
             </div>
             <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:6px;line-height:1.6">
@@ -620,8 +620,8 @@ function woCardHTML(w) {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="wo-info">
-          <div class="wo-name">${w.prod}</div>
-          <div class="wo-meta">${woMeta(w)}</div>
+          <div class="wo-name">${esc(w.prod)}</div>
+          <div class="wo-meta">${esc(woMeta(w))}</div>
         </div>
         <div class="wo-right">
           <div class="wo-vol" style="color:${w.valColor}">${w.vol}</div>
@@ -748,16 +748,6 @@ function renderBartender() {
         </div>
       </div>`;
     })()}
-
-    <!-- Category filter -->
-    <div class="wo-sec" style="padding-top:4px">Фільтр за категорією</div>
-    <div class="wo-pills">
-      ${[['all','Всі','var(--red)','pill-all'],['biy','Бій','var(--red)','pill-biy'],['psuv','Псування','var(--amber)','pill-psuv'],['deg','Дегустація','var(--green)','pill-deg'],['insh','Інше','var(--purple)','pill-insh']]
-        .map(([cat,label,col,cls]) => `
-        <div class="wo-pill ${cls} ${_catFilter===cat?'act':''}" onclick="window.__wo.setCatFilter('${cat}')">
-          <div class="wo-pill-dot" style="background:${col}"></div>${label}
-        </div>`).join('')}
-    </div>
 
     <!-- List -->
     <div class="wo-sec">Список за зміну</div>
@@ -948,7 +938,7 @@ function renderBartender() {
           <div class="wo-stock-preview">
             <div>
               <div class="wo-sp-label">Поточний залишок</div>
-              <div class="wo-sp-name" id="wo-sp-name">${_selProd?_selProd.name:'—'}</div>
+              <div class="wo-sp-name" id="wo-sp-name">${_selProd?esc(_selProd.name):'—'}</div>
             </div>
             <div>
               <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
@@ -1033,7 +1023,7 @@ function prodListHTML() {
     <div class="wo-prod-item ${_selProd?.id===p.id?'sel':''}" onclick="window.__wo.selectProd('${p.id}')">
       <div class="wo-pi-emoji">🍾</div>
       <div style="flex:1;min-width:0">
-        <div class="wo-pi-name">${p.name}</div>
+        <div class="wo-pi-name">${esc(p.name)}</div>
         ${p.stock!=null?`<div class="wo-pi-stock">Залишок: ${typeof p.stock==='number'?p.stock.toFixed(2):p.stock}</div>`:''}
       </div>
       <div class="wo-pi-check">
@@ -1145,7 +1135,7 @@ function syrveConfirmHTML() {
                    border:${_selStoreId === s.id ? 'none' : '0.5px solid var(--border)'};
                    background:${_selStoreId === s.id ? 'var(--purple)' : 'rgba(255,255,255,.06)'};
                    color:${_selStoreId === s.id ? '#fff' : 'var(--text1)'}">
-            ${s.name}
+            ${esc(s.name)}
           </button>`).join('')}
         </div>
       </div>` : ''}
@@ -1220,7 +1210,7 @@ function summaryHTML() {
   const loss = _selProd ? Math.round(vol / _selProd.vol * _selProd.price) : 0;
   return `
   <div class="wo-summary-card">
-    <div class="wo-sum-row"><div class="wo-sum-label">Товар</div><div class="wo-sum-val">${_selProd?_selProd.name:'—'}</div></div>
+    <div class="wo-sum-row"><div class="wo-sum-label">Товар</div><div class="wo-sum-val">${_selProd?esc(_selProd.name):'—'}</div></div>
     <div class="wo-sum-div"></div>
     <div class="wo-sum-row"><div class="wo-sum-label">${_isPosterWo ? 'Причина' : (getWoAccounts().length ? 'Рахунок' : 'Категорія')}</div><div class="wo-sum-val">${_isPosterWo ? (_selReasonName || 'Без причини') : (getWoAccounts().length ? esc(_selAccount?.name || '—') : (_selCat?CAT[_selCat].label:'—'))}</div></div>
     <div class="wo-sum-row"><div class="wo-sum-label">Об'єм</div><div class="wo-sum-val-big">${vol} ${unit}</div></div>
@@ -1509,7 +1499,7 @@ function renderManager() {
             <div class="wo-stock-preview">
               <div>
                 <div class="wo-sp-label">Поточний залишок</div>
-                <div class="wo-sp-name" id="wo-sp-name">${_selProd?_selProd.name:'—'}</div>
+                <div class="wo-sp-name" id="wo-sp-name">${_selProd?esc(_selProd.name):'—'}</div>
               </div>
               <div>
                 <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
@@ -1609,7 +1599,7 @@ function prepListHTML() {
     <div class="wo-prod-item ${_selProd?.id === p.id ? 'sel' : ''}" onclick="window.__wo.selectProd('${p.id}')">
       <div class="wo-pi-emoji">🧪</div>
       <div style="flex:1;min-width:0">
-        <div class="wo-pi-name">${p.name} <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span></div>
+        <div class="wo-pi-name">${esc(p.name)} <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span></div>
         <div class="wo-pi-stock">${zoneLbl[p.scope] || ''} · Залишок: ${typeof p.stock === 'number' ? p.stock : 0} ${p.unit || ''}</div>
       </div>
       <div class="wo-pi-check">
@@ -1833,6 +1823,9 @@ async function submitForm() {
           reason:   updated.reason || null,
           accountId:   updated.accountId   || null,
           accountName: updated.accountName || null,
+          storeZone: updated.storeZone || null,
+          scope:     updated.scope || null,
+          isPrep:    !!updated.isPrep,
           venueId:  vId,
         });
         if (saved?.data?.id) {
@@ -1901,6 +1894,9 @@ async function submitForm() {
       reason:   entry.reason || null,
       accountId:   entry.accountId   || null,
       accountName: entry.accountName || null,
+      storeZone: entry.storeZone || null,
+      scope:     entry.scope || null,
+      isPrep:    !!entry.isPrep,
       venueId:  vId,
     });
     if (saved?.data?.id) {
@@ -1951,7 +1947,7 @@ function transferCardHTML(t) {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--text2)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="wo-info">
-          <div class="wo-name">${t.prod}</div>
+          <div class="wo-name">${esc(t.prod)}</div>
           <div class="wo-meta">${t.dateStr || t.time}</div>
         </div>
         <div class="wo-right">
@@ -2091,7 +2087,7 @@ function transferConfirmHTML() {
         <div style="display:flex;flex-direction:column;gap:4px">
           ${pend.map(t => `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
-            <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.prod}</div>
+            <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.prod)}</div>
             <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:#2DD4BF;flex-shrink:0;margin-left:10px">${t.vol}</div>
           </div>`).join('')}
         </div>
@@ -2575,6 +2571,9 @@ export default {
             reason:      w.reason || '',
             accountId:   w.accountId   || localAcc.accountId   || null,   // бекенд (крос-девайс) → фолбек локальний кеш (старі записи)
             accountName: w.accountName || localAcc.accountName || null,
+            storeZone:   w.storeZone || null,   // цільовий склад Бар/Кухня (тепер персиститься → точний поділ)
+            scope:       w.scope || null,
+            isPrep:      !!w.isPrep,
             time:        hhmm,
             dateStr:     `${dd} · ${hhmm}`,
             ts:          w.createdAt,

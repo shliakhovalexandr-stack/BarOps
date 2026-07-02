@@ -7,6 +7,8 @@ import { navigate, state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
 /* ════════════════════════
    MODULE STATE
 ════════════════════════ */
@@ -361,7 +363,7 @@ function barSuppliersHTML() {
               <div class="ord-pbar" style="background:${p.col}"></div>
               <div class="ord-pemoji">📦</div>
               <div style="flex:1;min-width:0">
-                <div class="ord-pname">${p.name}</div>
+                <div class="ord-pname">${esc(p.name)}</div>
                 ${p.syrve ? `<div class="ord-pstock" style="color:var(--text3)">Syrve: ${p.syrve}</div>` : ''}
                 <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
                 ${sug && fmtN(sug.sold7days) > 0 ? `<div class="ord-pstock" style="color:var(--text3)">За тиждень: ${fmtN(sug.sold7days)} ${p.unit || sug.unit || ''}</div>` : ''}
@@ -403,7 +405,7 @@ function barSuppliersHTML() {
       <div class="ord-supp-hdr ${isOpen ? '' : 'collapsed'}" onclick="window.__ord.toggleSupp('${s.id}')">
         <div class="ord-sh-icon">🏭</div>
         <div style="flex:1;min-width:0">
-          <div class="ord-sh-name">${s.name}</div>
+          <div class="ord-sh-name">${esc(s.name)}</div>
           <div class="ord-sh-meta">${nProds(prods.length)}${s.orderDays ? ' · ' + s.orderDays : ''}</div>
         </div>
         ${totalQty > 0 ? `<div style="margin-right:6px"><div class="ord-sh-total" style="color:var(--teal)">${totalQty} шт</div></div>` : ''}
@@ -499,7 +501,7 @@ function mgrOrdersHTML() {
         </button>
         ${items.map(i => `
           <div class="ord-req-item">
-            <span class="ord-req-iname">${i.productName}</span>
+            <span class="ord-req-iname">${esc(i.productName)}</span>
             <span class="ord-req-iqty">${i.qty} ${i.unit || 'од.'}</span>
           </div>
           ${i.comment ? `<div class="ord-req-icomment">${i.comment}</div>` : ''}
@@ -579,7 +581,7 @@ function mgrSuppliersHTML() {
       <div class="ord-ssc-row" onclick="window.__ord.openSuppEdit('${s.id}')">
         <div class="ord-ssc-icon">🏭</div>
         <div style="flex:1;min-width:0">
-          <div class="ord-ssc-name">${s.name}</div>
+          <div class="ord-ssc-name">${esc(s.name)}</div>
           <div class="ord-ssc-items">${nProds(n)}${s.contact ? ' · ' + s.contact : ''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
@@ -609,7 +611,7 @@ function mgrScheduleHTML() {
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="3" width="10" height="9" rx="1.5" stroke="var(--teal)" stroke-width="1.2" fill="none"/><path d="M2 6h10M5 1.5v2M9 1.5v2" stroke="var(--teal)" stroke-width="1.2" stroke-linecap="round"/></svg>
       </div>
       <div style="flex:1">
-        <div class="ord-sched-lbl">${s.name}</div>
+        <div class="ord-sched-lbl">${esc(s.name)}</div>
         <div class="ord-sched-dt">Кожного ${s.orderDays}</div>
       </div>
     </div>`).join('')}
@@ -839,7 +841,7 @@ function suggestHTML() {
       return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;margin-bottom:6px">
         <div style="width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+          <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name)}</div>
           <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">за тиждень ${fmtN(s.sold7days)} ${u} · залишок ${fmtN(s.stock)} ${u}</div>
         </div>
         ${s.suggestedQty > 0

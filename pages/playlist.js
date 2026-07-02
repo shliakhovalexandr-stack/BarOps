@@ -8,6 +8,8 @@ import { navigate, state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
 let _loading   = true;
 let _error     = '';
 let _data      = null;      // { items, leaderboard, live, fetchedAt, posOff }
@@ -327,7 +329,7 @@ function itemCard(it) {
   <div class="pl-card">
     <div class="pl-row" onclick="window.__pl.toggle('${(it.id || it.dishName).replace(/'/g, "\\'")}')">
       <div style="flex:1;min-width:0">
-        <div class="pl-name">${it.dishName}</div>
+        <div class="pl-name">${esc(it.dishName)}</div>
         <div class="pl-meta">${money(it.soldSum)}${it.byWaiter && it.byWaiter.length ? ` · ${it.byWaiter.length} офіц.` : ''}</div>
       </div>
       <div>
@@ -343,7 +345,7 @@ function itemCard(it) {
       ${(it.byWaiter || []).length
         ? it.byWaiter.map(w => `<div class="pl-wrow">
             <div class="pl-av">${initials(w.name)}</div>
-            <div class="pl-wname">${w.name}</div>
+            <div class="pl-wname">${esc(w.name)}</div>
             <div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">${qtyWord(w.qty)}</span></div>
           </div>`).join('')
         : '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 2px">Ще ніхто не продав цю позицію</div>'}
@@ -390,7 +392,7 @@ function body() {
            ${d.leaderboard.map((w, i) => `<div class="pl-lbrow">
              <div class="pl-lbrank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}</div>
              <div class="pl-av">${initials(w.name)}</div>
-             <div style="flex:1;min-width:0"><div class="pl-name" style="font-size:14px">${w.name}</div><div class="pl-meta">${money(w.sum)}</div></div>
+             <div style="flex:1;min-width:0"><div class="pl-name" style="font-size:14px">${esc(w.name)}</div><div class="pl-meta">${money(w.sum)}</div></div>
              <div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">${qtyWord(w.qty)}</span></div>
            </div>`).join('')}
          </div>` : '';
@@ -490,7 +492,7 @@ function addSheet() {
   else listHtml = list.map(d => {
     const added = existing.has(d.name.toLowerCase());
     return `<div class="pl-dish" onclick="${added ? '' : `window.__pl.pick('${d.name.replace(/'/g, "\\'")}')`}" style="${added ? 'opacity:.45' : ''}">
-      <div class="pl-dish-n">${d.name}</div>
+      <div class="pl-dish-n">${esc(d.name)}</div>
       <div class="pl-dish-q">${Math.round(d.qty)} ${qtyWord(d.qty)}/60дн</div>
       <div class="pl-dish-plus">${added ? '✓' : '+'}</div>
     </div>`;
@@ -529,7 +531,7 @@ function histSheet() {
         <div style="flex:1;min-width:0"><div class="pl-dish-n">📦 ${g.name}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${g.count} страв · ${dates(g.from, g.to)}</div></div>${chev}
       </div>`).join('')
       + solo.map(it => `<div class="pl-dish" onclick="window.__pl.report('${it.id}')">
-        <div style="flex:1;min-width:0"><div class="pl-dish-n">${it.dishName}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${dates(it.trackFrom, it.trackTo)}</div></div>${chev}
+        <div style="flex:1;min-width:0"><div class="pl-dish-n">${esc(it.dishName)}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${dates(it.trackFrom, it.trackTo)}</div></div>${chev}
       </div>`).join('');
   }
   return `<div class="pl-ov" onclick="window.__pl.closeHist()">
@@ -550,7 +552,7 @@ function groupTabContent(d) {
   if (_repTab === 'waiters') {
     const ws = d.waiters || [];
     if (!ws.length) return lbl('РЕЙТИНГ ОФІЦІАНТІВ') + `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Продажів за цей період не знайдено</div>`;
-    return lbl('РЕЙТИНГ ОФІЦІАНТІВ') + ws.map((w, i) => `<div class="pl-lbrow"><div class="pl-lbrank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}</div><div class="pl-av">${initials(w.name)}</div><div style="flex:1;min-width:0"><div class="pl-name" style="font-size:14px">${w.name}</div><div class="pl-meta">${money(w.sum)}</div></div><div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div></div>`).join('');
+    return lbl('РЕЙТИНГ ОФІЦІАНТІВ') + ws.map((w, i) => `<div class="pl-lbrow"><div class="pl-lbrank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}</div><div class="pl-av">${initials(w.name)}</div><div style="flex:1;min-width:0"><div class="pl-name" style="font-size:14px">${esc(w.name)}</div><div class="pl-meta">${money(w.sum)}</div></div><div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div></div>`).join('');
   }
   if (_repTab === 'days') {
     const ds = d.days || [];
@@ -564,13 +566,13 @@ function groupTabContent(d) {
           <svg class="pl-chev ${dop ? 'open' : ''}" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" style="margin-left:6px"><path d="M9 6l6 6-6 6"/></svg>
         </div>
         ${dop ? `<div style="padding:2px 4px 8px;display:flex;flex-direction:column;gap:3px">${(x.waiters || []).length
-          ? x.waiters.map((w, i) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 9px;background:var(--bg2);border-radius:8px;font-size:12px;font-family:var(--font-b)"><span style="color:var(--text1)">${i === 0 ? '🥇 ' : ''}${w.name}</span><span style="color:var(--text0);font-weight:600;font-family:var(--font-h)">${Math.round(w.qty)} шт · ${money(w.sum)}</span></div>`).join('')
+          ? x.waiters.map((w, i) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 9px;background:var(--bg2);border-radius:8px;font-size:12px;font-family:var(--font-b)"><span style="color:var(--text1)">${i === 0 ? '🥇 ' : ''}${esc(w.name)}</span><span style="color:var(--text0);font-weight:600;font-family:var(--font-h)">${Math.round(w.qty)} шт · ${money(w.sum)}</span></div>`).join('')
           : '<div style="font-size:11px;color:var(--text2);padding:4px 9px">Без офіціанта</div>'}</div>` : ''}
       </div>`;
     }).join('');
   }
   const xs = d.dishes || [];
-  return lbl('ПО СТРАВАХ') + xs.map(x => `<div class="pl-wrow"><div class="pl-wname" style="margin-left:0">${x.dishName}</div><div class="pl-wqty">${Math.round(x.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(x.sum)}</div></div>`).join('');
+  return lbl('ПО СТРАВАХ') + xs.map(x => `<div class="pl-wrow"><div class="pl-wname" style="margin-left:0">${esc(x.dishName)}</div><div class="pl-wqty">${Math.round(x.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(x.sum)}</div></div>`).join('');
 }
 
 function reportSheet() {
@@ -599,7 +601,7 @@ function reportSheet() {
             ${[['dishes', 'Страви'], ['waiters', 'Офіціанти'], ['days', 'Дні']].map(([k, l]) => `<button onclick="window.__pl.repTab('${k}')" style="flex:1;height:32px;border-radius:8px;border:none;font-size:12px;font-family:var(--font-b);cursor:pointer;background:${_repTab === k ? 'var(--purple)' : 'transparent'};color:${_repTab === k ? '#fff' : 'var(--text2)'}">${l}</button>`).join('')}
           </div>${groupTabContent(d)}`
         : (d.waiters && d.waiters.length
-            ? `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:8px;letter-spacing:.05em">ПО ОФІЦІАНТАХ</div>${d.waiters.map(w => `<div class="pl-wrow"><div class="pl-av">${initials(w.name)}</div><div class="pl-wname">${w.name}</div><div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(w.sum)}</div></div>`).join('')}`
+            ? `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-bottom:8px;letter-spacing:.05em">ПО ОФІЦІАНТАХ</div>${d.waiters.map(w => `<div class="pl-wrow"><div class="pl-av">${initials(w.name)}</div><div class="pl-wname">${esc(w.name)}</div><div class="pl-wqty">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span> · ${money(w.sum)}</div></div>`).join('')}`
             : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Продажів за цей період не знайдено</div>`)}
       <button id="pl-copy-btn" onclick="window.__pl.copy()" style="width:100%;height:50px;margin-top:18px;background:var(--purple);border:none;border-radius:14px;font-size:14px;font-weight:600;color:#fff;font-family:var(--font-h);cursor:pointer">Копіювати</button>
     </div>`;
@@ -656,13 +658,13 @@ function renderItems(items) {
                 return ws.length
                   ? ws.map((w, i) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:10px">
                       <div style="width:20px;text-align:center;font-size:13px">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}</div>
-                      <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.name}</div>
+                      <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(w.name)}</div>
                       <div style="font-size:13px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${Math.round(w.qty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div>
                     </div>`).join('')
                   : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:4px 2px">Ще ніхто не продав із набору ${isToday ? 'сьогодні' : 'цього дня'}</div>`;
               })()
             : g.items.map(it => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:10px">
-                <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.dishName}</div>
+                <div style="flex:1;min-width:0;font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.dishName)}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--text0);font-family:var(--font-h)">${Math.round(it.soldQty)} <span style="font-size:10px;color:var(--text2);font-weight:400">шт</span></div>
               </div>`).join('')}
           <button onclick="window.__pl.groupReport('${g.id}')" style="margin-top:6px;height:42px;background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:11px;color:var(--purple);font-size:13px;font-weight:600;font-family:var(--font-h);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
@@ -675,7 +677,7 @@ function renderItems(items) {
   if (_selectMode) {
     html += standalone.filter(it => it.id).map(it => `<div class="pl-card"><div class="pl-row" onclick="window.__pl.selRow('${it.id}')" style="cursor:pointer">
       <div style="width:22px;height:22px;border-radius:7px;border:2px solid ${_selected.has(it.id) ? 'var(--purple)' : 'var(--border2)'};background:${_selected.has(it.id) ? 'var(--purple)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px">${_selected.has(it.id) ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>' : ''}</div>
-      <div style="flex:1;min-width:0"><div class="pl-name">${it.dishName}</div></div>
+      <div style="flex:1;min-width:0"><div class="pl-name">${esc(it.dishName)}</div></div>
       <div class="pl-qty">${Math.round(it.soldQty)}</div>
     </div></div>`).join('');
   } else {
