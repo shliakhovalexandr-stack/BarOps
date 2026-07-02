@@ -534,7 +534,7 @@ ${CSS}
           <label class="ve-label">СКЛАДИ ТА РАХУНКИ ДЛЯ СПИСАНЬ</label>
           ${(() => {
             const savedS = (() => { try { return JSON.parse(_draft.syrveStores || '[]'); } catch { return []; } })();
-            return savedS.length ? `<div style="font-size:12px;color:var(--green);font-family:var(--font-b);margin-bottom:4px">Склади: ${savedS.map(s=>s.name).join(', ')}</div>` : '';
+            return savedS.length ? `<div style="font-size:12px;color:var(--green);font-family:var(--font-b);margin-bottom:4px">Склади: ${savedS.map(s=>escapeHtml(s.name)).join(', ')}</div>` : '';
           })()}
           <button type="button" id="btn-load-syrve-config" style="width:100%;height:44px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">
             Завантажити склади та рахунки з Syrve
@@ -1072,7 +1072,7 @@ async function initIikoSection(venueId) {
         <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.05);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
           <input type="checkbox" data-id="${a.id}" ${_woSelectedIds.has(a.id) ? 'checked' : ''}
             style="width:16px;height:16px;accent-color:var(--purple)">
-          <span style="font-size:13px;color:var(--text0);font-family:var(--font-b)">${a.name}</span>
+          <span style="font-size:13px;color:var(--text0);font-family:var(--font-b)">${escapeHtml(a.name)}</span>
         </label>`).join('')
       : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:8px 4px">Нічого не знайдено</div>`;
     // Відстежуємо зміни чекбоксів щоб зберегти стан при фільтрації
@@ -1132,7 +1132,7 @@ async function initIikoSection(venueId) {
       if (listEl) {
         listEl.innerHTML = groups.map(g => `
           <div class="ve-tg-item" data-id="${g.id}">
-            <span class="ve-tg-name">${g.name}</span>
+            <span class="ve-tg-name">${escapeHtml(g.name)}</span>
             <span class="ve-tg-id">${g.id}</span>
           </div>`).join('');
         listEl.style.display = 'flex';
@@ -1175,9 +1175,9 @@ async function initIikoSection(venueId) {
         storesListEl.innerHTML = stores.length
           ? stores.map(s => `
             <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
-              <input type="checkbox" data-id="${s.id}" data-name="${s.name}" ${savedStoreIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
+              <input type="checkbox" data-id="${s.id}" data-name="${escapeHtml(s.name)}" ${savedStoreIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
               <div>
-                <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${s.name}${s.parentName ? ` · <span style="color:var(--purple,#a855f7)">${s.parentName}</span>` : ''}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${escapeHtml(s.name)}${s.parentName ? ` · <span style="color:var(--purple,#a855f7)">${escapeHtml(s.parentName)}</span>` : ''}</div>
                 <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:1px">${s.id}</div>
               </div>
             </label>`).join('')

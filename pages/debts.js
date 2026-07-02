@@ -7,6 +7,8 @@ import { state } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
 /* ════════════════════════════════════════
    STATE
 ════════════════════════════════════════ */
@@ -187,8 +189,8 @@ function pickerRowsHTML() {
     const safeUnit = (p.unit || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const ds = (p.name || '').toLowerCase().replace(/"/g, '&quot;');
     return `<div class="dbt-picker-row" data-s="${ds}" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
-      <div class="dbt-picker-name">${p.name}</div>
-      ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${p.unit||''}</div>` : ''}
+      <div class="dbt-picker-name">${esc(p.name)}</div>
+      ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${esc(p.unit||'')}</div>` : ''}
     </div>`;
   }).join('');
   return rows + `<div id="dbt-picker-none" style="display:none;padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`;
@@ -238,7 +240,7 @@ function pickerHTML() {
       <div class="dbt-picker-manual">
         <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px">Або введіть вручну</div>
         <input class="dbt-picker-manual-inp" placeholder="Назва товару, напр. Aperol 1л"
-          value="${manVal}" oninput="window.__dbt.f('item',this.value)"
+          value="${esc(manVal)}" oninput="window.__dbt.f('item',this.value)"
           onkeydown="if(event.key==='Enter')window.__dbt.closePicker()"/>
       </div>
       ${pickerRowsHTML()}
@@ -316,20 +318,20 @@ function debtCard(d) {
     return `
   <div class="dbt-card returned collapsed" onclick="window.__dbt.toggleCard('${d.id}')">
     <div class="dbt-card-collapse-row">
-      <div class="dbt-card-item" style="font-size:13px">${d.item}</div>
+      <div class="dbt-card-item" style="font-size:13px">${esc(d.item)}</div>
       <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
         <div class="dbt-card-badge done">${badgeTxt}</div>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 5l3 3 3-3" stroke="var(--text3)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
     </div>
-    <div class="dbt-card-returned" style="margin-top:4px;padding-top:4px">✓ ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+d.returnedByName:''}</div>
+    <div class="dbt-card-returned" style="margin-top:4px;padding-top:4px">✓ ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+esc(d.returnedByName):''}</div>
   </div>`;
   }
 
   return `
   <div class="dbt-card${done?' returned':''}">
     <div class="dbt-card-row1">
-      <div class="dbt-card-item">${d.item}</div>
+      <div class="dbt-card-item">${esc(d.item)}</div>
       <div style="display:flex;align-items:center;gap:7px">
         <div class="dbt-card-badge ${badge}">${badgeTxt}</div>
         ${done?`<div onclick="event.stopPropagation();window.__dbt.toggleCard('${d.id}')" style="cursor:pointer;padding:2px">
@@ -337,14 +339,14 @@ function debtCard(d) {
         </div>`:''}
       </div>
     </div>
-    <div class="dbt-card-venues"><b>${d.fromVenueName||d.fromVenueId}</b><span style="color:var(--text3)"> → </span><b>${d.toVenueName||d.toVenueId}</b></div>
+    <div class="dbt-card-venues"><b>${esc(d.fromVenueName||d.fromVenueId)}</b><span style="color:var(--text3)"> → </span><b>${esc(d.toVenueName||d.toVenueId)}</b></div>
     <div class="dbt-card-meta">
-      <div class="dbt-card-qty">${d.qty} ${d.unit}${d.price>0?` · ${d.price} грн`:''}</div>
+      <div class="dbt-card-qty">${d.qty} ${esc(d.unit)}${d.price>0?` · ${d.price} грн`:''}</div>
       <div class="dbt-card-date">${fmtDT(d.createdAt)}</div>
     </div>
-    ${d.userName?`<div class="dbt-card-date" style="margin-top:2px">Вніс: ${d.userName}</div>`:''}
-    ${d.note?`<div class="dbt-card-note">${d.note}</div>`:''}
-    ${done?`<div class="dbt-card-returned">✓ ${doneLabel} ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+d.returnedByName:''}</div>`:''}
+    ${d.userName?`<div class="dbt-card-date" style="margin-top:2px">Вніс: ${esc(d.userName)}</div>`:''}
+    ${d.note?`<div class="dbt-card-note">${esc(d.note)}</div>`:''}
+    ${done?`<div class="dbt-card-returned">✓ ${doneLabel} ${fmtDT(d.returnedAt)}${d.returnedByName?' · '+esc(d.returnedByName):''}</div>`:''}
     ${!done ? (
         (isSale && !canCloseSale)
           ? `<div class="dbt-card-note" style="text-align:center;color:var(--text3);font-style:italic">Закриває системний менеджер або бухгалтер</div>`

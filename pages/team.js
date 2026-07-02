@@ -191,6 +191,7 @@ const CSS = `<style id="tm-css">
 /* ════════════════════════
    HELPERS
 ════════════════════════ */
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 function roleLabel(role) {
   const map = { admin:'Системний менеджер', manager:'Менеджер', director:'Керуючий', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант' };
   return map[(role||'').toLowerCase()] || role || 'Бармен';
@@ -272,9 +273,9 @@ function memberCardHTML(t) {
       <div class="tm-card-main">
         ${avatarHTML(t.name, 44, false)}
         <div style="flex:1;min-width:0">
-          <div class="tm-name">${t.name}</div>
+          <div class="tm-name">${esc(t.name)}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">
-            <span style="color:var(--text1)">${roleLabel(t.role)}</span>${(t.role||'').toLowerCase()==='admin' ? '' : ` · ${t.phone}`}
+            <span style="color:var(--text1)">${roleLabel(t.role)}</span>${(t.role||'').toLowerCase()==='admin' ? '' : ` · ${esc(t.phone)}`}
           </div>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
@@ -375,8 +376,8 @@ function profileHTML(t) {
       <div style="display:flex;align-items:center;gap:14px">
         ${avatarHTML(t.name, 60, false)}
         <div>
-          <div style="font-family:var(--font-h);font-size:20px;font-weight:800;color:var(--text0)">${t.name}</div>
-          <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${roleLabel(t.role)} · ${t.venue?.name || state.venue}</div>
+          <div style="font-family:var(--font-h);font-size:20px;font-weight:800;color:var(--text0)">${esc(t.name)}</div>
+          <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${roleLabel(t.role)} · ${esc(t.venue?.name || state.venue)}</div>
           <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
             <div style="width:6px;height:6px;border-radius:50%;background:${t.status==='active'?'var(--green)':'var(--text2)'}"></div>
             <div style="font-size:11px;color:var(--text2);font-family:var(--font-b)">${t.status==='active'?'Активний':'Деактивовано'}</div>
@@ -389,7 +390,7 @@ function profileHTML(t) {
     <div class="tm-ph-card">
       ${(t.role||'').toLowerCase()==='admin' ? '' : `<div class="tm-ph-row">
         <div class="tm-ph-row-lbl">📞 Телефон</div>
-        <div class="tm-ph-row-val">${t.phone}</div>
+        <div class="tm-ph-row-val">${esc(t.phone)}</div>
       </div>`}
       <div class="tm-ph-row">
         <div class="tm-ph-row-lbl">🔐 PIN</div>
@@ -455,7 +456,7 @@ function addSheetHTML() {
     <div class="tm-sheet" onclick="event.stopPropagation()">
       <div class="tm-sh-handle"></div>
       <div class="tm-sh-title">Додати співробітника</div>
-      <div class="tm-sh-sub">Заклад: <strong style="color:var(--green)">${_activeVenueName || 'поточний'}</strong></div>
+      <div class="tm-sh-sub">Заклад: <strong style="color:var(--green)">${esc(_activeVenueName || 'поточний')}</strong></div>
 
       <div class="tm-sh-lbl">Ім'я та прізвище</div>
       <input class="tm-sh-inp" id="add-name" type="text" placeholder="Олексій Коваленко"/>
@@ -477,7 +478,7 @@ function addSheetHTML() {
       <div class="tm-sh-lbl">Заклад</div>
       <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <div style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
-        <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${_activeVenueName || state.venue || 'Поточний заклад'}</div>
+        <div style="font-size:14px;color:var(--text0);font-family:var(--font-b)">${esc(_activeVenueName || state.venue || 'Поточний заклад')}</div>
       </div>
 
       <div class="tm-sh-lbl">Посада / Роль</div>
@@ -508,10 +509,10 @@ function editSheetHTML() {
     <div class="tm-sheet" onclick="event.stopPropagation()">
       <div class="tm-sh-handle"></div>
       <div class="tm-sh-title">Редагувати бармена</div>
-      <div class="tm-sh-sub">${t.name} · ${t.phone}</div>
+      <div class="tm-sh-sub">${esc(t.name)} · ${esc(t.phone)}</div>
 
       <div class="tm-sh-lbl">Ім'я (залиште для зміни)</div>
-      <input class="tm-sh-inp" id="edit-name" type="text" placeholder="${t.name}" value="${t.name}"/>
+      <input class="tm-sh-inp" id="edit-name" type="text" placeholder="${esc(t.name)}" value="${esc(t.name)}"/>
 
       <div class="tm-sh-lbl">Посада / Роль</div>
       ${roleDropdownHTML('edit', _editRole, 'pickRole')}
@@ -544,7 +545,7 @@ ${CSS}
     </div>
     <div style="flex:1">
       <div class="tm-title">Команда</div>
-      <div class="tm-sub">${_activeVenueName || state.venue || 'Всі заклади'} · ${_team.length} учасників</div>
+      <div class="tm-sub">${esc(_activeVenueName || state.venue || 'Всі заклади')} · ${_team.length} учасників</div>
     </div>
     ${(['admin', 'manager', 'director', 'chef'].includes(state.role)) ? `
     <button onclick="window.__tm.openAdd()"
@@ -557,13 +558,13 @@ ${CSS}
   <!-- Venue selector — лише мережеві ролі (admin/accountant/director); шеф/менеджер прив'язані до свого закладу -->
   ${(_venues.length > 1 && ['admin', 'accountant', 'director'].includes((state.role || '').toLowerCase())) ? `
   <div style="padding:0 14px 10px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none">
-    ${_venues.map(v => { const vn = v.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'"); return `
+    ${_venues.map(v => { const vn = v.name.replace(/\\/g, '\\\\').replace(/"/g, '&quot;').replace(/'/g, "\\'"); return `
       <div onclick="window.__tm.switchTeamVenue('${v.id}','${vn}')"
         style="flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-family:var(--font-b);cursor:pointer;transition:all .15s;
           background:${_activeVenueId===v.id?'var(--green)':'var(--bg2)'};
           color:${_activeVenueId===v.id?'#fff':'var(--text1)'};
           border:0.5px solid ${_activeVenueId===v.id?'var(--green)':'var(--border2)'}">
-        ${v.name}
+        ${esc(v.name)}
       </div>
     `}).join('')}
   </div>` : ''}
@@ -869,7 +870,7 @@ async function deactivate(id) {
 async function hardDelete(id) {
   const member = _team.find(m => m.id === id);
   showConfirm({
-    title:   `Видалити ${member?.name || 'бармена'}?`,
+    title:   `Видалити ${esc(member?.name || 'бармена')}?`,
     message: 'Цю дію не можна скасувати. Всі дані будуть втрачені.',
     okLabel: 'Видалити',
     okType:  'danger',
