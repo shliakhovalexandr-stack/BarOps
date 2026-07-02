@@ -25,11 +25,11 @@ function canEdit() {
   return r === 'manager' || r === 'admin' || r === 'director' || r === 'chef';
 }
 // Хто РЕДАГУЄ КОНКРЕТНИЙ підрозділ (рішення юзера):
-//   адмін(сис.менеджер) → лише бармени;  менеджер/керуючий → офіціанти + хозяюшки;
+//   адмін(сис.менеджер) → ВСІ;  менеджер/керуючий → офіціанти + хозяюшки;
 //   шеф → лише кухарі;  кухар/бармен/офіціант/бухгалтер → лише перегляд.
 function canEditDept(key) {
   const r = resolveRole();
-  if (r === 'admin')                       return key === 'bartenders';
+  if (r === 'admin')                       return true;
   if (r === 'manager' || r === 'director') return key === 'waiters' || key === 'cleaners';
   if (r === 'chef')                        return key === 'cooks';
   return false;
