@@ -34,6 +34,15 @@ function canEditDept(key) {
   if (r === 'chef')                        return key === 'cooks';
   return false;
 }
+// Чиї ЗАПИТИ на вихідні бачить роль: керівники (адмін/керуючий) — усі;
+// шеф — лише кухарів; менеджер — лише офіціантів/хозяюшек; решта — нічиї (свої — в «Мої запити»)
+function canSeeRequests(key) {
+  const r = resolveRole();
+  if (r === 'admin' || r === 'director') return true;
+  if (r === 'chef')                      return key === 'cooks';
+  if (r === 'manager')                   return key === 'waiters' || key === 'cleaners';
+  return false;
+}
 // Які підрозділи бачить роль у графіку: кухонні (шеф/кухар) — лише кухня; решта — усі
 function deptAllowed(key) {
   return ['chef', 'cook'].includes(resolveRole()) ? key === 'cooks' : true;
@@ -229,7 +238,13 @@ async function loadRosters() {
         const pubRes = await fetch(`${API}/api/schedule/network?weekStart=${wkStart}`, { headers: H });
         if (pubRes.ok) {
           for (const s of ((await pubRes.json()).shifts || [])) {
-            (pubByUser[s.userId] ||= {})[s.date] = { s: s.start, e: s.end, station: s.station || null, stationName: s.stationName || '', venueId: s.venueId };
+            // Дублікати user+date з різних закладів (старі публікації, що «поглинули» чужий графік) —
+            // перемагає НАЙНОВІША публікація, інакше стара копія перетирала свіжі правки барменів
+            const bucket = (pubByUser[s.userId] ||= {});
+            const cur = bucket[s.date];
+            if (!cur || String(s.createdAt || '') > String(cur.createdAt || '')) {
+              bucket[s.date] = { s: s.start, e: s.end, station: s.station || null, stationName: s.stationName || '', venueId: s.venueId, createdAt: s.createdAt || '' };
+            }
           }
         }
       } catch {}
@@ -278,8 +293,8 @@ async function loadRosters() {
         // бармени — мережево (будь-який заклад); решта — лише свій заклад
         const ps = pub[ymd(w.date)];
         if (ps && (key === 'bartenders' || ps.venueId === _venueId)) {
-          if (ps.s === 'OFF') return { dayOff: true };
-          return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '' };
+          if (ps.s === 'OFF') return { dayOff: true, srcVenueId: ps.venueId };
+          return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '', srcVenueId: ps.venueId };
         }
         return null;
       });
@@ -297,7 +312,8 @@ async function loadRosters() {
       weekDates.forEach((w, di) => { if (rq.dates.includes(ymd(w.date)) && !grid[pi][di]) grid[pi][di] = { dayOff: true }; });
     }
 
-    _rosters[key] = { ...cfg, sub: `${cfg.label} · ${people.length} люд`, people, grid, requests: dayoffByRole[key] || [] };
+    // Запити — лише кому дозволено (керівники всі, шеф кухарів, менеджер зал); накладання «Вих» на грід вище — для всіх
+    _rosters[key] = { ...cfg, sub: `${cfg.label} · ${people.length} люд`, people, grid, requests: canSeeRequests(key) ? (dayoffByRole[key] || []) : [] };
   }
 }
 
@@ -427,7 +443,10 @@ async function loadNetwork() {
     if (s.start === 'OFF') continue;                         // вихідні в мережевому вигляді не показуємо
     if (!networkWide && s.venueId !== _venueId) continue;    // не-бармени — лише свій заклад
     (byUser[s.userId] ||= { id: s.userId, n: s.userName || '—', cells: {} });
-    byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null };
+    // Дублікати user+date з різних закладів — перемагає найновіша публікація (як у loadRosters)
+    const curCell = byUser[s.userId].cells[s.date];
+    if (curCell && String(curCell.createdAt || '') > String(s.createdAt || '')) continue;
+    byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null, createdAt: s.createdAt || '' };
   }
   // Накласти ПІДТВЕРДЖЕНІ вихідні команди (бекенд віддає їх працівнику), щоб бачити, хто у вихідному
   try {
@@ -1520,11 +1539,16 @@ export function init() {
       if (!canEditDept(_role)) return;
       const weekDates = getWeekDates(_weekOffset);
       const weekStart = ymd(weekDates[0].date);
+      const myVenueId = state.venueId || localStorage.getItem('barops_venueId') || '';
       const shifts = [];
       for (const [roleKey, r] of Object.entries(_rosters)) {
         const stns = _stations[roleKey] || [];
         r.people.forEach((p, pi) => {
           (r.grid[pi] || []).forEach((cell, di) => {
+            // Клітинка з ЧУЖОЇ публікації (мережеві бармени: зміна опублікована іншим закладом) —
+            // НЕ поглинаємо: інакше кожен заклад дублював чужий графік у своїх рядках, і стара копія
+            // потім перетирала свіжі правки (Влад Шевченко «збивався» після публікації)
+            if (cell && cell.srcVenueId && cell.srcVenueId !== myVenueId) return;
             if (cell && cell.s) {   // реальна зміна
               const stn = stns.find(x => x.id === cell.station);
               shifts.push({
