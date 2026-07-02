@@ -42,7 +42,7 @@ const CSS = `<style id="jrn-css">
 .jrn-header{padding:16px 20px 8px;display:flex;align-items:center;justify-content:space-between}
 .jrn-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .jrn-back:active{background:rgba(255,255,255,.08)}
-.jrn-title{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em}
+.jrn-title{font-family:var(--font-h);font-size:19px;font-weight:700;color:var(--text0);letter-spacing:-.02em;white-space:nowrap}
 .jrn-date{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .jrn-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;
   padding:14px 20px 8px;font-family:var(--font-b);display:flex;align-items:center;justify-content:space-between}
@@ -187,6 +187,14 @@ function canManage() {
 function isFloorMgr() { return ['manager', 'chef'].includes((_role || '').toLowerCase()); }
 function mgrDept()  { return (_role || '').toLowerCase() === 'chef' ? 'kitchen' : 'waiters'; }
 function mgrWhom()  { return mgrDept() === 'kitchen' ? 'кухні' : 'офіціантів'; }
+// Заголовок журналу за роллю: кухня (кухар/шеф), зал (менеджер/керуючий/офіціант/хозяюшка), бар (бармен)
+function jrnTitle() {
+  const r = (_role || '').toLowerCase();
+  if (r === 'cook' || r === 'chef')                       return 'Щоденний журнал кухні';
+  if (r === 'bartender' || r === 'barman')                return 'Щоденний журнал бару';
+  if (['manager', 'director', 'waiter', 'hostess'].includes(r)) return 'Щоденний журнал залу';
+  return 'Щоденний журнал';   // адмін/бухгалтер — загальний
+}
 function myDepartment(role) {
   const r = (role || '').toLowerCase();
   if (r === 'cook' || r === 'chef') return 'kitchen';
@@ -502,7 +510,7 @@ ${CSS}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div>
-          <div class="jrn-title">Журнал</div>
+          <div class="jrn-title">${jrnTitle()}</div>
           <div class="jrn-date">${todayStr()} · ${state.venue || ''}</div>
         </div>
       </div>
