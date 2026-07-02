@@ -256,7 +256,7 @@ function roleDropdownHTML(idPrefix, selectedValue, onSelect) {
 
 // Групи команди за ролями (у порядку показу)
 const TEAM_GROUPS = [
-  { label: 'Керівництво', roles: ['admin', 'manager', 'director'] },
+  { label: 'Адміністратори закладу', roles: ['admin', 'manager', 'director'] },
   { label: 'Бухгалтерія', roles: ['accountant'] },
   { label: 'Бармени',     roles: ['bartender', 'barman'] },
   { label: 'Кухня',       roles: ['chef', 'cook'] },
