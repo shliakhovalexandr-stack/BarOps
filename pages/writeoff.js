@@ -1812,9 +1812,14 @@ async function submitForm() {
     volNum:  vol,
     unitKey: unit,
     isPrep:  !!_selProd?.isPrep,
-    scope:   _selProd?.isPrep
+    // scope = ВЛАСНИК запису (зона ролі автора). Щоб запис лишався у СВОЄМУ списку/надсиланні (inWoZone):
+    // бармен, що списує кухонний товар (кава/молоко зі складу «Кухня»), має бачити й слати свій запис,
+    // а не втрачати його, бо товар лежить на кухонному складі.
+    scope:   roleZone(),
+    // storeZone = ЦІЛЬОВИЙ склад Syrve (за складом товару) → окремий акт на потрібний склад при надсиланні.
+    storeZone: _selProd?.isPrep
                ? (_selProd.scope === 'kitchen' ? 'kitchen' : _selProd.scope === 'bar' ? 'bar' : roleZone())
-               : (_selProd?.zone === 'kitchen' ? 'kitchen' : _selProd?.zone === 'bar' ? 'bar' : roleZone()),   // за складом товару (бар/кухня); фолбек — зона ролі
+               : (_selProd?.zone === 'kitchen' ? 'kitchen' : _selProd?.zone === 'bar' ? 'bar' : roleZone()),
     valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
     reasonId:    _isPosterWo ? _selReasonId : undefined,    // причина Poster (reason_id)
@@ -2172,9 +2177,17 @@ async function doSendActToSyrve() {
   const results = [];
   const errors  = [];
   for (const g of groups) {
-    // розбиваємо позиції рахунку за складом (bar/kitchen) — ПФ кухні йдуть на склад кухні
+    // розбиваємо позиції рахунку за ЦІЛЬОВИМ складом (bar/kitchen) — кухонні товари/ПФ йдуть на склад кухні.
+    // Пріоритет: storeZone запису → відновлення за складом товару з актуального балансу _prods
+    // (для записів, завантажених із бекенду, що втратили storeZone) → фолбек стара логіка scope.
     const byScope = {};
-    for (const w of g.items) { const sc = w.scope || 'bar'; (byScope[sc] = byScope[sc] || []).push(w); }
+    for (const w of g.items) {
+      const prod = _prods.find(p => p.id === w.prodId);
+      const sc = w.storeZone
+              || (prod?.zone === 'kitchen' ? 'kitchen' : prod?.zone === 'bar' ? 'bar' : null)
+              || w.scope || 'bar';
+      (byScope[sc] = byScope[sc] || []).push(w);
+    }
     for (const [scope, witems] of Object.entries(byScope)) {
       // Poster — окремий акт на кожну причину; Syrve — один акт на scope
       const byReason = {};
