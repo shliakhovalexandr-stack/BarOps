@@ -68,7 +68,7 @@ let _transferDir = 'bar2kitchen'; // напрямок для admin: 'bar2kitchen
 let _transferConfirmOpen = false; // стилізоване підтвердження надсилання переміщення
 let _transferComment     = '';    // коментар до переміщення
 let _actComments         = {};    // коментар до акту списання по рахунку: { accountId|'__auto__' → текст }
-let _expandedAcct        = new Set(); // розгорнуті групи-рахунки в денному списку (по label рахунку)
+let _collapsedAcct       = new Set(); // ЗГОРНУТІ групи-рахунки (порожній = всі розгорнуті за замовчуванням)
 let _transferResult = null;       // { sending } | { ok, msg }
 let _prodTab      = 'goods';      // 'goods' | 'prep' — вкладка пікера товарів
 let _preps        = [];           // напівфабрикати з /api/pos/preparations
@@ -657,7 +657,7 @@ function woAcctGroupsHTML(items, keyPrefix = '') {
   let out = '';
   for (const [label, gitems] of groups) {
     const fullKey = keyPrefix + label;
-    const open  = _expandedAcct.has(fullKey);
+    const open  = !_collapsedAcct.has(fullKey);   // розгорнуто, поки не згорнули вручну
     const keyJs = fullKey.replace(/\\/g, '\\\\').replace(/"/g, '&quot;').replace(/'/g, "\\'");
     const loss  = gitems.reduce((s, w) => s + (itemLoss(w) || 0), 0);
     out += `
@@ -706,8 +706,8 @@ function woList() {
 }
 
 function toggleAcctGroup(key) {
-  if (_expandedAcct.has(key)) _expandedAcct.delete(key);
-  else                        _expandedAcct.add(key);
+  if (_collapsedAcct.has(key)) _collapsedAcct.delete(key);
+  else                         _collapsedAcct.add(key);
   fullRender();   // свайп — делегований листенер, переініціалізація не потрібна
 }
 
@@ -1873,7 +1873,7 @@ async function submitForm() {
 
   _writeoffs.push(entry);
   // одразу показати щойно додану групу-рахунок (з префіксами підрозділу для розділеного адмін-в'ю)
-  { const _l = entry.accountName || 'Без рахунку'; _expandedAcct.add(_l); _expandedAcct.add('bar|' + _l); _expandedAcct.add('kit|' + _l); }
+  { const _l = entry.accountName || 'Без рахунку'; _collapsedAcct.delete(_l); _collapsedAcct.delete('bar|' + _l); _collapsedAcct.delete('kit|' + _l); }
 
   // Зберігаємо в localStorage
   const vId = localStorage.getItem('barops_venueId') || '';
