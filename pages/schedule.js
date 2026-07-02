@@ -19,10 +19,20 @@ function resolveRole() {
   return tokenRole() || (state.role || '').toLowerCase() || (localStorage.getItem('barops_role') || '').toLowerCase() || 'bartender';
 }
 
-// Редагувати графік можуть лише менеджер/адмін; решта — перегляд + бронювання вихідних.
+// Чи може роль редагувати ХОЧА Б ОДИН підрозділ (для завантаження ростерів / загального UI хабу).
 function canEdit() {
   const r = resolveRole();
   return r === 'manager' || r === 'admin' || r === 'director' || r === 'chef';
+}
+// Хто РЕДАГУЄ КОНКРЕТНИЙ підрозділ (рішення юзера):
+//   адмін(сис.менеджер) → лише бармени;  менеджер/керуючий → офіціанти + хозяюшки;
+//   шеф → лише кухарі;  кухар/бармен/офіціант/бухгалтер → лише перегляд.
+function canEditDept(key) {
+  const r = resolveRole();
+  if (r === 'admin')                       return key === 'bartenders';
+  if (r === 'manager' || r === 'director') return key === 'waiters' || key === 'cleaners';
+  if (r === 'chef')                        return key === 'cooks';
+  return false;
 }
 // Які підрозділи бачить роль у графіку: кухонні (шеф/кухар) — лише кухня; решта — усі
 function deptAllowed(key) {
@@ -839,7 +849,7 @@ function renderHub() {
           <div style="width:8px;height:8px;border-radius:3px;background:${r.color};flex-shrink:0"></div>
           <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">${r.label}</div>
           <div style="font-size:11px;color:#52525B">${r.people.length} · ${onShift} на зміні</div>
-          ${canEdit()
+          ${canEditDept(key)
             ? `<button class="sch-edit-btn" onclick="window.__sch.goRole('${key}')">Редагувати</button>`
             : `<div class="sch-dept-chev" onclick="window.__sch.goRole('${key}')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
@@ -992,7 +1002,7 @@ function renderRoleView(roleKey) {
             : `onclick="window.__sch.showCellInfo('${p.n.split(' ')[0]}','${cell.s}','${cell.e}','${cell.station||''}')"`;
           return `<td style="padding:2px"><div style="min-width:46px;min-height:34px;border-radius:8px;background:${bg};border:0.5px solid ${bd};color:${tx};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 6px;line-height:1.15;cursor:pointer" ${onclick}>${cellInner(zone, time)}</div></td>`;
         }).join('');
-        const editDrag = canEdit() && _mode === 'edit';
+        const editDrag = canEditDept(roleKey) && _mode === 'edit';
         const shiftCount = (r.grid[pi] || []).filter(c => c && c.s).length;
         return `<tr data-pid="${p.id}">
           <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle;position:sticky;left:0;z-index:2;background:#000">
@@ -1075,11 +1085,11 @@ function renderRoleView(roleKey) {
     </div>`
   ).join('');
 
-  const bar = canEdit()
+  const bar = canEditDept(roleKey)
     ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`
     : `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`;
 
-  const editPill = canEdit()
+  const editPill = canEditDept(roleKey)
     ? `<button onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')"
         style="height:34px;padding:0 14px;border-radius:20px;background:${_mode==='edit'?'#1F1F22':'#A88BFF'};border:${_mode==='edit'?'0.5px solid rgba(255,255,255,0.12)':'none'};font-size:13px;font-weight:600;color:${_mode==='edit'?'#A1A1AA':'#000'};cursor:pointer;font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:6px;margin-top:2px">
         ${_mode==='edit'
@@ -1122,7 +1132,7 @@ function renderRoleView(roleKey) {
           <tbody id="sch-tbody-${roleKey}">${bodyRows}</tbody>
         </table>
       </div>
-      ${(roleKey === 'bartenders' && canEdit() && _mode === 'edit')
+      ${(roleKey === 'bartenders' && canEditDept(roleKey) && _mode === 'edit')
         ? `<button class="sch-add" style="width:calc(100% - 36px);box-sizing:border-box;margin:2px 18px 16px" onclick="window.__sch.openBarPicker()">Бармени графіка</button>` : ''}
       <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
       ${procChips}
@@ -1228,11 +1238,12 @@ function renderCellSheet() {
   const cell = r.grid[pi][di];
   const w    = getWeekDates(_weekOffset)[di];
   const stns = _stations[roleKey] || [];
-  const def  = DEFAULTS[roleKey];
+  const def  = DEFAULTS[roleKey] || { s: '09:00', e: '23:00' };
 
   const isShift  = _cellMode === 'shift';
-  const startDef = cell ? cell.s : def.s;
-  const endDef   = cell ? cell.e : def.e;
+  // фолбек на стандарт, якщо клітинка без часу (вихідний/порожня) — інакше value="undefined" (warning)
+  const startDef = (cell && cell.s) || def.s;
+  const endDef   = (cell && cell.e) || def.e;
   const curStn   = cell?.station || null;
 
   // Station chips — завжди видимі, з можливістю додати нову
@@ -1312,7 +1323,7 @@ function renderCellSheet() {
 ════════════════════════════════════════ */
 function renderDefaultsSheet(roleKey) {
   const r   = _rosters[roleKey];
-  const def = DEFAULTS[roleKey];
+  const def = DEFAULTS[roleKey] || { s: '09:00', e: '23:00' };
   return `
   <div class="sch-ov" id="sch-def-ov" onclick="window.__sch.closeDefaultsOv(event)">
     <div class="sch-sheet">
@@ -1363,7 +1374,7 @@ function renderBarPicker() {
 
 // Drag-reorder рядків гріда (будь-яка роль, режим редагування)
 function attachRowDrag(roleKey) {
-  if (!canEdit() || _mode !== 'edit') return;
+  if (!canEditDept(roleKey) || _mode !== 'edit') return;
   const tbody = document.getElementById(`sch-tbody-${roleKey}`);
   if (!tbody) return;
   tbody.querySelectorAll('.sch-drag-h').forEach(h => {
@@ -1466,7 +1477,9 @@ export function init() {
     goRole(key) {
       if (!deptAllowed(key)) return;            // шеф — лише кухня
       _role = key; _view = 'role';
-      if (canEdit()) { _mode = 'edit'; localStorage.setItem('barops_sch_mode', 'edit'); }  // стрілка → одразу редагування
+      // одразу в редагування лише якщо роль може редагувати ЦЕЙ підрозділ; інакше — перегляд
+      _mode = canEditDept(key) ? 'edit' : 'view';
+      if (_mode === 'edit') localStorage.setItem('barops_sch_mode', 'edit');
       re();
     },
     async goBooking() { _view = 'booking'; _bookOffset = 0; _selDays = new Set(); re(); await loadMyDayoff(); re(); },
@@ -1477,14 +1490,14 @@ export function init() {
     async nextWeek() { _weekOffset++; await reloadData(); re(); },
 
     setMode(m) {
-      if (m === 'edit' && !canEdit()) return;
+      if (m === 'edit' && !canEditDept(_role)) return;
       _mode = m;
       localStorage.setItem('barops_sch_mode', m);
       re();
     },
 
     async publishSchedule() {
-      if (!canEdit()) return;
+      if (!canEditDept(_role)) return;
       const weekDates = getWeekDates(_weekOffset);
       const weekStart = ymd(weekDates[0].date);
       const shifts = [];
