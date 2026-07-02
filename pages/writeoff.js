@@ -959,17 +959,6 @@ function renderBartender() {
 
         <!-- Step 4: Category pills (if accounts mode) + Reason -->
         <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
-          ${getWoAccounts().length ? `
-          <div>
-            <div class="wo-custom-lbl">Тип списання</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              ${Object.entries(CAT).map(([k,v]) => `
-              <div onclick="window.__wo.selectCat('${k}')"
-                style="padding:7px 14px;border-radius:20px;border:0.5px solid ${_selCat===k?v.color:'var(--border)'};background:${_selCat===k?v.bg:'transparent'};color:${_selCat===k?v.color:'var(--text2)'};font-size:12px;cursor:pointer;font-family:var(--font-b);transition:all .15s">
-                ${v.label}
-              </div>`).join('')}
-            </div>
-          </div>` : ''}
           <div>
             <div class="wo-custom-lbl">Причина списання</div>
             <textarea class="wo-textarea" id="wo-reason-custom"
@@ -1232,7 +1221,7 @@ function summaryHTML() {
   <div class="wo-summary-card">
     <div class="wo-sum-row"><div class="wo-sum-label">Товар</div><div class="wo-sum-val">${_selProd?_selProd.name:'—'}</div></div>
     <div class="wo-sum-div"></div>
-    <div class="wo-sum-row"><div class="wo-sum-label">${_isPosterWo ? 'Причина' : 'Категорія'}</div><div class="wo-sum-val">${_isPosterWo ? (_selReasonName || 'Без причини') : (_selCat?CAT[_selCat].label:'—')}</div></div>
+    <div class="wo-sum-row"><div class="wo-sum-label">${_isPosterWo ? 'Причина' : (getWoAccounts().length ? 'Рахунок' : 'Категорія')}</div><div class="wo-sum-val">${_isPosterWo ? (_selReasonName || 'Без причини') : (getWoAccounts().length ? esc(_selAccount?.name || '—') : (_selCat?CAT[_selCat].label:'—'))}</div></div>
     <div class="wo-sum-row"><div class="wo-sum-label">Об'єм</div><div class="wo-sum-val-big">${vol} ${unit}</div></div>
     <div class="wo-sum-row"><div class="wo-sum-label">Збиток (орієнтовно)</div><div class="wo-sum-val" style="color:var(--red)">${loss>0?'~'+loss+' ₴':'—'}</div></div>
   </div>`;
