@@ -268,14 +268,14 @@ async function loadRosters() {
     // Бармени мережеві: якщо хтось підтвердив вихідний, але його ще нема в ростері закладу —
     // додаємо рядок (id = userId акаунта, дедуп по прізвищу), щоб підтверджений вихідний було видно.
     if (key === 'bartenders') {
-      const seenSur = new Set(basePeople.map(p => (p.n || '').trim().toLowerCase().split(/\s+/)[0]).filter(Boolean));
       for (const rq of (dayoffByRole.bartenders || [])) {
         if (rq.status !== 'approved') continue;
-        const nm  = (rq.who || '').trim().toLowerCase();
-        const sur = nm.split(/\s+/)[0];
-        if (!sur || seenSur.has(sur)) continue;
-        seenSur.add(sur);
-        basePeople.push({ id: rq.userId || `req-${rq.id}`, i: ini(rq.who || '?'), n: rq.who || 'Бармен', role: 'bartender', extra: true });
+        const nm = (rq.who || '').trim();
+        if (!nm) continue;
+        // Дедуп за БУДЬ-ЯКИМ спільним словом: «Владислав Шманько» = «Шманько В.» (раніше
+        // порівнювались лише перші слова → та сама людина зʼявлялась другим рядком-дублем)
+        if (basePeople.some(p => nameTokensMatch(p.n, nm))) continue;
+        basePeople.push({ id: rq.userId || `req-${rq.id}`, i: ini(nm), n: nm, role: 'bartender', extra: true });
       }
     }
 
@@ -307,9 +307,14 @@ async function loadRosters() {
       const nm = (rq.who || '').trim().toLowerCase();
       let pi = people.findIndex(p => p.id === rq.userId);
       if (pi < 0 && nm) pi = people.findIndex(p => (p.n || '').trim().toLowerCase() === nm);
-      if (pi < 0 && nm) { const sur = nm.split(/\s+/)[0]; pi = people.findIndex(p => (p.n || '').trim().toLowerCase().split(/\s+/)[0] === sur); }
+      if (pi < 0 && nm) pi = people.findIndex(p => nameTokensMatch(p.n, nm));   // прізвище будь-де в імені
       if (pi < 0) continue;
-      weekDates.forEach((w, di) => { if (rq.dates.includes(ymd(w.date)) && !grid[pi][di]) grid[pi][di] = { dayOff: true }; });
+      const emp = vData[people[pi].id] || {};
+      weekDates.forEach((w, di) => {
+        if (!rq.dates.includes(ymd(w.date)) || grid[pi][di]) return;
+        if (emp[dateKey(w.date)]?.cleared) return;   // менеджер явно очистив клітинку — «Вих» не повертаємо
+        grid[pi][di] = { dayOff: true };
+      });
     }
 
     // Запити — лише кому дозволено (керівники всі, шеф кухарів, менеджер зал); накладання «Вих» на грід вище — для всіх
@@ -457,7 +462,13 @@ async function loadNetwork() {
       for (const rq of (dData.requests || [])) {
         if (rq.status !== 'approved') continue;
         if (!deptRoles.includes((rq.role || '').toLowerCase())) continue;   // лише свій підрозділ
-        const uid = rq.userId || `off-${rq.id}`;
+        // Той самий бармен може бути в гріді під id ростера («Шманько В.»), а запит — під userId
+        // акаунта («Владислав Шманько») → шукаємо наявний рядок за іменем, щоб не плодити дубль
+        let uid = rq.userId || `off-${rq.id}`;
+        if (!byUser[uid]) {
+          const ex = Object.values(byUser).find(u => nameTokensMatch(u.n, rq.userName || ''));
+          if (ex) uid = ex.id;
+        }
         for (const d of (rq.dates || [])) {
           if (!weekYmd.has(d)) continue;
           (byUser[uid] ||= { id: uid, n: rq.userName || '—', cells: {} });
@@ -515,15 +526,21 @@ function findReqById(id) {
   }
   return null;
 }
+// Збіг імен за БУДЬ-ЯКИМ спільним словом ≥3 літер: «Владислав Шманько» ↔ «Шманько В.» (прізвище
+// може бути першим АБО останнім; порівняння лише перших слів плодило дублі-рядки в ростері)
+function nameTokensMatch(a, b) {
+  const tok = s => (s || '').toLowerCase().split(/\s+/).map(w => w.replace(/[.,]/g, '')).filter(w => w.length >= 3);
+  const ta = tok(a), tb = new Set(tok(b));
+  return ta.some(w => tb.has(w));
+}
 // id рядка ростера для запиту: за userId, інакше за іменем/прізвищем
 // (ростер барменів — по іменах, тому userId акаунта не збігається з id рядка)
 function resolveReqPersonId(req) {
   if (!req) return '';
   for (const r of Object.values(_rosters)) { const p = r.people.find(x => x.id === req.userId); if (p) return p.id; }
-  const nm  = (req.who || '').trim().toLowerCase();
-  const sur = nm.split(/\s+/)[0];
+  const nm = (req.who || '').trim().toLowerCase();
   for (const r of Object.values(_rosters)) { const p = r.people.find(x => (x.n || '').trim().toLowerCase() === nm); if (p) return p.id; }
-  if (sur) for (const r of Object.values(_rosters)) { const p = r.people.find(x => (x.n || '').trim().toLowerCase().split(/\s+/)[0] === sur); if (p) return p.id; }
+  if (nm) for (const r of Object.values(_rosters)) { const p = r.people.find(x => nameTokensMatch(x.n, nm)); if (p) return p.id; }
   return req.userId || '';
 }
 // Підтверджений запит → позначаємо дати як вихідні у графіку (окреме сховище за ymd)
@@ -536,6 +553,19 @@ function markApprovedOff(req) {
   if (!raw[_venueId][uid]) raw[_venueId][uid] = {};
   for (const d of req.dates) raw[_venueId][uid][d] = true;
   localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
+}
+// Скасування підтвердженого запиту → знімаємо його дати з локальних позначок «Вих» (інакше цей
+// пристрій продовжував би малювати вихідний навіть після відхилення)
+function unmarkApprovedOff(req) {
+  if (!req || !Array.isArray(req.dates) || !req.dates.length) return;
+  const uid = resolveReqPersonId(req);
+  if (!uid) return;
+  try {
+    const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
+    if (!raw[_venueId] || !raw[_venueId][uid]) return;
+    for (const d of req.dates) delete raw[_venueId][uid][d];
+    localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
+  } catch {}
 }
 
 /* ════════════════════════════════════════
@@ -912,7 +942,7 @@ function renderHub() {
         ${req.status === 'pending'
           ? `<button class="sch-rbtn ap" onclick="window.__sch.hubApproveReq('${req.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
              <button class="sch-rbtn rj" onclick="window.__sch.hubRejectReq('${req.id}')" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
-          : `<div style="text-align:right;white-space:nowrap"><div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}</div>`}
+          : `<div style="text-align:right;white-space:nowrap;display:flex;align-items:center;gap:8px"><div><div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}</div>${req.status === 'approved' && canEdit() ? `<button class="sch-rbtn rj" title="Скасувати вихідні" onclick="window.__sch.hubRejectReq('${req.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>` : ''}</div>`}
       </div>`).join('')}
     </div>` : '';
 
@@ -1116,9 +1146,13 @@ function renderRoleView(roleKey) {
       ${req.status === 'pending'
         ? `<button class="sch-rbtn ap" onclick="window.__sch.approveReq('${roleKey}',${ri})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
            <button class="sch-rbtn rj" onclick="window.__sch.rejectReq('${roleKey}',${ri})" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
-        : `<div style="text-align:right;white-space:nowrap">
-             <div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>
-             ${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}
+        : `<div style="text-align:right;white-space:nowrap;display:flex;align-items:center;gap:8px">
+             <div>
+               <div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>
+               ${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}
+             </div>
+             ${req.status === 'approved' && canEditDept(roleKey)
+               ? `<button class="sch-rbtn rj" title="Скасувати вихідні" onclick="window.__sch.rejectReq('${roleKey}',${ri})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>` : ''}
            </div>`
       }
     </div>`
@@ -1837,9 +1871,9 @@ export function init() {
     async rejectReq(roleKey, ri) {
       const req = _rosters[roleKey]?.requests[ri];
       if (!req) return;
+      unmarkApprovedOff(req);   // якщо був підтверджений — знімаємо локальні позначки «Вих»
       await patchDayOff(req.id, 'rejected');
-      _rosters[roleKey].requests.splice(+ri, 1);
-      re();
+      await reloadData(); re();
     },
     async hubApproveReq(id) {
       const req = findReqById(id);
@@ -1847,7 +1881,7 @@ export function init() {
       await patchDayOff(id, 'approved');
       await reloadData(); re();
     },
-    async hubRejectReq(id)  { await patchDayOff(id, 'rejected'); await reloadData(); re(); },
+    async hubRejectReq(id)  { unmarkApprovedOff(findReqById(id)); await patchDayOff(id, 'rejected'); await reloadData(); re(); },
 
     toggleDay(d) {
       if (_selDays.has(d)) _selDays.delete(d); else _selDays.add(d);
