@@ -429,6 +429,25 @@ async function loadNetwork() {
     (byUser[s.userId] ||= { id: s.userId, n: s.userName || '—', cells: {} });
     byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null };
   }
+  // Накласти ПІДТВЕРДЖЕНІ вихідні команди (бекенд віддає їх працівнику), щоб бачити, хто у вихідному
+  try {
+    const dRes = await fetch(`${API}/api/dayoff?venueId=${_venueId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (dRes.ok) {
+      const dData   = await dRes.json();
+      const weekYmd = new Set(weekDates.map(w => ymd(w.date)));
+      for (const rq of (dData.requests || [])) {
+        if (rq.status !== 'approved') continue;
+        if (!deptRoles.includes((rq.role || '').toLowerCase())) continue;   // лише свій підрозділ
+        const uid = rq.userId || `off-${rq.id}`;
+        for (const d of (rq.dates || [])) {
+          if (!weekYmd.has(d)) continue;
+          (byUser[uid] ||= { id: uid, n: rq.userName || '—', cells: {} });
+          if (!byUser[uid].cells[d]) byUser[uid].cells[d] = { dayOff: true };   // не перекриваємо опубліковану зміну
+        }
+      }
+    }
+  } catch { /* вихідні опційні */ }
+
   let people = Object.values(byUser)
     .map(p => ({ id: p.id, n: p.n, i: ini(p.n), cells: p.cells }))
     .sort((a, b) => a.n.localeCompare(b.n));
@@ -650,6 +669,7 @@ function renderNetworkGrid() {
     : r.people.map((p, pi) => {
         const cells = r.grid[pi].map(cell => {
           if (!cell) return `<td><div class="sch-cell-off"><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
+          if (cell.dayOff) return `<td><div class="sch-cell-dayoff">Вих</div></td>`;   // підтверджений вихідний команди
           const place = (cell.stationName || cell.venueName || '').trim();   // де працює (станція=заклад), інакше заклад-публікатор
           const time  = `${(cell.s||'').slice(0,2)}–${(cell.e||'').slice(0,2)}`;
           const c  = (cell.station && stnColorMap[cell.station]) ? stnColorMap[cell.station] : (place ? stClr(hashIdx(place, PALETTE.length)) : null);
