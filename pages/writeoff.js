@@ -368,6 +368,8 @@ const CSS = `<style id="wo-css">
 .wo-acct-cnt{font-size:11px;color:var(--text2);font-family:var(--font-b);flex-shrink:0;white-space:nowrap}
 .wo-acct-chev{flex-shrink:0;transition:transform .18s}
 .wo-acct-body{display:flex;flex-direction:column;gap:6px;padding-left:6px}
+.wo-dept-lbl{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text0);font-family:var(--font-h);padding:6px 2px 2px;letter-spacing:.01em}
+.wo-dept-lbl:not(:first-child){margin-top:10px;padding-top:12px;border-top:0.5px solid var(--border)}
 .wo-swipe-wrap{position:relative;border-radius:12px;overflow:hidden}
 .wo-swipe-del{position:absolute;right:0;top:0;bottom:0;width:76px;background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:0 12px 12px 0;flex-shrink:0}
 .wo-swipe-del-lbl{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600}
@@ -629,8 +631,17 @@ function woCardHTML(w) {
 // Ярлик рахунку списання (для групування денного списку)
 function woAcctLabel(w) { return w.accountName || 'Без рахунку'; }
 
+// Підрозділ позиції (Бар/Кухня): цільовий склад товару → фолбек баланс _prods → фолбек власник scope.
+function woDeptOf(w) {
+  if (w.storeZone === 'kitchen' || w.storeZone === 'bar') return w.storeZone;
+  const p = _prods.find(x => x.id === w.prodId);
+  if (p && (p.zone === 'kitchen' || p.zone === 'bar')) return p.zone;
+  return w.scope === 'kitchen' ? 'kitchen' : 'bar';
+}
+
 // Групуємо позиції по рахунку; кожна група згортається/розгортається по кліку.
-function woGroupCards(items) {
+// keyPrefix — щоб той самий рахунок у різних підрозділах мав окремий стан розкриття.
+function woAcctGroupsHTML(items, keyPrefix = '') {
   const groups = new Map();
   for (const w of items) {
     const k = woAcctLabel(w);
@@ -639,8 +650,9 @@ function woGroupCards(items) {
   }
   let out = '';
   for (const [label, gitems] of groups) {
-    const open  = _expandedAcct.has(label);
-    const keyJs = label.replace(/\\/g, '\\\\').replace(/"/g, '&quot;').replace(/'/g, "\\'");
+    const fullKey = keyPrefix + label;
+    const open  = _expandedAcct.has(fullKey);
+    const keyJs = fullKey.replace(/\\/g, '\\\\').replace(/"/g, '&quot;').replace(/'/g, "\\'");
     const loss  = gitems.reduce((s, w) => s + (itemLoss(w) || 0), 0);
     out += `
     <div class="wo-acct-group">
@@ -653,6 +665,18 @@ function woGroupCards(items) {
       ${open ? `<div class="wo-acct-body">${gitems.map(woCardHTML).join('')}</div>` : ''}
     </div>`;
   }
+  return out;
+}
+
+// Хто бачить ОБИДВА підрозділи (адмін) — спершу розділяємо Бар / Кухня з підписами,
+// всередині кожного — групи по рахунках. Хто бачить один підрозділ — без поділу.
+function woGroupCards(items) {
+  if (woViewZone() !== null) return woAcctGroupsHTML(items);
+  const bar = items.filter(w => woDeptOf(w) !== 'kitchen');
+  const kit = items.filter(w => woDeptOf(w) === 'kitchen');
+  let out = '';
+  if (bar.length) out += `<div class="wo-dept-lbl"><span>🍸</span> Бар</div>` + woAcctGroupsHTML(bar, 'bar|');
+  if (kit.length) out += `<div class="wo-dept-lbl"><span>🍳</span> Кухня</div>` + woAcctGroupsHTML(kit, 'kit|');
   return out;
 }
 
@@ -1853,7 +1877,8 @@ async function submitForm() {
   };
 
   _writeoffs.push(entry);
-  _expandedAcct.add(entry.accountName || 'Без рахунку');   // одразу показати щойно додану групу-рахунок
+  // одразу показати щойно додану групу-рахунок (з префіксами підрозділу для розділеного адмін-в'ю)
+  { const _l = entry.accountName || 'Без рахунку'; _expandedAcct.add(_l); _expandedAcct.add('bar|' + _l); _expandedAcct.add('kit|' + _l); }
 
   // Зберігаємо в localStorage
   const vId = localStorage.getItem('barops_venueId') || '';
