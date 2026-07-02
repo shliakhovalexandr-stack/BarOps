@@ -306,11 +306,11 @@ function dayDetailHTML() {
               <div style="font-family:var(--font-h);font-weight:700;font-size:14px;color:${CAT[w.cat]?.color||'var(--text0)'};flex-shrink:0">${w.vol||'—'}</div>
             </div>
             <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:6px;line-height:1.6">
-              <span style="color:${CAT[w.cat]?.color||'var(--text2)'};font-weight:600">${CAT[w.cat]?.label||''}</span>
-              ${w.reason ? ` · причина: ${w.reason}` : ''}
-              ${w.note ? ` · коментар: ${w.note}` : ''}
+              <span style="color:var(--purple);font-weight:600">${w.accountName ? esc(w.accountName) : (CAT[w.cat]?.label||'')}</span>
+              ${w.reason ? ` · причина: ${esc(w.reason)}` : ''}
+              ${w.note ? ` · коментар: ${esc(w.note)}` : ''}
               ${w.time ? ` · ${w.time}` : ''}
-              ${w.author ? ` · ${w.author}` : ''}
+              ${w.author ? ` · ${esc(w.author)}` : ''}
               ${loss > 0 ? ` · ${Math.round(loss)}₴` : ''}
             </div>
           </div>`;
@@ -1355,23 +1355,32 @@ function renderManager() {
 
     <!-- POS Office -->
     <div class="wo-sec" style="padding-top:14px">${_isPosterWo ? 'Облік Poster' : 'Syrve Office'}</div>
-    <div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Акт списання</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">${unsentWo.length
-          ? `${unsentWo.length} поз. до надсилання · буде непроведеним`
-          : 'Немає списань з товаром'}</div>
-      </div>
-      <button id="wo-syrve-btn"
-        onclick="window.__wo.sendActToSyrve()"
-        ${!unsentWo.length ? 'disabled' : ''}
-        style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${unsentWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${unsentWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${unsentWo.length ? 'pointer' : 'default'};white-space:nowrap">
-        Надіслати
-      </button>
-    </div>
+    ${(() => {
+      const isSplit = woViewZone() === null;   // адмін бачить обидва підрозділи → окремі кнопки Бар/Кухня
+      const barCnt  = unsentWo.filter(w => woDeptOf(w) !== 'kitchen').length;
+      const kitCnt  = unsentWo.filter(w => woDeptOf(w) === 'kitchen').length;
+      const deptBtn = (label, cnt, dept) => `
+        <button onclick="window.__wo.sendActToSyrve('${dept}')" ${!cnt ? 'disabled' : ''}
+          style="flex:1;padding:10px 12px;border-radius:12px;border:0.5px solid var(--purple-border);background:${cnt ? 'var(--purple-bg)' : 'var(--bg2)'};color:${cnt ? 'var(--purple)' : 'var(--text3)'};font-size:13px;font-family:var(--font-b);cursor:${cnt ? 'pointer' : 'default'};white-space:nowrap">
+          ${label}${cnt ? ` · ${cnt}` : ''}
+        </button>`;
+      return `<div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:12px${isSplit ? ';margin-bottom:12px' : ''}">
+          <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="var(--purple)" stroke-width="1.2"/><path d="M6 7h6M6 10h4" stroke="var(--purple)" stroke-width="1.2" stroke-linecap="round"/><path d="M2 6h14" stroke="var(--purple)" stroke-width="1.2"/></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-family:var(--font-b);color:var(--text0)">Акт списання</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">${unsentWo.length
+              ? (isSplit ? `Бар ${barCnt} · Кухня ${kitCnt} · окремими актами` : `${unsentWo.length} поз. до надсилання · буде непроведеним`)
+              : 'Немає списань з товаром'}</div>
+          </div>
+          ${isSplit ? '' : `<button id="wo-syrve-btn" onclick="window.__wo.sendActToSyrve()" ${!unsentWo.length ? 'disabled' : ''}
+            style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${unsentWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${unsentWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${unsentWo.length ? 'pointer' : 'default'};white-space:nowrap">Надіслати</button>`}
+        </div>
+        ${isSplit ? `<div style="display:flex;gap:8px">${deptBtn('🍸 Бар', barCnt, 'bar')}${deptBtn('🍳 Кухня', kitCnt, 'kitchen')}</div>` : ''}
+      </div>`;
+    })()}
 
     <!-- Export -->
     <div class="wo-sec" style="padding-top:14px">Звіт</div>
@@ -2146,13 +2155,14 @@ function setMgrFrom(v) { _mgrFrom = v; fullRender(); }
 function setMgrTo(v)   { _mgrTo = v; fullRender(); }
 function setMgrFilter(f) { _mgrFilter=f; fullRender(); }
 
-async function sendActToSyrve() {
+async function sendActToSyrve(dept) {
   const vId   = localStorage.getItem('barops_venueId') || state.venueId || '';
   const token = localStorage.getItem('barops_token');
   if (!vId || !token) { alert('Немає авторизації або venueId'); return; }
 
-  // Ненадіслані позиції з товаром
-  const sendItems = _writeoffs.filter(w => w.prodId && !w.sentAt && inWoZone(w));
+  // Ненадіслані позиції з товаром; dept ('bar'|'kitchen') — надіслати лише цей підрозділ окремо (адмін)
+  let sendItems = _writeoffs.filter(w => w.prodId && !w.sentAt && inWoZone(w));
+  if (dept) sendItems = sendItems.filter(w => woDeptOf(w) === dept);
   if (!sendItems.length) { alert('Немає списань з товаром для надсилання'); return; }
 
   // Завантажуємо збережені склади з бекенду
