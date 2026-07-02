@@ -75,6 +75,8 @@ let _preps        = [];           // напівфабрикати з /api/pos/pr
 let _prepsLoading = false;
 let _prepsLoaded  = false;
 
+// Екранування тексту користувача/POS перед вставкою в HTML
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 // Назва POS для підписів (Poster для Poster-закладів, інакше Syrve)
 function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
