@@ -241,7 +241,7 @@ function reviewView() {
     </div>`;
   }).join('');
 
-  const isAdmin = _role === 'admin';
+  const isAdmin = _role === 'admin' || _role === 'accountant';   // бухгалтер: повний флоу — ставить накладні і навчає alias
   const ready = _supplier && _store && _rows.length && _rows.every(r => r.productId);
   const learnReady = matchedCount() >= 1;   // памʼять ТОВАРІВ працює й без постачальника (venue-wide recall); постачальник памʼятається окремо, якщо є
   const batch = _queueTotal > 1;

@@ -56,6 +56,12 @@ const QUICK_MY_SHIFT = { route:'my-shift', badge:null, label:'Моя зміна'
   svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
        <path d="M3.5 15.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
 
+const QUICK_INVOICE_OCR = { route:'invoice-ocr', badge:null, label:'Накладні', hint:'Фото накладної → прихід у Syrve', color:'var(--purple-bg)', iconColor:'var(--purple)',
+  svg:`<rect x="3.5" y="2" width="11" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+       <path d="M6 6h6M6 9h6M6 12h3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+       <circle cx="13" cy="13.5" r="3.2" stroke="currentColor" stroke-width="1.2" fill="var(--bg1)"/>
+       <path d="M13 12.2v2.6M11.7 13.5h2.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>` };
+
 const QUICK_RECIPE_BOOK = { route:'recipe-book', badge:null, label:'Рецепти', hint:'Рецепти кухні', color:'var(--green-bg)', iconColor:'var(--green)',
   svg:`<rect x="3" y="2" width="9" height="14" rx="1.3" stroke="currentColor" stroke-width="1.3"/>
        <path d="M5.5 5.5h4M5.5 8.5h4M5.5 11.5h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
@@ -617,7 +623,7 @@ function buildHTML() {
   const quick = state.role === 'admin' ? QUICK_ADMIN
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
-              : isAcc ? QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))
+              : isAcc ? [QUICK_INVOICE_OCR, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
               : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар, замовлення (кухонні заявки) + рецепти кухні
