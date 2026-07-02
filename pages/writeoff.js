@@ -67,6 +67,8 @@ let _editId     = null;        // id запису, що редагується (
 let _transferDir = 'bar2kitchen'; // напрямок для admin: 'bar2kitchen' | 'kitchen2bar'
 let _transferConfirmOpen = false; // стилізоване підтвердження надсилання переміщення
 let _transferComment     = '';    // коментар до переміщення
+let _actComments         = {};    // коментар до акту списання по рахунку: { accountId|'__auto__' → текст }
+let _expandedAcct        = new Set(); // розгорнуті групи-рахунки в денному списку (по label рахунку)
 let _transferResult = null;       // { sending } | { ok, msg }
 let _prodTab      = 'goods';      // 'goods' | 'prep' — вкладка пікера товарів
 let _preps        = [];           // напівфабрикати з /api/pos/preparations
@@ -359,6 +361,13 @@ const CSS = `<style id="wo-css">
 
 /* write-off list */
 .wo-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
+.wo-acct-group{display:flex;flex-direction:column;gap:6px}
+.wo-acct-hdr{display:flex;align-items:center;gap:9px;padding:11px 13px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;user-select:none;transition:background .15s}
+.wo-acct-hdr:active{background:var(--bg3)}
+.wo-acct-name{flex:1;min-width:0;font-size:13px;font-weight:600;font-family:var(--font-b);color:var(--text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wo-acct-cnt{font-size:11px;color:var(--text2);font-family:var(--font-b);flex-shrink:0;white-space:nowrap}
+.wo-acct-chev{flex-shrink:0;transition:transform .18s}
+.wo-acct-body{display:flex;flex-direction:column;gap:6px;padding-left:6px}
 .wo-swipe-wrap{position:relative;border-radius:12px;overflow:hidden}
 .wo-swipe-del{position:absolute;right:0;top:0;bottom:0;width:76px;background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:0 12px 12px 0;flex-shrink:0}
 .wo-swipe-del-lbl{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600}
@@ -617,6 +626,36 @@ function woCardHTML(w) {
     </div>`;
 }
 
+// Ярлик рахунку списання (для групування денного списку)
+function woAcctLabel(w) { return w.accountName || 'Без рахунку'; }
+
+// Групуємо позиції по рахунку; кожна група згортається/розгортається по кліку.
+function woGroupCards(items) {
+  const groups = new Map();
+  for (const w of items) {
+    const k = woAcctLabel(w);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(w);
+  }
+  let out = '';
+  for (const [label, gitems] of groups) {
+    const open  = _expandedAcct.has(label);
+    const keyJs = label.replace(/\\/g, '\\\\').replace(/"/g, '&quot;').replace(/'/g, "\\'");
+    const loss  = gitems.reduce((s, w) => s + (itemLoss(w) || 0), 0);
+    out += `
+    <div class="wo-acct-group">
+      <div class="wo-acct-hdr" onclick="window.__wo.toggleAcctGroup('${keyJs}')">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>
+        <div class="wo-acct-name">${esc(label)}</div>
+        <div class="wo-acct-cnt">${gitems.length} поз.${loss > 0 ? ` · ${Math.round(loss)} грн` : ''}</div>
+        <svg class="wo-acct-chev" width="14" height="14" viewBox="0 0 14 14" fill="none" style="transform:rotate(${open ? 90 : 0}deg)"><path d="M5 3l4 4-4 4" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      ${open ? `<div class="wo-acct-body">${gitems.map(woCardHTML).join('')}</div>` : ''}
+    </div>`;
+  }
+  return out;
+}
+
 function woList() {
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
   const filtered = [..._writeoffs].reverse().filter(w => !w.sentAt && inWoZone(w) && (_catFilter === 'all' || w.cat === _catFilter));
@@ -627,13 +666,19 @@ function woList() {
     return `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Списань за зміну немає.<br>Натисніть «Додати списання» нижче.</div>`;
   }
 
-  let html = todayItems.map(woCardHTML).join('');
+  let html = woGroupCards(todayItems);
 
   if (prevItems.length) {
     html += `<div style="margin:16px 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text2);font-family:var(--font-mono)">Попередні зміни</div>`;
-    html += prevItems.map(woCardHTML).join('');
+    html += woGroupCards(prevItems);
   }
   return html || `<div style="text-align:center;padding:32px 16px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>`;
+}
+
+function toggleAcctGroup(key) {
+  if (_expandedAcct.has(key)) _expandedAcct.delete(key);
+  else                        _expandedAcct.add(key);
+  fullRender();   // свайп — делегований листенер, переініціалізація не потрібна
 }
 
 function woTodayStr(fmt) {
@@ -1046,6 +1091,7 @@ function syrveConfirmHTML() {
       </div>
       <div class="wo-syrve-conf-scroll">
         ${_syrveConfirmGroups.map(g => {
+          const gkey  = g.accountId || '__auto__';
           const items = Object.values(g.items.reduce((acc, w) => {
             if (!acc[w.prodId]) acc[w.prodId] = { name: w.prod, amount: 0, unitKey: w.unitKey || 'l' };
             acc[w.prodId].amount += w.volNum || 0;
@@ -1055,15 +1101,17 @@ function syrveConfirmHTML() {
           <div style="margin-bottom:16px">
             ${_isPosterWo ? '' : `<div style="font-size:11px;color:var(--purple);font-family:var(--font-b);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">
               <div style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>
-              ${g.accountName}
+              ${esc(g.accountName)}
             </div>`}
             <div style="display:flex;flex-direction:column;gap:4px">
               ${items.map(it => `
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
-                <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.name}</div>
+                <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</div>
                 <div style="font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--purple);flex-shrink:0;margin-left:10px">−${it.amount.toFixed(2)} ${unitLabel(it.unitKey)}</div>
               </div>`).join('')}
             </div>
+            <textarea oninput="window.__wo.setActComment('${gkey}', this.value)" placeholder="Коментар до акту (необов'язково)…"
+              style="width:100%;box-sizing:border-box;min-height:44px;margin-top:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px;padding:9px 12px;font-size:14px;color:var(--text0);font-family:var(--font-b);outline:none;resize:vertical">${(_actComments[gkey]||'').replace(/</g,'&lt;')}</textarea>
           </div>`;
         }).join('')}
       </div>
@@ -1832,6 +1880,7 @@ async function submitForm() {
   };
 
   _writeoffs.push(entry);
+  _expandedAcct.add(entry.accountName || 'Без рахунку');   // одразу показати щойно додану групу-рахунок
 
   // Зберігаємо в localStorage
   const vId = localStorage.getItem('barops_venueId') || '';
@@ -1980,6 +2029,7 @@ function sendTransferToSyrve() {
 }
 function closeTransferConfirm() { _transferConfirmOpen = false; fullRender(); }
 function setTransferComment(v) { _transferComment = v; }   // без re-render, щоб textarea не втрачала фокус
+function setActComment(key, v) { _actComments[key] = v; }   // коментар до акту по рахунку (без re-render)
 function closeTransferResult()  { _transferResult = null; fullRender(); }
 
 async function doSendTransfer() {
@@ -2144,6 +2194,7 @@ function closeSyrveConfirm() {
   _syrveConfirmGroups = [];
   _syrveStores        = [];
   _selStoreId         = null;
+  _actComments        = {};
   fullRender();
 }
 
@@ -2207,7 +2258,9 @@ async function doSendActToSyrve() {
         const label = _isPosterWo ? (ritems[0]?.reasonName || 'Без причини') : g.accountName;
         try {
           const reasons = [...new Set(ritems.filter(w => w.reason).map(w => w.reason))].join('; ');
-          const body = { items, comment: reasons || undefined, scope };
+          const actNote = (_actComments[g.accountId || '__auto__'] || '').trim();   // коментар до групи-рахунку
+          const comment = [actNote, reasons].filter(Boolean).join(' · ') || undefined;
+          const body = { items, comment, scope };
           if (g.accountId) body.accountId = g.accountId;
           if (_isPosterWo && rk !== '__none__') body.reasonId = rk;          // причина списання Poster
           if (_selStoreId && scope === 'bar') body.storeId = _selStoreId;   // ручний вибір складу — лише для бару
@@ -2278,6 +2331,7 @@ async function doSendActToSyrve() {
     raw[vId] = _writeoffs;
     localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
 
+    _actComments = {};   // коментарі застосовано — чистимо для наступного акту
     fullRender();
     initSwipe();
   } else {
@@ -2636,7 +2690,7 @@ export default {
       deleteWriteoff, editWriteoff,
       sendTransferToSyrve, deleteTransfer, editTransfer, setTransferDir,
       closeTransferConfirm, doSendTransfer, closeTransferResult, setTransferComment,
-      setProdTab,
+      setProdTab, setActComment, toggleAcctGroup,
     };
     initSwipe();
     initContextMenu();
