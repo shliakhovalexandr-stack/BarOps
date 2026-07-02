@@ -100,11 +100,12 @@ function woAllowedZone() {
   return null;
 }
 // Зона ВЛАСНИХ списань (список/акт/історія/KPI): кухня (шеф/кухар) керує лише кухонними,
-// бар (бармен/менеджер/керуючий) — лише барними, адмін — усіма. Щоб «Надіслати» не зачіпало чужу зону.
+// бар (бармен/менеджер) — лише барними, адмін і КЕРУЮЧИЙ — усіма (бачать обидва підрозділи:
+// поділ Бар/Кухня в списку + окремі кнопки надсилання). Щоб «Надіслати» не зачіпало чужу зону.
 function woViewZone() {
   const r = (state.role || '').toLowerCase();
   if (r === 'cook' || r === 'chef') return 'kitchen';
-  if (r === 'admin') return null;
+  if (r === 'admin' || r === 'director') return null;
   return 'bar';
 }
 function inWoZone(w) { const z = woViewZone(); return z === null || (w.scope || 'bar') === z; }
