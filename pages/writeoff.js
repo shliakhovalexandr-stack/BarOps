@@ -1277,34 +1277,7 @@ function renderManager() {
       return `
         <div class="wo-sec">Не відправлені в ${posName()}</div>
         <div class="wo-list" style="margin-bottom:8px">
-          ${unsent.map(w => `
-          <div class="wo-swipe-wrap" data-id="${w.id}">
-            <div class="wo-swipe-edit" onclick="window.__wo.editWriteoff('${w.id}')">
-              <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M3 15l2.5-.6 8-8-1.9-1.9-8 8L3 15z" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.5l1.9 1.9" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
-              <span class="wo-swipe-edit-lbl">Змінити</span>
-            </div>
-            <div class="wo-swipe-del" onclick="window.__wo.deleteWriteoff('${w.id}')">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-              <span class="wo-swipe-del-lbl">Видалити</span>
-            </div>
-            <div class="wo-card" data-id="${w.id}" style="gap:10px;position:relative">
-              <div style="width:3px;height:34px;border-radius:2px;background:${CAT[w.cat]?.color||'var(--text2)'};flex-shrink:0"></div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:13px;color:var(--text1);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.prod}</div>
-                <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">${woMeta(w)}</div>
-              </div>
-              <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:10px">
-                <div>
-                  <div style="font-family:var(--font-h);font-size:15px;font-weight:700;color:${CAT[w.cat]?.color||'var(--text0)'}">${w.vol||'—'}</div>
-                  <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${w.time||''}</div>
-                </div>
-                <div onclick="event.stopPropagation();window.__wo.deleteWriteoff('${w.id}')"
-                  style="width:30px;height:30px;border-radius:8px;background:var(--red-bg);border:0.5px solid var(--red-border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-              </div>
-            </div>
-          </div>`).join('')}
+          ${woGroupCards(unsent)}
         </div>`;
     })()}
 
