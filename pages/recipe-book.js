@@ -408,6 +408,7 @@ function parseWinePaste(text) {
 function buildGroupsScreen() {
   const editable = canEditCat(_cat);
   let html = `<div class="rb-topbar">
+    <button class="rb-back" onclick="window.__barops.navigate('dashboard')" aria-label="На головну" style="padding:4px 2px 4px 0">${ICON_BACK}</button>
     <span class="rb-title">Рецепти</span>
     ${editable ? `<button class="rb-add-btn" onclick="window.__rb.addGroup()">+ Група</button>` : ''}
   </div>`;
