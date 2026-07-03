@@ -57,7 +57,9 @@ const CSS = `<style>
 .prd-selcard{background:var(--bg1);border:0.5px solid var(--green-border);border-radius:14px;padding:6px;margin-top:8px}
 .prd-selrow{display:flex;align-items:center;gap:8px;padding:8px 6px;border-bottom:0.5px solid var(--border)}
 .prd-selrow:last-child{border-bottom:none}
-.prd-selname{flex:1;min-width:0;font-size:14px;font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prd-selinfo{flex:1;min-width:0}
+.prd-selname{font-size:14px;font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prd-selhint{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px;min-height:13px}
 .prd-qty{width:78px;height:38px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;text-align:center;font-size:15px;font-family:var(--font-h);font-weight:600;color:var(--text0);outline:none}
 .prd-qty:focus{border-color:var(--green)}
 .prd-unit{font-size:11px;color:var(--text2);font-family:var(--font-b);width:30px}
@@ -112,14 +114,23 @@ function listHTML() {
       <div class="prd-plus">${p.picked ? '✓' : '+'}</div>
     </div>`).join('');
 }
+function hintText(s) {
+  const per = Number(s.perPortion) || 1;
+  const q = parseFloat(String(s.qty).replace(',', '.')) || 0;
+  if (per === 1 || q <= 0) return '';
+  return `≈ ${Math.round(q * per * 1000) / 1000} ${unitLbl(s.unit)} у Syrve`;
+}
 function selHTML() {
   if (!_sel.length) return `<div class="prd-empty">Оберіть, що приготували, зі списку вище</div>`;
   return `<div class="prd-selcard">${_sel.map(s => `
     <div class="prd-selrow">
-      <div class="prd-selname">${esc(s.name)}</div>
-      <input class="prd-qty" type="number" inputmode="decimal" min="0" step="${isCountUnit(s.unit) ? '1' : '0.001'}"
+      <div class="prd-selinfo">
+        <div class="prd-selname">${esc(s.name)}</div>
+        <div class="prd-selhint" id="prd-hint-${s.id}">${hintText(s)}</div>
+      </div>
+      <input class="prd-qty" type="number" inputmode="decimal" min="0" step="1"
         value="${s.qty}" oninput="window.__prod.setQty('${s.id}', this.value)">
-      <div class="prd-unit">${unitLbl(s.unit)}</div>
+      <div class="prd-unit">порц</div>
       <div class="prd-del" onclick="window.__prod.remove('${s.id}')" aria-label="Прибрати">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -255,7 +266,10 @@ async function loadHistory() {
 }
 
 async function submit() {
-  const items = _sel.map(s => ({ productId: s.id, amount: parseFloat(String(s.qty).replace(',', '.')) || 0, name: s.name, unit: s.unit })).filter(i => i.amount > 0);
+  // Кухар вводить КІЛЬКІСТЬ ПОРЦІЙ; бекенд множить на perPortion (вагу порції з ТТК) → base units для Syrve.
+  const items = _sel
+    .map(s => ({ productId: s.id, portions: parseFloat(String(s.qty).replace(',', '.')) || 0, perPortion: Number(s.perPortion) || 1, name: s.name, unit: 'порц' }))
+    .filter(i => i.portions > 0);
   if (!items.length || _sending) return;
   _sending = true; refresh();
   try {
@@ -325,11 +339,17 @@ export default {
       add(id) {
         const ex = _sel.find(s => s.id === id);
         if (ex) _sel = _sel.filter(s => s.id !== id);
-        else { const p = _items.find(x => x.id === id); if (p) _sel.push({ id: p.id, name: p.name, unit: p.unit, qty: 1 }); }
+        else { const p = _items.find(x => x.id === id); if (p) _sel.push({ id: p.id, name: p.name, unit: p.unit, perPortion: Number(p.perPortion) || 1, qty: 1 }); }
         refreshSel();
       },
       remove(id) { _sel = _sel.filter(s => s.id !== id); refreshSel(); },
-      setQty(id, v) { const s = _sel.find(x => x.id === id); if (s) { s.qty = v; const t = _sel.filter(x => (parseFloat(x.qty) || 0) > 0).length; const cta = document.getElementById('prd-cta'); if (cta) cta.disabled = !(t && !_sending); } },
+      setQty(id, v) {
+        const s = _sel.find(x => x.id === id); if (!s) return;
+        s.qty = v;
+        const h = document.getElementById('prd-hint-' + id); if (h) h.textContent = hintText(s);
+        const t = _sel.filter(x => (parseFloat(x.qty) || 0) > 0).length;
+        const cta = document.getElementById('prd-cta'); if (cta) cta.disabled = !(t && !_sending);
+      },
       toggle(id) { if (_shown.has(id)) _shown.delete(id); else _shown.add(id); _cfgMsg = ''; refreshSetList(); const c = document.getElementById('prd-savecfg'); if (c) c.textContent = 'Зберегти'; },
       submit, saveCfg,
       toggleHist(id) { if (_expHist.has(id)) _expHist.delete(id); else _expHist.add(id); const el = document.getElementById('prd-hist'); if (el) el.innerHTML = histHTML(); },
