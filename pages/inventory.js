@@ -545,9 +545,9 @@ function modeMismatch(p) {
 function isCounted(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
-  if (m === 'nf')      return (parseFloat(c.nf) || 0) > 0;
+  if (m === 'nf')      return (parseFloat(c.nf) || 0) > 0 || sumAdds(c.adds) > 0;
   if (m === 'kg_to_l') return (+c.full || 0) > 0 || partialWeights(c).length > 0 || (String(c.litersAdd || '').trim() !== '');
-  if (m === 'kg')      return (c.kg || '') !== '';
+  if (m === 'kg')      return (c.kg || '') !== '' || sumAdds(c.adds) > 0;
   if (m === 'ml')      return (c.ml || '') !== '' || sumAdds(c.adds) > 0;
   return (+c.sht || 0) > 0 || sumAdds(c.adds) > 0;
 }
@@ -555,9 +555,9 @@ function isCounted(pid) {
 function getResult(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
-  if (m === 'nf')      return parseFloat(c.nf) || 0;        // НФ — кількість у базовій одиниці (бекенд декомпозує)
+  if (m === 'nf')      return Math.round(((parseFloat(c.nf) || 0) + sumAdds(c.adds)) * 1000) / 1000;   // НФ — базова од. + дод. заміри (бекенд декомпозує)
   if (m === 'kg_to_l') return computeL(pid, c);
-  if (m === 'kg')      return parseFloat(c.kg) || 0;
+  if (m === 'kg')      return Math.round(((parseFloat(c.kg) || 0) + sumAdds(c.adds)) * 1000) / 1000;   // кг: основне + дод. заміри
   if (m === 'ml')      return Math.round(((parseFloat(c.ml) || 0) + sumAdds(c.adds)) * 1000) / 1000;  // основне + додаткові заміри
   return (+c.sht || 0) + sumAdds(c.adds);                                                              // штуки: основне + додаткові
 }
@@ -701,6 +701,8 @@ function bindLiveInputs() {
       if (!Array.isArray(_counts[pid].adds)) _counts[pid].adds = [];
       _counts[pid].adds[idx] = (e.target.value || '').replace(',', '.');
       updateAddTotal(pid);
+      const nfbar = document.getElementById(`inv-nfbar-${pid}`);   // НФ: смужка «пораховано» від дод. замірів
+      if (nfbar) nfbar.style.background = isCounted(pid) ? 'var(--green)' : 'var(--bg3)';
       persistCounts();
     };
   });
@@ -725,7 +727,8 @@ function bindLiveInputs() {
       if (!_counts[pid]) _counts[pid] = {};
       _counts[pid].nf = (e.target.value || '').replace(',', '.');
       const bar = document.getElementById(`inv-nfbar-${pid}`);
-      if (bar) bar.style.background = (parseFloat(_counts[pid].nf) || 0) > 0 ? 'var(--green)' : 'var(--bg3)';
+      if (bar) bar.style.background = isCounted(pid) ? 'var(--green)' : 'var(--bg3)';
+      updateAddTotal(pid);   // оновити «= разом», якщо є дод. заміри
       persistCounts();
     };
   });
@@ -762,13 +765,19 @@ function updateConvDisplay(pid) {
   if (el) el.textContent = res.toFixed(3);
 }
 
-// Живе оновлення підсумку «= разом» для ml/sht з кількома значеннями (без повного ре-рендера)
+// Одиниця товару для підписів (НФ/товар) — з ПФ-мапи або балансу
+function invUnitOf(pid) {
+  const rp = realPid(pid);
+  return (_prepById[rp]?.unit) || (_balance.find(x => x.id === rp)?.unit) || '';
+}
+// Живе оновлення підсумку «= разом» для режимів із кількома значеннями (ml/sht/kg/nf) без повного ре-рендера
 function updateAddTotal(pid) {
   const el = document.getElementById(`inv-addtot-${pid}`);
   if (!el) return;
   const m = modeOf(pid);
   const total = getResult(pid);
-  el.textContent = `= ${m === 'sht' ? total : total.toFixed(3)} ${m === 'sht' ? 'шт' : 'л'} разом`;
+  const u = m === 'sht' ? 'шт' : m === 'kg' ? 'кг' : m === 'nf' ? (invUnitOf(pid) || '') : 'л';
+  el.textContent = `= ${m === 'sht' ? total : total.toFixed(3)} ${u} разом`;
 }
 
 // Рядки додаткових значень (літри/штуки), кнопка «+ ще значення» і підсумок. Спільне для ml і sht.
@@ -1634,7 +1643,7 @@ function productRowHTML(p) {
 // Рядок напівфабрикату: одне поле кількості в базовій одиниці (кг/л). Бекенд розкладе на товари.
 function prepRowHTML(p) {
   const c = _counts[p.id] || {};
-  const counted = (parseFloat(c.nf) || 0) > 0;
+  const counted = isCounted(p.id);   // базове число АБО додаткові заміри
   return `
     <div class="inv-prod${counted ? ' entered' : ''}">
       <div class="inv-prod-row" style="cursor:default">
@@ -1648,6 +1657,7 @@ function prepRowHTML(p) {
           <span class="inv-punit" style="min-width:20px;text-align:left">${p.unit || ''}</span>
         </div>
       </div>
+      <div class="inv-ipanel">${addsHTML(p, p.unit || 'кг')}</div>
     </div>`;
 }
 
@@ -1700,6 +1710,7 @@ function inputPanelHTML(p, c, m) {
         <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0.000" value="${c.kg || ''}"
           data-live-inp="kg" data-pid="${p.id}">
+        ${addsHTML(p, 'кг')}
         <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (кг)</div>
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
       </div>
