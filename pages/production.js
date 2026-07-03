@@ -122,8 +122,7 @@ function prodBodyHTML() {
     <div id="prd-sel">${selHTML()}</div>
     <button class="prd-cta" id="prd-cta" ${total && !_sending ? '' : 'disabled'} onclick="window.__prod.submit()">
       ${_sending ? 'Надсилаю…' : 'Надіслати в Syrve'}
-    </button>
-    <div class="prd-note">Створиться <b style="color:var(--text1)">непроведений акт приготування</b> · склад Кухня · інгредієнти спишуться за ТТК. Бухгалтер проведе.</div>`;
+    </button>`;
 }
 
 /* ── Налаштування (курація) ── */
