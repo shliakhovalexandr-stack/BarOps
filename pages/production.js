@@ -3,7 +3,7 @@
    «Виробництво» (Акт приготування). Дві вкладки для шефа/адміна:
    • Виробництво — кухар обирає що приготував + к-сть → непроведений
      productionDocument у Syrve (інгредієнти за ТТК), бухгалтер проводить.
-   • Налаштування — шеф/адмін курує, які вироби бачить кухар (hiddenIds).
+   • Налаштування — шеф/адмін вмикає, які вироби бачить кухар (allowlist shownIds; за замовч. порожньо).
    Кухар бачить лише «Виробництво» (без вкладок).
    Ендпоінти: GET /pos/producible, POST /pos/production-act,
               GET/POST /pos/production-setting.
@@ -22,7 +22,7 @@ let _canSettings = false;
 let _tab = 'prod';                 // 'prod' | 'settings'
 let _items = [];                   // усі кухонні вироби {id,name,unit,type}
 let _loading = true, _err = '';
-let _hidden = new Set();           // приховані від кухаря
+let _shown = new Set();            // allowlist: увімкнені для кухаря (порожньо = кухар нічого не бачить)
 let _search = '';                  // пошук у виробництві
 let _setSearch = '';               // пошук у налаштуваннях
 let _sel = [];                     // обрані {id,name,unit,qty}
@@ -79,7 +79,7 @@ const CSS = `<style>
 </style>`;
 
 /* ── Виробництво ── */
-function visibleForCook() { return _items.filter(p => !_hidden.has(p.id)); }
+function visibleForCook() { return _items.filter(p => _shown.has(p.id)); }
 function filtered() {
   const q = _search.trim().toLowerCase();
   const selIds = new Set(_sel.map(s => s.id));
@@ -91,7 +91,7 @@ function listHTML() {
   if (_loading) return `<div class="prd-empty">Завантаження виробів…</div>`;
   if (_err)     return `<div class="prd-empty">${esc(_err)}</div>`;
   const list = filtered();
-  if (!list.length) return `<div class="prd-empty">${visibleForCook().length ? 'Нічого не знайдено' : 'Список порожній'}</div>`;
+  if (!list.length) return `<div class="prd-empty">${visibleForCook().length ? 'Нічого не знайдено' : (_canSettings ? 'Список порожній. Увімкни вироби у «Налаштуваннях».' : 'Список виробів ще не налаштований шефом.')}</div>`;
   return list.map(p => `
     <div class="prd-row ${p.picked ? 'sel' : ''}" onclick="window.__prod.add('${p.id}')">
       <div class="prd-rname">${esc(p.name)}</div>
@@ -135,7 +135,7 @@ function setListHTML() {
   list = list.slice(0, 120);
   if (!list.length) return `<div class="prd-empty">Нічого не знайдено</div>`;
   return list.map(p => {
-    const on = !_hidden.has(p.id);
+    const on = _shown.has(p.id);
     return `<div class="prd-setrow">
       <div class="prd-rname">${esc(p.name)}</div>
       <div class="prd-badge">${p.type === 'PREPARED' ? 'ПФ' : 'страва'}</div>
@@ -144,10 +144,10 @@ function setListHTML() {
   }).join('');
 }
 function settingsBodyHTML() {
-  const shown = _items.filter(p => !_hidden.has(p.id)).length;
+  const shown = _items.filter(p => _shown.has(p.id)).length;
   return `
-    <div class="prd-note" style="text-align:left;margin:6px 4px 0">Увімкнені вироби бачитиме кухар у вкладці «Виробництво». Вимкни ті, які кухня не готує.</div>
-    <div class="prd-sec">Вироби · показано ${shown} з ${_items.length}</div>
+    <div class="prd-note" style="text-align:left;margin:6px 4px 0">За замовчуванням усе вимкнено. Увімкни лише ті вироби, які кухня готує — їх бачитиме кухар у «Виробництві».</div>
+    <div class="prd-sec">Вироби · увімкнено ${shown} з ${_items.length}</div>
     <input class="prd-search" placeholder="Пошук виробу…" value="${esc(_setSearch)}" oninput="window.__prod.setSearch(this.value)">
     <div class="prd-list" id="prd-setlist" style="max-height:56vh">${setListHTML()}</div>
     <button class="prd-cta" id="prd-savecfg" ${_savingCfg ? 'disabled' : ''} onclick="window.__prod.saveCfg()">
@@ -200,7 +200,7 @@ async function loadAll() {
     ]);
     if (!pr.success) throw new Error(pr.error || 'Не вдалося завантажити вироби');
     _items = pr.items || [];
-    _hidden = new Set(Array.isArray(st.hiddenIds) ? st.hiddenIds : []);
+    _shown = new Set(Array.isArray(st.shownIds) ? st.shownIds : []);
   } catch (e) { _err = e.message; _items = []; }
   _loading = false; refresh();
 }
@@ -233,7 +233,7 @@ async function saveCfg() {
     const r = await fetch(`${API}/api/pos/production-setting/${_venueId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(_token ? { Authorization: `Bearer ${_token}` } : {}) },
-      body: JSON.stringify({ hiddenIds: [..._hidden] }),
+      body: JSON.stringify({ shownIds: [..._shown] }),
     });
     const d = await r.json();
     if (!r.ok || !d.success) throw new Error(d.error || 'Не збереглось');
@@ -250,7 +250,7 @@ export default {
     _role    = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
     _canSettings = ['admin', 'chef'].includes(_role);
     _tab = 'prod';
-    _items = []; _loading = true; _err = ''; _hidden = new Set(); _search = ''; _setSearch = '';
+    _items = []; _loading = true; _err = ''; _shown = new Set(); _search = ''; _setSearch = '';
     _sel = []; _sending = false; _result = null; _savingCfg = false; _cfgMsg = '';
     return `${CSS}
     <div class="prd-wrap">
@@ -280,7 +280,7 @@ export default {
       },
       remove(id) { _sel = _sel.filter(s => s.id !== id); refreshSel(); },
       setQty(id, v) { const s = _sel.find(x => x.id === id); if (s) { s.qty = v; const t = _sel.filter(x => (parseFloat(x.qty) || 0) > 0).length; const cta = document.getElementById('prd-cta'); if (cta) cta.disabled = !(t && !_sending); } },
-      toggle(id) { if (_hidden.has(id)) _hidden.delete(id); else _hidden.add(id); _cfgMsg = ''; refreshSetList(); const c = document.getElementById('prd-savecfg'); if (c) c.textContent = 'Зберегти'; },
+      toggle(id) { if (_shown.has(id)) _shown.delete(id); else _shown.add(id); _cfgMsg = ''; refreshSetList(); const c = document.getElementById('prd-savecfg'); if (c) c.textContent = 'Зберегти'; },
       submit, saveCfg,
       closeResult() { _result = null; refresh(); },
     };
