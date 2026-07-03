@@ -2778,7 +2778,7 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v7_${vId}`;   // v7 — фільтр під реальні групи Syrve (Хоз/Мебель/Тара/Старое...)
+    const prodsKey = `barops_prods_v8_${vId}`;   // v8 — зона 'both' для товарів на двох складах (бар+кухня)
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
@@ -2795,16 +2795,26 @@ export default {
           });
           if (res.ok) {
             const data = await res.json();
-            const fresh = [];
+            // Товар може лежати на кількох складах (бар+кухня). Раніше «перемагав перший» склад
+            // у балансі (а Кухня йде першою) → барні товари типу молоко/кава помилково діставали
+            // зону kitchen і акт списання йшов на кухню. Тепер збираємо ВСІ зони товару:
+            // на двох складах → 'both' (склад визначить роль автора в buildWoEntry/roleZone).
+            const byId = {};   // pid → { id,name,stock(сума по складах),unit,category, zones:Set }
             for (const store of (data.stores || [])) {
               const zone = /бар|bar/i.test(store.storeName || '') ? 'bar' : /кухн|kitchen/i.test(store.storeName || '') ? 'kitchen' : '';
               for (const item of (store.items || [])) {
-                if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i) && !fresh.find(p=>p.id===item.id)) {
-                  if (isNonConsumable(item.name, item.category)) continue;   // обладнання/інвентар/посуд — не списуємо як товар
-                  fresh.push({ id: item.id, name: item.name, stock: item.amount ?? null, unit: normalizeUnit(item.unit), zone, category: item.category || '' });
-                }
+                if (!item.name || item.name.match(/^[0-9a-f-]{36}$/i)) continue;
+                if (isNonConsumable(item.name, item.category)) continue;   // обладнання/інвентар/посуд — не списуємо як товар
+                let e = byId[item.id];
+                if (!e) e = byId[item.id] = { id: item.id, name: item.name, stock: 0, unit: normalizeUnit(item.unit), category: item.category || '', zones: new Set() };
+                e.stock += (parseFloat(item.amount) || 0);
+                if (zone) e.zones.add(zone);
               }
             }
+            const fresh = Object.values(byId).map(e => ({
+              id: e.id, name: e.name, stock: e.stock, unit: e.unit, category: e.category,
+              zone: e.zones.size === 0 ? '' : (e.zones.has('bar') && e.zones.has('kitchen')) ? 'both' : [...e.zones][0],
+            }));
             _prods = fresh;
             try { localStorage.setItem(prodsKey, JSON.stringify({ ts: Date.now(), data: _prods })); } catch {}
             refreshProdList();
