@@ -1,9 +1,12 @@
 /* ============================================================
    BarOps — pages/production.js
-   «Акт приготування» (виробництво) для кухаря/шефа/адміна.
-   Кухар обирає що приготував + к-сть (кілька позицій) → BarOps створює
-   непроведений productionDocument у Syrve (інгредієнти списуються за ТТК),
-   бухгалтер проводить. Ендпоінти: GET /api/pos/producible, POST /api/pos/production-act.
+   «Виробництво» (Акт приготування). Дві вкладки для шефа/адміна:
+   • Виробництво — кухар обирає що приготував + к-сть → непроведений
+     productionDocument у Syrve (інгредієнти за ТТК), бухгалтер проводить.
+   • Налаштування — шеф/адмін курує, які вироби бачить кухар (hiddenIds).
+   Кухар бачить лише «Виробництво» (без вкладок).
+   Ендпоінти: GET /pos/producible, POST /pos/production-act,
+              GET/POST /pos/production-setting.
    ============================================================ */
 
 import { state } from '../shared/app.js';
@@ -12,22 +15,30 @@ const API = 'https://barops-backend-production.up.railway.app';
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 function unitLbl(u) { const t = (u || '').toLowerCase(); if (/порц/.test(t)) return 'порц'; if (/шт|pc/.test(t)) return 'шт'; if (/кг|kg/.test(t)) return 'кг'; if (/л|l/.test(t)) return 'л'; return u || 'шт'; }
-function isCountUnit(u) { const t = (u || '').toLowerCase(); return /порц|шт|pc/.test(t); }   // штучні → крок 1, інакше 0.001
+function isCountUnit(u) { return /порц|шт|pc/.test((u || '').toLowerCase()); }
 
-let _venueId = '', _token = '';
-let _items   = [];      // усі вироби (страви+ПФ) {id,name,unit,type}
+let _venueId = '', _token = '', _role = '';
+let _canSettings = false;
+let _tab = 'prod';                 // 'prod' | 'settings'
+let _items = [];                   // усі кухонні вироби {id,name,unit,type}
 let _loading = true, _err = '';
-let _search  = '';
-let _sel     = [];      // обрані {id,name,unit,qty}
+let _hidden = new Set();           // приховані від кухаря
+let _search = '';                  // пошук у виробництві
+let _setSearch = '';               // пошук у налаштуваннях
+let _sel = [];                     // обрані {id,name,unit,qty}
 let _sending = false;
-let _result  = null;    // { ok, msg } | { error }
+let _result = null;
+let _savingCfg = false, _cfgMsg = '';
 
 const CSS = `<style>
 .prd-wrap{display:flex;flex-direction:column;height:100%;background:var(--bg);color:var(--text0)}
-.prd-hdr{display:flex;align-items:center;gap:12px;padding:8px 18px 12px;flex-shrink:0}
+.prd-hdr{display:flex;align-items:center;gap:12px;padding:8px 18px 8px;flex-shrink:0}
 .prd-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .prd-title{font-family:var(--font-h);font-size:22px;font-weight:700;letter-spacing:-.02em}
 .prd-sub{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.prd-tabs{display:flex;gap:6px;padding:2px 18px 10px;flex-shrink:0}
+.prd-tab{flex:1;height:38px;border-radius:11px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.prd-tab.on{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .prd-scroll{flex:1;overflow-y:auto;padding:0 14px 24px}
 .prd-scroll::-webkit-scrollbar{width:0}
 .prd-sec{font-size:10px;color:var(--text2);letter-spacing:.10em;text-transform:uppercase;padding:14px 4px 8px;font-family:var(--font-b)}
@@ -52,6 +63,13 @@ const CSS = `<style>
 .prd-cta{width:100%;height:54px;margin-top:16px;background:var(--green);border:none;border-radius:14px;font-size:16px;font-weight:700;color:var(--fab-ink,#000);font-family:var(--font-h);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .prd-cta:disabled{background:var(--bg2);color:var(--text3);cursor:default}
 .prd-empty{text-align:center;padding:22px 8px;color:var(--text2);font-family:var(--font-b);font-size:13px}
+.prd-note{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:10px;line-height:1.5;text-align:center}
+/* налаштування */
+.prd-setrow{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg1);border:0.5px solid var(--border);border-radius:11px;margin-bottom:5px}
+.prd-sw{width:44px;height:26px;border-radius:14px;background:var(--bg4);position:relative;cursor:pointer;flex-shrink:0;transition:background .18s;border:0.5px solid var(--border2)}
+.prd-sw.on{background:var(--green);border-color:var(--green)}
+.prd-sw-dot{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .18s}
+.prd-sw.on .prd-sw-dot{transform:translateX(18px)}
 .prd-ov{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:24px}
 .prd-ovcard{background:var(--bg1);border:0.5px solid var(--border);border-radius:20px;padding:26px 22px;width:100%;max-width:340px;text-align:center}
 .prd-ovicon{width:52px;height:52px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
@@ -60,19 +78,20 @@ const CSS = `<style>
 .prd-ovbtn{width:100%;height:48px;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:var(--font-h);cursor:pointer}
 </style>`;
 
+/* ── Виробництво ── */
+function visibleForCook() { return _items.filter(p => !_hidden.has(p.id)); }
 function filtered() {
   const q = _search.trim().toLowerCase();
   const selIds = new Set(_sel.map(s => s.id));
-  let list = _items;
+  let list = visibleForCook();
   if (q) list = list.filter(p => (p.name || '').toLowerCase().includes(q));
   return list.slice(0, 60).map(p => ({ ...p, picked: selIds.has(p.id) }));
 }
-
 function listHTML() {
   if (_loading) return `<div class="prd-empty">Завантаження виробів…</div>`;
   if (_err)     return `<div class="prd-empty">${esc(_err)}</div>`;
   const list = filtered();
-  if (!list.length) return `<div class="prd-empty">${_items.length ? 'Нічого не знайдено' : 'Список порожній'}</div>`;
+  if (!list.length) return `<div class="prd-empty">${visibleForCook().length ? 'Нічого не знайдено' : 'Список порожній'}</div>`;
   return list.map(p => `
     <div class="prd-row ${p.picked ? 'sel' : ''}" onclick="window.__prod.add('${p.id}')">
       <div class="prd-rname">${esc(p.name)}</div>
@@ -80,7 +99,6 @@ function listHTML() {
       <div class="prd-plus">${p.picked ? '✓' : '+'}</div>
     </div>`).join('');
 }
-
 function selHTML() {
   if (!_sel.length) return `<div class="prd-empty">Оберіть, що приготували, зі списку вище</div>`;
   return `<div class="prd-selcard">${_sel.map(s => `
@@ -94,25 +112,56 @@ function selHTML() {
       </div>
     </div>`).join('')}</div>`;
 }
-
-function bodyHTML() {
+function prodBodyHTML() {
   const total = _sel.filter(s => (parseFloat(s.qty) || 0) > 0).length;
   return `
     <div class="prd-sec">Що приготували</div>
-    <input class="prd-search" placeholder="Пошук страви або заготовки…" value="${esc(_search)}"
-      oninput="window.__prod.search(this.value)">
+    <input class="prd-search" placeholder="Пошук страви або заготовки…" value="${esc(_search)}" oninput="window.__prod.search(this.value)">
     <div class="prd-list" id="prd-list">${listHTML()}</div>
-
     <div class="prd-sec">До виробництва${total ? ` · ${total}` : ''}</div>
     <div id="prd-sel">${selHTML()}</div>
-
     <button class="prd-cta" id="prd-cta" ${total && !_sending ? '' : 'disabled'} onclick="window.__prod.submit()">
       ${_sending ? 'Надсилаю…' : 'Надіслати в Syrve'}
     </button>
-    <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:10px;line-height:1.5;text-align:center">
-      Створиться <b style="color:var(--text1)">непроведений акт приготування</b> · склад Кухня · інгредієнти спишуться за ТТК. Бухгалтер проведе.
-    </div>
-    ${_result ? resultHTML() : ''}`;
+    <div class="prd-note">Створиться <b style="color:var(--text1)">непроведений акт приготування</b> · склад Кухня · інгредієнти спишуться за ТТК. Бухгалтер проведе.</div>`;
+}
+
+/* ── Налаштування (курація) ── */
+function setListHTML() {
+  if (_loading) return `<div class="prd-empty">Завантаження…</div>`;
+  const q = _setSearch.trim().toLowerCase();
+  let list = _items;
+  if (q) list = list.filter(p => (p.name || '').toLowerCase().includes(q));
+  list = list.slice(0, 120);
+  if (!list.length) return `<div class="prd-empty">Нічого не знайдено</div>`;
+  return list.map(p => {
+    const on = !_hidden.has(p.id);
+    return `<div class="prd-setrow">
+      <div class="prd-rname">${esc(p.name)}</div>
+      <div class="prd-badge">${p.type === 'PREPARED' ? 'ПФ' : 'страва'}</div>
+      <div class="prd-sw ${on ? 'on' : ''}" onclick="window.__prod.toggle('${p.id}')"><div class="prd-sw-dot"></div></div>
+    </div>`;
+  }).join('');
+}
+function settingsBodyHTML() {
+  const shown = _items.filter(p => !_hidden.has(p.id)).length;
+  return `
+    <div class="prd-note" style="text-align:left;margin:6px 4px 0">Увімкнені вироби бачитиме кухар у вкладці «Виробництво». Вимкни ті, які кухня не готує.</div>
+    <div class="prd-sec">Вироби · показано ${shown} з ${_items.length}</div>
+    <input class="prd-search" placeholder="Пошук виробу…" value="${esc(_setSearch)}" oninput="window.__prod.setSearch(this.value)">
+    <div class="prd-list" id="prd-setlist" style="max-height:56vh">${setListHTML()}</div>
+    <button class="prd-cta" id="prd-savecfg" ${_savingCfg ? 'disabled' : ''} onclick="window.__prod.saveCfg()">
+      ${_savingCfg ? 'Зберігаю…' : (_cfgMsg || 'Зберегти')}
+    </button>`;
+}
+
+function bodyHTML() {
+  return (_canSettings && _tab === 'settings') ? settingsBodyHTML() : prodBodyHTML();
+}
+function tabsHTML() {
+  if (!_canSettings) return '';
+  const t = (id, lbl) => `<button class="prd-tab ${_tab === id ? 'on' : ''}" onclick="window.__prod.tab('${id}')">${lbl}</button>`;
+  return `<div class="prd-tabs">${t('prod', 'Виробництво')}${t('settings', 'Налаштування')}</div>`;
 }
 
 function resultHTML() {
@@ -126,30 +175,34 @@ function resultHTML() {
       </div>
       <div class="prd-ovtitle">${ok ? 'Акт створено' : 'Не вдалося'}</div>
       <div class="prd-ovmsg">${esc(_result.msg || _result.error || '')}</div>
-      <button class="prd-ovbtn" style="background:${ok ? 'var(--green)' : 'var(--bg2)'};color:${ok ? 'var(--fab-ink,#000)' : 'var(--text0)'}"
-        onclick="window.__prod.closeResult()">Готово</button>
+      <button class="prd-ovbtn" style="background:${ok ? 'var(--green)' : 'var(--bg2)'};color:${ok ? 'var(--fab-ink,#000)' : 'var(--text0)'}" onclick="window.__prod.closeResult()">Готово</button>
     </div>
   </div>`;
 }
 
-function refresh() { const el = document.getElementById('prd-body'); if (el) el.innerHTML = bodyHTML(); }
-function refreshList() { const el = document.getElementById('prd-list'); if (el) el.innerHTML = listHTML(); }
+function refresh()      { const el = document.getElementById('prd-body'); if (el) el.innerHTML = bodyHTML() + (_result ? resultHTML() : ''); const tb = document.getElementById('prd-tabs-host'); if (tb) tb.innerHTML = tabsHTML(); }
+function refreshList()  { const el = document.getElementById('prd-list'); if (el) el.innerHTML = listHTML(); }
+function refreshSetList(){ const el = document.getElementById('prd-setlist'); if (el) el.innerHTML = setListHTML(); }
 function refreshSel() {
   const s = document.getElementById('prd-sel'); if (s) s.innerHTML = selHTML();
-  const l = document.getElementById('prd-list'); if (l) l.innerHTML = listHTML();
+  refreshList();
   const total = _sel.filter(x => (parseFloat(x.qty) || 0) > 0).length;
   const cta = document.getElementById('prd-cta'); if (cta) cta.disabled = !(total && !_sending);
 }
 
-async function loadProducible() {
-  _loading = true; _err = ''; refreshList();
+async function loadAll() {
+  _loading = true; _err = ''; refresh();
   try {
-    const r = await fetch(`${API}/api/pos/producible/${_venueId}`, { headers: _token ? { Authorization: `Bearer ${_token}` } : {} });
-    const d = await r.json();
-    if (!r.ok || !d.success) throw new Error(d.error || 'Не вдалося завантажити вироби');
-    _items = d.items || [];
+    const H = _token ? { Authorization: `Bearer ${_token}` } : {};
+    const [pr, st] = await Promise.all([
+      fetch(`${API}/api/pos/producible/${_venueId}`, { headers: H }).then(r => r.json()).catch(() => ({})),
+      fetch(`${API}/api/pos/production-setting/${_venueId}`, { headers: H }).then(r => r.json()).catch(() => ({})),
+    ]);
+    if (!pr.success) throw new Error(pr.error || 'Не вдалося завантажити вироби');
+    _items = pr.items || [];
+    _hidden = new Set(Array.isArray(st.hiddenIds) ? st.hiddenIds : []);
   } catch (e) { _err = e.message; _items = []; }
-  _loading = false; refreshList();
+  _loading = false; refresh();
 }
 
 async function submit() {
@@ -169,17 +222,36 @@ async function submit() {
     }
     _result = { ok: true, msg: `${d.itemCount} поз.${d.syrveDocNumber ? ` · №${d.syrveDocNumber}` : ''} — непроведений. Бухгалтер проведе.` };
     _sel = [];
-  } catch (e) {
-    _result = { ok: false, error: e.message };
-  }
+  } catch (e) { _result = { ok: false, error: e.message }; }
   _sending = false; refresh();
+}
+
+async function saveCfg() {
+  if (_savingCfg) return;
+  _savingCfg = true; refresh();
+  try {
+    const r = await fetch(`${API}/api/pos/production-setting/${_venueId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(_token ? { Authorization: `Bearer ${_token}` } : {}) },
+      body: JSON.stringify({ hiddenIds: [..._hidden] }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Не збереглось');
+    _cfgMsg = 'Збережено ✓';
+  } catch (e) { _cfgMsg = 'Помилка: ' + e.message; }
+  _savingCfg = false; refresh();
+  setTimeout(() => { _cfgMsg = ''; if (_tab === 'settings') refresh(); }, 2200);
 }
 
 export default {
   render() {
     _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
     _token   = localStorage.getItem('barops_token') || '';
-    _items = []; _loading = true; _err = ''; _search = ''; _sel = []; _sending = false; _result = null;
+    _role    = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
+    _canSettings = ['admin', 'chef'].includes(_role);
+    _tab = 'prod';
+    _items = []; _loading = true; _err = ''; _hidden = new Set(); _search = ''; _setSearch = '';
+    _sel = []; _sending = false; _result = null; _savingCfg = false; _cfgMsg = '';
     return `${CSS}
     <div class="prd-wrap">
       <div class="prd-hdr">
@@ -191,26 +263,27 @@ export default {
           <div class="prd-sub">${esc(state.venue || '')} · що приготували за зміну</div>
         </div>
       </div>
+      <div id="prd-tabs-host">${tabsHTML()}</div>
       <div class="prd-scroll"><div id="prd-body">${bodyHTML()}</div></div>
     </div>`;
   },
   init() {
     window.__prod = {
+      tab(id) { _tab = (id === 'settings' && _canSettings) ? 'settings' : 'prod'; _cfgMsg = ''; refresh(); },
       search(v) { _search = v; refreshList(); },
+      setSearch(v) { _setSearch = v; refreshSetList(); },
       add(id) {
         const ex = _sel.find(s => s.id === id);
-        if (ex) { _sel = _sel.filter(s => s.id !== id); }          // повторний тап — прибрати
-        else {
-          const p = _items.find(x => x.id === id);
-          if (p) _sel.push({ id: p.id, name: p.name, unit: p.unit, qty: isCountUnit(p.unit) ? 1 : 1 });
-        }
+        if (ex) _sel = _sel.filter(s => s.id !== id);
+        else { const p = _items.find(x => x.id === id); if (p) _sel.push({ id: p.id, name: p.name, unit: p.unit, qty: 1 }); }
         refreshSel();
       },
       remove(id) { _sel = _sel.filter(s => s.id !== id); refreshSel(); },
       setQty(id, v) { const s = _sel.find(x => x.id === id); if (s) { s.qty = v; const t = _sel.filter(x => (parseFloat(x.qty) || 0) > 0).length; const cta = document.getElementById('prd-cta'); if (cta) cta.disabled = !(t && !_sending); } },
-      submit,
+      toggle(id) { if (_hidden.has(id)) _hidden.delete(id); else _hidden.add(id); _cfgMsg = ''; refreshSetList(); const c = document.getElementById('prd-savecfg'); if (c) c.textContent = 'Зберегти'; },
+      submit, saveCfg,
       closeResult() { _result = null; refresh(); },
     };
-    loadProducible();
+    loadAll();
   },
 };
