@@ -1889,7 +1889,7 @@ function historyHTML() {
             <div data-a="hist-toggle" data-sid="${s.id}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
               <div style="flex:1;min-width:0">
                 <div class="inv-sess-date">${dStr}, ${tStr}</div>
-                <div class="inv-sess-who">${s.user?.name || ''}</div>
+                <div class="inv-sess-who">${s.closedByName ? `Відправив: ${s.closedByName}` : (s.user?.name || '')}</div>
               </div>
               <span class="inv-badge inv-badge-done">✓ Відправлено</span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" style="transform:rotate(${open ? 180 : 0}deg);transition:transform .2s;flex-shrink:0"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
