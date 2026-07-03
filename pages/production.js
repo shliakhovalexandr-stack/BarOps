@@ -29,6 +29,8 @@ let _sel = [];                     // обрані {id,name,unit,qty}
 let _sending = false;
 let _result = null;
 let _savingCfg = false, _cfgMsg = '';
+let _history = [];                  // стрічка актів {id,userName,syrveDocNumber,createdAt,items:[{name,qty,unit}]}
+let _expHist = new Set();           // розгорнуті картки історії
 
 const CSS = `<style>
 .prd-wrap{display:flex;flex-direction:column;height:100%;background:var(--bg);color:var(--text0)}
@@ -70,6 +72,17 @@ const CSS = `<style>
 .prd-sw.on{background:var(--green);border-color:var(--green)}
 .prd-sw-dot{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .18s}
 .prd-sw.on .prd-sw-dot{transform:translateX(18px)}
+/* історія */
+.prd-hcard{background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;margin-bottom:6px;overflow:hidden}
+.prd-hhdr{display:flex;align-items:center;gap:10px;padding:12px 13px;cursor:pointer}
+.prd-hmain{flex:1;min-width:0}
+.prd-hdate{font-size:14px;font-family:var(--font-h);font-weight:600;color:var(--text0)}
+.prd-hmeta{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.prd-hcnt{font-size:11px;color:var(--green);font-family:var(--font-b);flex-shrink:0}
+.prd-hchev{flex-shrink:0;transition:transform .18s}
+.prd-hbody{padding:2px 13px 12px;display:flex;flex-direction:column;gap:4px}
+.prd-hrow{display:flex;justify-content:space-between;gap:10px;padding:7px 11px;background:var(--bg2);border-radius:9px;font-size:13px;font-family:var(--font-b)}
+.prd-hqty{color:var(--green);font-weight:700;font-family:var(--font-h);flex-shrink:0}
 .prd-ov{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:24px}
 .prd-ovcard{background:var(--bg1);border:0.5px solid var(--border);border-radius:20px;padding:26px 22px;width:100%;max-width:340px;text-align:center}
 .prd-ovicon{width:52px;height:52px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
@@ -112,6 +125,32 @@ function selHTML() {
       </div>
     </div>`).join('')}</div>`;
 }
+function fmtDT(iso) {
+  const d = new Date(iso); if (isNaN(d)) return '';
+  const p = n => String(n).padStart(2, '0');
+  const today = new Date(); const y = new Date(today); y.setDate(y.getDate() - 1);
+  const same = (a, b) => a.toDateString() === b.toDateString();
+  const day = same(d, today) ? 'Сьогодні' : same(d, y) ? 'Вчора' : `${p(d.getDate())}.${p(d.getMonth() + 1)}`;
+  return `${day}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function histHTML() {
+  if (!_history.length) return '';
+  return `<div class="prd-sec">Історія виробництва</div>` + _history.map(a => {
+    const open = _expHist.has(a.id);
+    const its = Array.isArray(a.items) ? a.items : [];
+    return `<div class="prd-hcard">
+      <div class="prd-hhdr" onclick="window.__prod.toggleHist('${a.id}')">
+        <div class="prd-hmain">
+          <div class="prd-hdate">${fmtDT(a.createdAt)}</div>
+          <div class="prd-hmeta">${a.userName ? esc(a.userName) : 'Кухня'}${a.syrveDocNumber ? ` · №${esc(a.syrveDocNumber)}` : ''}</div>
+        </div>
+        <div class="prd-hcnt">${its.length} поз.</div>
+        <svg class="prd-hchev" width="14" height="14" viewBox="0 0 14 14" fill="none" style="transform:rotate(${open ? 90 : 0}deg)"><path d="M5 3l4 4-4 4" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      ${open ? `<div class="prd-hbody">${its.map(i => `<div class="prd-hrow"><span style="color:var(--text1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.name)}</span><span class="prd-hqty">${i.qty} ${unitLbl(i.unit)}</span></div>`).join('') || '<div class="prd-empty">Без позицій</div>'}</div>` : ''}
+    </div>`;
+  }).join('');
+}
 function prodBodyHTML() {
   const total = _sel.filter(s => (parseFloat(s.qty) || 0) > 0).length;
   return `
@@ -122,7 +161,8 @@ function prodBodyHTML() {
     <div id="prd-sel">${selHTML()}</div>
     <button class="prd-cta" id="prd-cta" ${total && !_sending ? '' : 'disabled'} onclick="window.__prod.submit()">
       ${_sending ? 'Надсилаю…' : 'Надіслати в Syrve'}
-    </button>`;
+    </button>
+    <div id="prd-hist">${histHTML()}</div>`;
 }
 
 /* ── Налаштування (курація) ── */
@@ -193,19 +233,29 @@ async function loadAll() {
   _loading = true; _err = ''; refresh();
   try {
     const H = _token ? { Authorization: `Bearer ${_token}` } : {};
-    const [pr, st] = await Promise.all([
+    const [pr, st, hi] = await Promise.all([
       fetch(`${API}/api/pos/producible/${_venueId}`, { headers: H }).then(r => r.json()).catch(() => ({})),
       fetch(`${API}/api/pos/production-setting/${_venueId}`, { headers: H }).then(r => r.json()).catch(() => ({})),
+      fetch(`${API}/api/pos/production-history/${_venueId}`, { headers: H }).then(r => r.json()).catch(() => ({})),
     ]);
     if (!pr.success) throw new Error(pr.error || 'Не вдалося завантажити вироби');
     _items = pr.items || [];
     _shown = new Set(Array.isArray(st.shownIds) ? st.shownIds : []);
+    _history = Array.isArray(hi.acts) ? hi.acts : [];
   } catch (e) { _err = e.message; _items = []; }
   _loading = false; refresh();
 }
 
+async function loadHistory() {
+  try {
+    const r = await fetch(`${API}/api/pos/production-history/${_venueId}`, { headers: _token ? { Authorization: `Bearer ${_token}` } : {} });
+    const d = await r.json();
+    if (d.success) { _history = Array.isArray(d.acts) ? d.acts : []; const el = document.getElementById('prd-hist'); if (el) el.innerHTML = histHTML(); }
+  } catch {}
+}
+
 async function submit() {
-  const items = _sel.map(s => ({ productId: s.id, amount: parseFloat(String(s.qty).replace(',', '.')) || 0 })).filter(i => i.amount > 0);
+  const items = _sel.map(s => ({ productId: s.id, amount: parseFloat(String(s.qty).replace(',', '.')) || 0, name: s.name, unit: s.unit })).filter(i => i.amount > 0);
   if (!items.length || _sending) return;
   _sending = true; refresh();
   try {
@@ -221,6 +271,7 @@ async function submit() {
     }
     _result = { ok: true, msg: `${d.itemCount} поз.${d.syrveDocNumber ? ` · №${d.syrveDocNumber}` : ''} — непроведений. Бухгалтер проведе.` };
     _sel = [];
+    loadHistory();   // оновити стрічку новим актом
   } catch (e) { _result = { ok: false, error: e.message }; }
   _sending = false; refresh();
 }
@@ -250,7 +301,7 @@ export default {
     _canSettings = ['admin', 'chef'].includes(_role);
     _tab = 'prod';
     _items = []; _loading = true; _err = ''; _shown = new Set(); _search = ''; _setSearch = '';
-    _sel = []; _sending = false; _result = null; _savingCfg = false; _cfgMsg = '';
+    _sel = []; _sending = false; _result = null; _savingCfg = false; _cfgMsg = ''; _history = []; _expHist = new Set();
     return `${CSS}
     <div class="prd-wrap">
       <div class="prd-hdr">
@@ -281,6 +332,7 @@ export default {
       setQty(id, v) { const s = _sel.find(x => x.id === id); if (s) { s.qty = v; const t = _sel.filter(x => (parseFloat(x.qty) || 0) > 0).length; const cta = document.getElementById('prd-cta'); if (cta) cta.disabled = !(t && !_sending); } },
       toggle(id) { if (_shown.has(id)) _shown.delete(id); else _shown.add(id); _cfgMsg = ''; refreshSetList(); const c = document.getElementById('prd-savecfg'); if (c) c.textContent = 'Зберегти'; },
       submit, saveCfg,
+      toggleHist(id) { if (_expHist.has(id)) _expHist.delete(id); else _expHist.add(id); const el = document.getElementById('prd-hist'); if (el) el.innerHTML = histHTML(); },
       closeResult() { _result = null; refresh(); },
     };
     loadAll();
