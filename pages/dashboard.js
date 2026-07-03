@@ -67,6 +67,11 @@ const QUICK_RECIPE_BOOK = { route:'recipe-book', badge:null, label:'Рецепт
        <path d="M5.5 5.5h4M5.5 8.5h4M5.5 11.5h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
        <path d="M12 4.5h2a1 1 0 011 1v9a1 1 0 01-1 1H6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>` };
 
+const QUICK_PRODUCTION = { route:'production', badge:null, label:'Виробництво', hint:'Що приготували → акт у Syrve', color:'var(--green-bg)', iconColor:'var(--green)',
+  svg:`<path d="M3 8h12M4 8v5a2 2 0 002 2h6a2 2 0 002-2V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+       <path d="M2 8h14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+       <path d="M6.5 5.2c0-1 .8-1.7 1.5-1.7s1.5.7 1.5 1.7M9.5 5.2c0-1 .8-1.7 1.5-1.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` };
+
 const QUICK_BARTENDER = [
   { route:'debts',     badge:null, label:'Борги',     hint:'Відкриті рахунки та борги',  color:'var(--amber-bg)',  iconColor:'var(--amber)',
     svg:`<path d="M3 13h12M3 9h12M8 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -348,11 +353,11 @@ function quickGrid(items) {
 // ── Нова головна: плитки-сітка по секціях ──────────────────
 function tileByRoute() {
   const m = {};
-  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
 // Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист
-const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'inventory'];
+const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'production', 'inventory'];
 
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
@@ -620,13 +625,13 @@ function buildHTML() {
   const isAcc = (state.role || '').toLowerCase() === 'accountant';
   // Керуючий — менеджерські швидкі дії (без Замовлень/Інвентаризації) + «Графіки»
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
-  const quick = state.role === 'admin' ? QUICK_ADMIN
+  const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION]
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? [QUICK_INVOICE_OCR, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
-              : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар, замовлення (кухонні заявки) + рецепти кухні
+              : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_PRODUCTION, QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар, замовлення + виробництво + рецепти кухні
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
