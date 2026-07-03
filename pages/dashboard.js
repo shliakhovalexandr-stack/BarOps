@@ -361,9 +361,9 @@ const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedul
 
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
-  ['Акти',             ['production']],   // акти в Syrve (приготування; далі — розбір тощо). Порожній — ховається
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
   ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
+  ['Акти',             ['production']],   // акти в Syrve (приготування; далі — розбір тощо). Порожній — ховається
   ['Ревізія',          ['dishware']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
 ];
