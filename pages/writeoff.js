@@ -38,6 +38,7 @@ let _selCat     = null;
 let _selProd    = null;
 let _selVol     = null;
 let _selUnit    = 'l';
+let _woCart     = [];   // мультивибір товарів для нового списання: [{id,name,unit,stock,vol,vol0,isPrep,scope,zone}]
 let _selReason  = null;
 let _selAccount = null; // {id, name} — рахунок Syrve для цього списання
 let _sentHistory = []; // [{ts, date, accounts, itemCount, acts}] — відправлені акти Syrve
@@ -109,6 +110,8 @@ function woViewZone() {
   return 'bar';
 }
 function inWoZone(w) { const z = woViewZone(); return z === null || (w.scope || 'bar') === z; }
+// Мультивибір товарів (кошик) активний лише для НОВОГО списання — не для переміщення й не для редагування
+function woCartMode() { return _formMode !== 'transfer' && !_editId; }
 // Зона-джерело для переміщення: показуємо товари складу, ЗВІДКИ переміщуємо
 function transferSourceZone() {
   const r = (state.role || '').toLowerCase();
@@ -464,6 +467,17 @@ const CSS = `<style id="wo-css">
 .wo-sp-name{font-family:var(--font-h);font-size:13px;color:var(--text0);font-weight:600;margin-top:2px}
 .wo-sp-before{font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:right}
 .wo-sp-after{font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--red);text-align:right}
+
+/* multi-item cart (крок «Обсяги») */
+.wo-cart-empty{text-align:center;padding:22px 10px;color:var(--text2);font-family:var(--font-b);font-size:13px}
+.wo-cart-row{display:flex;align-items:center;gap:9px;padding:10px 12px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);border-radius:12px}
+.wo-cart-info{flex:1;min-width:0}
+.wo-cart-name{font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wo-cart-stock{font-size:10.5px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.wo-cart-vol{width:74px;height:44px;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;text-align:center;font-size:17px;font-family:var(--font-h);font-weight:700;color:var(--text0);outline:none;flex-shrink:0}
+.wo-cart-vol:focus{border-color:var(--red)}
+.wo-cart-unit{font-size:11px;color:var(--text2);font-family:var(--font-b);width:22px;flex-shrink:0}
+.wo-cart-del{width:28px;height:28px;border-radius:8px;background:var(--red-bg);border:0.5px solid var(--red-border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 
 /* reason step */
 .wo-reason-list{display:flex;flex-direction:column;gap:6px}
@@ -872,6 +886,7 @@ function renderBartender() {
 
         <!-- Step 2: Product -->
         <div class="wo-fstep ${_formStep===2?'act':''}" id="wfstep2">
+          ${woCartMode() ? `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:10px">Оберіть один або кілька товарів — обсяг введете на наступному кроці</div>` : ''}
           <div style="display:flex;gap:6px;margin-bottom:12px">
             <button onclick="window.__wo.setProdTab('goods')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab!=='prep'?'var(--purple)':'var(--border)'};background:${_prodTab!=='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab!=='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Товари</button>
             <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Напівфабрикати</button>
@@ -887,66 +902,8 @@ function renderBartender() {
           <div class="wo-prod-list" id="wo-prod-list">${_prodTab==='prep'?prepListHTML():prodListHTML()}</div>
         </div>
 
-        <!-- Step 3: Volume -->
-        <div class="wo-fstep ${_formStep===3?'act':''}" id="wfstep3">
-          <div>
-            <div class="wo-custom-lbl">Об'єм списання</div>
-            <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
-              placeholder="0" value="${_selVol||''}"
-              oninput="window.__wo.updateVol()"/>
-            ${(() => {
-              const unitOpts = _selProd?.unit==='kg'  ? [['kg','кг'],['g','г']]
-                             : _selProd?.unit==='g'   ? [['g','г'],['kg','кг']]
-                             : _selProd?.unit==='sht' ? [['sht','шт']]
-                             : _selProd?.unit==='ml'  ? [['ml','мл'],['l','л']]
-                             :                         [['l','л'],['ml','мл']];
-              return `<div class="wo-unit-row">${unitOpts.map(([u,lbl])=>`<button class="wo-unit-btn ${_selUnit===u?'act':''}" data-u="${u}" onclick="window.__wo.setUnit('${u}')">${lbl}</button>`).join('')}</div>`;
-            })()}
-          </div>
-          <div class="wo-presets">
-            ${_selProd ? (() => {
-              const pu = _selProd.unit || 'l';
-              if (pu === 'sht') {
-                return [1,2,3,5,10].map(v =>
-                  `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
-                    onclick="window.__wo.setVol(${v})">${v} шт</button>`
-                ).join('');
-              }
-              if (pu === 'kg' || pu === 'g') {
-                return [0.1,0.25,0.5,1,2].map(v =>
-                  `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
-                    onclick="window.__wo.setVol(${v})">${v} кг</button>`
-                ).join('');
-              }
-              const vol = _selProd.vol || 0.7;
-              const presets = [
-                [parseFloat((vol*0.1).toFixed(3)), `10%`],
-                [parseFloat((vol*0.25).toFixed(3)), `25%`],
-                [parseFloat((vol*0.5).toFixed(3)), `½`],
-                [parseFloat((vol*0.75).toFixed(3)), `75%`],
-                [vol, `1 пляш.`],
-              ];
-              return presets.map(([v,lbl]) =>
-                `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
-                  onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} л</span></button>`
-              ).join('');
-            })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
-              `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
-                onclick="window.__wo.setVol(${v})">${['0.05 л','0.1 л','½ пляш.','1 пляш.','1.0 л'][i]}</button>`
-            ).join('')}
-          </div>
-          <div class="wo-stock-preview">
-            <div>
-              <div class="wo-sp-label">Поточний залишок</div>
-              <div class="wo-sp-name" id="wo-sp-name">${_selProd?esc(_selProd.name):'—'}</div>
-            </div>
-            <div>
-              <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
-              <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin:2px 0;text-align:right">після списання</div>
-              <div class="wo-sp-after" id="wo-sp-after">— ${_selProd ? unitLabel(_selProd.unit) : 'л'}</div>
-            </div>
-          </div>
-        </div>
+        <!-- Step 3: Volume (кошик для нового списання / одиничне поле для переміщення·редагування) -->
+        <div class="wo-fstep ${_formStep===3?'act':''}" id="wfstep3">${volStepHTML()}</div>
 
         <!-- Step 4: Category pills (if accounts mode) + Reason -->
         <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
@@ -968,7 +925,7 @@ function renderBartender() {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <button class="wo-fnext" id="wo-fnext" onclick="window.__wo.nextStep()"
-          ${((_formStep===1&&(getWoAccounts().length?!_selAccount:!_selCat))||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol))?'disabled style="opacity:.35"':''}>
+          ${!woStepValid(_formStep)?'disabled style="opacity:.35"':''}>
           ${(_formMode==='transfer' && _formStep===3)
             ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Зафіксувати переміщення`
             : _formStep===4
@@ -1019,17 +976,21 @@ function prodListHTML() {
   if (list.length === 0) {
     return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_prods.length===0?'Завантаження товарів…':'Нічого не знайдено'}</div>`;
   }
-  return list.map(p => `
-    <div class="wo-prod-item ${_selProd?.id===p.id?'sel':''}" onclick="window.__wo.selectProd('${p.id}')">
+  const cart = woCartMode();
+  return list.map(p => {
+    const sel = cart ? _woCart.some(c => c.id === p.id) : (_selProd?.id === p.id);
+    return `
+    <div class="wo-prod-item ${sel?'sel':''}" onclick="window.__wo.${cart?'toggleProd':'selectProd'}('${p.id}')">
       <div class="wo-pi-emoji">🍾</div>
       <div style="flex:1;min-width:0">
         <div class="wo-pi-name">${esc(p.name)}</div>
         ${p.stock!=null?`<div class="wo-pi-stock">Залишок: ${typeof p.stock==='number'?p.stock.toFixed(2):p.stock}</div>`:''}
       </div>
       <div class="wo-pi-check">
-        ${_selProd?.id===p.id?`<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+        ${sel?`<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function reasonListHTML() {
@@ -1204,7 +1165,144 @@ function syrveResultHTML() {
   </div>`;
 }
 
+// Товар для кошика з _prods або _preps (як у selectProd/editWriteoff)
+function woResolveProd(id) {
+  const p = _prods.find(x => x.id === id);
+  if (p) return { id: p.id, name: p.name, unit: p.unit || 'l', stock: p.stock ?? 0, vol0: p.vol || 0.7, isPrep: false, scope: undefined, zone: p.zone };
+  const pr = _preps.find(x => x.id === id);
+  if (pr) return { id: pr.id, name: pr.name, unit: normalizeUnit(pr.unit), stock: pr.stock ?? 0, vol0: 0.7, isPrep: true, scope: pr.scope, zone: undefined };
+  return null;
+}
+function toggleProd(id) {
+  const i = _woCart.findIndex(c => c.id === id);
+  if (i !== -1) _woCart.splice(i, 1);
+  else { const p = woResolveProd(id); if (p) _woCart.push({ ...p, vol: null }); }
+  refreshProdList();
+  updateNextBtn();
+}
+function removeCartItem(id) { _woCart = _woCart.filter(c => c.id !== id); fullRender(); }
+function updateCartVol(id) {
+  const c = _woCart.find(x => x.id === id); if (!c) return;
+  const raw = parseFloat(document.getElementById('wo-cv-' + id)?.value);
+  c.vol = (!isNaN(raw) && raw >= 0) ? raw : null;
+  const after = Math.max(0, (c.stock || 0) - (parseFloat(c.vol) || 0));
+  const aftEl = document.getElementById('wo-cv-after-' + id);
+  if (aftEl) aftEl.textContent = fmtStock(after, c.unit);
+  updateNextBtn();
+}
+
+// Крок «Обсяг»: кошик (нове списання) або одиничне поле (переміщення/редагування)
+function volStepHTML() {
+  if (!woCartMode()) return singleVolHTML();
+  if (!_woCart.length) return `<div class="wo-cart-empty">Поверніться на крок «Товар» і оберіть кілька позицій — тут з'явиться поле обсягу для кожної.</div>`;
+  return `<div class="wo-custom-lbl">Обсяг списання по кожній позиції</div>
+  <div style="display:flex;flex-direction:column;gap:6px">${_woCart.map(c => {
+    const after = Math.max(0, (c.stock || 0) - (parseFloat(c.vol) || 0));
+    return `<div class="wo-cart-row">
+      <div class="wo-cart-info">
+        <div class="wo-cart-name">${esc(c.name)}${c.isPrep ? ' <span style="font-size:9px;color:var(--purple)">ПФ</span>' : ''}</div>
+        <div class="wo-cart-stock">Залишок ${fmtStock(c.stock, c.unit)} → <span id="wo-cv-after-${c.id}">${fmtStock(after, c.unit)}</span></div>
+      </div>
+      <input class="wo-cart-vol" id="wo-cv-${c.id}" type="number" inputmode="decimal" step="0.001" min="0"
+        placeholder="0" value="${c.vol ?? ''}" oninput="window.__wo.updateCartVol('${c.id}')">
+      <div class="wo-cart-unit">${unitLabel(c.unit)}</div>
+      <div class="wo-cart-del" onclick="window.__wo.removeCartItem('${c.id}')" aria-label="Прибрати">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2.5 4.5h9M5.5 4.5V3h3v1.5M5.5 6.5v4M8.5 6.5v4M3.5 4.5l.7 7h5.6l.7-7" stroke="var(--red)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// Одиничне поле обсягу (переміщення / редагування) — колишній крок 3
+function singleVolHTML() {
+  return `
+    <div>
+      <div class="wo-custom-lbl">Об'єм списання</div>
+      <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
+        placeholder="0" value="${_selVol||''}"
+        oninput="window.__wo.updateVol()"/>
+      ${(() => {
+        const unitOpts = _selProd?.unit==='kg'  ? [['kg','кг'],['g','г']]
+                       : _selProd?.unit==='g'   ? [['g','г'],['kg','кг']]
+                       : _selProd?.unit==='sht' ? [['sht','шт']]
+                       : _selProd?.unit==='ml'  ? [['ml','мл'],['l','л']]
+                       :                         [['l','л'],['ml','мл']];
+        return `<div class="wo-unit-row">${unitOpts.map(([u,lbl])=>`<button class="wo-unit-btn ${_selUnit===u?'act':''}" data-u="${u}" onclick="window.__wo.setUnit('${u}')">${lbl}</button>`).join('')}</div>`;
+      })()}
+    </div>
+    <div class="wo-presets">
+      ${_selProd ? (() => {
+        const pu = _selProd.unit || 'l';
+        if (pu === 'sht') {
+          return [1,2,3,5,10].map(v =>
+            `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
+              onclick="window.__wo.setVol(${v})">${v} шт</button>`
+          ).join('');
+        }
+        if (pu === 'kg' || pu === 'g') {
+          return [0.1,0.25,0.5,1,2].map(v =>
+            `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
+              onclick="window.__wo.setVol(${v})">${v} кг</button>`
+          ).join('');
+        }
+        const vol = _selProd.vol || 0.7;
+        const presets = [
+          [parseFloat((vol*0.1).toFixed(3)), `10%`],
+          [parseFloat((vol*0.25).toFixed(3)), `25%`],
+          [parseFloat((vol*0.5).toFixed(3)), `½`],
+          [parseFloat((vol*0.75).toFixed(3)), `75%`],
+          [vol, `1 пляш.`],
+        ];
+        return presets.map(([v,lbl]) =>
+          `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
+            onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} л</span></button>`
+        ).join('');
+      })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
+        `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
+          onclick="window.__wo.setVol(${v})">${['0.05 л','0.1 л','½ пляш.','1 пляш.','1.0 л'][i]}</button>`
+      ).join('')}
+    </div>
+    <div class="wo-stock-preview">
+      <div>
+        <div class="wo-sp-label">Поточний залишок</div>
+        <div class="wo-sp-name" id="wo-sp-name">${_selProd?esc(_selProd.name):'—'}</div>
+      </div>
+      <div>
+        <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
+        <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin:2px 0;text-align:right">після списання</div>
+        <div class="wo-sp-after" id="wo-sp-after">— ${_selProd ? unitLabel(_selProd.unit) : 'л'}</div>
+      </div>
+    </div>`;
+}
+
+// Валідність кроку форми списання (крок 2/3 залежить від режиму: кошик чи одиничний)
+function woStepValid(step) {
+  if (step === 1) return getWoAccounts().length ? !!_selAccount : !!_selCat;
+  if (woCartMode()) {
+    if (step === 2) return _woCart.length > 0;
+    if (step === 3) return _woCart.length > 0 && _woCart.every(c => (parseFloat(c.vol) || 0) > 0);
+    return true;
+  }
+  if (step === 2) return !!_selProd;
+  if (step === 3) return !!_selVol;
+  return true;
+}
+
 function summaryHTML() {
+  if (woCartMode()) {
+    const items = _woCart.filter(c => (parseFloat(c.vol) || 0) > 0);
+    const rows = items.map(c => `<div class="wo-sum-row"><div class="wo-sum-label" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</div><div class="wo-sum-val-big" style="font-size:14px">${parseFloat(c.vol)||0} ${unitLabel(c.unit)}</div></div>`).join('');
+    const totalLoss = items.reduce((s, c) => s + ((_prices[c.id] || 0) * (parseFloat(c.vol) || 0)), 0);
+    return `
+    <div class="wo-summary-card">
+      <div class="wo-sum-row"><div class="wo-sum-label">${_isPosterWo ? 'Причина' : (getWoAccounts().length ? 'Рахунок' : 'Категорія')}</div><div class="wo-sum-val">${_isPosterWo ? (_selReasonName || 'Без причини') : (getWoAccounts().length ? esc(_selAccount?.name || '—') : (_selCat?CAT[_selCat].label:'—'))}</div></div>
+      <div class="wo-sum-div"></div>
+      ${rows || '<div class="wo-sum-row"><div class="wo-sum-label">Позиції</div><div class="wo-sum-val">—</div></div>'}
+      <div class="wo-sum-div"></div>
+      <div class="wo-sum-row"><div class="wo-sum-label">Позицій</div><div class="wo-sum-val">${items.length}</div></div>
+      ${totalLoss>0?`<div class="wo-sum-row"><div class="wo-sum-label">Збиток (орієнтовно)</div><div class="wo-sum-val" style="color:var(--red)">~${Math.round(totalLoss)} ₴</div></div>`:''}
+    </div>`;
+  }
   const vol = _selVol || 0;
   const unit = unitLabel(_selUnit || _selProd?.unit || 'l');   // була захардкоджена «л»
   const loss = _selProd ? Math.round(vol / _selProd.vol * _selProd.price) : 0;
@@ -1433,6 +1531,7 @@ function renderManager() {
 
           <!-- Step 2: Product -->
           <div class="wo-fstep ${_formStep===2?'act':''}" id="wfstep2">
+            ${woCartMode() ? `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:10px">Оберіть один або кілька товарів — обсяг введете на наступному кроці</div>` : ''}
             <div style="display:flex;gap:6px;margin-bottom:12px">
               <button onclick="window.__wo.setProdTab('goods')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab!=='prep'?'var(--purple)':'var(--border)'};background:${_prodTab!=='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab!=='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Товари</button>
               <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Напівфабрикати</button>
@@ -1449,65 +1548,7 @@ function renderManager() {
           </div>
 
           <!-- Step 3: Volume -->
-          <div class="wo-fstep ${_formStep===3?'act':''}" id="wfstep3">
-            <div>
-              <div class="wo-custom-lbl">Об'єм списання</div>
-              <input class="wo-vol-field" id="wo-vol-input" type="number" step="0.001"
-                placeholder="0" value="${_selVol||''}"
-                oninput="window.__wo.updateVol()"/>
-              ${(() => {
-                const unitOpts = _selProd?.unit==='kg'  ? [['kg','кг'],['g','г']]
-                               : _selProd?.unit==='g'   ? [['g','г'],['kg','кг']]
-                               : _selProd?.unit==='sht' ? [['sht','шт']]
-                               : _selProd?.unit==='ml'  ? [['ml','мл'],['l','л']]
-                               :                         [['l','л'],['ml','мл']];
-                return `<div class="wo-unit-row">${unitOpts.map(([u,lbl])=>`<button class="wo-unit-btn ${_selUnit===u?'act':''}" data-u="${u}" onclick="window.__wo.setUnit('${u}')">${lbl}</button>`).join('')}</div>`;
-              })()}
-            </div>
-            <div class="wo-presets">
-              ${_selProd ? (() => {
-                const pu = _selProd.unit || 'l';
-                if (pu === 'sht') {
-                  return [1,2,3,5,10].map(v =>
-                    `<button class="wo-preset ${_selVol===v?'act':''}"
-                      onclick="window.__wo.setVol(${v})">${v} шт</button>`
-                  ).join('');
-                }
-                if (pu === 'kg' || pu === 'g') {
-                  return [0.1,0.25,0.5,1,2].map(v =>
-                    `<button class="wo-preset ${_selVol===v?'act':''}"
-                      onclick="window.__wo.setVol(${v})">${v} кг</button>`
-                  ).join('');
-                }
-                const vol = _selProd.vol || 0.7;
-                const presets = [
-                  [parseFloat((vol*0.1).toFixed(3)), `10%`],
-                  [parseFloat((vol*0.25).toFixed(3)), `25%`],
-                  [parseFloat((vol*0.5).toFixed(3)), `½`],
-                  [parseFloat((vol*0.75).toFixed(3)), `75%`],
-                  [vol, `1 пляш.`],
-                ];
-                return presets.map(([v,lbl]) =>
-                  `<button class="wo-preset ${_selVol===v?'act':''}"
-                    onclick="window.__wo.setVol(${v})">${lbl}<br/><span style="font-size:9px;opacity:.7">${v} л</span></button>`
-                ).join('');
-              })() : [0.05,0.1,0.35,0.7,1.0].map((v,i) =>
-                `<button class="wo-preset ${_selVol===v?'act':''}" data-v="${v}"
-                  onclick="window.__wo.setVol(${v})">${['0.05 л','0.1 л','½ пляш.','1 пляш.','1.0 л'][i]}</button>`
-              ).join('')}
-            </div>
-            <div class="wo-stock-preview">
-              <div>
-                <div class="wo-sp-label">Поточний залишок</div>
-                <div class="wo-sp-name" id="wo-sp-name">${_selProd?esc(_selProd.name):'—'}</div>
-              </div>
-              <div>
-                <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
-                <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin:2px 0;text-align:right">після списання</div>
-                <div class="wo-sp-after" id="wo-sp-after">— ${_selProd ? unitLabel(_selProd.unit) : 'л'}</div>
-              </div>
-            </div>
-          </div>
+          <div class="wo-fstep ${_formStep===3?'act':''}" id="wfstep3">${volStepHTML()}</div>
 
           <!-- Step 4: Reason -->
           <div class="wo-fstep ${_formStep===4?'act':''}" id="wfstep4">
@@ -1528,7 +1569,7 @@ function renderManager() {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <button class="wo-fnext" id="wo-fnext" onclick="window.__wo.nextStep()"
-            ${((_formStep===1&&(getWoAccounts().length?!_selAccount:!_selCat))||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol))?'disabled style="opacity:.35"':''}>
+            ${!woStepValid(_formStep)?'disabled style="opacity:.35"':''}>
             ${_formStep===4
               ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Зафіксувати списання`
               : `Далі <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 11l6-4-6-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
@@ -1595,17 +1636,21 @@ function prepListHTML() {
     return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_preps.length === 0 ? 'Немає напівфабрикатів' : 'Нічого не знайдено'}</div>`;
   }
   const zoneLbl = { bar: 'Бар', kitchen: 'Кухня', general: 'Загальні' };
-  return list.map(p => `
-    <div class="wo-prod-item ${_selProd?.id === p.id ? 'sel' : ''}" onclick="window.__wo.selectProd('${p.id}')">
+  const cart = woCartMode();
+  return list.map(p => {
+    const sel = cart ? _woCart.some(c => c.id === p.id) : (_selProd?.id === p.id);
+    return `
+    <div class="wo-prod-item ${sel ? 'sel' : ''}" onclick="window.__wo.${cart?'toggleProd':'selectProd'}('${p.id}')">
       <div class="wo-pi-emoji">🧪</div>
       <div style="flex:1;min-width:0">
         <div class="wo-pi-name">${esc(p.name)} <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span></div>
         <div class="wo-pi-stock">${zoneLbl[p.scope] || ''} · Залишок: ${typeof p.stock === 'number' ? p.stock : 0} ${p.unit || ''}</div>
       </div>
       <div class="wo-pi-check">
-        ${_selProd?.id === p.id ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
+        ${sel ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function loadPreps() {
@@ -1639,7 +1684,7 @@ function openForm(mode)  {
   _editId = null;
   _formMode = (mode === 'transfer') ? 'transfer' : 'writeoff';
   _formOpen=true; _formStep = _formMode==='transfer' ? 2 : 1;
-  _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch='';
+  _selCat=null; _selProd=null; _selVol=null; _selUnit='l'; _selReason=null; _selAccount=null; _prodSearch=''; _woCart=[];
   _selReasonId=null; _selReasonName='';
   _transferComment='';
   _prodTab='goods';
@@ -1734,8 +1779,7 @@ function setUnit(u) {
 function updateNextBtn() {
   const btn = document.getElementById('wo-fnext');
   if (!btn) return;
-  const step1invalid = getWoAccounts().length ? !_selAccount : !_selCat;
-  const disabled = (_formStep===1&&step1invalid)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol);
+  const disabled = !woStepValid(_formStep);
   btn.disabled = disabled;
   btn.style.opacity = disabled ? '.35' : '1';
 }
@@ -1755,14 +1799,44 @@ function updateCustomReason(v) {
 function nextStep() {
   if (_formMode==='transfer' && _formStep===3) { submitForm(); return; }  // переміщення: 2 кроки
   if (_formStep===4) { submitForm(); return; }
-  const step1invalid = getWoAccounts().length ? !_selAccount : !_selCat;
-  if ((_formStep===1&&step1invalid)||(_formStep===2&&!_selProd)||(_formStep===3&&!_selVol)) return;
+  if (!woStepValid(_formStep)) return;
   _formStep++;
   fullRender();
 }
 function prevStep() {
   if (_formMode==='transfer' && _formStep<=2) { closeForm(); return; }   // перший крок переміщення → закрити
   if (_formStep>1) { _formStep--; fullRender(); }
+}
+
+// Запис списання для одного товару з кошика (спільні рахунок/причина/категорія)
+function buildWoEntry(it, finalCat, now, hhmm, dd) {
+  const unit = it.unit || 'l';
+  const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[unit] || 'л';
+  const vol  = parseFloat(it.vol) || 0;
+  return {
+    id:      Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    cat:     finalCat,
+    prod:    it.name || 'Товар',
+    prodId:  it.id || null,
+    meta:    _isPosterWo ? (_selReasonName || 'Без причини') : (_selReason || (finalCat !== 'insh' ? (CAT[finalCat]?.label||'') : '')),
+    vol:     `−${vol}${uLbl}`,
+    volNum:  vol,
+    unitKey: unit,
+    isPrep:  !!it.isPrep,
+    scope:   roleZone(),
+    storeZone: it.isPrep
+               ? (it.scope === 'kitchen' ? 'kitchen' : it.scope === 'bar' ? 'bar' : roleZone())
+               : (it.zone === 'kitchen' ? 'kitchen' : it.zone === 'bar' ? 'bar' : roleZone()),
+    valColor:    CAT[finalCat]?.color || 'var(--text0)',
+    reason:      _selReason || '',
+    reasonId:    _isPosterWo ? _selReasonId : undefined,
+    reasonName:  _isPosterWo ? (_selReasonName || '') : undefined,
+    accountId:   _selAccount?.id   || null,
+    accountName: _selAccount?.name || null,
+    time:    hhmm,
+    dateStr: `${dd} · ${hhmm}`,
+    ts:      now.toISOString(),
+  };
 }
 
 async function submitForm() {
@@ -1841,6 +1915,66 @@ async function submitForm() {
     _editId   = null;
     _formOpen = false;
     fullRender();
+    setTimeout(initSwipe, 50);
+    return;
+  }
+
+  // ── МУЛЬТИ-СПИСАННЯ (кошик): N товарів → N записів зі спільним рахунком/причиною ──
+  if (woCartMode()) {
+    const items = _woCart.filter(c => (parseFloat(c.vol) || 0) > 0);
+    if (!items.length) return;
+    const vId = localStorage.getItem('barops_venueId') || '';
+    const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    if (!raw[vId]) raw[vId] = [];
+    const entries = [];
+    for (const it of items) {
+      const e = buildWoEntry(it, finalCat, now, hhmm, dd);
+      entries.push(e);
+      _writeoffs.push(e);
+      raw[vId].push(e);
+      const _l = e.accountName || 'Без рахунку';
+      _collapsedAcct.delete(_l); _collapsedAcct.delete('bar|' + _l); _collapsedAcct.delete('kit|' + _l);
+    }
+    localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
+
+    // Бекенд-журнал best-effort: по одному запису на товар (реальний id підміняємо)
+    try {
+      const { writeoffsAPI } = await import('../shared/api.js');
+      for (const e of entries) {
+        const uLbl2 = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[e.unitKey] || 'л';
+        const saved = await writeoffsAPI.create({
+          items:    [{ productName: e.prod, productId: e.prodId, qty: e.volNum, unit: uLbl2 }],
+          category: CAT[finalCat]?.label || finalCat || 'Інше',
+          reason:   e.reason || null,
+          accountId:   e.accountId   || null,
+          accountName: e.accountName || null,
+          storeZone: e.storeZone || null,
+          scope:     e.scope || null,
+          isPrep:    !!e.isPrep,
+          venueId:  vId,
+        });
+        if (saved?.data?.id) {
+          const oldId = e.id; e.id = saved.data.id;
+          const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+          const idx = (r2[vId] || []).findIndex(w => w.id === oldId);
+          if (idx !== -1) { r2[vId][idx].id = saved.data.id; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
+        }
+      }
+    } catch (err) {
+      console.warn('[Writeoff multi] Backend недоступний:', err.message);
+    }
+
+    const nItems  = entries.length;
+    const acctLbl = _selAccount?.name || CAT[finalCat]?.label || '';
+    _woCart   = [];
+    _formOpen = false;
+    _succOpen = true;
+    fullRender();
+    // текст успіху ставимо ПІСЛЯ fullRender (інакше перемальовка скидає його на статичний)
+    const subEl  = document.getElementById('wo-succ-sub');
+    const pillEl = document.getElementById('wo-succ-pill');
+    if (subEl)  subEl.textContent  = `${nItems} поз.${acctLbl ? ' · ' + acctLbl : ''} · записано в журнал`;
+    if (pillEl) pillEl.textContent = `${nItems} ${nItems === 1 ? 'позиція' : nItems < 5 ? 'позиції' : 'позицій'}`;
     setTimeout(initSwipe, 50);
     return;
   }
@@ -2695,6 +2829,7 @@ export default {
       setCatFilter, openForm, closeForm, maybeClose,
       selectCat, selectPosterCat, searchProds, selectProd,
       setVol, updateVol, setUnit, selectReason, updateCustomReason, selectAccount,
+      toggleProd, updateCartVol, removeCartItem,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport, syncPrices: syncPricesWo,
       sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
