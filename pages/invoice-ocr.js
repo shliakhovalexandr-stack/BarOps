@@ -23,6 +23,9 @@ let _supplierHint  = '';     // Крок 3: підказка формату на
 let _hintOpen      = false;  // редактор підказки відкрито
 let _store         = null;   // { id, name } — склад приходу
 let _conception    = null;   // { id, name } — концепція (Тераса/Хочу: «Ресторан»)
+let _payDays       = null;   // відстрочка платежу (днів) — памʼять SupplierTerms за постачальником
+let _dueDate       = '';     // строк оплати YYYY-MM-DD → поле «Срок оплаты» документа Syrve
+let _dueTouched    = false;  // дату виставив OCR/юзер руками → не перераховувати від днів
 let _rows          = [];     // { rawName, qty, unitsPerPack, unit, sum, vatPercent, productId, productName, confidence, source, suggestions }
 let _catalog       = { products: [], suppliers: [] };
 let _isPoster      = false;   // заклад на Poster (прихід проводиться одразу, не чернетка)
@@ -35,6 +38,15 @@ let _batchLearned  = 0;      // скільки зіставлень запам'�
 let _batchCount    = 0;      // скільки накладних опрацьовано
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// ── строк оплати (dueDate): дата накладної + відстрочка постачальника ──
+function addDays(iso, n) { const d = new Date(iso + 'T00:00:00Z'); if (isNaN(d)) return ''; d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function termsOf(id) { const m = _catalog.supplierTerms || {}; return (id && m[id] != null) ? m[id] : null; }
+function recomputeDue() {
+  if (_dueTouched) return;
+  const dt = ((_invoiceDate || '') + '').trim();
+  _dueDate = (_payDays != null && /^\d{4}-\d{2}-\d{2}$/.test(dt)) ? addDays(dt, Math.round(+_payDays)) : '';
+  const el = document.getElementById('io-duedate'); if (el) el.value = _dueDate;
+}
 // базова одиниця товару Syrve (з каталогу за productId; запасний — одиниця з OCR)
 function baseUnitOf(r) { const p = _catalog.products.find(x => x.id === r.productId); return (((p && p.unit) || r.unit || '')).trim(); }
 function isLiterRow(r) { return baseUnitOf(r) === 'л'; }
@@ -283,6 +295,11 @@ function reviewView() {
       <div class="io-meta"><div class="io-meta-l">№ накладної</div><input value="${_invoiceNumber}" onchange="window.__io.metaNum(this.value)"></div>
       <div class="io-meta"><div class="io-meta-l">Дата</div><input value="${_invoiceDate}" placeholder="YYYY-MM-DD" onchange="window.__io.metaDate(this.value)"></div>
     </div>
+    ${_isPoster ? '' : `<div class="io-meta-row" style="margin-bottom:${_supplier && _payDays == null && !_dueDate ? '4px' : '10px'}">
+      <div class="io-meta"><div class="io-meta-l">Відстрочка, днів</div><input id="io-paydays" type="number" min="0" inputmode="numeric" placeholder="—" value="${_payDays != null ? _payDays : ''}" onchange="window.__io.payDays(this.value)"></div>
+      <div class="io-meta"><div class="io-meta-l">Оплатити до</div><input id="io-duedate" placeholder="YYYY-MM-DD" value="${_dueDate}" onchange="window.__io.dueDate(this.value)"></div>
+    </div>
+    ${_supplier && _payDays == null && !_dueDate ? `<div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:0 2px 10px;line-height:1.4">Введи відстрочку постачальника раз — запамʼятається, дата рахуватиметься сама («Срок оплаты» в Syrve).</div>` : ''}`}
     <div class="io-lbl" style="margin:4px 2px 8px">Позиції · зіставлено ${matchedCount()}/${_rows.length}</div>
     ${rows}
     <button class="io-fullbtn" ${ready ? '' : 'disabled'} onclick="window.__io.submit(false)">${_isPoster ? 'Провести прихід у Poster →' : 'Створити накладну в Syrve →'}</button>
@@ -461,6 +478,14 @@ async function matchAndReview() {
   _supplierSug = mD.supplier?.suggestions || [];
   if (!_supplier && _supplierSug[0] && _supplierSug[0].score >= 80) _supplier = { id: _supplierSug[0].id, name: _supplierSug[0].name };
 
+  // строк оплати: дата з накладної (OCR, якщо надруковано) → дата + відстрочка з памʼяті
+  _payDays = mD.supplier?.match?.paymentDays ?? null;
+  if (_payDays == null && _supplier) _payDays = termsOf(_supplier.id);
+  _dueDate = ''; _dueTouched = false;
+  const ocrDue = ((_parsed.dueDate || '') + '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ocrDue)) { _dueDate = ocrDue; _dueTouched = true; }
+  else recomputeDue();
+
   _rows = (_parsed.items || []).map((it, idx) => {
     const m = (mD.items || [])[idx] || {};
     const qty = Number(it.qty) || 0;
@@ -491,9 +516,10 @@ async function loadCatalog() {
     const d = await res.json();
     if (res.ok) {
       _isPoster = !!d.poster;
-      _catalog = { products: d.products || [], suppliers: d.suppliers || [], stores: d.stores || [], defaultStoreId: d.defaultStoreId || null, conceptions: d.conceptions || [], conceptionId: d.conceptionId || null };
+      _catalog = { products: d.products || [], suppliers: d.suppliers || [], stores: d.stores || [], defaultStoreId: d.defaultStoreId || null, conceptions: d.conceptions || [], conceptionId: d.conceptionId || null, supplierTerms: d.supplierTerms || {} };
       pickDefaultStore();
       pickDefaultConception();
+      if (_payDays == null && _supplier) { _payDays = termsOf(_supplier.id); recomputeDue(); }
       if (_search) updateResults();
       if (_step === 'review') rerender();
     }
@@ -554,11 +580,13 @@ async function submit(aliasesOnly) {
       body: JSON.stringify({
         supplierRawName: _supplierRaw, supplierId: _supplier?.id || '', supplierName: _supplier?.name || '',
         invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', storeName: _store?.name || '', conceptionId: _conception?.id || '',
+        dueDate: _dueDate || '', paymentDays: (_payDays != null && _payDays !== '') ? +_payDays : null,
         aliasesOnly: !!aliasesOnly, items,
       }),
     });
     const d = await res.json();
     if (!res.ok || !d.success) throw new Error(d.error || (d.details ? `${_isPoster ? 'Poster' : 'Syrve'}: ${typeof d.details === 'string' ? d.details.slice(0, 200) : ''}` : 'Не вдалося зберегти'));
+    if (_supplier && _payDays != null && _payDays !== '') (_catalog.supplierTerms = _catalog.supplierTerms || {})[_supplier.id] = +_payDays;   // локальна памʼять на цю сесію
     _batchCount += 1;
     if (aliasesOnly) _batchLearned += (d.learned || items.length);
     if (_queue.length) { processNext(); }
@@ -591,7 +619,7 @@ async function saveHint() {
 
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
-  _supplierHint = ''; _hintOpen = false;
+  _supplierHint = ''; _hintOpen = false; _payDays = null; _dueDate = ''; _dueTouched = false;
   _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
@@ -604,6 +632,7 @@ export default {
     _role      = (state.role   || localStorage.getItem('barops_role') || '').toLowerCase();
     _venueName = state.venue   || localStorage.getItem('barops_venue') || '';
     _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
+    _payDays = null; _dueDate = ''; _dueTouched = false;
     _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _catalog = { products: [], suppliers: [] };
     _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
     return buildHTML();
@@ -625,7 +654,9 @@ export default {
         if (k === 'sum') { const f = document.querySelector('.io-foot-sum-v'); if (f) f.textContent = money(totalSum()) + ' ₴'; }
       },
       metaNum: (v) => { _invoiceNumber = v; },
-      metaDate: (v) => { _invoiceDate = v; },
+      metaDate: (v) => { _invoiceDate = v; recomputeDue(); },
+      payDays: (v) => { v = (v + '').trim(); _payDays = v === '' ? null : Math.max(0, Math.round(+v) || 0); _dueTouched = false; recomputeDue(); },
+      dueDate: (v) => { _dueDate = (v + '').trim(); _dueTouched = !!_dueDate; if (!_dueDate) recomputeDue(); },
       openSearch: (type, row) => { _search = { type, row, q: '' }; rerender(); setTimeout(() => document.getElementById('io-srch')?.focus(), 50); },
       closeSearch: () => { _search = null; rerender(); },
       searchInput: (v) => { _search.q = v; updateResults(); },
@@ -633,7 +664,7 @@ export default {
         if (!_search) return;
         if (_search.type === 'supplier') {
           const s = _catalog.suppliers.find(x => x.id === id);
-          if (s) _supplier = { id: s.id, name: s.name };
+          if (s) { _supplier = { id: s.id, name: s.name }; _payDays = termsOf(s.id); recomputeDue(); }
         } else if (_search.type === 'store') {
           const s = _catalog.stores.find(x => x.id === id);
           if (s) _store = { id: s.id, name: s.name };

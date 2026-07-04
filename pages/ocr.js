@@ -18,7 +18,7 @@ let _ocrTgSaved   = false;
 let _file     = null;  // обране фото (до відправки)
 let _photoUrl = '';    // object URL для прев'ю
 let _rot      = 0;     // поворот прев'ю, градуси (0/90/180/270)
-let _isPoster = false; // заклад на Poster — лише тоді показуємо «Поставити на прихід» (Syrve тимч. прибрано)
+let _isPoster = false; // заклад на Poster — для підпису кнопки «Поставити на прихід»
 
 /* ════════════════════════
    CSS
@@ -271,13 +271,13 @@ function renderIdle() {
 
 function ocrIntakeBtn() {
   const role = (localStorage.getItem('barops_role') || '').toLowerCase();
-  // OCR-прихід у POS ЛИШИЛИ ТІЛЬКИ для Poster (Syrve тимчасово прибрано — бармени шлють у Telegram,
-  // у бухгалтера плитку прибрано). Дивись [[project-inapp-over-telegram]].
-  if (role !== 'admin' || !_isPoster) return '';
+  // Поки OCR-прихід лише для системного менеджера; бармени відправляють фото в Telegram як раніше.
+  // Syrve повернено (2026-07-04): dueDate вирішено через відстрочку в BarOps (SupplierTerms).
+  if (role !== 'admin') return '';
   return `<div style="padding:0 20px 14px">
     <button class="ocr-btn-secondary" style="height:50px;border-color:var(--green-border);color:var(--green)" onclick="window.__barops.navigate('invoice-ocr')">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-      Поставити на прихід (Poster)
+      Поставити на прихід (${_isPoster ? 'Poster' : 'Syrve'})
     </button>
   </div>`;
 }
@@ -496,7 +496,7 @@ async function loadOcrTgSettings() {
     const d = await res.json();
     const venue = (d.venues || []).find(v => v.id === venueId);
     if (venue) {
-      _isPoster = (venue.posType === 'poster');   // прихід у POS показуємо лише для Poster
+      _isPoster = (venue.posType === 'poster');   // для підпису кнопки (Poster/Syrve)
       const ih = document.getElementById('ocr-intake-host'); if (ih) ih.innerHTML = ocrIntakeBtn();
       _ocrTgChatId  = venue.telegramOcrChatId  || '';
       _ocrTgTopicId = venue.telegramOcrTopicId || '';
