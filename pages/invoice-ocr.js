@@ -217,6 +217,9 @@ function idleView() {
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3h8l4 4v14a1 1 0 01-1 1H8a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M4 7v13a1 1 0 001 1h11" opacity=".5"/><path d="M15 3v5h5"/></svg>
       Кілька сторінок = 1 накладна
     </button>
+    ${(_role === 'admin' || _role === 'accountant') ? `
+    <button class="io-fullbtn" id="io-terms-btn" onclick="window.__io.termsImport()">⏱ Підтягнути відстрочки з історії Syrve</button>
+    <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:6px 2px 0;line-height:1.4">Разово: бере строки оплати з накладних, які бухгалтер створювала руками, і запамʼятовує відстрочку кожного постачальника.</div>` : ''}
   </div>`;
 }
 
@@ -617,6 +620,29 @@ async function saveHint() {
   } catch (e) { alert('Помилка: ' + e.message); }
 }
 
+// Разове засівання відстрочок з історії накладних Syrve (dueDate − dateIncoming по ручних документах)
+async function termsImport() {
+  const btn = document.getElementById('io-terms-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Читаю історію накладних…'; }
+  const restore = () => { if (btn) { btn.disabled = false; btn.textContent = '⏱ Підтягнути відстрочки з історії Syrve'; } };
+  try {
+    const r1 = await fetch(`${API}/api/invoices/terms-import/${_venueId}?days=180`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` } });
+    const d1 = await r1.json();
+    if (!r1.ok || !d1.success) throw new Error(d1.error || 'Не вдалося прочитати історію');
+    const list = d1.found || [];
+    if (!list.length) { restore(); alert('В історії Syrve за ' + d1.period + ' днів немає накладних зі строком оплати.'); return; }
+    const lines = list.slice(0, 20).map(f => `• ${f.name}: ${f.days} дн (${f.samples} док)${f.existing != null ? ` — вже задано ${f.existing}, лишаю` : ''}`).join('\n');
+    const fresh = list.filter(f => f.existing == null);
+    if (!fresh.length) { restore(); alert('Знайдено, але все вже заповнено:\n\n' + lines); return; }
+    if (!confirm(`Відстрочки з історії (${d1.period} дн):\n\n${lines}${list.length > 20 ? `\n…і ще ${list.length - 20}` : ''}\n\nЗаписати ${fresh.length} нових? Введені руками не зміняться.`)) { restore(); return; }
+    const r2 = await fetch(`${API}/api/invoices/terms-import/${_venueId}?days=180&apply=1`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` } });
+    const d2 = await r2.json();
+    if (!r2.ok || !d2.success) throw new Error(d2.error || 'Не вдалося записати');
+    if (_catalog.supplierTerms) for (const f of fresh) _catalog.supplierTerms[f.supplierId] = f.days;
+    restore(); alert(`Готово: запамʼятовано відстрочки ${d2.saved} постачальників.`);
+  } catch (e) { restore(); alert('Помилка: ' + (e.message || e)); }
+}
+
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
   _supplierHint = ''; _hintOpen = false; _payDays = null; _dueDate = ''; _dueTouched = false;
@@ -642,7 +668,7 @@ export default {
       back: () => navigate('dashboard'),
       file: handleFiles,
       pages: handlePages,
-      toggleHint, saveHint,
+      toggleHint, saveHint, termsImport,
       reset,
       submit: (aliasesOnly) => submit(aliasesOnly),
       skip: nextOrDone,
