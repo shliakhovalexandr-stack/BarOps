@@ -729,6 +729,14 @@ function saveSession(data) {
   // Заклади перемикають лише admin / бухгалтер / керуючий — їм зберігаємо вибраний заклад.
   // Менеджер (і решта) привʼязані до СВОГО закладу акаунта — завжди беремо з логіну,
   // інакше старий venueId з localStorage (напр. від іншої сесії) показав би чужі дані.
+  // ЗМІНА АКАУНТА на цьому пристрої → збережений заклад скидаємо (мультимережевість:
+  // інакше admin нової мережі стартує з чужим venueId попереднього юзера).
+  const prevUserId = localStorage.getItem('barops_userId');
+  if (prevUserId && prevUserId !== data.user.id) {
+    localStorage.removeItem('barops_venueId');
+    localStorage.removeItem('barops_venue');
+  }
+  localStorage.setItem('barops_userId', data.user.id);
   const isMulti  = ['admin', 'ADMIN', 'director', 'DIRECTOR', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
   const savedId  = localStorage.getItem('barops_venueId');
   if (isMulti && savedId) {
