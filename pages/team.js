@@ -910,8 +910,9 @@ async function loadTeam() {
   _loading = true;
   fullRender();
   try {
-    // Завантажуємо заклади
-    const vRes  = await fetch(`${API}/api/auth/venues`);
+    // Завантажуємо заклади (з токеном — бекенд віддає лише свою мережу)
+    const vTok  = localStorage.getItem('barops_token');
+    const vRes  = await fetch(`${API}/api/auth/venues`, { headers: vTok ? { Authorization: `Bearer ${vTok}` } : {} });
     const vData = await vRes.json();
     if (vData.venues) {
       _venues = vData.venues;
