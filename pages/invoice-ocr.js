@@ -28,6 +28,7 @@ let _payWeekday    = null;   // день тижня оплати 1=Пн..7=Нд 
 let _dueDate       = '';     // строк оплати YYYY-MM-DD → поле «Срок оплаты» документа Syrve
 let _dueTouched    = false;  // дату виставив OCR/юзер руками → не перераховувати від днів
 let _rows          = [];     // { rawName, qty, unitsPerPack, unit, sum, vatPercent, productId, productName, confidence, source, suggestions }
+let _vatGrossed    = false;  // суми рядків були БЕЗ ПДВ → авто-доведено до валових (Σ = «до сплати»)
 let _catalog       = { products: [], suppliers: [] };
 let _isPoster      = false;   // заклад на Poster (прихід проводиться одразу, не чернетка)
 function posLabel() { return _isPoster ? 'Poster' : 'Syrve Office'; }
@@ -321,6 +322,7 @@ function reviewView() {
     </div>
     ${_supplier && _payDays == null && !_payWeekday && !_dueDate ? `<div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:0 2px 10px;line-height:1.4">Введи умови оплати постачальника раз (днів відстрочки та/або день тижня, як «чт» у картці) — запамʼятається, дата рахуватиметься сама.</div>` : ''}`}
     <div class="io-lbl" style="margin:4px 2px 8px">Позиції · зіставлено ${matchedCount()}/${_rows.length}</div>
+    ${_vatGrossed ? `<div style="font-size:10px;color:var(--amber,#e8b84a);font-family:var(--font-b);margin:-4px 2px 8px;line-height:1.4">⚠ Суми рядків були без ПДВ — додано ПДВ, разом = «До сплати» з накладної.</div>` : ''}
     ${rows}
     <button class="io-fullbtn" ${ready ? '' : 'disabled'} onclick="window.__io.submit(false)">${_isPoster ? 'Провести прихід у Poster →' : 'Створити накладну в Syrve →'}</button>
   </div>
@@ -527,6 +529,29 @@ async function matchAndReview() {
     };
   });
 
+  // ПДВ: у Syrve йде ПОВНА сплачена сума (vatPercent=0, рішення 2026-07-03), тож якщо суми
+  // рядків надруковані БЕЗ ПДВ — доводимо до валових. Тригер строгий: Σ рядків НЕ сходиться
+  // з «до сплати», але Σ(рядок × (1+ПДВ%)) або Σ+vatTotal сходиться → інакше не чіпаємо
+  // (у постачальників з валовими цінами перевірка не спрацює).
+  _vatGrossed = false;
+  const totalDue = Number(_parsed.totalWithVat) || 0;
+  const vatTot   = Number(_parsed.vatTotal) || 0;
+  if (totalDue > 0 && _rows.length) {
+    const near = (a, b) => Math.abs(a - b) <= Math.max(2, b * 0.005);
+    const sumNet   = _rows.reduce((s, r) => s + (Number(r.sum) || 0), 0);
+    const sumGross = _rows.reduce((s, r) => s + (Number(r.sum) || 0) * (1 + (Number(r.vatPercent) || 0) / 100), 0);
+    if (!near(sumNet, totalDue) && sumNet > 0) {
+      if (near(sumGross, totalDue) && sumGross > sumNet) {
+        for (const r of _rows) if (Number(r.vatPercent) > 0) r.sum = Math.round(r.sum * (1 + r.vatPercent / 100) * 100) / 100;
+        _vatGrossed = true;
+      } else if (vatTot > 0 && near(sumNet + vatTot, totalDue)) {
+        const k = totalDue / sumNet;   // ставка по рядках не зчиталась — розкидаємо ПДВ пропорційно
+        for (const r of _rows) r.sum = Math.round((Number(r.sum) || 0) * k * 100) / 100;
+        _vatGrossed = true;
+      }
+    }
+  }
+
   if (!_catalog.products.length) loadCatalog(); else { pickDefaultStore(); pickDefaultConception(); }
   _step = 'review'; rerender();
 }
@@ -663,7 +688,7 @@ async function termsImport() {
 }
 
 function reset() {
-  _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
+  _step = 'idle'; _err = ''; _parsed = null; _rows = []; _vatGrossed = false; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
   _supplierHint = ''; _hintOpen = false; _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false;
   _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
