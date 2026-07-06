@@ -36,7 +36,7 @@ let _search        = null;   // { type:'product'|'supplier', row, q }
 let _result        = null;
 let _queue         = [];     // черга фото (пакетний режим)
 let _queueTotal    = 0;
-let _batchLearned  = 0;      // скільки зіставлень запам'ятано за пачку
+let _batchCreated  = 0;      // скільки накладних СТВОРЕНО за пачку (реальні приходи; навчання = теж вони)
 let _batchCount    = 0;      // скільки накладних опрацьовано
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -224,7 +224,7 @@ function idleView() {
     <div class="io-hero">
       <div class="io-hero-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.6"><rect x="3" y="2" width="14" height="18" rx="2"/><path d="M7 7h7M7 11h7M7 15h4" stroke-linecap="round"/></svg></div>
       <div class="io-hero-t">Сфотографуйте накладну</div>
-      <div class="io-hero-d">AI розпізнає товари й зіставить із ${_isPoster ? 'Poster' : 'Syrve'}.<br>Галерея — кілька фото = кілька <b>окремих</b> накладних (для памʼяті). Багатосторінкова — кілька фото = <b>одна</b> накладна.</div>
+      <div class="io-hero-d">AI розпізнає товари й зіставить із ${_isPoster ? 'Poster' : 'Syrve'}.<br>Галерея — кілька фото = кілька <b>окремих</b> накладних (черга, кожна створюється). Багатосторінкова — кілька фото = <b>одна</b> накладна.</div>
     </div>
     <div class="io-btn-grid">
       <button class="io-btn" onclick="document.getElementById('io-cam').click()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Камера</button>
@@ -273,9 +273,8 @@ function reviewView() {
     </div>`;
   }).join('');
 
-  const isAdmin = _role === 'admin' || _role === 'accountant';   // бухгалтер: повний флоу — ставить накладні і навчає alias
+  const isAdmin = _role === 'admin' || _role === 'accountant';   // бухгалтер: повний флоу — ставить накладні (alias вчаться на реальних накладних)
   const ready = _supplier && _store && _rows.length && _rows.every(r => r.productId);
-  const learnReady = matchedCount() >= 1;   // памʼять ТОВАРІВ працює й без постачальника (venue-wide recall); постачальник памʼятається окремо, якщо є
   const batch = _queueTotal > 1;
   return `<div class="io-scroll">
     <div class="io-card">
@@ -324,15 +323,14 @@ function reviewView() {
     <div class="io-lbl" style="margin:4px 2px 8px">Позиції · зіставлено ${matchedCount()}/${_rows.length}</div>
     ${_vatGrossed ? `<div style="font-size:10px;color:var(--amber,#e8b84a);font-family:var(--font-b);margin:-4px 2px 8px;line-height:1.4">⚠ Суми рядків були без ПДВ — додано ПДВ, разом = «До сплати» з накладної.</div>` : ''}
     ${rows}
-    <button class="io-fullbtn" ${ready ? '' : 'disabled'} onclick="window.__io.submit(false)">${_isPoster ? 'Провести прихід у Poster →' : 'Створити накладну в Syrve →'}</button>
   </div>
   <div class="io-foot">
     <div class="io-foot-sum">
-      <div class="io-foot-sum-l">${batch ? `Накладна ${_batchCount + 1}/${_queueTotal}` : 'Сума'}</div>
-      <div class="io-foot-sum-v">${batch ? `🧠 ${_batchLearned} запам.` : money(totalSum()) + ' ₴'}</div>
+      <div class="io-foot-sum-l">${batch ? `Накладна ${_batchCount + 1}/${_queueTotal} · Сума` : 'Сума'}</div>
+      <div class="io-foot-sum-v">${money(totalSum())} ₴</div>
     </div>
     ${batch ? `<button class="io-skip" onclick="window.__io.skip()">Пропустити</button>` : ''}
-    <button class="io-learn" ${learnReady ? '' : 'disabled'} onclick="window.__io.submit(true)">💾 Запам'ятати</button>
+    <button class="io-learn" ${ready ? '' : 'disabled'} onclick="window.__io.submit(false)">${_isPoster ? 'Провести в Poster →' : 'Створити в Syrve →'}</button>
   </div>`;
 }
 
@@ -360,11 +358,12 @@ function searchResults() {
 }
 
 function doneView() {
-  if (_result?.aliasesOnly) {
+  if (_result?.batch) {
+    const created = _result.created || 0, total = _result.total || 0, skipped = Math.max(0, total - created);
     return `<div class="io-center">
       <div class="io-c-ic ok"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
-      <div class="io-c-t">Запам'ятано 🧠</div>
-      <div class="io-c-s">Збережено зіставлень: <b>${_result.learned || 0}</b>${_result.count ? ` · накладних: ${_result.count}` : ''}. Наступного разу ці товари підставлятимуться автоматично.</div>
+      <div class="io-c-t">Пачку опрацьовано</div>
+      <div class="io-c-s">Створено накладних: <b>${created}</b> з ${total}${skipped ? ` · пропущено: ${skipped}` : ''}.${_isPoster ? ' Приходи проведено в Poster.' : ' Непроведені — бухгалтер перевірить і проведе в Syrve Office.'}</div>
       <button class="io-c-btn" onclick="window.__io.reset()">Ще пачку</button>
       <button class="io-c-btn2" onclick="window.__io.back()">На головний</button>
     </div>`;
@@ -395,7 +394,7 @@ function errorView() {
 function handleFiles(input) {
   const files = [...(input.files || [])]; input.value = '';
   if (!files.length) return;
-  _queue = files; _queueTotal = files.length; _batchLearned = 0; _batchCount = 0;
+  _queue = files; _queueTotal = files.length; _batchCreated = 0; _batchCount = 0;
   if (!_catalog.products.length) loadCatalog();
   processNext();
 }
@@ -404,7 +403,7 @@ function handleFiles(input) {
 function handlePages(input) {
   const files = [...(input.files || [])]; input.value = '';
   if (!files.length) return;
-  _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;   // не пакетний режим — одна накладна
+  _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0;   // не пакетний режим — одна накладна
   if (!_catalog.products.length) loadCatalog();
   if (files.length === 1) processFile(files[0]); else processPages(files);
 }
@@ -412,7 +411,7 @@ function handlePages(input) {
 async function processNext() {
   if (!_queue.length) {
     _step = 'done';
-    _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount };
+    _result = { batch: true, created: _batchCreated, total: _queueTotal };
     rerender(); return;
   }
   await processFile(_queue.shift());
@@ -639,16 +638,16 @@ async function submit(aliasesOnly) {
     }
     if (_supplier && (_payDays != null || _payWeekday)) (_catalog.supplierTerms = _catalog.supplierTerms || {})[_supplier.id] = { days: +_payDays || 0, weekday: _payWeekday || null };   // локальна памʼять на цю сесію
     _batchCount += 1;
-    if (aliasesOnly) _batchLearned += (d.learned || items.length);
+    if (!aliasesOnly) _batchCreated += 1;
     if (_queue.length) { processNext(); }
-    else if (aliasesOnly) { _step = 'done'; _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount }; rerender(); }
+    else if (_queueTotal > 1) { _step = 'done'; _result = { batch: true, created: _batchCreated, total: _queueTotal }; rerender(); }
     else { _result = d; _step = 'done'; rerender(); }
   } catch (e) { _err = friendlyErr(e); _step = 'error'; rerender(); }
 }
 
 function nextOrDone() {
   if (_queue.length) { processNext(); }
-  else { _step = 'done'; _result = { aliasesOnly: true, batch: _queueTotal > 1, learned: _batchLearned, count: _batchCount }; rerender(); }
+  else { _step = 'done'; _result = { batch: true, created: _batchCreated, total: _queueTotal }; rerender(); }
 }
 
 // Крок 3: підказка формату накладної постачальника
@@ -695,7 +694,7 @@ async function termsImport() {
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _vatGrossed = false; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
   _supplierHint = ''; _hintOpen = false; _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false;
-  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
+  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
 }
@@ -709,7 +708,7 @@ export default {
     _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
     _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false;
     _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _catalog = { products: [], suppliers: [] };
-    _queue = []; _queueTotal = 0; _batchLearned = 0; _batchCount = 0;
+    _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0;
     return buildHTML();
   },
   init() {
