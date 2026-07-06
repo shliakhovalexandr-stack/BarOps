@@ -421,7 +421,8 @@ async function processNext() {
 // Зрозуміле повідомлення замість «Failed to fetch» (це мережевий збій/таймаут сервера, не помилка розпізнавання)
 function friendlyErr(e) {
   const m = (e && e.message) || '';
-  if (/failed to fetch|networkerror|load failed|502|bad gateway|aborted/i.test(m))
+  // глушимо лише СПРАВЖНІ мережеві збої; помилки з details від Syrve показуємо як є
+  if (/failed to fetch|networkerror|load failed|aborted|не-json/i.test(m))
     return 'Сервер не встиг обробити накладну. Спробуйте ще раз; якщо накладна велика — зніміть її меншими частинами або чіткіше.';
   return m || 'Помилка';
 }
@@ -630,8 +631,12 @@ async function submit(aliasesOnly) {
         aliasesOnly: !!aliasesOnly, items,
       }),
     });
-    const d = await res.json();
-    if (!res.ok || !d.success) throw new Error(d.error || (d.details ? `${_isPoster ? 'Poster' : 'Syrve'}: ${typeof d.details === 'string' ? d.details.slice(0, 200) : ''}` : 'Не вдалося зберегти'));
+    let d = {}; try { d = await res.json(); } catch { d = { error: `HTTP ${res.status} (не-JSON відповідь)` }; }
+    if (!res.ok || !d.success) {
+      // показуємо ПОВНУ причину від Syrve (details), а не лише загальний d.error — інакше не продіагностувати
+      const det = typeof d.details === 'string' ? d.details.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+      throw new Error((d.error || 'Не вдалося зберегти') + (det ? ' — ' + det : ''));
+    }
     if (_supplier && (_payDays != null || _payWeekday)) (_catalog.supplierTerms = _catalog.supplierTerms || {})[_supplier.id] = { days: +_payDays || 0, weekday: _payWeekday || null };   // локальна памʼять на цю сесію
     _batchCount += 1;
     if (aliasesOnly) _batchLearned += (d.learned || items.length);
