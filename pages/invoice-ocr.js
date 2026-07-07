@@ -29,6 +29,7 @@ let _dueDate       = '';     // строк оплати YYYY-MM-DD → поле 
 let _dueTouched    = false;  // дату виставив OCR/юзер руками → не перераховувати від днів
 let _rows          = [];     // { rawName, qty, unitsPerPack, unit, sum, vatPercent, productId, productName, confidence, source, suggestions }
 let _vatGrossed    = false;  // суми рядків були БЕЗ ПДВ → авто-доведено до валових (Σ = «до сплати»)
+let _comment       = '';     // коментар до накладної → поле «Коментар» документа в Syrve Office
 let _catalog       = { products: [], suppliers: [] };
 let _isPoster      = false;   // заклад на Poster (прихід проводиться одразу, не чернетка)
 function posLabel() { return _isPoster ? 'Poster' : 'Syrve Office'; }
@@ -267,8 +268,7 @@ function reviewView() {
         <div class="io-num"><div class="io-num-l">= ${baseUnitOf(r) || 'шт'}</div><div class="ro" id="io-amt-${i}">${amountOf(r)}</div></div>
       </div>
       <div class="io-nums" style="margin-top:6px">
-        <div class="io-num" style="grid-column:span 2"><div class="io-num-l">Сума, грн</div><input type="number" inputmode="decimal" value="${r.sum}" onfocus="this.select()" oninput="window.__io.edit(${i},'sum',this.value)"></div>
-        <div class="io-num"><div class="io-num-l">ПДВ %</div><input type="number" inputmode="decimal" value="${r.vatPercent}" onfocus="this.select()" oninput="window.__io.edit(${i},'vatPercent',this.value)"></div>
+        <div class="io-num" style="grid-column:span 3"><div class="io-num-l">Сума, грн</div><input type="number" inputmode="decimal" value="${r.sum}" onfocus="this.select()" oninput="window.__io.edit(${i},'sum',this.value)"></div>
       </div>
     </div>`;
   }).join('');
@@ -323,6 +323,7 @@ function reviewView() {
     <div class="io-lbl" style="margin:4px 2px 8px">Позиції · зіставлено ${matchedCount()}/${_rows.length}</div>
     ${_vatGrossed ? `<div style="font-size:10px;color:var(--amber,#e8b84a);font-family:var(--font-b);margin:-4px 2px 8px;line-height:1.4">⚠ Суми рядків були без ПДВ — додано ПДВ, разом = «До сплати» з накладної.</div>` : ''}
     ${rows}
+    <div class="io-meta" style="margin-top:8px"><div class="io-meta-l">Коментар (в Syrve Office)</div><input value="${(_comment || '').replace(/"/g, '&quot;')}" placeholder="необовʼязково" onchange="window.__io.setComment(this.value)"></div>
   </div>
   <div class="io-foot">
     <div class="io-foot-sum">
@@ -627,6 +628,7 @@ async function submit(aliasesOnly) {
         supplierRawName: _supplierRaw, supplierId: _supplier?.id || '', supplierName: _supplier?.name || '',
         invoiceNumber: _invoiceNumber, date: _invoiceDate, storeId: _store?.id || '', storeName: _store?.name || '', conceptionId: _conception?.id || '',
         dueDate: _dueDate || '', paymentDays: (_payDays != null && _payDays !== '') ? +_payDays : null, paymentWeekday: _payWeekday || null,
+        comment: _comment || '',
         aliasesOnly: !!aliasesOnly, items,
       }),
     });
@@ -693,7 +695,7 @@ async function termsImport() {
 
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _vatGrossed = false; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
-  _supplierHint = ''; _hintOpen = false; _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false;
+  _supplierHint = ''; _hintOpen = false; _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
   _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
@@ -706,7 +708,7 @@ export default {
     _role      = (state.role   || localStorage.getItem('barops_role') || '').toLowerCase();
     _venueName = state.venue   || localStorage.getItem('barops_venue') || '';
     _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
-    _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false;
+    _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
     _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _catalog = { products: [], suppliers: [] };
     _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0;
     return buildHTML();
@@ -728,6 +730,7 @@ export default {
         if (k === 'sum') { const f = document.querySelector('.io-foot-sum-v'); if (f) f.textContent = money(totalSum()) + ' ₴'; }
       },
       metaNum: (v) => { _invoiceNumber = v; },
+      setComment: (v) => { _comment = v; },
       metaDate: (v) => { _invoiceDate = v; recomputeDue(); },
       payDays: (v) => { v = (v + '').trim(); _payDays = v === '' ? null : Math.max(0, Math.round(+v) || 0); _dueTouched = false; recomputeDue(); },
       payWeekday: (v) => { _payWeekday = +v || null; _dueTouched = false; recomputeDue(); },
