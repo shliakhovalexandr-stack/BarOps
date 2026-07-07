@@ -2789,8 +2789,10 @@ export default {
       ;(async () => {
         try {
           const tkn = localStorage.getItem('barops_token');
-          // усі склади (бар+кухня+загальні) → фронт фільтрує за зоною ролі (woAllowedZone)
-          const res = await fetch(`${API}/api/pos/balance/${vId}?allStores=1`, {
+          // усі склади (бар+кухня+загальні) → фронт фільтрує за зоною ролі (woAllowedZone).
+          // withCatalog=1 — включно з товарами БЕЗ залишку (звіт Syrve їх не віддає, і вони
+          // «зникали» зі списання; тепер приходять зі stock 0, псевдо-склад «Без залишку»)
+          const res = await fetch(`${API}/api/pos/balance/${vId}?allStores=1&withCatalog=1`, {
             headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
           });
           if (res.ok) {
