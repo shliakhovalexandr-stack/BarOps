@@ -67,6 +67,12 @@ const QUICK_RECIPE_BOOK = { route:'recipe-book', badge:null, label:'Рецепт
        <path d="M5.5 5.5h4M5.5 8.5h4M5.5 11.5h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
        <path d="M12 4.5h2a1 1 0 011 1v9a1 1 0 01-1 1H6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>` };
 
+const QUICK_DISASSEMBLY = { route:'disassembly', badge:null, label:'Розбір', hint:'1 товар → частини: списання + прихід', color:'var(--amber-bg)', iconColor:'var(--amber)',
+  svg:`<path d="M10 3v5M10 8l-4.5 6M10 8l4.5 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+       <circle cx="10" cy="3.5" r="1.6" stroke="currentColor" stroke-width="1.2"/>
+       <circle cx="5" cy="15.5" r="1.6" stroke="currentColor" stroke-width="1.2"/>
+       <circle cx="15" cy="15.5" r="1.6" stroke="currentColor" stroke-width="1.2"/>` };
+
 const QUICK_PRODUCTION = { route:'production', badge:null, label:'Виробництво', hint:'Що приготували → акт у Syrve', color:'var(--green-bg)', iconColor:'var(--green)',
   svg:`<path d="M3 8h12M4 8v5a2 2 0 002 2h6a2 2 0 002-2V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
        <path d="M2 8h14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -353,22 +359,22 @@ function quickGrid(items) {
 // ── Нова головна: плитки-сітка по секціях ──────────────────
 function tileByRoute() {
   const m = {};
-  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION, QUICK_DISASSEMBLY]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
 // Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист
-const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'production', 'inventory'];
+const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'production', 'disassembly', 'inventory'];
 
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
   ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
-  ['Акти',             ['production']],   // акти в Syrve (приготування; далі — розбір тощо). Порожній — ховається
+  ['Акти',             ['production', 'disassembly']],   // акти в Syrve (приготування + розбір). Порожній — ховається
   ['Ревізія',          ['dishware']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],
 ];
 const SECTIONS_WORKER = [
-  ['Акти',      ['production']],   // акт приготування → вгорі для кухаря
+  ['Акти',      ['production', 'disassembly']],   // акт приготування/розбору → вгорі для кухаря
   ['Аналітика', ['performance']],   // лише для тих, у кого є плитка (напр. шеф-кухар)
   ['Операції',  ['writeoff', 'inventory', 'dishware', 'ordering', 'ocr', 'excise']],
   ['Рецепти',   ['recipe-book']],   // напр. кухар — рецепти кухні
@@ -627,7 +633,7 @@ function buildHTML() {
   const isAcc = (state.role || '').toLowerCase() === 'accountant';
   // Керуючий — менеджерські швидкі дії (без Замовлень/Інвентаризації) + «Графіки»
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
-  const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION]
+  const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY]
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? [QUICK_INVOICE_OCR, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
