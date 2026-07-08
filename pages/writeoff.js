@@ -1839,7 +1839,16 @@ function buildWoEntry(it, finalCat, now, hhmm, dd) {
   };
 }
 
+// Guard: подвійний тап на «Надіслати» запускав submitForm двічі паралельно →
+// кошик зберігався 2× (18 записів для 9 товарів у La Pasta). Один виклик за раз.
+let _woSubmitting = false;
 async function submitForm() {
+  if (_woSubmitting) return;
+  _woSubmitting = true;
+  try { return await submitFormImpl(); }
+  finally { _woSubmitting = false; }
+}
+async function submitFormImpl() {
   if (_formMode === 'transfer') return submitTransfer();
   // Читаємо причину прямо з DOM (надійніше ніж покладатися тільки на _selReason)
   const taVal = (document.getElementById('wo-reason-custom')?.value || '').trim();
