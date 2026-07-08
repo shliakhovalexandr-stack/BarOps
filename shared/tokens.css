@@ -76,10 +76,10 @@
   --text2: #71717A;
   --text3: #52525B;
 
-  /* ── Typography — one family ── */
-  --font-h:    'Geist', system-ui, sans-serif;
-  --font-b:    'Geist', system-ui, sans-serif;
-  --font-mono: 'Geist', system-ui, sans-serif;
+  /* ── Typography — Geist (латиниця) + Inter (кирилиця, Geist її не має) ── */
+  --font-h:    'Geist', 'Inter', system-ui, sans-serif;
+  --font-b:    'Geist', 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist', 'Inter', system-ui, sans-serif;
   --font-logo: 'Geist', system-ui, sans-serif;
 
   /* ── Radii ── */
