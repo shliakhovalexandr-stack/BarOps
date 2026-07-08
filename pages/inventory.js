@@ -806,7 +806,9 @@ async function loadAll() {
     // бо Syrve self-hosted має одне REST-зʼєднання → паралельний auth ПФ програє гонку й падає.
     const [sessRes, balRes, cfgRes] = await Promise.all([
       fetch(`${API}/api/inventory/sessions?venueId=${_venueId}&kind=${_kind}`, { headers: h }),
-      fetch(`${API}/api/pos/balance/${_venueId}${(isDish() || isKitchen()) ? '?allStores=1' : ''}`, { headers: h }),
+      // кухня: withCatalog=1 — включно з кухонними товарами БЕЗ залишку (інакше рахуємо лише те,
+      // що вже є на складі; для інвентаризації треба ВСЮ кухонну номенклатуру, навіть із 0)
+      fetch(`${API}/api/pos/balance/${_venueId}${(isDish() || isKitchen()) ? '?allStores=1' : ''}${isKitchen() ? '&withCatalog=1' : ''}`, { headers: h }),
       fetch(`${API}/api/inventory/config?venueId=${_venueId}`, { headers: h }),
     ]);
 
