@@ -506,6 +506,7 @@ async function matchAndReview() {
   _payWeekday = mD.supplier?.match?.paymentWeekday || null;
   if (_payDays == null && !_payWeekday && _supplier) applyTerms(termsOf(_supplier.id));
   _dueDate = ''; _dueTouched = false;
+  _comment = '';   // коментар НЕ памʼятається — порожній для кожної накладної, вносять вручну за потреби
   const ocrDue = ((_parsed.dueDate || '') + '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(ocrDue)) { _dueDate = ocrDue; _dueTouched = true; }
   else recomputeDue();
