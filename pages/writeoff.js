@@ -150,6 +150,11 @@ function prepScopesForRole() {
   return ['bar', 'general'];
 }
 
+// Лейбл вкладки НФ: коли прийшли страви кухні (La Pasta) — «ПФ / Страви», інакше «Напівфабрикати»
+function prepTabLabel() {
+  return _preps.some(p => p.isDish) ? 'ПФ / Страви' : 'Напівфабрикати';
+}
+
 // Напрямок переміщення: кухар кухня→бар; admin обирає сам (_transferDir); решта (бармен) бар→кухня
 function transferDir() {
   const r = (state.role || '').toLowerCase();
@@ -889,7 +894,7 @@ function renderBartender() {
           ${woCartMode() ? `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:10px">Оберіть один або кілька товарів — обсяг введете на наступному кроці</div>` : ''}
           <div style="display:flex;gap:6px;margin-bottom:12px">
             <button onclick="window.__wo.setProdTab('goods')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab!=='prep'?'var(--purple)':'var(--border)'};background:${_prodTab!=='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab!=='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Товари</button>
-            <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Напівфабрикати</button>
+            <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${prepTabLabel()}</button>
           </div>
           <div class="wo-prod-search-wrap">
             <svg class="wo-prod-search-ico" width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -1170,7 +1175,7 @@ function woResolveProd(id) {
   const p = _prods.find(x => x.id === id);
   if (p) return { id: p.id, name: p.name, unit: p.unit || 'l', stock: p.stock ?? 0, vol0: p.vol || 0.7, isPrep: false, scope: undefined, zone: p.zone };
   const pr = _preps.find(x => x.id === id);
-  if (pr) return { id: pr.id, name: pr.name, unit: normalizeUnit(pr.unit), stock: pr.stock ?? 0, vol0: 0.7, isPrep: true, scope: pr.scope, zone: undefined };
+  if (pr) return { id: pr.id, name: pr.name, unit: normalizeUnit(pr.unit), stock: pr.stock ?? 0, vol0: 0.7, isPrep: true, isDish: !!pr.isDish, scope: pr.scope, zone: undefined };
   return null;
 }
 function toggleProd(id) {
@@ -1200,7 +1205,7 @@ function volStepHTML() {
     const after = Math.max(0, (c.stock || 0) - (parseFloat(c.vol) || 0));
     return `<div class="wo-cart-row">
       <div class="wo-cart-info">
-        <div class="wo-cart-name">${esc(c.name)}${c.isPrep ? ' <span style="font-size:9px;color:var(--purple)">ПФ</span>' : ''}</div>
+        <div class="wo-cart-name">${esc(c.name)}${c.isDish ? ' <span style="font-size:9px;color:#e08a2b">Страва</span>' : c.isPrep ? ' <span style="font-size:9px;color:var(--purple)">ПФ</span>' : ''}</div>
         <div class="wo-cart-stock">Залишок ${fmtStock(c.stock, c.unit)} → <span id="wo-cv-after-${c.id}">${fmtStock(after, c.unit)}</span></div>
       </div>
       <input class="wo-cart-vol" id="wo-cv-${c.id}" type="number" inputmode="decimal" step="0.001" min="0"
@@ -1534,7 +1539,7 @@ function renderManager() {
             ${woCartMode() ? `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-bottom:10px">Оберіть один або кілька товарів — обсяг введете на наступному кроці</div>` : ''}
             <div style="display:flex;gap:6px;margin-bottom:12px">
               <button onclick="window.__wo.setProdTab('goods')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab!=='prep'?'var(--purple)':'var(--border)'};background:${_prodTab!=='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab!=='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Товари</button>
-              <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">Напівфабрикати</button>
+              <button onclick="window.__wo.setProdTab('prep')" style="flex:1;height:36px;border-radius:10px;border:0.5px solid ${_prodTab==='prep'?'var(--purple)':'var(--border)'};background:${_prodTab==='prep'?'var(--purple-bg)':'transparent'};color:${_prodTab==='prep'?'var(--purple)':'var(--text2)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${prepTabLabel()}</button>
             </div>
             <div class="wo-prod-search-wrap">
               <svg class="wo-prod-search-ico" width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -1639,11 +1644,14 @@ function prepListHTML() {
   const cart = woCartMode();
   return list.map(p => {
     const sel = cart ? _woCart.some(c => c.id === p.id) : (_selProd?.id === p.id);
+    const badge = p.isDish
+      ? `<span style="font-size:9px;color:#e08a2b;border:0.5px solid rgba(224,138,43,.45);border-radius:5px;padding:0 4px;vertical-align:middle">Страва</span>`
+      : `<span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>`;
     return `
     <div class="wo-prod-item ${sel ? 'sel' : ''}" onclick="window.__wo.${cart?'toggleProd':'selectProd'}('${p.id}')">
-      <div class="wo-pi-emoji">🧪</div>
+      <div class="wo-pi-emoji">${p.isDish ? '🍽️' : '🧪'}</div>
       <div style="flex:1;min-width:0">
-        <div class="wo-pi-name">${esc(p.name)} <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span></div>
+        <div class="wo-pi-name">${esc(p.name)} ${badge}</div>
         <div class="wo-pi-stock">${zoneLbl[p.scope] || ''} · Залишок: ${typeof p.stock === 'number' ? p.stock : 0} ${p.unit || ''}</div>
       </div>
       <div class="wo-pi-check">
@@ -1660,12 +1668,13 @@ async function loadPreps() {
   const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
   const tok = localStorage.getItem('barops_token');
   try {
-    const r = await fetch(`${API}/api/pos/preparations/${vId}`, { headers: tok ? { Authorization: `Bearer ${tok}` } : {} });
+    const r = await fetch(`${API}/api/pos/preparations/${vId}?withDishes=1`, { headers: tok ? { Authorization: `Bearer ${tok}` } : {} });
     const d = await r.json();
     if (d.success) { _preps = d.preparations || []; _prepsLoaded = true; }
   } catch (e) { console.warn('[Preps]', e.message); }
   _prepsLoading = false;
-  refreshProdList();
+  // fullRender (а не лише список) — щоб лейбл вкладки оновився на «ПФ / Страви», коли прийшли страви (La Pasta)
+  fullRender();
 }
 
 function setProdTab(tab) {
@@ -1823,6 +1832,7 @@ function buildWoEntry(it, finalCat, now, hhmm, dd) {
     volNum:  vol,
     unitKey: unit,
     isPrep:  !!it.isPrep,
+    isDish:  !!it.isDish,
     scope:   roleZone(),
     storeZone: it.isPrep
                ? (it.scope === 'kitchen' ? 'kitchen' : it.scope === 'bar' ? 'bar' : roleZone())
