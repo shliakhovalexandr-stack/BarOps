@@ -655,8 +655,8 @@ function suppSheetHTML() {
           value="${_suppDraft.orderDays}"
           oninput="window.__ord.suppDraft('orderDays',this.value)"/>
 
-        <div class="ord-inp-lbl">ФОП (для тексту)</div>
-        <input class="ord-inp" type="text" placeholder="Напр.: ФОП Іваненко І.І."
+        <div class="ord-inp-lbl">Юр.особа (для тексту)</div>
+        <input class="ord-inp" type="text" placeholder="Напр.: ТОВ Тріум Партнерс / ФОП Іваненко І.І."
           value="${(_suppDraft.fop||'').replace(/"/g,'&quot;')}"
           oninput="window.__ord.suppDraft('fop',this.value)"/>
 
@@ -1249,7 +1249,7 @@ function buildSupplierMessage(s) {
   const items = (s.items || []).filter(i => (i.qty || 0) > 0);
   const lines = items.map(i => `• ${i.productName}${i.comment ? ` (${i.comment})` : ''} — ${i.qty} ${i.unit || 'од.'}`);
   const head  = ['Доброго дня!'];
-  if (supp.fop)         head.push(`ФОП: ${supp.fop}`);
+  if (supp.fop)         head.push(`Юр.особа: ${supp.fop}`);
   if (state.venue)      head.push(`Заклад: ${state.venue}`);
   if (supp.paymentForm) head.push(`Форма оплати: ${supp.paymentForm}`);
   return { supp, text: `${head.join('\n')}\n\n${lines.join('\n')}` };
