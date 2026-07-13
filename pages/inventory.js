@@ -806,9 +806,9 @@ async function loadAll() {
     // бо Syrve self-hosted має одне REST-зʼєднання → паралельний auth ПФ програє гонку й падає.
     const [sessRes, balRes, cfgRes] = await Promise.all([
       fetch(`${API}/api/inventory/sessions?venueId=${_venueId}&kind=${_kind}`, { headers: h }),
-      // кухня: withCatalog=1 — включно з кухонними товарами БЕЗ залишку (інакше рахуємо лише те,
-      // що вже є на складі; для інвентаризації треба ВСЮ кухонну номенклатуру, навіть із 0)
-      fetch(`${API}/api/pos/balance/${_venueId}${(isDish() || isKitchen()) ? '?allStores=1' : ''}${isKitchen() ? '&withCatalog=1' : ''}`, { headers: h }),
+      // кухня+бар: allStores+withCatalog — усі склади зони (Бар ТОВ/ФОП, Кухня) + товари БЕЗ залишку,
+      // бо для інвентаризації треба ВСЮ номенклатуру зони, навіть із 0. Посуд — лише свій склад.
+      fetch(`${API}/api/pos/balance/${_venueId}${isDish() ? '?allStores=1' : '?allStores=1&withCatalog=1'}`, { headers: h }),
       fetch(`${API}/api/inventory/config?venueId=${_venueId}`, { headers: h }),
     ]);
 
@@ -844,7 +844,8 @@ async function loadAll() {
         ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || ''))
         : isKitchen()
         ? (d.stores || []).filter(s => /кух|kitchen/i.test(s.storeName || ''))
-        : (d.mode === 'poster' ? (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '')) : (d.stores || []));
+        // бар (Syrve+Poster): усі барні склади (Бар ТОВ/ФОП/Хочу + «Без залишку · Бар»), без обладнання/інвентарю
+        : (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '') && !/обладнан|інвентар|inventar|equipment/i.test(s.storeName || ''));
       if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
       if (isKitchen() && stores[0]) _kitchenStoreId = stores[0].storeId || '';
       for (const store of stores) {
