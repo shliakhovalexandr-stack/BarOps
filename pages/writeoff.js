@@ -2322,11 +2322,20 @@ async function sendActToSyrve(dept) {
     });
     if (r.ok) {
       const d = await r.json();
-      _syrveStores = d.stores || [];
+      // Ручний вибір складу застосовується ЛИШЕ для бару (кухня маршрутизується сама) → лишаємо
+      // тільки барні склади (Бар ТОВ / Бар ФОП); обладнання/посуду/хоз/кухню з вибору прибираємо.
+      const barStores = (d.stores || []).filter(s => /бар|bar/i.test(s.name || '') && !/обладнан|інвентар|inventar|посуд|хоз/i.test(s.name || ''));
+      // Показуємо вибір лише коли в акті Є барні позиції — інакше все йде на кухню автоматично (кухар не блокується).
+      const hasBar = sendItems.some(w => {
+        const prod = _prods.find(p => p.id === w.prodId);
+        const sc = w.storeZone || (prod?.zone === 'kitchen' ? 'kitchen' : prod?.zone === 'bar' ? 'bar' : null) || w.scope || 'bar';
+        return sc === 'bar';
+      });
+      _syrveStores = hasBar ? barStores : [];
     }
   } catch { /* ігноруємо, продовжуємо без вибору складу */ }
 
-  // Авто-вибір якщо склад тільки один
+  // Авто-вибір якщо барний склад тільки один
   _selStoreId = _syrveStores.length === 1 ? _syrveStores[0].id : null;
   // _isPosterWo / _woReasons завантажені при відкритті сторінки (для кроку 1 форми)
 
