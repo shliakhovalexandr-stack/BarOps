@@ -635,7 +635,7 @@ function buildHTML() {
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
   const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY]
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
-              : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'writeoff', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
+              : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? [QUICK_INVOICE_OCR, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
