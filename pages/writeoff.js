@@ -2874,11 +2874,13 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v8_${vId}`;   // v8 — зона 'both' для товарів на двох складах (бар+кухня)
+    const prodsKey = `barops_prods_v9_${vId}`;   // v9 — + _dishProds (позиції складу «Посуда»)
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
       if (Array.isArray(cached.data) && cached.data.length) { _prods = cached.data; prodsCacheTs = cached.ts || 0; }
+      if (Array.isArray(cached.dish)) _dishProds = cached.dish;   // посуд з кешу (fetch може пропуститись)
+      if (cached.dishStoreId) _dishStoreId = cached.dishStoreId;
     } catch {}
     const PRODS_CACHE_TTL = 30 * 60 * 1000; // 30 хвилин — не відкривати Syrve-слот якщо список свіжий
     if (Date.now() - prodsCacheTs > PRODS_CACHE_TTL) {
@@ -2926,7 +2928,7 @@ export default {
               zone: e.zones.size === 0 ? '' : (e.zones.has('bar') && e.zones.has('kitchen')) ? 'both' : [...e.zones][0],
             }));
             _prods = fresh;
-            try { localStorage.setItem(prodsKey, JSON.stringify({ ts: Date.now(), data: _prods })); } catch {}
+            try { localStorage.setItem(prodsKey, JSON.stringify({ ts: Date.now(), data: _prods, dish: _dishProds, dishStoreId: _dishStoreId })); } catch {}
             refreshProdList();
           }
         } catch (e) {
