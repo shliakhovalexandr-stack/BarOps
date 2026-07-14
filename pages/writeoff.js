@@ -51,6 +51,9 @@ let _syrveConfirmGroups = [];
 let _syrveResult        = null; // { isError, lines:[] }
 let _syrveStores        = []; // [{id, name}] — доступні склади для цього закладу
 let _barStores          = []; // барні склади (Бар ТОВ/ФОП) — вибір складу ПЕРШИМ кроком форми для бару
+let _dishProds          = []; // позиції складу «Посуда» (списання посуду — лише manager/director/admin)
+let _dishStoreId        = ''; // id складу «Посуда»
+let _woDishMode         = false; // обрано склад «Посуд» → показуємо позиції посуду замість товарів
 let _isPosterWo         = false; // заклад на Poster (модалка показує причину замість рахунків)
 let _woReasons          = [];    // [{id, name}] — причини списання Poster
 let _selReasonId        = null;  // обрана причина (Poster); null = Без причини
@@ -96,7 +99,11 @@ async function loadBarStores() {
     const r = await fetch(`${API}/api/pos/saved-stores/${vId}`, { headers: { Authorization: `Bearer ${token}` } });
     if (r.ok) {
       const d = await r.json();
-      _barStores = (d.stores || []).filter(s => /бар|bar/i.test(s.name || '') && !/обладнан|інвентар|inventar|посуд|хоз/i.test(s.name || ''));
+      const bar = (d.stores || []).filter(s => /бар|bar/i.test(s.name || '') && !/обладнан|інвентар|inventar|посуд|хоз/i.test(s.name || ''));
+      // Менеджер/директор/адмін можуть списувати посуд → додаємо склад «Посуда» окремою карткою
+      const isMgr = ['manager', 'director', 'admin'].includes((state.role || '').toLowerCase());
+      const dish = isMgr ? (d.stores || []).filter(s => /посуд/i.test(s.name || '')).map(s => ({ ...s, _dish: true })) : [];
+      _barStores = [...bar, ...dish];
     }
   } catch { /* без складів — backend поставить дефолтний */ }
 }
@@ -116,8 +123,8 @@ function storeStepHTML() {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${sel ? '#fff' : 'var(--text2)'}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21V12h6v9"/></svg>
           </div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:16px;font-weight:600;color:var(--text0);font-family:var(--font-h)">${esc(s.name)}</div>
-            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Юридична особа</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text0);font-family:var(--font-h)">${s._dish ? 'Посуд' : esc(s.name)}</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${s._dish ? 'Списання посуду — бій, втрати' : 'Юридична особа'}</div>
           </div>
           <div style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1.5px solid ${sel ? 'var(--purple)' : 'var(--border)'};background:${sel ? 'var(--purple)' : 'transparent'}">
             ${sel ? `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
@@ -126,7 +133,12 @@ function storeStepHTML() {
       }).join('')}
     </div>`;
 }
-function selectWoStore(id) { _selStoreId = id; setTimeout(() => { _formStep = 1; fullRender(); }, 180); }
+function selectWoStore(id) {
+  _selStoreId = id;
+  const s = _barStores.find(x => x.id === id);
+  _woDishMode = !!(s && s._dish);   // обрано склад «Посуд» → крок товару покаже позиції посуду
+  setTimeout(() => { _formStep = 1; fullRender(); }, 180);
+}
 // НЕ списується як товар — ховаємо з каталогу. За ГРУПОЮ Syrve (надійніше) або за НАЗВОЮ (durable посуд/інвентар).
 const NON_CONSUMABLE_CAT_RE  = /обладнан|інвентар|посуд|господар|хоз|мебел|меблі|тара|пакуван|спецодяг|уніформ|малоцін|мшп|текстиль|старо[ея]|удаля|прибор|хімі|мийн|одноразов/i;
 const NON_CONSUMABLE_NAME_RE = /ложк|виделк|рукавичк|прихватк|ємкіст|ємніст|контейнер|гастроєм|відро|зонт витяж|витяжк|блендер|міксер|серветк|щітк|губк|таця|піднос|друшляк|шумівк|тертк|термометр|дошк обробн|дошк розділ|лоток для/i;
@@ -1014,7 +1026,11 @@ function renderBartender() {
 function prodListHTML() {
   const q = _prodSearch.toLowerCase();
   let list;
-  if (_formMode === 'transfer') {
+  if (_woDishMode) {
+    // Обрано склад «Посуд» → показуємо позиції посуду (келихи/тарілки), окремий список
+    list = _dishProds.filter(p => (!q || p.name.toLowerCase().includes(q)));
+    if (!list.length) return `<div style="text-align:center;padding:20px 8px;color:var(--text2);font-family:var(--font-b);font-size:12px">${_dishProds.length===0?'Завантаження посуду…':'Нічого не знайдено'}</div>`;
+  } else if (_formMode === 'transfer') {
     // Переміщення — БЕЗ фільтра за зоною: зона в _prods одна на товар (перший склад), а товар
     // лежить на кількох → фільтр ховав «Сік в асортименті» тощо. Реальний склад-джерело бекенд
     // бере з syrveStoreId (не за назвою), тож рух коректний. Показуємо ВСІ, пошук лишається.
@@ -1220,6 +1236,10 @@ function syrveResultHTML() {
 
 // Товар для кошика з _prods або _preps (як у selectProd/editWriteoff)
 function woResolveProd(id) {
+  if (_woDishMode) {   // склад «Посуд» — резолвимо з окремого списку позицій посуду
+    const dp = _dishProds.find(x => x.id === id);
+    if (dp) return { id: dp.id, name: dp.name, unit: dp.unit || 'sht', stock: dp.stock ?? 0, vol0: 1, isPrep: false, scope: 'dishware', zone: 'dishware' };
+  }
   const p = _prods.find(x => x.id === id);
   if (p) return { id: p.id, name: p.name, unit: p.unit || 'l', stock: p.stock ?? 0, vol0: p.vol || 0.7, isPrep: false, scope: undefined, zone: p.zone };
   const pr = _preps.find(x => x.id === id);
@@ -1755,7 +1775,7 @@ async function openForm(mode)  {
   if (_formMode !== 'transfer' && roleZone() === 'bar' && !_selStoreId) {
     await loadBarStores();
     if (_barStores.length > 1) _formStep = 0;                     // крок «Склад»
-    else if (_barStores.length === 1) _selStoreId = _barStores[0].id;   // один барний — авто
+    else if (_barStores.length === 1) { _selStoreId = _barStores[0].id; _woDishMode = !!_barStores[0]._dish; }   // один склад — авто
     fullRender();
   }
 }
@@ -1803,7 +1823,12 @@ function selectPosterCat(id, name) {
 }
 function searchProds(q) { _prodSearch = q; refreshProdList(); }
 function selectProd(id) {
-  let p = _prods.find(x => x.id === id);
+  let p = null;
+  if (_woDishMode) {   // склад «Посуд» — позиція посуду
+    const dp = _dishProds.find(x => x.id === id);
+    if (dp) p = { id: dp.id, name: dp.name, unit: dp.unit || 'sht', stock: dp.stock, isPrep: false, scope: 'dishware', zone: 'dishware' };
+  }
+  if (!p) p = _prods.find(x => x.id === id);
   if (!p) {
     const pr = _preps.find(x => x.id === id);   // напівфабрикат
     if (pr) p = { id: pr.id, name: pr.name, unit: normalizeUnit(pr.unit), stock: pr.stock, isPrep: true, scope: pr.scope };
@@ -1897,7 +1922,7 @@ function buildWoEntry(it, finalCat, now, hhmm, dd) {
     scope:   roleZone(),
     storeZone: it.isPrep
                ? (it.scope === 'kitchen' ? 'kitchen' : it.scope === 'bar' ? 'bar' : roleZone())
-               : (it.zone === 'kitchen' ? 'kitchen' : it.zone === 'bar' ? 'bar' : roleZone()),
+               : (it.zone === 'kitchen' ? 'kitchen' : it.zone === 'bar' ? 'bar' : it.zone === 'dishware' ? 'dishware' : roleZone()),
     valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
     reasonId:    _isPosterWo ? _selReasonId : undefined,
@@ -2076,7 +2101,7 @@ async function submitFormImpl() {
     // storeZone = ЦІЛЬОВИЙ склад Syrve (за складом товару) → окремий акт на потрібний склад при надсиланні.
     storeZone: _selProd?.isPrep
                ? (_selProd.scope === 'kitchen' ? 'kitchen' : _selProd.scope === 'bar' ? 'bar' : roleZone())
-               : (_selProd?.zone === 'kitchen' ? 'kitchen' : _selProd?.zone === 'bar' ? 'bar' : roleZone()),
+               : (_selProd?.zone === 'kitchen' ? 'kitchen' : _selProd?.zone === 'bar' ? 'bar' : _selProd?.zone === 'dishware' ? 'dishware' : roleZone()),
     valColor:    CAT[finalCat]?.color || 'var(--text0)',
     reason:      _selReason || '',
     reasonId:    _isPosterWo ? _selReasonId : undefined,    // причина Poster (reason_id)
@@ -2398,6 +2423,7 @@ function closeSyrveConfirm() {
   _syrveConfirmGroups = [];
   _syrveStores        = [];
   _selStoreId         = null;
+  _woDishMode         = false;   // скидаємо режим посуду — наступне списання знову з вибору складу
   _actComments        = {};
   fullRender();
 }
@@ -2467,7 +2493,7 @@ async function doSendActToSyrve() {
           const body = { items, comment, scope };
           if (g.accountId) body.accountId = g.accountId;
           if (_isPosterWo && rk !== '__none__') body.reasonId = rk;          // причина списання Poster
-          if (_selStoreId && scope === 'bar') body.storeId = _selStoreId;   // ручний вибір складу — лише для бару
+          if (_selStoreId && (scope === 'bar' || scope === 'dishware')) body.storeId = _selStoreId;   // обраний склад — бар (ТОВ/ФОП) або Посуд
           const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -2872,7 +2898,18 @@ export default {
             // зону kitchen і акт списання йшов на кухню. Тепер збираємо ВСІ зони товару:
             // на двох складах → 'both' (склад визначить роль автора в buildWoEntry/roleZone).
             const byId = {};   // pid → { id,name,stock(сума по складах),unit,category, zones:Set }
+            const dishById = {};   // окремо — позиції складу «Посуда» (списання посуду менеджером)
             for (const store of (data.stores || [])) {
+              // Склад «Посуда» — окремий список (не змішуємо з товарами); тут посуд НЕ фільтруємо як non-consumable
+              if (/посуд/i.test(store.storeName || '')) {
+                _dishStoreId = store.storeId || _dishStoreId;
+                for (const item of (store.items || [])) {
+                  if (!item.name || item.name.match(/^[0-9a-f-]{36}$/i)) continue;
+                  if (!dishById[item.id]) dishById[item.id] = { id: item.id, name: item.name, stock: parseFloat(item.amount) || 0, unit: normalizeUnit(item.unit), category: item.category || '', zone: 'dishware' };
+                  else dishById[item.id].stock += (parseFloat(item.amount) || 0);
+                }
+                continue;
+              }
               const zone = /бар|bar/i.test(store.storeName || '') ? 'bar' : /кухн|kitchen/i.test(store.storeName || '') ? 'kitchen' : '';
               for (const item of (store.items || [])) {
                 if (!item.name || item.name.match(/^[0-9a-f-]{36}$/i)) continue;
@@ -2883,6 +2920,7 @@ export default {
                 if (zone) e.zones.add(zone);
               }
             }
+            _dishProds = Object.values(dishById).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk'));
             const fresh = Object.values(byId).map(e => ({
               id: e.id, name: e.name, stock: e.stock, unit: e.unit, category: e.category,
               zone: e.zones.size === 0 ? '' : (e.zones.has('bar') && e.zones.has('kitchen')) ? 'both' : [...e.zones][0],
