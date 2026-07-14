@@ -50,6 +50,7 @@ let _syrveConfirmOpen   = false;
 let _syrveConfirmGroups = [];
 let _syrveResult        = null; // { isError, lines:[] }
 let _syrveStores        = []; // [{id, name}] — доступні склади для цього закладу
+let _barStores          = []; // барні склади (Бар ТОВ/ФОП) — вибір складу ПЕРШИМ кроком форми для бару
 let _isPosterWo         = false; // заклад на Poster (модалка показує причину замість рахунків)
 let _woReasons          = [];    // [{id, name}] — причини списання Poster
 let _selReasonId        = null;  // обрана причина (Poster); null = Без причини
@@ -82,6 +83,50 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '
 function posName() { return _isPosterWo ? 'Poster' : 'Syrve'; }
 // Зона ролі для складу списання: кухар→кухня, решта→бар
 function roleZone() { const r = (state.role || '').toLowerCase(); return (r === 'cook' || r === 'chef') ? 'kitchen' : 'bar'; }
+
+// Чи форма починається з кроку «Склад» (0): бар + кілька барних складів (Бар ТОВ/ФОП), нове списання
+function woHasStoreStep() { return _formMode !== 'transfer' && !_editId && roleZone() === 'bar' && _barStores.length > 1; }
+
+// Барні склади (Бар ТОВ/ФОП) з БД — для вибору складу першим кроком (без обладнання/посуди/хоз/кухні)
+async function loadBarStores() {
+  const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
+  const token = localStorage.getItem('barops_token');
+  if (!vId || !token) return;
+  try {
+    const r = await fetch(`${API}/api/pos/saved-stores/${vId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) {
+      const d = await r.json();
+      _barStores = (d.stores || []).filter(s => /бар|bar/i.test(s.name || '') && !/обладнан|інвентар|inventar|посуд|хоз/i.test(s.name || ''));
+    }
+  } catch { /* без складів — backend поставить дефолтний */ }
+}
+
+// Крок «Склад» — гарні картки барних складів (Бар ТОВ / Бар ФОП)
+function storeStepHTML() {
+  return `
+    <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:14px">Оберіть склад для списання</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${_barStores.map(s => {
+        const sel = _selStoreId === s.id;
+        return `
+        <div onclick="window.__wo.selectWoStore('${s.id}')"
+          style="display:flex;align-items:center;gap:14px;padding:18px 16px;border-radius:16px;cursor:pointer;transition:all .15s;
+            border:1px solid ${sel ? 'var(--purple)' : 'var(--border)'};background:${sel ? 'var(--purple-bg)' : 'var(--bg2)'}">
+          <div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${sel ? 'var(--purple)' : 'var(--bg3)'}">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${sel ? '#fff' : 'var(--text2)'}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21V12h6v9"/></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:16px;font-weight:600;color:var(--text0);font-family:var(--font-h)">${esc(s.name)}</div>
+            <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Юридична особа</div>
+          </div>
+          <div style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1.5px solid ${sel ? 'var(--purple)' : 'var(--border)'};background:${sel ? 'var(--purple)' : 'transparent'}">
+            ${sel ? `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+function selectWoStore(id) { _selStoreId = id; setTimeout(() => { _formStep = 1; fullRender(); }, 180); }
 // НЕ списується як товар — ховаємо з каталогу. За ГРУПОЮ Syrve (надійніше) або за НАЗВОЮ (durable посуд/інвентар).
 const NON_CONSUMABLE_CAT_RE  = /обладнан|інвентар|посуд|господар|хоз|мебел|меблі|тара|пакуван|спецодяг|уніформ|малоцін|мшп|текстиль|старо[ея]|удаля|прибор|хімі|мийн|одноразов/i;
 const NON_CONSUMABLE_NAME_RE = /ложк|виделк|рукавичк|прихватк|ємкіст|ємніст|контейнер|гастроєм|відро|зонт витяж|витяжк|блендер|міксер|серветк|щітк|губк|таця|піднос|друшляк|шумівк|тертк|термометр|дошк обробн|дошк розділ|лоток для/i;
@@ -861,10 +906,13 @@ function renderBartender() {
 
       <!-- Step dots -->
       <div class="wo-dots">
-        ${[1,2,3,4].map(i => `<div class="wo-dot ${_formStep===i?'act':_formStep>i?'done':''}" id="wdot${i}"></div>`).join('')}
+        ${(woHasStoreStep()?[0,1,2,3,4]:[1,2,3,4]).map(i => `<div class="wo-dot ${_formStep===i?'act':_formStep>i?'done':''}" id="wdot${i}"></div>`).join('')}
       </div>
 
       <div class="wo-scroll2" id="wo-scroll2">
+
+        <!-- Step 0: Store (бар, кілька барних складів) -->
+        <div class="wo-fstep ${_formStep===0?'act':''}" id="wfstep0">${storeStepHTML()}</div>
 
         <!-- Step 1: Account (if configured) or Category -->
         <div class="wo-fstep ${_formStep===1?'act':''}" id="wfstep1">
@@ -1282,6 +1330,7 @@ function singleVolHTML() {
 
 // Валідність кроку форми списання (крок 2/3 залежить від режиму: кошик чи одиничний)
 function woStepValid(step) {
+  if (step === 0) return !!_selStoreId;
   if (step === 1) return getWoAccounts().length ? !!_selAccount : !!_selCat;
   if (woCartMode()) {
     if (step === 2) return _woCart.length > 0;
@@ -1507,9 +1556,12 @@ function renderManager() {
           </div>
         </div>
         <div class="wo-dots">
-          ${[1,2,3,4].map(i=>`<div class="wo-dot ${_formStep===i?'act':_formStep>i?'done':''}" id="wdot${i}"></div>`).join('')}
+          ${(woHasStoreStep()?[0,1,2,3,4]:[1,2,3,4]).map(i=>`<div class="wo-dot ${_formStep===i?'act':_formStep>i?'done':''}" id="wdot${i}"></div>`).join('')}
         </div>
         <div class="wo-scroll2" id="wo-scroll2">
+
+          <!-- Step 0: Store (бар, кілька барних складів) -->
+          <div class="wo-fstep ${_formStep===0?'act':''}" id="wfstep0">${storeStepHTML()}</div>
 
           <!-- Step 1: Account (if configured) or Category -->
           <div class="wo-fstep ${_formStep===1?'act':''}" id="wfstep1">
@@ -1689,7 +1741,7 @@ function setProdTab(tab) {
 function setCatFilter(cat) { _catFilter = cat; refreshList(); fullRender(); }
 
 /* form */
-function openForm(mode)  {
+async function openForm(mode)  {
   _editId = null;
   _formMode = (mode === 'transfer') ? 'transfer' : 'writeoff';
   _formOpen=true; _formStep = _formMode==='transfer' ? 2 : 1;
@@ -1699,6 +1751,13 @@ function openForm(mode)  {
   _prodTab='goods';
   if (_formMode !== 'transfer') autoSelectAccount();
   fullRender();
+  // Бар: вибір складу (Бар ТОВ/ФОП) ПЕРШИМ кроком, якщо ще не обрано в цій сесії списання
+  if (_formMode !== 'transfer' && roleZone() === 'bar' && !_selStoreId) {
+    await loadBarStores();
+    if (_barStores.length > 1) _formStep = 0;                     // крок «Склад»
+    else if (_barStores.length === 1) _selStoreId = _barStores[0].id;   // один барний — авто
+    fullRender();
+  }
 }
 function closeForm() { _formOpen=false; _editId=null; fullRender(); }
 
@@ -1814,6 +1873,8 @@ function nextStep() {
 }
 function prevStep() {
   if (_formMode==='transfer' && _formStep<=2) { closeForm(); return; }   // перший крок переміщення → закрити
+  if (_formStep === 0) { closeForm(); return; }                          // крок «Склад» → назад = закрити
+  if (_formStep === 1 && woHasStoreStep()) { _formStep = 0; fullRender(); return; }  // рахунок → назад до вибору складу
   if (_formStep>1) { _formStep--; fullRender(); }
 }
 
@@ -2315,28 +2376,9 @@ async function sendActToSyrve(dept) {
   if (dept) sendItems = sendItems.filter(w => woDeptOf(w) === dept);
   if (!sendItems.length) { alert('Немає списань з товаром для надсилання'); return; }
 
-  // Завантажуємо збережені склади з бекенду
-  try {
-    const r = await fetch(`${API}/api/pos/saved-stores/${vId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (r.ok) {
-      const d = await r.json();
-      // Ручний вибір складу застосовується ЛИШЕ для бару (кухня маршрутизується сама) → лишаємо
-      // тільки барні склади (Бар ТОВ / Бар ФОП); обладнання/посуду/хоз/кухню з вибору прибираємо.
-      const barStores = (d.stores || []).filter(s => /бар|bar/i.test(s.name || '') && !/обладнан|інвентар|inventar|посуд|хоз/i.test(s.name || ''));
-      // Показуємо вибір лише коли в акті Є барні позиції — інакше все йде на кухню автоматично (кухар не блокується).
-      const hasBar = sendItems.some(w => {
-        const prod = _prods.find(p => p.id === w.prodId);
-        const sc = w.storeZone || (prod?.zone === 'kitchen' ? 'kitchen' : prod?.zone === 'bar' ? 'bar' : null) || w.scope || 'bar';
-        return sc === 'bar';
-      });
-      _syrveStores = hasBar ? barStores : [];
-    }
-  } catch { /* ігноруємо, продовжуємо без вибору складу */ }
-
-  // Авто-вибір якщо барний склад тільки один
-  _selStoreId = _syrveStores.length === 1 ? _syrveStores[0].id : null;
+  // Склад для бару вже обрано ПЕРШИМ кроком форми (крок «Склад») → тут повторно не питаємо.
+  // _selStoreId зберігається на всю сесію списання; якщо не заданий (кухар/один склад) — backend ставить дефолтний.
+  _syrveStores = [];
   // _isPosterWo / _woReasons завантажені при відкритті сторінки (для кроку 1 форми)
 
   const byAccount = {};
@@ -2872,7 +2914,7 @@ export default {
       toggleProd, updateCartVol, removeCartItem,
       nextStep, prevStep, submitForm, closeSuccess, closeSuccessExit,
       setPeriod, setMgrFrom, setMgrTo, setMgrFilter, exportReport, syncPrices: syncPricesWo,
-      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore,
+      sendActToSyrve, closeSyrveConfirm, doSendActToSyrve, closeSyrveResult, selectWriteoffStore, selectWoStore,
       openActDetail, closeActDetail, openDay, closeDay,
       addCustomReason, removeReason,
       deleteWriteoff, editWriteoff,
