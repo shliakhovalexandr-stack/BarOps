@@ -247,6 +247,27 @@ function orderZone() {
   if (r === 'admin' || r === 'manager' || r === 'director') return _mgrZone;
   return 'bar';   // бармен
 }
+// Зона складу за назвою — заклад може мати кілька складів однієї зони (Дім18: «Бар ТОВ» + «Бар ФОП»).
+// Службові (обладнання/посуд/меблі/…) бекенд уже не віддає при zoneMerge, тут — підстраховка.
+function storeZoneName(name) {
+  const n = (name || '').toLowerCase();
+  if (/обладн|посуд|мебл|ремонт|залишк|панг|господар|хоз|доброго|спецодяг|уніформ|мшп|малоцін/.test(n)) return 'service';
+  if (/кухн|kitchen/.test(n)) return 'kitchen';
+  if (/бар|bar/.test(n)) return 'bar';
+  return '';
+}
+// Товари для пікера, відфільтровані за зоною замовлення. Якщо в закладі є склади цієї зони —
+// показуємо лише їх (бармен бачить барні з усіх барних складів); інакше (заклад без зонових
+// назв) — показуємо всі, щоб нічого не загубити.
+function visibleBalanceItems(q) {
+  const z  = orderZone();
+  const ql = (q || '').toLowerCase();
+  const hasZoned = _balanceItems.some(b => b._zone === z);
+  return _balanceItems.filter(b =>
+    (hasZoned ? b._zone === z : b._zone !== 'service') &&
+    (!ql || b.name.toLowerCase().includes(ql))
+  );
+}
 function getSuggest(productId) {
   return (_suggest || []).find(s => s.id === productId) || null;
 }
@@ -272,7 +293,7 @@ async function fetchBalanceRetry(maxAttempts = 3) {
     if (attempt > 1) await new Promise(r => setTimeout(r, 2500));
     if (state.route !== 'ordering') return null;
     try {
-      const res  = await fetch(`${API}/api/pos/balance/${_venueId}`, { headers: h });
+      const res  = await fetch(`${API}/api/pos/balance/${_venueId}?zoneMerge=1`, { headers: h });
       const data = await res.json();
       if (data.success && data.stores?.length) return data;
       console.warn(`[Ordering] balance attempt ${attempt}/${maxAttempts}: empty`);
@@ -302,12 +323,24 @@ async function loadData() {
     // Баланс — ретрай у фоні (Railway cold start + Syrve latency)
     const bData = await fetchBalanceRetry(3);
     if (bData?.stores) {
-      _balanceItems = [];
+      // Обʼєднуємо товари з усіх складів (бар ТОВ+ФОП, кухня), тегуємо зоною складу
+      // та дедуплимо за id (той самий товар на двох складах → сумуємо залишок).
+      const map = new Map();
       for (const store of bData.stores) {
+        const z = storeZoneName(store.storeName);
+        if (z === 'service') continue;
         for (const item of store.items) {
-          if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) _balanceItems.push(item);
+          if (!item.name || item.name.match(/^[0-9a-f-]{36}$/i)) continue;
+          const ex = map.get(item.id);
+          if (ex) {
+            ex.amount = (ex.amount || 0) + (item.amount || 0);
+            if (!ex._zone && z) ex._zone = z;
+          } else {
+            map.set(item.id, { ...item, _zone: z });
+          }
         }
       }
+      _balanceItems = [...map.values()];
       partialRefreshSupps(); // оновлюємо тільки рядки товарів
     }
   } catch (err) {
@@ -753,7 +786,7 @@ function prodPickerHTML() {
   if (!supp) return '';
 
   const q        = _prodSearch.toLowerCase();
-  const filtered = _balanceItems.filter(b => !q || b.name.toLowerCase().includes(q));
+  const filtered = visibleBalanceItems(q);
 
   return `
   <div class="ord-sheet-overlay open" onclick="window.__ord.closeProdPicker(event)" id="prod-picker-ov">
@@ -1407,8 +1440,7 @@ function prodSearchChange(q) {
   const supp = _suppliers.find(s => s.id === _prodPickerSupp);
   const list = document.getElementById('ord-pp-list');
   if (!supp || !list) return;
-  const ql = q.toLowerCase();
-  const filtered = _balanceItems.filter(b => !ql || b.name.toLowerCase().includes(ql));
+  const filtered = visibleBalanceItems(q);
   list.innerHTML = filtered.length === 0
     ? `<div style="padding:24px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:12px">${_balanceItems.length === 0 ? 'Залишки Syrve не завантажені' : 'Нічого не знайдено'}</div>`
     : filtered.map(b => pickerRowHTML(supp, b)).join('');

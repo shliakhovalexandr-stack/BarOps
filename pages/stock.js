@@ -235,8 +235,31 @@ async function saveCategory() {
   }
 }
 
+// Зона складу за назвою — заклад може мати кілька складів однієї зони (Дім18: «Бар ТОВ» + «Бар ФОП»)
+function storeZoneName(name) {
+  const n = (name || '').toLowerCase();
+  if (/обладн|посуд|мебл|ремонт|залишк|панг|господар|хоз|доброго|спецодяг|уніформ|мшп|малоцін/.test(n)) return 'service';
+  if (/кухн|kitchen/.test(n)) return 'kitchen';
+  if (/бар|bar/.test(n)) return 'bar';
+  return '';
+}
+// Дефолтна зона за роллю: бармен — барні склади, кухар/шеф — кухонні, менеджер/адмін/директор — усі
+function roleZone() {
+  const r = (state.role || '').toLowerCase();
+  if (r === 'chef' || r === 'cook')  return 'kitchen';
+  if (r === 'bartender')             return 'bar';
+  return null;
+}
+
 function buildHTML() {
   let list = STOCK;
+  // Зонування за роллю (лише коли користувач не вибрав склади вручну): бармен бачить барні
+  // склади (ТОВ+ФОП) разом, не кухню; службові приховані завжди.
+  const rz = roleZone();
+  if (_warehouseFilter.size === 0) {
+    if (rz) list = list.filter(s => s.zone === rz);
+    else    list = list.filter(s => s.zone !== 'service');
+  }
   if (_groupFilter.size > 0)     list = list.filter(s => _groupFilter.has(s.group));
   if (_warehouseFilter.size > 0) list = list.filter(s => _warehouseFilter.has(s.storeId));
   if (_catFilter.size > 0)       list = list.filter(s => _catFilter.has(s.cat));
@@ -568,6 +591,7 @@ function applyBalance(data) {
           id:           id++,
           posId:        item.id,
           storeId:      store.storeId,
+          zone:         storeZoneName(store.storeName),   // бар/кухня — для зонування за роллю (розділені склади ТОВ/ФОП)
           group:        item.group || '',
           emoji:        '',
           name:         item.name,
@@ -599,7 +623,7 @@ async function fetchBalanceWithRetry(maxAttempts = 3) {
       await new Promise(r => setTimeout(r, 2500));
       if (state.route !== 'stock') return null;
     }
-    const data = await fetch(`${API}/api/pos/balance/${_venueId}`, {
+    const data = await fetch(`${API}/api/pos/balance/${_venueId}?zoneMerge=1`, {
       headers: { 'Authorization': `Bearer ${_token}` },
     }).then(r => r.json()).catch(e => ({ success: false, error: e.message }));
     if (data?.success && data.stores?.length) return data;

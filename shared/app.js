@@ -219,6 +219,24 @@ const TAB_BAR_COOK = [
   },
 ];
 
+// Стажер / Ранер — доступ ЛИШЕ до перегляду графіку (+ профіль для виходу)
+const TAB_BAR_TRAINEE = [
+  {
+    route: 'schedule', label: 'Графік',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="3" y="4" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 8h16M7 2v4M15 2v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'profile', label: 'Профіль',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M4 19c0-3.9 3.1-7 7-7h.5c3.9 0 6.5 3.1 6.5 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+];
+
 const TAB_BAR_ACCOUNTANT = [
   {
     route: 'dashboard', label: 'Головна',
@@ -804,6 +822,11 @@ export async function deleteVenue(id, name) {
    5. НАВІГАЦІЯ
    ══════════════════════════════════════ */
 export async function navigate(route, opts = {}) {
+  // Обмежені ролі (Стажер/Ранер) — доступ ЛИШЕ до графіку + профілю; будь-що інше → графік
+  const _rlim = (state.role || '').toLowerCase();
+  if ((_rlim === 'trainee' || _rlim === 'runner') && !['schedule', 'profile', 'auth'].includes(route)) {
+    route = 'schedule';
+  }
   const page = PAGES[route];
   if (!page) { console.warn(`[BarOps] Unknown route: "${route}"`); return; }
 
@@ -887,7 +910,8 @@ export function goBack() {
 function updateTabBarActive() {
   const el = document.getElementById('app-tab-bar');
   if (!el || !el.children.length) { renderTabBar(); return; }
-  const tabs = state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
+  const tabs = state.role === 'trainee' || state.role === 'runner' ? TAB_BAR_TRAINEE
+             : state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
              : state.role === 'admin' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
              : state.role === 'cook' ? TAB_BAR_COOK
@@ -930,7 +954,8 @@ function updateDrawerActive() {
 function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
-  const tabs = state.role === 'admin'       ? TAB_BAR_MANAGER
+  const tabs = state.role === 'trainee' || state.role === 'runner' ? TAB_BAR_TRAINEE
+             : state.role === 'admin'       ? TAB_BAR_MANAGER
              : state.role === 'manager'     ? TAB_BAR_MGR_JOURNAL
              : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
              : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT

@@ -217,7 +217,7 @@ ${CSS}
         </div>
         <div>
           <div class="prof-name">${name}</div>
-          <div class="prof-role">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'} · ${venue}</div>
+          <div class="prof-role">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':state.role==='trainee'?'Стажер':state.role==='runner'?'Ранер':'Бармен'} · ${venue}</div>
           <div class="prof-venue">${s?.shift ? 'На зміні' : 'Поза зміною'}</div>
         </div>
       </div>
@@ -233,7 +233,7 @@ ${CSS}
       ${_team.slice(0, 5).map(m => {
         const isActive = m.status === 'active';
         const _rm = (m.role||'').toLowerCase();
-        const roleLbl = _rm==='admin'?'Системний менеджер':_rm==='manager'?'Менеджер':_rm==='director'?'Керуючий':_rm==='accountant'?'Бухгалтер':_rm==='chef'?'Шеф-кухар':_rm==='cook'?'Кухар':_rm==='waiter'?'Офіціант':'Бармен';
+        const roleLbl = _rm==='admin'?'Системний менеджер':_rm==='manager'?'Менеджер':_rm==='director'?'Керуючий':_rm==='accountant'?'Бухгалтер':_rm==='chef'?'Шеф-кухар':_rm==='cook'?'Кухар':_rm==='waiter'?'Офіціант':_rm==='trainee'?'Стажер':_rm==='runner'?'Ранер':'Бармен';
         const lastLogin = m.lastLogin ? new Date(m.lastLogin).toLocaleDateString('uk-UA') : 'не входив';
         return `
         <div class="prof-shift-row">
@@ -258,7 +258,7 @@ ${CSS}
       ${phone !== '—' ? `<div class="prof-info-row"><div class="prof-info-lbl">📞 Телефон</div><div class="prof-info-val">${phone}</div></div>` : ''}
       ${email !== '—' ? `<div class="prof-info-row"><div class="prof-info-lbl">✉️ Email</div><div class="prof-info-val" style="font-size:12px">${email}</div></div>` : ''}
       <div class="prof-info-row"><div class="prof-info-lbl">🏢 Заклад</div><div class="prof-info-val">${venue}</div></div>
-      <div class="prof-info-row"><div class="prof-info-lbl">👤 Роль</div><div class="prof-info-val">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'}</div></div>
+      <div class="prof-info-row"><div class="prof-info-lbl">👤 Роль</div><div class="prof-info-val">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':state.role==='trainee'?'Стажер':state.role==='runner'?'Ранер':'Бармен'}</div></div>
     </div>
 
     <!-- POS-інтеграція (лише власник = адмін) -->
