@@ -52,22 +52,22 @@ function deptAllowed(key) {
    ROLE CONFIG (статичний)
 ════════════════════════════════════════ */
 const ROLE_CONFIG = {
-  cooks:      { label: 'Кухарі',    icon: 'fork',  color: '#FBBF24', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']                    },
-  bartenders: { label: 'Бармени',   icon: 'glass', color: '#A88BFF', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']             },
-  waiters:    { label: 'Офіціанти', icon: 'tray',  color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']                         },
-  cleaners:   { label: 'Хозяюшки', icon: 'broom', color: '#86EFAC', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess','cleaner','housekeeper'] },
+  cooks:      { label: 'Кухарі',    icon: 'fork',  color: 'var(--amber)', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']                    },
+  bartenders: { label: 'Бармени',   icon: 'glass', color: 'var(--green)', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']             },
+  waiters:    { label: 'Офіціанти', icon: 'tray',  color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']                         },
+  cleaners:   { label: 'Хозяюшки', icon: 'broom', color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess','cleaner','housekeeper'] },
 };
 
 /* ════════════════════════════════════════
    STATION COLOR PALETTE (авто-призначення)
 ════════════════════════════════════════ */
 const PALETTE = [
-  { bg:'rgba(34,211,238,.18)',  bd:'rgba(34,211,238,.40)',  tx:'#22D3EE' },
-  { bg:'rgba(168,139,255,.18)', bd:'rgba(168,139,255,.35)', tx:'#A88BFF' },
-  { bg:'rgba(251,191,36,.18)',  bd:'rgba(251,191,36,.35)',  tx:'#FBBF24' },
-  { bg:'rgba(96,165,250,.18)',  bd:'rgba(96,165,250,.35)',  tx:'#60A5FA' },
-  { bg:'rgba(134,239,172,.18)', bd:'rgba(134,239,172,.35)', tx:'#86EFAC' },
-  { bg:'rgba(52,211,153,.18)',  bd:'rgba(52,211,153,.35)',  tx:'#34D399' },
+  { bg:'rgba(34,211,238,.18)',  bd:'rgba(34,211,238,.40)',  tx:'var(--teal)' },
+  { bg:'rgba(168,139,255,.18)', bd:'rgba(168,139,255,.35)', tx:'var(--green)' },
+  { bg:'rgba(251,191,36,.18)',  bd:'rgba(251,191,36,.35)',  tx:'var(--amber)' },
+  { bg:'rgba(96,165,250,.18)',  bd:'rgba(96,165,250,.35)',  tx:'var(--blue)' },
+  { bg:'rgba(134,239,172,.18)', bd:'rgba(134,239,172,.35)', tx:'var(--success)' },
+  { bg:'rgba(52,211,153,.18)',  bd:'rgba(52,211,153,.35)',  tx:'var(--success)' },
 ];
 function stClr(idx) { return PALETTE[idx % PALETTE.length]; }
 function hashIdx(s, n) { let h = 0; const t = String(s || ''); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h % n; }
@@ -505,7 +505,7 @@ async function patchDayOff(id, status) {
 }
 
 const STATUS_LABEL = { pending: 'Очікує', approved: 'Підтверджено', rejected: 'Відхилено' };
-const STATUS_COLOR = { pending: '#FBBF24', approved: '#86EFAC', rejected: '#FB7185' };
+const STATUS_COLOR = { pending: 'var(--amber)', approved: 'var(--success)', rejected: 'var(--red)' };
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 function fmtSubmitted(iso) {
   const d = new Date(iso);
@@ -583,7 +583,7 @@ function ini(name) {
   return p.length >= 2 ? p[0][0] + p[1][0] : (p[0] || '?')[0];
 }
 function avatarBg(name) {
-  const c = ['#A88BFF','#FBBF24','#86EFAC','#FB7185','#93C5FD'];
+  const c = ['var(--green)','var(--amber)','var(--success)','var(--red)','var(--blue)'];
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return c[Math.abs(h) % c.length];
@@ -602,10 +602,10 @@ function avatarStack(people, max = 3) {
   const show = people.slice(0, max);
   const rest = people.length - max;
   const circles = show.map((p, i) =>
-    `<div style="width:22px;height:22px;border-radius:50%;background:${avatarBg(p.n)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;margin-left:${i===0?'0':'-7px'};border:1.5px solid #0A0A0A;z-index:${max-i};position:relative;flex-shrink:0">${p.i}</div>`
+    `<div style="width:22px;height:22px;border-radius:50%;background:${avatarBg(p.n)};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--fab-ink);margin-left:${i===0?'0':'-7px'};border:1.5px solid var(--bg1);z-index:${max-i};position:relative;flex-shrink:0">${p.i}</div>`
   ).join('');
   const plus = rest > 0
-    ? `<div style="width:22px;height:22px;border-radius:50%;background:#1F1F22;display:flex;align-items:center;justify-content:center;font-size:7px;color:#71717A;font-weight:600;margin-left:-7px;border:1.5px solid #0A0A0A;z-index:0;position:relative;flex-shrink:0">+${rest}</div>`
+    ? `<div style="width:22px;height:22px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:7px;color:var(--text2);font-weight:600;margin-left:-7px;border:1.5px solid var(--bg1);z-index:0;position:relative;flex-shrink:0">+${rest}</div>`
     : '';
   return `<div style="display:flex;align-items:center">${circles}${plus}</div>`;
 }
@@ -613,10 +613,10 @@ function statusChips(r) {
   const gaps    = r.grid.reduce((a, row) => a + row.filter(c => c === null).length, 0);
   const pending = r.requests.filter(x => x.status === 'pending').length;
   if (!gaps && !pending && r.people.length > 0)
-    return `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(134,239,172,0.10);border:0.5px solid rgba(134,239,172,0.25);font-size:10px;color:#86EFAC;font-weight:500">Без зауважень</span>`;
+    return `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(134,239,172,0.10);border:0.5px solid rgba(134,239,172,0.25);font-size:10px;color:var(--success);font-weight:500">Без зауважень</span>`;
   let out = '';
-  if (gaps)    out += `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(251,113,133,0.10);border:0.5px solid rgba(251,113,133,0.25);font-size:10px;color:#FB7185;font-weight:500">${gaps} дірок</span>`;
-  if (pending) out += `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(251,191,36,0.10);border:0.5px solid rgba(251,191,36,0.25);font-size:10px;color:#FBBF24;font-weight:500">${pending} запит${pending>1?'и':''}</span>`;
+  if (gaps)    out += `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(251,113,133,0.10);border:0.5px solid rgba(251,113,133,0.25);font-size:10px;color:var(--red);font-weight:500">${gaps} дірок</span>`;
+  if (pending) out += `<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:rgba(251,191,36,0.10);border:0.5px solid rgba(251,191,36,0.25);font-size:10px;color:var(--amber);font-weight:500">${pending} запит${pending>1?'и':''}</span>`;
   return out;
 }
 function summaryStats() {
@@ -661,12 +661,12 @@ function renderDeptTable(roleKey) {
   }).join('');
 
   const bodyRows = r.people.length === 0
-    ? `<tr><td colspan="8"><div style="padding:10px 0 4px;color:#3F3F46;font-size:11px;text-align:center">Немає співробітників — додайте у «Команда»</div></td></tr>`
+    ? `<tr><td colspan="8"><div style="padding:10px 0 4px;color:var(--text3);font-size:11px;text-align:center">Немає співробітників — додайте у «Команда»</div></td></tr>`
     : r.people.map((p, pi) => {
         const cells = r.grid[pi].map((cell, di) => {
           if (!cell) {
             const onclick = _mode === 'edit' ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"` : '';
-            return `<td><div class="sch-cell-off${_mode === 'edit' ? ' editable' : ''}" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
+            return `<td><div class="sch-cell-off${_mode === 'edit' ? ' editable' : ''}" ${onclick}><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="var(--border2)" stroke-width="1.5"/></svg></div></td>`;
           }
           if (cell.dayOff) {
             const onclick = _mode === 'edit' ? `onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"` : '';
@@ -692,7 +692,7 @@ function renderDeptTable(roleKey) {
         }).join('');
         const shiftCount = (r.grid[pi] || []).filter(c => c && c.s).length;
         return `<tr>
-          <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div><div style="display:flex;flex-direction:column;min-width:0"><span class="sch-gtext">${p.n.split(' ')[0]}</span><span style="font-size:9px;font-weight:600;line-height:1.1;color:${shiftCount ? r.color : '#52525B'}">${shiftCount} ${pluralShifts(shiftCount)}</span></div></div></td>
+          <td><div class="sch-gname"><div class="sch-gini" style="background:${r.bgIcon};color:${r.color}">${p.i}</div><div style="display:flex;flex-direction:column;min-width:0"><span class="sch-gtext">${p.n.split(' ')[0]}</span><span style="font-size:9px;font-weight:600;line-height:1.1;color:${shiftCount ? r.color : 'var(--text3)'}">${shiftCount} ${pluralShifts(shiftCount)}</span></div></div></td>
           ${cells}
         </tr>`;
       }).join('');
@@ -700,7 +700,7 @@ function renderDeptTable(roleKey) {
   return `
     <div class="sch-grid-wrap" data-sk="${roleKey}">
       <table class="sch-table">
-        <thead><tr><th style="text-align:left;color:#52525B;padding-right:6px">Хто</th>${thCells}</tr></thead>
+        <thead><tr><th style="text-align:left;color:var(--text3);padding-right:6px">Хто</th>${thCells}</tr></thead>
         <tbody>${bodyRows}</tbody>
       </table>
     </div>`;
@@ -721,10 +721,10 @@ function renderNetworkGrid() {
     return `<th class="${cls}">${w.d}<br><span style="font-size:10px;font-weight:400">${w.n}</span></th>`;
   }).join('');
   const bodyRows = r.people.length === 0
-    ? `<tr><td colspan="8"><div style="padding:16px 0;color:#3F3F46;font-size:12px;text-align:center">Графік на цей тиждень ще не опубліковано.</div></td></tr>`
+    ? `<tr><td colspan="8"><div style="padding:16px 0;color:var(--text3);font-size:12px;text-align:center">Графік на цей тиждень ще не опубліковано.</div></td></tr>`
     : r.people.map((p, pi) => {
         const cells = r.grid[pi].map(cell => {
-          if (!cell) return `<td><div class="sch-cell-off"><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/></svg></div></td>`;
+          if (!cell) return `<td><div class="sch-cell-off"><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="var(--border2)" stroke-width="1.5"/></svg></div></td>`;
           if (cell.dayOff) return `<td><div class="sch-cell-dayoff">Вих</div></td>`;   // підтверджений вихідний команди
           const place = (cell.stationName || cell.venueName || '').trim();   // де працює (станція=заклад), інакше заклад-публікатор
           const time  = `${(cell.s||'').slice(0,2)}–${(cell.e||'').slice(0,2)}`;
@@ -735,12 +735,12 @@ function renderNetworkGrid() {
           return `<td><div class="sch-net-cell"${cs} title="${place}"><span class="sch-net-venue"${vs}>${place.slice(0,10)}</span><span class="sch-net-time"${ts}>${time}</span></div></td>`;
         }).join('');
         return `<tr>
-          <td><div class="sch-gname"><div class="sch-gini" style="background:rgba(168,139,255,0.10);color:#A88BFF">${p.i}</div><span class="sch-gtext">${p.n.split(' ')[0]}</span></div></td>
+          <td><div class="sch-gname"><div class="sch-gini" style="background:rgba(168,139,255,0.10);color:var(--green)">${p.i}</div><span class="sch-gtext">${p.n.split(' ')[0]}</span></div></td>
           ${cells}
         </tr>`;
       }).join('');
   return `<div class="sch-grid-wrap"><table class="sch-table">
-    <thead><tr><th style="text-align:left;color:#52525B;padding-right:6px">Хто</th>${thCells}</tr></thead>
+    <thead><tr><th style="text-align:left;color:var(--text3);padding-right:6px">Хто</th>${thCells}</tr></thead>
     <tbody>${bodyRows}</tbody></table></div>`;
 }
 
@@ -749,164 +749,164 @@ function renderNetworkGrid() {
 ════════════════════════════════════════ */
 const CSS = `<style id="sch-css">
 *{box-sizing:border-box}
-.sch-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden;background:#000}
+.sch-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden;background:var(--bg)}
 .sch-scroll{overflow-y:auto;flex:1;padding-bottom:88px}.sch-scroll::-webkit-scrollbar{width:0}
 .sch-hdr{display:flex;align-items:flex-start;gap:12px;padding:12px 18px 10px;flex-shrink:0}
-.sch-back{width:36px;height:36px;border-radius:12px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px}
-.sch-back:active{background:#1F1F22}
+.sch-back{width:36px;height:36px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px}
+.sch-back:active{background:var(--bg3)}
 .sch-hdr-body{flex:1;min-width:0}
-.sch-hdr-venue{font-size:11px;color:#71717A;font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px}
-.sch-hdr-title{font-size:20px;font-weight:700;color:#fff;letter-spacing:-.02em;line-height:1.15}
-.sch-hdr-sub{font-size:12px;color:#71717A;margin-top:2px}
+.sch-hdr-venue{font-size:11px;color:var(--text2);font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px}
+.sch-hdr-title{font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em;line-height:1.15}
+.sch-hdr-sub{font-size:12px;color:var(--text2);margin-top:2px}
 .sch-hdr-icon{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
 .sch-week{display:flex;align-items:center;justify-content:space-between;padding:0 18px 14px;flex-shrink:0}
-.sch-week-lbl{font-size:13px;font-weight:600;color:#fff;letter-spacing:-.01em}
+.sch-week-lbl{font-size:13px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
 .sch-week-nav{display:flex;align-items:center;gap:6px}
-.sch-wbtn{width:30px;height:30px;border-radius:9px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}.sch-wbtn:active{background:#1F1F22}
+.sch-wbtn{width:30px;height:30px;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}.sch-wbtn:active{background:var(--bg3)}
 .sch-sec{display:flex;align-items:center;justify-content:space-between;padding:0 18px 8px}
-.sch-sec-lbl{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.08em;text-transform:uppercase}
-.sch-sec-val{font-size:11px;color:#71717A}
-.sch-sum{margin:0 18px 14px;background:#0A0A0A;border:0.5px solid rgba(168,139,255,0.20);border-radius:14px;padding:16px}
+.sch-sec-lbl{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.08em;text-transform:uppercase}
+.sch-sec-val{font-size:11px;color:var(--text2)}
+.sch-sum{margin:0 18px 14px;background:var(--bg1);border:0.5px solid rgba(168,139,255,0.20);border-radius:14px;padding:16px}
 .sch-sum-row{display:flex}
 .sch-sum-cell{flex:1;text-align:center}
-.sch-sum-val{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
-.sch-sum-lbl{font-size:9px;font-weight:500;color:#52525B;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
-.sch-sum-div{width:0.5px;background:rgba(255,255,255,0.08);margin:0 2px}
-.sch-seg{display:flex;margin:0 18px 14px;background:#141416;border-radius:10px;border:0.5px solid rgba(255,255,255,0.08);padding:3px;gap:3px}
-.sch-seg-btn{flex:1;height:30px;border-radius:7px;border:none;font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:#71717A;transition:all .15s;font-family:inherit}
-.sch-seg-btn.on{background:#1F1F22;color:#fff}
+.sch-sum-val{font-size:22px;font-weight:700;color:var(--text0);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.sch-sum-lbl{font-size:9px;font-weight:500;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.sch-sum-div{width:0.5px;background:var(--bg3);margin:0 2px}
+.sch-seg{display:flex;margin:0 18px 14px;background:var(--bg2);border-radius:10px;border:0.5px solid var(--border);padding:3px;gap:3px}
+.sch-seg-btn{flex:1;height:30px;border-radius:7px;border:none;font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:var(--text2);transition:background-color .15s,color .15s;font-family:inherit}
+.sch-seg-btn.on{background:var(--bg3);color:var(--text0)}
 .sch-dept-list{display:flex;flex-direction:column;gap:8px;padding:0 18px}
-.sch-dc{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px}
-.sch-dc:active{background:#141416}
+.sch-dc{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.sch-dc:active{background:var(--bg2)}
 .sch-dc-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sch-dc-body{flex:1;min-width:0}
-.sch-dc-name{font-size:14px;font-weight:600;color:#fff;letter-spacing:-.01em}
-.sch-dc-sub{font-size:12px;color:#71717A;margin-top:2px;display:flex;align-items:center;gap:5px}
-.sch-live{width:6px;height:6px;border-radius:50%;background:#86EFAC;display:inline-block;flex-shrink:0}
+.sch-dc-name{font-size:14px;font-weight:600;color:var(--text0);letter-spacing:-.01em}
+.sch-dc-sub{font-size:12px;color:var(--text2);margin-top:2px;display:flex;align-items:center;gap:5px}
+.sch-live{width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0}
 .sch-dc-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
 .sch-dc-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
-.sch-add{margin:10px 18px 0;height:48px;border-radius:14px;border:0.5px dashed rgba(255,255,255,0.14);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:#52525B;gap:8px}
-.sch-add:active{background:#0A0A0A}
-.sch-bp-row{display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:0.5px solid rgba(255,255,255,0.06);cursor:pointer}
-.sch-bp-row:active{background:rgba(255,255,255,0.03)}
-.sch-bp-check{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);color:#A1A1AA}
-.sch-bp-check.on{background:rgba(168,139,255,0.15);border-color:rgba(168,139,255,0.40);color:#A88BFF}
+.sch-add{margin:10px 18px 0;height:48px;border-radius:14px;border:0.5px dashed var(--border2);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--text3);gap:8px}
+.sch-add:active{background:var(--bg1)}
+.sch-bp-row{display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:0.5px solid var(--border);cursor:pointer}
+.sch-bp-row:active{background:var(--bg3)}
+.sch-bp-check{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:var(--bg3);border:0.5px solid var(--border2);color:var(--text1)}
+.sch-bp-check.on{background:rgba(168,139,255,0.15);border-color:rgba(168,139,255,0.40);color:var(--green)}
 .sch-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px}
-.sch-qcard{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:10px}
-.sch-qcard:active{background:#141416}
-.sch-qicon{width:36px;height:36px;border-radius:10px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.sch-qlbl{font-size:12px;font-weight:500;color:#A1A1AA;line-height:1.4}
-.sch-kpi{display:flex;margin:0 18px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px}
+.sch-qcard{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:10px}
+.sch-qcard:active{background:var(--bg2)}
+.sch-qicon{width:36px;height:36px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sch-qlbl{font-size:12px;font-weight:500;color:var(--text1);line-height:1.4}
+.sch-kpi{display:flex;margin:0 18px 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px}
 .sch-kpi-cell{flex:1;padding:14px 0;text-align:center;position:relative}
-.sch-kpi-cell+.sch-kpi-cell::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:0.5px;background:rgba(255,255,255,0.08)}
-.sch-kpi-val{font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;line-height:1}
-.sch-kpi-lbl{font-size:9px;font-weight:500;color:#52525B;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.sch-kpi-cell+.sch-kpi-cell::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:0.5px;background:var(--bg3)}
+.sch-kpi-val{font-size:20px;font-weight:700;color:var(--text0);font-variant-numeric:tabular-nums;line-height:1}
+.sch-kpi-lbl{font-size:9px;font-weight:500;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
 /* ── Grid table ── */
 .sch-grid-wrap{margin:0 18px 16px;overflow-x:auto}.sch-grid-wrap::-webkit-scrollbar{height:3px;background:transparent}
-.sch-grid-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
+.sch-grid-wrap::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px}
 .sch-table{border-collapse:separate;border-spacing:0;width:100%}
-.sch-table th{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.04em;text-align:center;padding:0 3px 8px;vertical-align:bottom;white-space:nowrap}
-.sch-table th.wk{color:#A88BFF}.sch-table th.td{color:#A88BFF;font-weight:700}
+.sch-table th{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.04em;text-align:center;padding:0 3px 8px;vertical-align:bottom;white-space:nowrap}
+.sch-table th.wk{color:var(--green)}.sch-table th.td{color:var(--green);font-weight:700}
 .sch-table td{padding:2px 3px;vertical-align:middle}
-.sch-table th:first-child,.sch-table td:first-child{position:sticky;left:0;z-index:2;background:#0A0A0A;padding-right:8px}
+.sch-table th:first-child,.sch-table td:first-child{position:sticky;left:0;z-index:2;background:var(--bg1);padding-right:8px}
 .sch-table th:first-child{z-index:3}
 .sch-gname{display:flex;align-items:center;gap:6px;padding-right:8px;min-width:80px}
-.sch-gini{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;flex-shrink:0}
-.sch-gtext{font-size:11px;font-weight:500;color:#A1A1AA;white-space:nowrap;overflow:hidden;max-width:72px;text-overflow:ellipsis}
+.sch-gini{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--fab-ink);flex-shrink:0}
+.sch-gtext{font-size:11px;font-weight:500;color:var(--text1);white-space:nowrap;overflow:hidden;max-width:72px;text-overflow:ellipsis}
 .sch-cell-btn{display:flex;align-items:center;justify-content:center;min-width:60px;height:32px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:transform .1s;user-select:none;padding:0 8px;white-space:nowrap;letter-spacing:-.01em}
 .sch-cell-btn:active{transform:scale(.9)}
 .sch-cell-off{min-width:60px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:.3;border:0.5px dashed transparent;transition:all .12s}
 .sch-cell-off.editable{cursor:pointer}
 .sch-cell-off.editable:hover{opacity:1;background:rgba(168,139,255,.14);border-color:rgba(168,139,255,.5)}
 .sch-cell-off.editable:active{opacity:1;background:rgba(168,139,255,.22);border-color:rgba(168,139,255,.6)}
-.sch-cell-dayoff{min-width:60px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#FB7185;background:rgba(251,113,133,.08);border:0.5px dashed rgba(251,113,133,.4);white-space:nowrap}
+.sch-cell-dayoff{min-width:60px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--red);background:rgba(251,113,133,.08);border:0.5px dashed rgba(251,113,133,.4);white-space:nowrap}
 .sch-cell-dayoff.editable{cursor:pointer}
 .sch-cell-dayoff.editable:hover{background:rgba(251,113,133,.16)}
 .sch-net-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:60px;height:38px;border-radius:8px;background:rgba(168,139,255,.12);border:0.5px solid rgba(168,139,255,.28);padding:0 6px;line-height:1.2;gap:1px}
-.sch-net-venue{font-size:10px;font-weight:700;color:#A88BFF;letter-spacing:.02em}
-.sch-net-time{font-size:9px;font-weight:600;color:#C4B5FD;font-variant-numeric:tabular-nums}
+.sch-net-venue{font-size:10px;font-weight:700;color:var(--green);letter-spacing:.02em}
+.sch-net-time{font-size:9px;font-weight:600;color:var(--purple);font-variant-numeric:tabular-nums}
 /* секції-картки підрозділів */
-.sch-dept-block{margin:0 14px 12px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden}
+.sch-dept-block{margin:0 14px 12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;overflow:hidden}
 .sch-dept-head{display:flex;align-items:center;gap:8px;padding:13px 14px 9px}
-.sch-dept-chev{width:26px;height:26px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.sch-edit-btn{height:28px;padding:0 13px;border-radius:9px;border:none;background:var(--purple,#a88bff);color:#fff;font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;flex-shrink:0;white-space:nowrap}
+.sch-dept-chev{width:26px;height:26px;border-radius:8px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sch-edit-btn{height:28px;padding:0 13px;border-radius:9px;border:none;background:var(--purple,var(--green));color:var(--text0);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer;flex-shrink:0;white-space:nowrap}
 .sch-dept-block .sch-grid-wrap{margin:0 12px 12px}
-.sch-hist{display:flex;align-items:center;gap:10px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px}
-.sch-hist-dates{font-size:13px;font-weight:600;color:#fff}
-.sch-hist-note{font-size:11px;color:#71717A;margin-top:2px}
-.sch-hist-when{font-size:10px;color:#52525B;margin-top:3px}
+.sch-hist{display:flex;align-items:center;gap:10px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px}
+.sch-hist-dates{font-size:13px;font-weight:600;color:var(--text0)}
+.sch-hist-note{font-size:11px;color:var(--text2);margin-top:2px}
+.sch-hist-when{font-size:10px;color:var(--text3);margin-top:3px}
 .sch-hist-badge{font-size:10px;font-weight:600;border-radius:7px;padding:3px 9px;white-space:nowrap;flex-shrink:0}
-.sch-empty-state{text-align:center;padding:40px 20px;color:#52525B;font-size:13px;line-height:1.6}
+.sch-empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px;line-height:1.6}
 .sch-cov{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 18px 16px}
-.sch-cov-cell{background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center}
+.sch-cov-cell{background:var(--bg1);border:0.5px solid var(--border);border-radius:10px;padding:8px 4px;text-align:center}
 .sch-cov-cell.lo{border-color:rgba(251,113,133,0.28)}.sch-cov-cell.td{border-color:rgba(168,139,255,0.30)}
-.sch-cov-d{font-size:9px;color:#52525B;letter-spacing:.04em;margin-bottom:4px;text-transform:uppercase}
-.sch-cov-n{font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}.sch-cov-n.lo{color:#FB7185}
+.sch-cov-d{font-size:9px;color:var(--text3);letter-spacing:.04em;margin-bottom:4px;text-transform:uppercase}
+.sch-cov-n{font-size:15px;font-weight:700;color:var(--text0);font-variant-numeric:tabular-nums}.sch-cov-n.lo{color:var(--red)}
 /* ── Station pills ── */
 .sch-stn-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .sch-stn-chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;user-select:none}
 .sch-stn-chip:active{opacity:.75}
-.sch-stn-chip.sel{outline:2px solid rgba(255,255,255,.30);outline-offset:1px}
+.sch-stn-chip.sel{outline:2px solid var(--border3);outline-offset:1px}
 .sch-stn-del{background:transparent;border:none;cursor:pointer;font-size:12px;padding:0;line-height:1;opacity:.55;font-family:inherit}
 .sch-stn-del:hover{opacity:1}
 /* ── Bottom sheets ── */
-.sch-bar{position:sticky;bottom:0;background:#000;border-top:0.5px solid rgba(255,255,255,0.08);padding:12px 18px 28px;display:flex;gap:10px;flex-shrink:0}
-.sch-bar-icon{width:52px;height:52px;border-radius:13px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.sch-bar-icon:active{background:#1F1F22}
-.sch-cta{flex:1;height:52px;border-radius:14px;background:#A88BFF;border:none;font-size:15px;font-weight:600;color:#000;cursor:pointer;letter-spacing:-.01em;font-family:inherit}
+.sch-bar{position:sticky;bottom:0;background:var(--bg);border-top:0.5px solid var(--border);padding:12px 18px 28px;display:flex;gap:10px;flex-shrink:0}
+.sch-bar-icon{width:52px;height:52px;border-radius:13px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sch-bar-icon:active{background:var(--bg3)}
+.sch-cta{flex:1;height:52px;border-radius:14px;background:var(--green);border:none;font-size:15px;font-weight:600;color:var(--fab-ink);cursor:pointer;letter-spacing:-.01em;font-family:inherit}
 .sch-cta:active{opacity:.85}.sch-cta:disabled{opacity:.35;cursor:not-allowed}
-.sch-cta-sec{flex:1;height:52px;border-radius:14px;background:#141416;border:0.5px solid rgba(255,255,255,0.08);font-size:14px;font-weight:500;color:#A1A1AA;cursor:pointer;font-family:inherit}
+.sch-cta-sec{flex:1;height:52px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border);font-size:14px;font-weight:500;color:var(--text1);cursor:pointer;font-family:inherit}
 .sch-ov{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.76);display:flex;flex-direction:column;justify-content:flex-end;animation:schOvIn .18s ease}
 @keyframes schOvIn{from{opacity:0}to{opacity:1}}
-.sch-sheet{background:#0A0A0A;border-radius:22px 22px 0 0;border-top:0.5px solid rgba(255,255,255,0.08);padding:0 0 40px;animation:schSl .26s cubic-bezier(.22,1,.36,1);max-height:82vh;overflow-y:auto}
+.sch-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 40px;animation:schSl .26s cubic-bezier(.22,1,.36,1);max-height:82vh;overflow-y:auto}
 @keyframes schSl{from{transform:translateY(100%)}to{transform:none}}
-.sch-sh-handle{width:36px;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;margin:14px auto 18px}
-.sch-sh-title{font-size:17px;font-weight:700;color:#fff;padding:0 20px 4px}
-.sch-sh-sub{font-size:12px;color:#71717A;padding:0 20px 16px}
+.sch-sh-handle{width:36px;height:3px;background:var(--bg3);border-radius:2px;margin:14px auto 18px}
+.sch-sh-title{font-size:17px;font-weight:700;color:var(--text0);padding:0 20px 4px}
+.sch-sh-sub{font-size:12px;color:var(--text2);padding:0 20px 16px}
 .sch-sh-btns{display:flex;gap:8px;padding:0 20px}
 .sch-sbt{flex:1;height:48px;border-radius:13px;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
-.sch-sbt-cta{background:#A88BFF;color:#000}.sch-sbt-sec{background:#141416;color:#A1A1AA;border:0.5px solid rgba(255,255,255,0.08)}
-.sch-sh-sec{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 20px 8px}
+.sch-sbt-cta{background:var(--green);color:var(--fab-ink)}.sch-sbt-sec{background:var(--bg2);color:var(--text1);border:0.5px solid var(--border)}
+.sch-sh-sec{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding:0 20px 8px}
 .sch-time-row{display:flex;align-items:center;gap:8px;padding:0 20px 16px}
-.sch-tinp{flex:1;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;font-size:16px;color:#fff;outline:none;font-family:inherit;text-align:center;-webkit-appearance:none;color-scheme:dark}
-.sch-tsep{font-size:14px;color:#52525B;flex-shrink:0}
-.sch-off-row{display:flex;align-items:center;gap:12px;padding:12px 20px 16px;cursor:pointer;border-top:0.5px solid rgba(255,255,255,.06)}
-.sch-off-row:active{background:rgba(255,255,255,.03)}
+.sch-tinp{flex:1;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:16px;color:var(--text0);outline:none;font-family:inherit;text-align:center;-webkit-appearance:none;color-scheme:dark}
+.sch-tsep{font-size:14px;color:var(--text3);flex-shrink:0}
+.sch-off-row{display:flex;align-items:center;gap:12px;padding:12px 20px 16px;cursor:pointer;border-top:0.5px solid var(--border)}
+.sch-off-row:active{background:var(--bg3)}
 .sch-req-list{display:flex;flex-direction:column;gap:6px;padding:0 18px 16px}
 .sch-req{border-radius:12px;padding:12px 14px;border:0.5px solid transparent;display:flex;align-items:center;gap:10px}
 .sch-req.pending{background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.22)}
 .sch-req.approved{background:rgba(134,239,172,0.06);border-color:rgba(134,239,172,0.18)}
-.sch-req-who{font-size:13px;font-weight:600;color:#fff}
-.sch-req-day{font-size:11px;color:#71717A;margin-top:2px}
+.sch-req-who{font-size:13px;font-weight:600;color:var(--text0)}
+.sch-req-day{font-size:11px;color:var(--text2);margin-top:2px}
 .sch-rbtn{width:30px;height:30px;border-radius:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.sch-rbtn.ap{background:#A88BFF}.sch-rbtn.rj{background:#1F1F22;border:0.5px solid rgba(255,255,255,0.08)}
+.sch-rbtn.ap{background:var(--green)}.sch-rbtn.rj{background:var(--bg3);border:0.5px solid var(--border)}
 /* Booking */
 .sch-cal-nav{display:flex;align-items:center;justify-content:space-between;padding:0 18px 14px}
-.sch-cal-month{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.01em}
+.sch-cal-month{font-size:16px;font-weight:700;color:var(--text0);letter-spacing:-.01em}
 .sch-cal-wrap{margin:0 18px 16px}
 .sch-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
-.sch-cal-dow div{text-align:center;font-size:11px;font-weight:500;color:#52525B}
-.sch-cal-dow .vio{color:#A88BFF}
+.sch-cal-dow div{text-align:center;font-size:11px;font-weight:500;color:var(--text3)}
+.sch-cal-dow .vio{color:var(--green)}
 .sch-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.sch-cell{aspect-ratio:1/1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;cursor:pointer;position:relative;background:#0A0A0A;color:#fff;border:0.5px solid rgba(255,255,255,0.08);transition:background .1s}
-.sch-cell:active{background:#1F1F22}
+.sch-cell{aspect-ratio:1/1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;cursor:pointer;position:relative;background-color:var(--bg1);color:var(--text0);border:0.5px solid var(--border);transition:background-color .1s}
+.sch-cell:active{background-color:var(--bg3)}
 .sch-cell.empty{background:transparent;border-color:transparent;pointer-events:none}
-.sch-cell.past{opacity:.3;pointer-events:none;color:#52525B}
-.sch-cell.today::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#A88BFF}
-.sch-cell.sel{background:#A88BFF;color:#000;border-color:#A88BFF}
-.sch-cell.sel.today::after{background:#000}
-.sch-cell.wknd:not(.sel):not(.past){color:#A88BFF}
+.sch-cell.past{opacity:.3;pointer-events:none;color:var(--text3)}
+.sch-cell.today::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--green)}
+.sch-cell.sel{background-color:var(--green);color:var(--fab-ink);border-color:var(--green)}
+.sch-cell.sel.today::after{background:var(--fab-ink)}
+.sch-cell.wknd:not(.sel):not(.past){color:var(--green)}
 .sch-bsum{margin:0 18px 16px;background:rgba(168,139,255,0.07);border:0.5px solid rgba(168,139,255,0.22);border-radius:14px;padding:14px}
 .sch-bsum-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.sch-bsum-title{font-size:10px;font-weight:500;color:#A88BFF;letter-spacing:.07em;text-transform:uppercase}
-.sch-bsum-count{font-size:20px;font-weight:700;color:#A88BFF;font-variant-numeric:tabular-nums}
+.sch-bsum-title{font-size:10px;font-weight:500;color:var(--green);letter-spacing:.07em;text-transform:uppercase}
+.sch-bsum-count{font-size:20px;font-weight:700;color:var(--green);font-variant-numeric:tabular-nums}
 .sch-bchips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
-.sch-bchip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:6px;background:rgba(168,139,255,0.12);border:0.5px solid rgba(168,139,255,0.28);font-size:11px;font-weight:500;color:#A88BFF;cursor:pointer}
-.sch-bquota{font-size:11px;color:#71717A;line-height:1.5}
+.sch-bchip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:6px;background:rgba(168,139,255,0.12);border:0.5px solid rgba(168,139,255,0.28);font-size:11px;font-weight:500;color:var(--green);cursor:pointer}
+.sch-bquota{font-size:11px;color:var(--text2);line-height:1.5}
 .sch-cmnt{padding:0 18px 16px}
-.sch-cmnt-lbl{font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px}
-.sch-cmnt-inp{width:100%;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.10);border-radius:12px;padding:12px 14px;font-size:13px;color:#fff;resize:none;outline:none;font-family:inherit}
-.sch-cmnt-inp:focus{border-color:rgba(168,139,255,0.40)}.sch-cmnt-inp::placeholder{color:#52525B}
+.sch-cmnt-lbl{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px}
+.sch-cmnt-inp{width:100%;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--text0);resize:none;outline:none;font-family:inherit}
+.sch-cmnt-inp:focus{border-color:rgba(168,139,255,0.40)}.sch-cmnt-inp::placeholder{color:var(--text3)}
 </style>`;
 
 /* ════════════════════════════════════════
@@ -923,12 +923,12 @@ function renderHub() {
       <div class="sch-dept-block">
         <div class="sch-dept-head">
           <div style="width:8px;height:8px;border-radius:3px;background:${r.color};flex-shrink:0"></div>
-          <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">${r.label}</div>
-          <div style="font-size:11px;color:#52525B">${r.people.length} · ${onShift} на зміні</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text0);text-transform:uppercase;letter-spacing:.05em;flex:1">${r.label}</div>
+          <div style="font-size:11px;color:var(--text3)">${r.people.length} · ${onShift} на зміні</div>
           ${canEditDept(key)
             ? `<button class="sch-edit-btn" onclick="window.__sch.goRole('${key}')">Редагувати</button>`
             : `<div class="sch-dept-chev" onclick="window.__sch.goRole('${key}')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#52525B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
               </div>`}
         </div>
         ${renderDeptTable(key)}
@@ -947,9 +947,9 @@ function renderHub() {
       <div class="sch-req ${req.status}">
         <div style="flex:1;min-width:0"><div class="sch-req-who">${esc(req.who)}</div><div class="sch-req-day">${req.day}${req.note ? ` · ${esc(req.note)}` : ''}</div></div>
         ${req.status === 'pending'
-          ? `<button class="sch-rbtn ap" onclick="window.__sch.hubApproveReq('${req.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
-             <button class="sch-rbtn rj" onclick="window.__sch.hubRejectReq('${req.id}')" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
-          : `<div style="text-align:right;white-space:nowrap;display:flex;align-items:center;gap:8px"><div><div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}</div>${req.status === 'approved' && canEdit() ? `<button class="sch-rbtn rj" title="Скасувати вихідні" onclick="window.__sch.hubRejectReq('${req.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>` : ''}</div>`}
+          ? `<button class="sch-rbtn ap" onclick="window.__sch.hubApproveReq('${req.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fab-ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+             <button class="sch-rbtn rj" onclick="window.__sch.hubRejectReq('${req.id}')" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
+          : `<div style="text-align:right;white-space:nowrap;display:flex;align-items:center;gap:8px"><div><div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || 'var(--text2)'}">${STATUS_LABEL[req.status] || req.status}</div>${req.decidedByName ? `<div style="font-size:9px;color:var(--text2);font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}</div>${req.status === 'approved' && canEdit() ? `<button class="sch-rbtn rj" title="Скасувати вихідні" onclick="window.__sch.hubRejectReq('${req.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>` : ''}</div>`}
       </div>`).join('')}
     </div>` : '';
 
@@ -968,21 +968,21 @@ function renderHub() {
   <div class="sch-wrap">
     <div class="sch-hdr">
       <div class="sch-back" onclick="window.__barops.navigate('dashboard')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </div>
       <div class="sch-hdr-body">
         <div class="sch-hdr-venue">${venueName}</div>
         <div class="sch-hdr-title">Графіки</div>
       </div>
-      <div class="sch-hdr-icon" style="background:#141416;border:0.5px solid rgba(255,255,255,0.08)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <div class="sch-hdr-icon" style="background:var(--bg2);border:0.5px solid var(--border)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       </div>
     </div>
     <div class="sch-week">
       <div class="sch-week-lbl">${wLabel}</div>
       <div class="sch-week-nav">
-        <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
-        <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </div>
     </div>
     <div class="sch-scroll">
@@ -992,19 +992,19 @@ function renderHub() {
       ` : (netKey ? `
       <div class="sch-dept-block">
         <div class="sch-dept-head">
-          <div style="width:8px;height:8px;border-radius:3px;background:#A88BFF;flex-shrink:0"></div>
-          <div style="font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em;flex:1">${netLabel} · ${netScope}</div>
+          <div style="width:8px;height:8px;border-radius:3px;background:var(--green);flex-shrink:0"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--text0);text-transform:uppercase;letter-spacing:.05em;flex:1">${netLabel} · ${netScope}</div>
         </div>
         ${renderNetworkGrid()}
       </div>
-      <div style="margin:4px 14px 0;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px">
-        <div style="font-size:12px;color:#71717A;line-height:1.5">Натисніть «Забронювати вихідні» внизу, щоб надіслати бажані вихідні менеджеру.</div>
+      <div style="margin:4px 14px 0;padding:12px 14px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px">
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">Натисніть «Забронювати вихідні» внизу, щоб надіслати бажані вихідні менеджеру.</div>
       </div>
       ` : `
-      <div style="margin:32px 18px;padding:24px 20px;background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;text-align:center">
-        <div style="font-size:14px;color:#fff;font-weight:600;margin-bottom:6px">Для вашої ролі графік не ведеться</div>
-        <div style="font-size:12px;color:#71717A">Роль акаунта: <b style="color:#A88BFF">${ROLE_LABEL[userRole] || userRole || '—'}</b></div>
-        <div style="font-size:11px;color:#52525B;margin-top:8px;line-height:1.5">Якщо ви бармен/кухар/офіціант — перевірте роль цього акаунта в «Команда».</div>
+      <div style="margin:32px 18px;padding:24px 20px;background:var(--bg1);border:0.5px solid var(--border);border-radius:16px;text-align:center">
+        <div style="font-size:14px;color:var(--text0);font-weight:600;margin-bottom:6px">Для вашої ролі графік не ведеться</div>
+        <div style="font-size:12px;color:var(--text2)">Роль акаунта: <b style="color:var(--green)">${ROLE_LABEL[userRole] || userRole || '—'}</b></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">Якщо ви бармен/кухар/офіціант — перевірте роль цього акаунта в «Команда».</div>
       </div>
       `)}
     </div>
@@ -1034,11 +1034,11 @@ function renderRoleView(roleKey) {
   // Table header cells
   const thCells = weekDates.map(w => {
     const isWk = w.weekend, isTd = isToday(w.date);
-    const clr  = (isWk || isTd) ? '#A88BFF' : '#52525B';
+    const clr  = (isWk || isTd) ? 'var(--green)' : 'var(--text3)';
     const fw   = isTd ? '700' : '500';
     return `<th style="text-align:center;padding:0 2px 10px;white-space:nowrap;min-width:44px">
       <div style="font-size:10px;font-weight:${fw};color:${clr};letter-spacing:.03em">${w.d}</div>
-      <div style="font-size:12px;font-weight:${fw};color:${isTd||isWk?'#A88BFF':'#A1A1AA'}">${w.n}</div>
+      <div style="font-size:12px;font-weight:${fw};color:${isTd||isWk?'var(--green)':'var(--text1)'}">${w.n}</div>
     </th>`;
   }).join('');
 
@@ -1048,17 +1048,17 @@ function renderRoleView(roleKey) {
 
   // Table body rows
   const bodyRows = r.people.length === 0
-    ? `<tr><td colspan="8"><div style="padding:24px 0;color:#3F3F46;font-size:12px;text-align:center">${roleKey === 'bartenders' ? 'Список порожній.<br>Додайте барменів кнопкою нижче.' : 'Немає співробітників.<br>Додайте у розділі «Команда».'}</div></td></tr>`
+    ? `<tr><td colspan="8"><div style="padding:24px 0;color:var(--text3);font-size:12px;text-align:center">${roleKey === 'bartenders' ? 'Список порожній.<br>Додайте барменів кнопкою нижче.' : 'Немає співробітників.<br>Додайте у розділі «Команда».'}</div></td></tr>`
     : r.people.map((p, pi) => {
         const subtitle = ROLE_LABEL[p.role] || 'Співробітник';
         const cells = r.grid[pi].map((cell, di) => {
           if (!cell) {
             const edt = _mode === 'edit';
-            return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:#141416;border:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#3F3F46;cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>off</div></td>`;
+            return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--text3);cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>off</div></td>`;
           }
           if (cell.dayOff) {
             const edt = _mode === 'edit';
-            return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:rgba(251,113,133,0.08);border:0.5px dashed rgba(251,113,133,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#FB7185;cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>Вих</div></td>`;
+            return `<td style="padding:2px"><div style="min-width:40px;height:30px;border-radius:8px;background:rgba(251,113,133,0.08);border:0.5px dashed rgba(251,113,133,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--red);cursor:${edt?'pointer':'default'}" ${edt?`onclick="window.__sch.openCellSheet('${roleKey}',${pi},${di})"`:''}>Вих</div></td>`;
           }
           let bg = r.bgIcon, bd = r.bdIcon, tx = r.color;
           const time = cell.s.slice(0,2) + '–' + cell.e.slice(0,2);
@@ -1081,12 +1081,12 @@ function renderRoleView(roleKey) {
         const editDrag = canEditDept(roleKey) && _mode === 'edit';
         const shiftCount = (r.grid[pi] || []).filter(c => c && c.s).length;
         return `<tr data-pid="${p.id}">
-          <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle;position:sticky;left:0;z-index:2;background:#000">
+          <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle;position:sticky;left:0;z-index:2;background:var(--bg1)">
             <div style="display:flex;align-items:center;gap:7px">
-              ${editDrag ? `<svg class="sch-drag-h" width="13" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:#52525B;flex-shrink:0;cursor:grab;touch-action:none"><circle cx="9" cy="5" r="1.7"/><circle cx="15" cy="5" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="19" r="1.7"/><circle cx="15" cy="19" r="1.7"/></svg>` : ''}
+              ${editDrag ? `<svg class="sch-drag-h" width="13" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:var(--text3);flex-shrink:0;cursor:grab;touch-action:none"><circle cx="9" cy="5" r="1.7"/><circle cx="15" cy="5" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="19" r="1.7"/><circle cx="15" cy="19" r="1.7"/></svg>` : ''}
               <div style="min-width:0">
-                <div style="font-size:12px;font-weight:600;color:#fff;line-height:1.2;white-space:nowrap">${shortName(p.n)}</div>
-                <div style="font-size:10px;margin-top:1px;font-weight:600;color:${shiftCount ? r.color : '#52525B'}">${shiftCount} ${pluralShifts(shiftCount)}</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text0);line-height:1.2;white-space:nowrap">${shortName(p.n)}</div>
+                <div style="font-size:10px;margin-top:1px;font-weight:600;color:${shiftCount ? r.color : 'var(--text3)'}">${shiftCount} ${pluralShifts(shiftCount)}</div>
               </div>
             </div>
           </td>
@@ -1104,8 +1104,8 @@ function renderRoleView(roleKey) {
         ${_mode==='edit'?`<button onclick="window.__sch.removeStation('${roleKey}','${s.id}')" style="background:none;border:none;color:${c.tx};opacity:.55;cursor:pointer;font-size:12px;padding:0;margin-left:1px;line-height:1;font-family:inherit">×</button>`:''}
       </div>`;
     }).join('')}
-    ${_mode==='edit'?`<div style="display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:8px;background:rgba(168,139,255,.08);border:0.5px solid rgba(168,139,255,.25);font-size:11px;color:#A88BFF;cursor:pointer" onclick="window.__sch.showAddStationInput('${roleKey}')">+ Процес</div>`:''}
-    ${stns.length===0&&_mode!=='edit'?`<span style="font-size:11px;color:#3F3F46">Немає процесів — перейдіть до «Редагувати»</span>`:''}
+    ${_mode==='edit'?`<div style="display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:8px;background:rgba(168,139,255,.08);border:0.5px solid rgba(168,139,255,.25);font-size:11px;color:var(--green);cursor:pointer" onclick="window.__sch.showAddStationInput('${roleKey}')">+ Процес</div>`:''}
+    ${stns.length===0&&_mode!=='edit'?`<span style="font-size:11px;color:var(--text3)">Немає процесів — перейдіть до «Редагувати»</span>`:''}
   </div>
   <div id="sch-stn-list" style="padding:0 18px 8px"></div>`;
 
@@ -1119,31 +1119,31 @@ function renderRoleView(roleKey) {
       );
       const cells = dayCounts.map((cnt, di) => {
         const isTd = isToday(weekDates[di].date);
-        const clr  = cnt === 0 ? '#FB7185' : isTd ? '#A88BFF' : '#A1A1AA';
+        const clr  = cnt === 0 ? 'var(--red)' : isTd ? 'var(--green)' : 'var(--text1)';
         return `<td style="text-align:center;padding:3px 2px;font-size:12px;font-weight:700;color:${clr};font-variant-numeric:tabular-nums;min-width:44px">${cnt}</td>`;
       }).join('');
       return `<tr>
         <td style="padding:4px 10px 4px 0;min-width:84px;vertical-align:middle">
           <div style="display:flex;align-items:center;gap:5px">
             <span style="width:6px;height:6px;border-radius:50%;background:${c.tx};flex-shrink:0"></span>
-            <span style="font-size:11px;color:#71717A;white-space:nowrap">${s.label}</span>
+            <span style="font-size:11px;color:var(--text2);white-space:nowrap">${s.label}</span>
           </div>
         </td>${cells}
       </tr>`;
     }).join('');
     coverageSection = `
-      <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Покриття процесів</div>
+      <div style="font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Покриття процесів</div>
       <div style="margin:0 18px 16px;overflow-x:auto"><table style="border-collapse:collapse;min-width:100%">${rows}</table></div>`;
   }
 
   // Defaults (edit mode)
   const defaultsSection = _mode === 'edit' ? `
-    <div style="margin:0 18px 12px;padding:12px 14px;background:#0A0A0A;border:0.5px solid rgba(168,139,255,0.22);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
+    <div style="margin:0 18px 12px;padding:12px 14px;background:var(--bg1);border:0.5px solid rgba(168,139,255,0.22);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
       <div>
-        <div style="font-size:10px;font-weight:500;color:#71717A;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Стандартна зміна</div>
-        <div style="font-size:15px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">${DEFAULTS[roleKey].s} – ${DEFAULTS[roleKey].e}</div>
+        <div style="font-size:10px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Стандартна зміна</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text0);font-variant-numeric:tabular-nums">${DEFAULTS[roleKey].s} – ${DEFAULTS[roleKey].e}</div>
       </div>
-      <button onclick="window.__sch.openDefaultsSheet('${roleKey}')" style="height:30px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,0.10);border:0.5px solid rgba(168,139,255,0.28);font-size:12px;color:#A88BFF;cursor:pointer;font-family:inherit">Змінити</button>
+      <button onclick="window.__sch.openDefaultsSheet('${roleKey}')" style="height:30px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,0.10);border:0.5px solid rgba(168,139,255,0.28);font-size:12px;color:var(--green);cursor:pointer;font-family:inherit">Змінити</button>
     </div>` : '';
 
   // Requests
@@ -1151,15 +1151,15 @@ function renderRoleView(roleKey) {
     <div class="sch-req ${req.status}" id="sch-req-${roleKey}-${ri}">
       <div style="flex:1"><div class="sch-req-who">${req.who}</div><div class="sch-req-day">${req.day}${req.note ? ` · ${req.note}` : ''}</div></div>
       ${req.status === 'pending'
-        ? `<button class="sch-rbtn ap" onclick="window.__sch.approveReq('${roleKey}',${ri})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
-           <button class="sch-rbtn rj" onclick="window.__sch.rejectReq('${roleKey}',${ri})" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
+        ? `<button class="sch-rbtn ap" onclick="window.__sch.approveReq('${roleKey}',${ri})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fab-ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+           <button class="sch-rbtn rj" onclick="window.__sch.rejectReq('${roleKey}',${ri})" style="margin-left:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
         : `<div style="text-align:right;white-space:nowrap;display:flex;align-items:center;gap:8px">
              <div>
-               <div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || '#71717A'}">${STATUS_LABEL[req.status] || req.status}</div>
-               ${req.decidedByName ? `<div style="font-size:9px;color:#71717A;font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}
+               <div style="font-size:11px;font-weight:600;color:${STATUS_COLOR[req.status] || 'var(--text2)'}">${STATUS_LABEL[req.status] || req.status}</div>
+               ${req.decidedByName ? `<div style="font-size:9px;color:var(--text2);font-weight:400;margin-top:2px">${esc(req.decidedByName)}</div>` : ''}
              </div>
              ${req.status === 'approved' && canEditDept(roleKey)
-               ? `<button class="sch-rbtn rj" title="Скасувати вихідні" onclick="window.__sch.rejectReq('${roleKey}',${ri})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>` : ''}
+               ? `<button class="sch-rbtn rj" title="Скасувати вихідні" onclick="window.__sch.rejectReq('${roleKey}',${ri})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>` : ''}
            </div>`
       }
     </div>`
@@ -1171,7 +1171,7 @@ function renderRoleView(roleKey) {
 
   const editPill = canEditDept(roleKey)
     ? `<button onclick="window.__sch.setMode('${_mode==='edit'?'view':'edit'}')"
-        style="height:34px;padding:0 14px;border-radius:20px;background:${_mode==='edit'?'#1F1F22':'#A88BFF'};border:${_mode==='edit'?'0.5px solid rgba(255,255,255,0.12)':'none'};font-size:13px;font-weight:600;color:${_mode==='edit'?'#A1A1AA':'#000'};cursor:pointer;font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:6px;margin-top:2px">
+        style="height:34px;padding:0 14px;border-radius:20px;background:${_mode==='edit'?'var(--bg3)':'var(--green)'};border:${_mode==='edit'?'0.5px solid var(--border2)':'none'};font-size:13px;font-weight:600;color:${_mode==='edit'?'var(--text1)':'var(--fab-ink)'};cursor:pointer;font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:6px;margin-top:2px">
         ${_mode==='edit'
           ? 'Готово'
           : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Редагувати`}
@@ -1182,7 +1182,7 @@ function renderRoleView(roleKey) {
   <div class="sch-wrap">
     <div class="sch-hdr">
       <div class="sch-back" onclick="window.__sch.goHub()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </div>
       <div class="sch-hdr-body">
         <div class="sch-hdr-venue">Графік · ${venueName}</div>
@@ -1191,22 +1191,22 @@ function renderRoleView(roleKey) {
       ${editPill}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 18px 12px;flex-shrink:0">
-      <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
-      <div style="font-size:14px;font-weight:600;color:#fff;letter-spacing:-.01em">${wLabel}</div>
-      <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      <div class="sch-wbtn" onclick="window.__sch.prevWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <div style="font-size:14px;font-weight:600;color:var(--text0);letter-spacing:-.01em">${wLabel}</div>
+      <div class="sch-wbtn" onclick="window.__sch.nextWeek()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </div>
     <div class="sch-scroll">
-      <div style="font-size:10px;font-weight:600;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 8px">Зведення за тиждень</div>
+      <div style="font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding:0 18px 8px">Зведення за тиждень</div>
       <div class="sch-kpi" style="margin:0 18px 16px">
         <div class="sch-kpi-cell"><div class="sch-kpi-val">${totalPeople}</div><div class="sch-kpi-lbl">${peopleLbl}</div></div>
-        <div class="sch-kpi-cell"><div class="sch-kpi-val" style="color:#86EFAC">${totalShifts}</div><div class="sch-kpi-lbl">Робочих змін</div></div>
-        <div class="sch-kpi-cell"><div class="sch-kpi-val" style="color:#FB7185">${totalOff}</div><div class="sch-kpi-lbl">Вихідних</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val" style="color:var(--success)">${totalShifts}</div><div class="sch-kpi-lbl">Робочих змін</div></div>
+        <div class="sch-kpi-cell"><div class="sch-kpi-val" style="color:var(--red)">${totalOff}</div><div class="sch-kpi-lbl">Вихідних</div></div>
       </div>
       ${defaultsSection}
       <div id="sch-grid-scroll" data-sk="role" style="margin:0 18px 16px;overflow-x:auto">
         <table style="border-collapse:separate;border-spacing:0;min-width:100%">
           <thead><tr>
-            <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:#52525B;letter-spacing:.06em;min-width:84px;position:sticky;left:0;z-index:3;background:#000">${colHdr}</th>
+            <th style="text-align:left;padding:0 10px 10px 0;font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.06em;min-width:84px;position:sticky;left:0;z-index:3;background:var(--bg1)">${colHdr}</th>
             ${thCells}
           </tr></thead>
           <tbody id="sch-tbody-${roleKey}">${bodyRows}</tbody>
@@ -1214,7 +1214,7 @@ function renderRoleView(roleKey) {
       </div>
       ${(roleKey === 'bartenders' && canEditDept(roleKey) && _mode === 'edit')
         ? `<button class="sch-add" style="width:calc(100% - 36px);box-sizing:border-box;margin:2px 18px 16px" onclick="window.__sch.openBarPicker()">Бармени графіка</button>` : ''}
-      <div style="font-size:10px;font-weight:500;color:#52525B;letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
+      <div style="font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding:0 18px 10px">Процеси</div>
       ${procChips}
       ${coverageSection}
       ${r.requests.length ? `
@@ -1263,15 +1263,15 @@ function renderBooking() {
   <div class="sch-wrap">
     <div class="sch-hdr">
       <div class="sch-back" onclick="window.__sch.goHub()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </div>
       <div class="sch-hdr-body"><div class="sch-hdr-venue">Графік</div><div class="sch-hdr-title">Бронювання вихідних</div></div>
     </div>
     <div class="sch-scroll">
       <div class="sch-cal-nav">
-        <div class="sch-wbtn" onclick="window.__sch.prevMonth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.prevMonth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
         <div class="sch-cal-month">${MONTHS_NOM[month]} ${year}</div>
-        <div class="sch-wbtn" onclick="window.__sch.nextMonth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="sch-wbtn" onclick="window.__sch.nextMonth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </div>
       <div class="sch-cal-wrap">
         <div class="sch-cal-dow">${DOW_SHORT.map(d=>`<div class="${d==='СБ'||d==='НД'?'vio':''}">${d}</div>`).join('')}</div>
@@ -1288,7 +1288,7 @@ function renderBooking() {
       <div style="padding:0 18px 16px;display:flex;flex-direction:column;gap:6px">
         ${_myDayoff.map(r => {
           const lbl = STATUS_LABEL[r.status] || r.status;
-          const clr = STATUS_COLOR[r.status] || '#71717A';
+          const clr = STATUS_COLOR[r.status] || 'var(--text2)';
           return `<div class="sch-hist">
             <div style="flex:1;min-width:0">
               <div class="sch-hist-dates">${formatReqDates(r.dates)}</div>
@@ -1338,19 +1338,19 @@ function renderCellSheet() {
           onclick="window.__sch.selectStation('${s.id}')">${s.label}</div>`;
       }).join('')}
       <div id="sch-stn-null" class="sch-stn-chip${!curStn?' sel':''}"
-        style="background:#1F1F22;border:0.5px solid rgba(255,255,255,0.10);color:#71717A"
+        style="background:var(--bg3);border:0.5px solid var(--border);color:var(--text2)"
         onclick="window.__sch.selectStation(null)">Без</div>
       <div class="sch-stn-chip"
-        style="background:rgba(168,139,255,0.08);border:0.5px solid rgba(168,139,255,0.25);color:#A88BFF"
+        style="background:rgba(168,139,255,0.08);border:0.5px solid rgba(168,139,255,0.25);color:var(--green)"
         onclick="window.__sch.showInlineAddStation('${roleKey}')">+ Додати</div>
     </div>
     <div id="sch-inline-add" style="display:none;padding:0 20px 12px">
       <div style="display:flex;gap:6px">
         <input id="sch-inline-stn" placeholder="Піца, Паста, Гарячий цех…"
-          style="flex:1;background:#1F1F22;border:0.5px solid rgba(168,139,255,0.40);border-radius:8px;padding:8px 10px;font-size:12px;color:#fff;outline:none;font-family:inherit"
+          style="flex:1;background:var(--bg3);border:0.5px solid rgba(168,139,255,0.40);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text0);outline:none;font-family:inherit"
           onkeydown="if(event.key==='Enter')window.__sch.addInlineStation('${roleKey}')">
         <button onclick="window.__sch.addInlineStation('${roleKey}')"
-          style="height:36px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,.15);border:0.5px solid rgba(168,139,255,.30);font-size:13px;color:#A88BFF;cursor:pointer;font-family:inherit">✓</button>
+          style="height:36px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,.15);border:0.5px solid rgba(168,139,255,.30);font-size:13px;color:var(--green);cursor:pointer;font-family:inherit">✓</button>
       </div>
     </div>`;
 
@@ -1369,22 +1369,22 @@ function renderCellSheet() {
         <span class="sch-tsep">—</span>
         <input id="sch-t-end"   type="time" class="sch-tinp" value="${endDef}"   oninput="window.__sch.updateTimePreview()">
       </div>
-      <div id="sch-reset-row" style="text-align:right;padding:0 20px 12px;display:${isShift?'block':'none'}"><button onclick="window.__sch.resetToDefault()" style="background:transparent;border:none;font-size:11px;color:#71717A;cursor:pointer;font-family:inherit">↺ Стандарт (${def.s}–${def.e})</button></div>
+      <div id="sch-reset-row" style="text-align:right;padding:0 20px 12px;display:${isShift?'block':'none'}"><button onclick="window.__sch.resetToDefault()" style="background:transparent;border:none;font-size:11px;color:var(--text2);cursor:pointer;font-family:inherit">↺ Стандарт (${def.s}–${def.e})</button></div>
 
       <div class="sch-off-row" onclick="window.__sch.toggleCellMode()">
-        <div style="width:32px;height:32px;border-radius:9px;background:#1F1F22;border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <svg id="sch-off-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isShift?'#52525B':'#FB7185'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <div style="width:32px;height:32px;border-radius:9px;background:var(--bg3);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg id="sch-off-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isShift?'var(--text3)':'var(--red)'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </div>
         <div>
-          <div id="sch-off-txt" style="font-size:13px;font-weight:600;color:${isShift?'#71717A':'#FB7185'}">Вихідний</div>
-          <div style="font-size:11px;color:#52525B;margin-top:1px">День відпочинку</div>
+          <div id="sch-off-txt" style="font-size:13px;font-weight:600;color:${isShift?'var(--text2)':'var(--red)'}">Вихідний</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">День відпочинку</div>
         </div>
-        <svg id="sch-off-check" style="margin-left:auto;flex-shrink:0;display:${isShift?'none':'block'}" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A88BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        <svg id="sch-off-check" style="margin-left:auto;flex-shrink:0;display:${isShift?'none':'block'}" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
       </div>
 
       ${cell ? `
       <div style="padding:2px 20px 14px">
-        <button onclick="window.__sch.clearCell()" style="width:100%;height:44px;border-radius:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.10);color:#71717A;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px">
+        <button onclick="window.__sch.clearCell()" style="width:100%;height:44px;border-radius:12px;background:transparent;border:0.5px solid var(--border);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>
           Прибрати — зробити порожньою
         </button>
@@ -1416,7 +1416,7 @@ function renderDefaultsSheet(roleKey) {
         <span class="sch-tsep">—</span>
         <input id="sch-def-end" type="time" class="sch-tinp" value="${def.e}">
       </div>
-      <div style="font-size:11px;color:#52525B;padding:0 20px 20px;line-height:1.5">Стандарт підставляється у нові клітинки. Кожну можна змінити індивідуально.</div>
+      <div style="font-size:11px;color:var(--text3);padding:0 20px 20px;line-height:1.5">Стандарт підставляється у нові клітинки. Кожну можна змінити індивідуально.</div>
       <div class="sch-sh-btns">
         <button class="sch-sbt sch-sbt-sec" onclick="window.__sch.closeDefaultsSheet()">Скасувати</button>
         <button class="sch-sbt sch-sbt-cta" onclick="window.__sch.saveDefaults()">Зберегти</button>
@@ -1429,10 +1429,10 @@ function renderBarPicker() {
   const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const added = _extraBar.length
     ? _extraBar.map(e => `<div class="sch-bp-row">
-        <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:#fff">${esc(e.n)}</div></div>
+        <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:var(--text0)">${esc(e.n)}</div></div>
         <div class="sch-bp-check on" style="cursor:pointer" onclick="window.__sch.removeBarFromSchedule('${e.id}')">✕</div>
       </div>`).join('')
-    : `<div style="padding:14px 8px;color:#52525B;font-size:12px">Ще нікого не додано</div>`;
+    : `<div style="padding:14px 8px;color:var(--text3);font-size:12px">Ще нікого не додано</div>`;
   return `
   <div class="sch-ov" id="sch-bar-ov" onclick="window.__sch.closeBarOv(event)">
     <div class="sch-sheet">
@@ -1441,12 +1441,12 @@ function renderBarPicker() {
       <div class="sch-sh-sub">Додайте за іменем або приберіть ✕ зі списку</div>
       <div style="display:flex;gap:8px;padding:8px 14px 12px">
         <input id="sch-bar-name" placeholder="Ім'я бармена" autocomplete="off"
-          style="flex:1;background:#1F1F22;border:0.5px solid rgba(168,139,255,0.30);border-radius:10px;padding:0 12px;height:44px;font-size:15px;color:#fff;outline:none;font-family:inherit"
+          style="flex:1;background:var(--bg3);border:0.5px solid rgba(168,139,255,0.30);border-radius:10px;padding:0 12px;height:44px;font-size:15px;color:var(--text0);outline:none;font-family:inherit"
           onkeydown="if(event.key==='Enter')window.__sch.addBarByName()">
         <button onclick="window.__sch.addBarByName()"
-          style="height:44px;padding:0 18px;border-radius:10px;background:#A88BFF;border:none;font-size:14px;font-weight:600;color:#000;cursor:pointer;font-family:inherit">Додати</button>
+          style="height:44px;padding:0 18px;border-radius:10px;background:var(--green);border:none;font-size:14px;font-weight:600;color:var(--fab-ink);cursor:pointer;font-family:inherit">Додати</button>
       </div>
-      <div style="padding:0 14px 4px;font-size:10px;color:#52525B;text-transform:uppercase;letter-spacing:.06em">Додані в графік</div>
+      <div style="padding:0 14px 4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Додані в графік</div>
       <div style="padding:0 14px 10px">${added}</div>
     </div>
   </div>`;
@@ -1692,8 +1692,8 @@ export function init() {
       if (timeRow)  timeRow.style.display  = isShift ? 'flex'  : 'none';
       if (timeLbl)  timeLbl.style.display  = isShift ? 'block' : 'none';
       if (resetRow) resetRow.style.display = isShift ? 'block' : 'none';
-      if (icon)     icon.setAttribute('stroke', isShift ? '#52525B' : '#FB7185');
-      if (txt)      txt.style.color        = isShift ? '#71717A' : '#FB7185';
+      if (icon)     icon.setAttribute('stroke', isShift ? 'var(--text3)' : 'var(--red)');
+      if (txt)      txt.style.color        = isShift ? 'var(--text2)' : 'var(--red)';
       if (chk)      chk.style.display       = isShift ? 'none'  : 'block';
     },
 
@@ -1712,8 +1712,8 @@ export function init() {
         if (timeRow)  timeRow.style.display  = 'flex';
         if (timeLbl)  timeLbl.style.display  = 'block';
         if (resetRow) resetRow.style.display = 'block';
-        if (icon)     icon.setAttribute('stroke', '#52525B');
-        if (txt)      txt.style.color        = '#71717A';
+        if (icon)     icon.setAttribute('stroke', 'var(--text3)');
+        if (txt)      txt.style.color        = 'var(--text2)';
         if (chk)      chk.style.display      = 'none';
       }
       // Update chips visually
@@ -1778,17 +1778,17 @@ export function init() {
       document.getElementById('sch-cell-ov')?.remove();
       wrap.insertAdjacentHTML('beforeend', `
         <div class="sch-ov" id="sch-cell-ov" onclick="document.getElementById('sch-cell-ov').remove()">
-          <div style="background:#0A0A0A;border:0.5px solid rgba(255,255,255,0.12);border-radius:16px;padding:20px 24px;margin:auto 20px 40%">
+          <div style="background:var(--bg1);border:0.5px solid var(--border2);border-radius:16px;padding:20px 24px;margin:auto 20px 40%">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
               <div style="width:36px;height:36px;border-radius:10px;background:${r.bgIcon};border:0.5px solid ${r.bdIcon};color:${r.color};display:flex;align-items:center;justify-content:center">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               </div>
               <div>
-                <div style="font-size:14px;font-weight:600;color:#fff">${stn ? stn.label : 'Зміна'}</div>
-                <div style="font-size:13px;color:#A88BFF;font-variant-numeric:tabular-nums">${start} – ${end}</div>
+                <div style="font-size:14px;font-weight:600;color:var(--text0)">${stn ? stn.label : 'Зміна'}</div>
+                <div style="font-size:13px;color:var(--green);font-variant-numeric:tabular-nums">${start} – ${end}</div>
               </div>
             </div>
-            <div style="font-size:12px;color:#71717A">${name}</div>
+            <div style="font-size:12px;color:var(--text2)">${name}</div>
           </div>
         </div>`);
     },
@@ -1824,10 +1824,10 @@ export function init() {
       div.style.cssText = 'display:flex;gap:6px;margin-top:8px';
       div.innerHTML = `
         <input id="sch-new-stn-inp" placeholder="Тераса, Хочу 2.0, …"
-          style="flex:1;background:#1F1F22;border:0.5px solid rgba(168,139,255,0.40);border-radius:8px;padding:7px 10px;font-size:12px;color:#fff;outline:none;font-family:inherit"
+          style="flex:1;background:var(--bg3);border:0.5px solid rgba(168,139,255,0.40);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text0);outline:none;font-family:inherit"
           onkeydown="if(event.key==='Enter')window.__sch.confirmAddStation('${roleKey}')">
         <button onclick="window.__sch.confirmAddStation('${roleKey}')"
-          style="width:30px;height:30px;border-radius:8px;background:rgba(168,139,255,.15);border:0.5px solid rgba(168,139,255,.30);color:#A88BFF;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:inherit">✓</button>`;
+          style="width:30px;height:30px;border-radius:8px;background:rgba(168,139,255,.15);border:0.5px solid rgba(168,139,255,.30);color:var(--green);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:inherit">✓</button>`;
       container.appendChild(div);
       document.getElementById('sch-new-stn-inp')?.focus();
     },
