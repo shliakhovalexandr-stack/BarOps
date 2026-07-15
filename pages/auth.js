@@ -31,10 +31,10 @@ let _otpError   = '';
 
 
 const BOTTLE_SVG = `<svg width="44" height="76" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="18" y="1" width="16" height="9" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
-  <line x1="21" y1="4.5" x2="33" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="21" y1="7.5" x2="33" y2="7.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M18 10 h16 v10 c0 0 8 8 8 20 v40 a6 6 0 01-6 6 h-20 a6 6 0 01-6-6 V40 c0-12 8-20 8-20 V10" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="18" y="1" width="16" height="9" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/>
+  <line x1="21" y1="4.5" x2="33" y2="4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="21" y1="7.5" x2="33" y2="7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M18 10 h16 v10 c0 0 8 8 8 20 v40 a6 6 0 01-6 6 h-20 a6 6 0 01-6-6 V40 c0-12 8-20 8-20 V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
   <rect x="12" y="52" width="28" height="22" rx="4" fill="#A88BFF"/>
   <text x="26" y="68" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,system-ui,sans-serif" font-size="14" font-weight="800" fill="#0A0A0A">B</text>
 </svg>`;
@@ -53,9 +53,9 @@ const CSS = `<style id="auth-styles">
 
 /* ── PIN NUMPAD SCREEN ── */
 .apin-full{flex:1;display:flex;flex-direction:column;align-items:stretch;padding-bottom:12px}
-.apin-logo{display:flex;flex-direction:column;align-items:center;padding-top:32px;gap:8px;flex-shrink:0}
-.apin-wordmark{font-family:'Geist',system-ui,sans-serif;font-size:28px;font-weight:600;color:#fff;letter-spacing:-.045em;line-height:1}
-.apin-wordmark span{color:#A88BFF}
+.apin-logo{display:flex;flex-direction:column;align-items:center;padding-top:32px;gap:8px;flex-shrink:0;color:var(--text0)}
+.apin-wordmark{font-family:'Geist',system-ui,sans-serif;font-size:28px;font-weight:600;color:var(--text0);letter-spacing:-.045em;line-height:1}
+.apin-wordmark span{color:var(--green)}
 .apin-dots-wrap{flex-shrink:0;display:flex;flex-direction:column;align-items:center;margin:24px 0 8px}
 .apin-dots{display:flex;gap:14px;justify-content:center}
 .apin-dot{width:14px;height:14px;border-radius:50%;background:transparent;border:2px solid var(--border2);transition:background .12s,border-color .12s,transform .12s}
@@ -195,9 +195,9 @@ function viewSetup() {
   return `
   <div class="auth-view ${_view==='setup'?'active':''}" id="auth-setup">
     <div class="auth-inner">
-      <div style="display:flex;flex-direction:column;align-items:center;margin-top:48px;margin-bottom:32px;gap:10px">
+      <div style="display:flex;flex-direction:column;align-items:center;margin-top:48px;margin-bottom:32px;gap:10px;color:var(--text0)">
         ${BOTTLE_SVG}
-        <div style="font-family:'Geist',system-ui,sans-serif;font-size:28px;font-weight:600;color:#fff;letter-spacing:-.045em">bar<span style="color:#A88BFF">ops.</span></div>
+        <div style="font-family:'Geist',system-ui,sans-serif;font-size:28px;font-weight:600;color:var(--text0);letter-spacing:-.045em">bar<span style="color:var(--green)">ops.</span></div>
       </div>
       <div class="auth-lbl">Номер телефону</div>
       <div class="auth-phone-wrap" onclick="document.getElementById('setup-phone-inp').focus()">
