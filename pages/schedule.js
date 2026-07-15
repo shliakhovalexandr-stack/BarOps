@@ -515,7 +515,14 @@ async function loadMyDayoff() {
   const token = localStorage.getItem('barops_token');
   try {
     const res = await fetch(`${API}/api/dayoff`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (res.ok) { const d = await res.json(); _myDayoff = Array.isArray(d.requests) ? d.requests : []; }
+    if (res.ok) {
+      const d = await res.json();
+      let list = Array.isArray(d.requests) ? d.requests : [];
+      // «Мої запити» — завжди лише свої (для менеджера бекенд віддає запити офіціантів)
+      const myId = localStorage.getItem('barops_userId') || '';
+      if (myId) list = list.filter(r => (r.userId || '') === myId);
+      _myDayoff = list;
+    }
   } catch (e) { console.warn('[dayoff] mine:', e); }
 }
 
