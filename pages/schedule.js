@@ -287,11 +287,18 @@ async function loadRosters() {
       const pub = pubByUser[p.id] || {};
       return weekDates.map(w => {
         const slot = emp[dateKey(w.date)];
-        if (slot && slot.cleared) return null;           // явно очищена клітинка — перекриває публікацію
-        if (slot) return { s: slot.start, e: slot.end, station: slot.station || null };
-        if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
         // бармени — мережево (будь-який заклад); решта — лише свій заклад
         const ps = pub[ymd(w.date)];
+        // Локальна чернетка перекриває публікацію ЛИШЕ якщо новіша за неї.
+        // Інакше застаріла чернетка «воскрешала» стару зміну поверх опублікованого
+        // вихідного (симптом: поставив Вих → знову зміна; графік різний по закладах).
+        // Чернетки без _ts (старий формат) вважаємо застарілими → сервер головніший (самозагоєння).
+        const pubTs    = ps && ps.createdAt ? new Date(ps.createdAt).getTime() : 0;
+        const slotTs   = slot && slot._ts ? slot._ts : 0;
+        const slotFresh = slot && (!ps || slotTs > pubTs);
+        if (slot && slot.cleared && slotFresh) return null;   // свіжий тумбстоун — перекриває публікацію
+        if (slot && !slot.cleared && slotFresh) return { s: slot.start, e: slot.end, station: slot.station || null };
+        if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
         if (ps && (key === 'bartenders' || ps.venueId === _venueId)) {
           if (ps.s === 'OFF') return { dayOff: true, srcVenueId: ps.venueId };
           return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '', srcVenueId: ps.venueId };
@@ -331,8 +338,8 @@ function saveShiftToStorage(roleKey, pi, di, value) {
   if (!raw[_venueId]) raw[_venueId] = {};
   if (!raw[_venueId][empId]) raw[_venueId][empId] = {};
   if (value === null) { delete raw[_venueId][empId][dk]; }
-  else if (value.cleared) { raw[_venueId][empId][dk] = { cleared: true }; }   // тумбстоун: порожньо, перекриває публікацію
-  else { raw[_venueId][empId][dk] = { start: value.s, end: value.e, station: value.station || null }; }
+  else if (value.cleared) { raw[_venueId][empId][dk] = { cleared: true, _ts: Date.now() }; }   // тумбстоун: порожньо, перекриває СВІЖУ публікацію
+  else { raw[_venueId][empId][dk] = { start: value.s, end: value.e, station: value.station || null, _ts: Date.now() }; }
   localStorage.setItem('barops_schedule_v1', JSON.stringify(raw));
 }
 
