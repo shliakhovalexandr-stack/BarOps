@@ -310,10 +310,19 @@ async function loadData() {
   try {
     const h = { Authorization: `Bearer ${_token}` };
 
-    // Постачальники — швидко з DB, без ретраю
-    const sRes  = await fetch(`${API}/api/suppliers?venueId=${_venueId}&zone=${orderZone()}`, { headers: h });
-    const sData = await sRes.json();
-    if (sData.success) {
+    // Постачальники — з ретраєм (Railway cold start / timeout інакше давав порожній
+    // список і хибне «Постачальників ще немає», хоча вони є)
+    let sData = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      if (attempt > 1) await new Promise(r => setTimeout(r, 2000));
+      if (state.route !== 'ordering') return;
+      try {
+        const sRes = await fetch(`${API}/api/suppliers?venueId=${_venueId}&zone=${orderZone()}`, { headers: h });
+        const d = await sRes.json();
+        if (d.success) { sData = d; break; }
+      } catch (e) { console.warn(`[Ordering] suppliers attempt ${attempt}/3:`, e.message); }
+    }
+    if (sData) {
       _suppliers     = sData.suppliers || [];
       _openSuppliers = new Set(_suppliers.map(s => s.id));
     }
