@@ -452,13 +452,15 @@ async function loadNetwork() {
   const byUser = {};
   for (const s of shifts) {
     if (!deptRoles.includes((s.role || '').toLowerCase())) continue;
-    if (s.start === 'OFF') continue;                         // вихідні в мережевому вигляді не показуємо
     if (!networkWide && s.venueId !== _venueId) continue;    // не-бармени — лише свій заклад
     (byUser[s.userId] ||= { id: s.userId, n: s.userName || '—', cells: {} });
-    // Дублікати user+date з різних закладів — перемагає найновіша публікація (як у loadRosters)
+    // Дублікати user+date з різних закладів — перемагає найновіша публікація (як у loadRosters);
+    // опублікований OFF бере участь у цьому правилі й показується як «Вих»
     const curCell = byUser[s.userId].cells[s.date];
     if (curCell && String(curCell.createdAt || '') > String(s.createdAt || '')) continue;
-    byUser[s.userId].cells[s.date] = { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null, createdAt: s.createdAt || '' };
+    byUser[s.userId].cells[s.date] = s.start === 'OFF'
+      ? { dayOff: true, createdAt: s.createdAt || '' }
+      : { s: s.start, e: s.end, venueName: s.venueName || '', stationName: s.stationName || '', station: s.station || null, createdAt: s.createdAt || '' };
   }
   // Накласти ПІДТВЕРДЖЕНІ вихідні команди (бекенд віддає їх працівнику), щоб бачити, хто у вихідному
   try {
