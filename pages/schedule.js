@@ -298,8 +298,17 @@ async function loadRosters() {
         const slotFresh = slot && (!ps || slotTs > pubTs);
         if (slot && slot.cleared && slotFresh) return null;   // свіжий тумбстоун — перекриває публікацію
         if (slot && !slot.cleared && slotFresh) return { s: slot.start, e: slot.end, station: slot.station || null };
-        if (off[ymd(w.date)]) return { dayOff: true };   // підтверджений вихідний
-        if (ps && (key === 'bartenders' || ps.venueId === _venueId)) {
+        // Локальний маркер «Вих» — те саме правило свіжості, що й чернетки: перекриває
+        // публікацію ЛИШЕ якщо новіший за неї. Інакше старий маркер на цьому пристрої
+        // назавжди «воскрешав» вихідний поверх новішої публікації з іншого пристрою
+        // (симптом: змінив графік на телефоні → на ПК лишився старий навіть після
+        // чистки кешу, бо localStorage вона не чіпає). Маркери старого формату (true,
+        // без часу) вважаємо застарілими → сервер головніший (самозагоєння).
+        const offVal    = off[ymd(w.date)];
+        const offTs     = typeof offVal === 'number' ? offVal : 0;
+        const psVisible = ps && (key === 'bartenders' || ps.venueId === _venueId);
+        if (offVal && (!psVisible || offTs > pubTs)) return { dayOff: true };
+        if (psVisible) {
           if (ps.s === 'OFF') return { dayOff: true, srcVenueId: ps.venueId };
           return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '', srcVenueId: ps.venueId };
         }
@@ -352,7 +361,7 @@ function saveDayOffToStorage(roleKey, pi, di, on) {
   const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
   if (!raw[_venueId]) raw[_venueId] = {};
   if (!raw[_venueId][empId]) raw[_venueId][empId] = {};
-  if (on) raw[_venueId][empId][yk] = true;
+  if (on) raw[_venueId][empId][yk] = Date.now();   // час — щоб публікація новіша за маркер перемагала
   else    delete raw[_venueId][empId][yk];
   localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
 }
@@ -574,7 +583,7 @@ function markApprovedOff(req) {
   const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
   if (!raw[_venueId]) raw[_venueId] = {};
   if (!raw[_venueId][uid]) raw[_venueId][uid] = {};
-  for (const d of req.dates) raw[_venueId][uid][d] = true;
+  for (const d of req.dates) raw[_venueId][uid][d] = Date.now();   // час — для правила свіжості vs публікація
   localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
 }
 // Скасування підтвердженого запиту → знімаємо його дати з локальних позначок «Вих» (інакше цей
