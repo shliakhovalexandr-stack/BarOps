@@ -115,19 +115,23 @@ function fmtDate(d) {
   return `${parseInt(day)} ${months[parseInt(m) - 1]} ${y}`;
 }
 
-// Рядок «в який рахунок пробили» (posReceipt зберігається при перевірці Checkbox)
+// Рядок «в який рахунок пробили» (posReceipt зберігається при перевірці Checkbox).
+// r.open=true → марка відсканована у ВІДКРИТИЙ рахунок (ще не фіскалізований)
 function posReceiptHTML(r) {
   if (!r) return '';
   const t = r.at ? new Date(r.at) : null;
   const time = t && !isNaN(t) ? `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` : '';
   const parts = [];
-  if (r.orderNum) parts.push(`Рахунок №${r.orderNum}`);
+  if (r.orderNum) parts.push(`${r.open ? 'відкритий рахунок' : 'Рахунок'} №${r.orderNum}`);
   if (r.tableNum !== null && r.tableNum !== undefined && r.tableNum !== '') parts.push(`стіл ${r.tableNum}`);
   if (r.waiter) parts.push(r.waiter);
-  if (r.sum !== null && r.sum !== undefined) parts.push(`${r.sum} грн`);
+  if (r.open && r.dish) parts.push(r.dish);
+  if (!r.open && r.sum !== null && r.sum !== undefined) parts.push(`${r.sum} грн`);
   if (time) parts.push(time);
   if (!parts.length) return '';
-  return `<div class="exc-mark-meta" style="color:var(--text1)">🧾 ${parts.join(' · ')}</div>`;
+  return r.open
+    ? `<div class="exc-mark-meta" style="color:var(--amber,#e0a23a)">🟠 У ${parts.join(' · ')}</div>`
+    : `<div class="exc-mark-meta" style="color:var(--text1)">🧾 ${parts.join(' · ')}</div>`;
 }
 
 // Ймовірні рахунки для «не знайдено»: де продавали схожий напій;
@@ -1103,7 +1107,7 @@ function buildListTab() {
             <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
-            ${m.checkStatus === 'found' ? posReceiptHTML(m.posReceipt) : posSuspectsHTML(m.posSuspects)}
+            ${posReceiptHTML(m.posReceipt)}${m.checkStatus !== 'found' ? posSuspectsHTML(m.posSuspects) : ''}
             ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Доскановано: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
           </div>
           <div class="exc-badge ${cls}">${label}</div>
