@@ -134,8 +134,9 @@ function posReceiptHTML(r) {
     : `<div class="exc-mark-meta" style="color:var(--text1)">🧾 ${parts.join(' · ')}</div>`;
 }
 
-// Ймовірні рахунки для «не знайдено»: де продавали схожий напій;
-// «без фіск.» = закрито нефіскальним типом оплати — саме його треба виправити
+// Ймовірні рахунки для «не знайдено» — підказка ПО НАЗВІ напою (НЕ збіг по коду:
+// коду цієї марки ніде немає). «БЕЗ фіскалізації» = закрито нефіскальним типом
+// оплати — його треба виправити; «сканована інша марка» = у чеку інша пляшка
 function posSuspectsHTML(list) {
   if (!Array.isArray(list) || !list.length) return '';
   const rows = list.slice(0, 3).map(s => {
@@ -145,9 +146,11 @@ function posSuspectsHTML(list) {
     if (s.tableNum !== null && s.tableNum !== undefined && s.tableNum !== '') parts.push(`стіл ${s.tableNum}`);
     if (s.waiter) parts.push(s.waiter);
     if (s.dish) parts.push(`${s.dish}${s.qty ? ' ×' + s.qty : ''}`);
-    if (s.payType) parts.push(s.fiscal ? s.payType : `${s.payType} — БЕЗ фіскалізації`);
+    if (s.payType) parts.push(s.payType);
     if (time) parts.push(time);
-    return `<div class="exc-mark-meta" style="color:var(--amber,#e0a23a)">${s.fiscal ? '🔎' : '⚠️'} ${parts.join(' · ')}</div>`;
+    const verdict = !s.fiscal ? ' — БЕЗ фіскалізації'
+      : (s.otherMark ? ' — сканована інша марка' : ' — марку не сканували');
+    return `<div class="exc-mark-meta" style="color:var(--amber,#e0a23a)">${s.fiscal ? '🔎' : '⚠️'} Схожий продаж: ${parts.join(' · ')}${verdict}</div>`;
   }).join('');
   const more = list.length > 3 ? `<div class="exc-mark-meta">…і ще ${list.length - 3}</div>` : '';
   return rows + more;
