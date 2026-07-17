@@ -134,26 +134,44 @@ function posReceiptHTML(r) {
     : `<div class="exc-mark-meta" style="color:var(--text1)">🧾 ${parts.join(' · ')}</div>`;
 }
 
-// Ймовірні рахунки для «не знайдено» — підказка ПО НАЗВІ напою (НЕ збіг по коду:
-// коду цієї марки ніде немає). «БЕЗ фіскалізації» = закрито нефіскальним типом
-// оплати — його треба виправити; «сканована інша марка» = у чеку інша пляшка
-function posSuspectsHTML(list) {
-  if (!Array.isArray(list) || !list.length) return '';
-  const rows = list.slice(0, 3).map(s => {
-    const time = s.closeTime ? String(s.closeTime).slice(11, 16) : '';
-    const parts = [];
-    if (s.orderNum) parts.push(`рахунок №${s.orderNum}`);
-    if (s.tableNum !== null && s.tableNum !== undefined && s.tableNum !== '') parts.push(`стіл ${s.tableNum}`);
-    if (s.waiter) parts.push(s.waiter);
-    if (s.dish) parts.push(`${s.dish}${s.qty ? ' ×' + s.qty : ''}`);
-    if (s.payType) parts.push(s.payType);
-    if (time) parts.push(time);
-    const verdict = !s.fiscal ? ' — БЕЗ фіскалізації'
-      : (s.otherMark ? ' — сканована інша марка' : ' — марку не сканували');
-    return `<div class="exc-mark-meta" style="color:var(--amber,#e0a23a)">${s.fiscal ? '🔎' : '⚠️'} Схожий продаж: ${parts.join(' · ')}${verdict}</div>`;
-  }).join('');
-  const more = list.length > 3 ? `<div class="exc-mark-meta">…і ще ${list.length - 3}</div>` : '';
-  return rows + more;
+// Зведений блок «схожих продажів» — підказка ПО НАЗВІ напою (НЕ збіг по коду:
+// коду цих марок ніде немає). Кожен рахунок показуємо ОДИН раз (а не під кожною
+// маркою — з багатьма марками це плутало), з кількістю марок, під які він підходить.
+function suspectsBlockHTML() {
+  const agg = new Map();
+  for (const m of _marks) {
+    if (m.checkStatus !== 'not_found' || !Array.isArray(m.posSuspects)) continue;
+    for (const s of m.posSuspects) {
+      const k = `${s.orderNum}|${s.dish}`;
+      if (!agg.has(k)) agg.set(k, { s, codes: [] });
+      agg.get(k).codes.push(m.code);
+    }
+  }
+  if (!agg.size) return '';
+  const rows = [...agg.values()]
+    .sort((a, b) => (a.s.fiscal - b.s.fiscal))
+    .slice(0, 8)
+    .map(({ s, codes }) => {
+      const time = s.closeTime ? String(s.closeTime).slice(11, 16) : '';
+      const parts = [];
+      if (s.orderNum) parts.push(`рахунок №${s.orderNum}`);
+      if (s.tableNum !== null && s.tableNum !== undefined && s.tableNum !== '') parts.push(`стіл ${s.tableNum}`);
+      if (s.waiter) parts.push(s.waiter);
+      if (s.dish) parts.push(`${s.dish}${s.qty ? ' ×' + s.qty : ''}`);
+      if (s.payType) parts.push(s.payType);
+      if (time) parts.push(time);
+      const verdict = !s.fiscal ? 'БЕЗ фіскалізації — перезакрийте'
+        : (s.otherMark ? 'сканована інша марка' : 'марку не сканували');
+      const who = codes.length === 1 ? `марка ${codes[0]}` : `${codes.length} марок`;
+      return `<div class="exc-mark-row" style="border:0">
+        <div style="flex:1;min-width:0">
+          <div class="exc-mark-meta" style="color:var(--amber,#e0a23a)">${s.fiscal ? '🔎' : '⚠️'} ${parts.join(' · ')}</div>
+          <div class="exc-mark-meta">${verdict} · підходить під: ${who}</div>
+        </div>
+      </div>`;
+    }).join('');
+  return `<div class="exc-extra-title">🕵️ Схожі продажі без цих марок (по назві напою)</div>
+    <div style="border:0.5px solid var(--amber-border,#5c4a1f);border-radius:14px;overflow:hidden;background:var(--bg1);padding:6px 14px">${rows}</div>`;
 }
 
 function shiftDate(dateStr, days) {
@@ -1110,7 +1128,7 @@ function buildListTab() {
             <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
-            ${posReceiptHTML(m.posReceipt)}${m.checkStatus !== 'found' ? posSuspectsHTML(m.posSuspects) : ''}
+            ${posReceiptHTML(m.posReceipt)}
             ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Доскановано: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
           </div>
           <div class="exc-badge ${cls}">${label}</div>
@@ -1164,6 +1182,7 @@ function buildListTab() {
 
     ${verifyBlock}
     ${marksList}
+    ${suspectsBlockHTML()}
     ${extraList}
     ${cbSettings}
   </div>`;
