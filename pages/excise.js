@@ -115,6 +115,21 @@ function fmtDate(d) {
   return `${parseInt(day)} ${months[parseInt(m) - 1]} ${y}`;
 }
 
+// Рядок «в який рахунок пробили» (posReceipt зберігається при перевірці Checkbox)
+function posReceiptHTML(r) {
+  if (!r) return '';
+  const t = r.at ? new Date(r.at) : null;
+  const time = t && !isNaN(t) ? `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` : '';
+  const parts = [];
+  if (r.orderNum) parts.push(`Рахунок №${r.orderNum}`);
+  if (r.tableNum !== null && r.tableNum !== undefined && r.tableNum !== '') parts.push(`стіл ${r.tableNum}`);
+  if (r.waiter) parts.push(r.waiter);
+  if (r.sum !== null && r.sum !== undefined) parts.push(`${r.sum} грн`);
+  if (time) parts.push(time);
+  if (!parts.length) return '';
+  return `<div class="exc-mark-meta" style="color:var(--text1)">🧾 ${parts.join(' · ')}</div>`;
+}
+
 function shiftDate(dateStr, days) {
   const d = new Date(dateStr + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + days);
@@ -1044,6 +1059,7 @@ function buildListTab() {
           <div class="exc-mark-code">${x.code}</div>
           ${x.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${x.productName}</div>` : ''}
           <div class="exc-mark-meta">З чека Checkbox · фото не сканували</div>
+          ${posReceiptHTML(x.posReceipt)}
         </div>
         <div class="exc-badge extra">📋 без фото</div>
       </div>`).join('')}
@@ -1068,6 +1084,7 @@ function buildListTab() {
             <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
+            ${m.checkStatus === 'found' ? posReceiptHTML(m.posReceipt) : ''}
             ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Доскановано: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
           </div>
           <div class="exc-badge ${cls}">${label}</div>
