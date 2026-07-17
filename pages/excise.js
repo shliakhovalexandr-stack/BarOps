@@ -1103,8 +1103,7 @@ function buildListTab() {
             <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
-            ${m.checkStatus === 'found' ? posReceiptHTML(m.posReceipt) : ''}
-            ${m.checkStatus === 'not_found' ? posSuspectsHTML(m.posSuspects) : ''}
+            ${m.checkStatus === 'found' ? posReceiptHTML(m.posReceipt) : posSuspectsHTML(m.posSuspects)}
             ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Доскановано: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
           </div>
           <div class="exc-badge ${cls}">${label}</div>
