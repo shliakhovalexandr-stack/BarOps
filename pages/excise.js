@@ -130,6 +130,25 @@ function posReceiptHTML(r) {
   return `<div class="exc-mark-meta" style="color:var(--text1)">🧾 ${parts.join(' · ')}</div>`;
 }
 
+// Ймовірні рахунки для «не знайдено»: де продавали схожий напій;
+// «без фіск.» = закрито нефіскальним типом оплати — саме його треба виправити
+function posSuspectsHTML(list) {
+  if (!Array.isArray(list) || !list.length) return '';
+  const rows = list.slice(0, 3).map(s => {
+    const time = s.closeTime ? String(s.closeTime).slice(11, 16) : '';
+    const parts = [];
+    if (s.orderNum) parts.push(`рахунок №${s.orderNum}`);
+    if (s.tableNum !== null && s.tableNum !== undefined && s.tableNum !== '') parts.push(`стіл ${s.tableNum}`);
+    if (s.waiter) parts.push(s.waiter);
+    if (s.dish) parts.push(`${s.dish}${s.qty ? ' ×' + s.qty : ''}`);
+    if (s.payType) parts.push(s.fiscal ? s.payType : `${s.payType} — БЕЗ фіскалізації`);
+    if (time) parts.push(time);
+    return `<div class="exc-mark-meta" style="color:var(--amber,#e0a23a)">${s.fiscal ? '🔎' : '⚠️'} ${parts.join(' · ')}</div>`;
+  }).join('');
+  const more = list.length > 3 ? `<div class="exc-mark-meta">…і ще ${list.length - 3}</div>` : '';
+  return rows + more;
+}
+
 function shiftDate(dateStr, days) {
   const d = new Date(dateStr + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + days);
@@ -1085,6 +1104,7 @@ function buildListTab() {
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
             <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
             ${m.checkStatus === 'found' ? posReceiptHTML(m.posReceipt) : ''}
+            ${m.checkStatus === 'not_found' ? posSuspectsHTML(m.posSuspects) : ''}
             ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Доскановано: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
           </div>
           <div class="exc-badge ${cls}">${label}</div>
