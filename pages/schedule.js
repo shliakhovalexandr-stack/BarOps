@@ -504,11 +504,13 @@ async function loadNetwork() {
   _networkRoster = { people, grid };
 }
 
+let _lastLoadAt = 0;   // для авто-оновлення при поверненні у вкладку
 async function reloadData() {
   _venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
   loadDefaults();   // стандартні зміни цього закладу (per-venue)
   if (canEdit()) await loadRosters();
   else { await Promise.all([loadStations(), loadRosterOrders()]); await loadNetwork(); }   // станції+порядок паралельно
+  _lastLoadAt = Date.now();
 }
 
 async function patchDayOff(id, status) {
@@ -1577,6 +1579,17 @@ export async function render() {
 }
 
 export function init() {
+  // Авто-оновлення застарілої вкладки: повернувся на сторінку графіка після >60с —
+  // перечитуємо публікації (інакше давно відкрита вкладка показує/публікує старе)
+  if (!window.__schVisBound) {
+    window.__schVisBound = true;
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!document.querySelector('.sch-wrap')) return;   // сторінка графіка не відкрита
+      if (Date.now() - _lastLoadAt < 60000) return;
+      await reloadData(); re();
+    });
+  }
   window.__sch = {
     goHub()     { _view = 'hub'; _mode = 'view'; re(); },
     goRole(key) {
@@ -1603,6 +1616,14 @@ export function init() {
 
     async publishSchedule() {
       if (!canEditDept(_role)) return;
+      // Перед публікацією ПЕРЕЧИТУЄМО дані: стара відкрита вкладка інакше публікує
+      // застарілу сітку з памʼяті й перетирає свіжі публікації з інших пристроїв
+      // (кейс 2026-07-17: публікація Тераси о 14:44 затерла Вихідні, поставлені
+      // з Дім18 о 13:31). Свіжі локальні правки (_ts новіші) переживають злиття.
+      const btn0 = document.querySelector('.sch-bar .sch-cta');
+      if (btn0) { btn0.disabled = true; btn0.textContent = 'Оновлення…'; }
+      try { await loadRosters(); } catch {}
+      re();   // показати те, що реально піде в публікацію
       const weekDates = getWeekDates(_weekOffset);
       const weekStart = ymd(weekDates[0].date);
       const myVenueId = state.venueId || localStorage.getItem('barops_venueId') || '';
