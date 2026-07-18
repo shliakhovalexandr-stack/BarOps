@@ -586,10 +586,23 @@ function buildDatePicker() {
 }
 
 // ── render ────────────────────────────────────────────────────
+let _scrollKey = '';   // «екран» останнього рендера: скрол відновлюємо лише в межах того самого екрана
 function re() {
   if (state.route !== 'excise') return;
   const el = document.getElementById('exc-root');
-  if (el) el.innerHTML = buildPage();
+  if (!el) return;
+  // Зберігаємо прокрутку списку: повний ре-рендер інакше стрибав угору
+  // (⋮-меню, видалення, перевірка виглядали як перезавантаження екрана).
+  // При зміні екрана (таб/крок скану/дата) — навпаки, починаємо згори.
+  const key = `${_tab}|${_scanStep}|${_marksDate}`;
+  const sc  = el.querySelector('.exc-scroll');
+  const top = (sc && key === _scrollKey) ? sc.scrollTop : 0;
+  el.innerHTML = buildPage();
+  _scrollKey = key;
+  if (top) {
+    const sc2 = el.querySelector('.exc-scroll');
+    if (sc2) sc2.scrollTop = top;
+  }
 }
 
 const CSS = `<style id="exc-css">
