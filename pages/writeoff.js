@@ -111,7 +111,8 @@ async function loadBarStores() {
 // Крок «Склад» — гарні картки барних складів (Бар ТОВ / Бар ФОП)
 function storeStepHTML() {
   return `
-    <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:14px">Оберіть склад для списання</div>
+    <div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-bottom:6px">Оберіть склад для списання</div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-bottom:14px">Можна додавати в один акт і алко, і б/а — кожен товар сам піде на свій склад (ТОВ/ФОП). Вибір тут — для товарів, що є на обох.</div>
     <div style="display:flex;flex-direction:column;gap:12px">
       ${_barStores.map(s => {
         const sel = _selStoreId === s.id;
@@ -2467,9 +2468,22 @@ async function doSendActToSyrve() {
       const sc = w.storeZone
               || (prod?.zone === 'kitchen' ? 'kitchen' : prod?.zone === 'bar' ? 'bar' : null)
               || w.scope || 'bar';
-      (byScope[sc] = byScope[sc] || []).push(w);
+      // Кілька барних складів (Бар ТОВ/ФОП): позиція йде на СВІЙ склад (де лежить
+      // товар), обраний на кроці «Склад» — для товарів, що є на обох/невідомих.
+      // Кошик з алко+б/а розкладається на окремі акти автоматично.
+      let key = sc;
+      if (sc === 'bar' && _barStores.length > 1) {
+        const bs = prod?.bs || [];
+        const st = bs.length === 1 ? bs[0]
+                 : bs.includes(_selStoreId) ? _selStoreId
+                 : bs.length > 1 ? bs[0]
+                 : (_selStoreId || '');
+        key = `bar|${st}`;
+      }
+      (byScope[key] = byScope[key] || []).push(w);
     }
-    for (const [scope, witems] of Object.entries(byScope)) {
+    for (const [scopeKey, witems] of Object.entries(byScope)) {
+      const [scope, storeOverride] = scopeKey.split('|');
       // Poster — окремий акт на кожну причину; Syrve — один акт на scope
       const byReason = {};
       for (const w of witems) {
@@ -2484,7 +2498,8 @@ async function doSendActToSyrve() {
           if (w.reason) grouped[w.prodId]._reasons.add(w.reason);   // коментар саме цієї позиції
         }
         const items = Object.values(grouped).map(g => ({ productId: g.productId, amount: g.amount, unitKey: g.unitKey, productName: g.productName, reason: [...g._reasons].join('; ') || undefined }));
-        const tag   = scope === 'kitchen' ? ' (кухня)' : '';
+        const ovStoreName = storeOverride ? (_barStores.find(s => s.id === storeOverride)?.name || '') : '';
+        const tag   = scope === 'kitchen' ? ' (кухня)' : (ovStoreName ? ` (${ovStoreName})` : '');
         const label = _isPosterWo ? (ritems[0]?.reasonName || 'Без причини') : g.accountName;
         try {
           const reasons = [...new Set(ritems.filter(w => w.reason).map(w => w.reason))].join('; ');
@@ -2493,7 +2508,8 @@ async function doSendActToSyrve() {
           const body = { items, comment, scope };
           if (g.accountId) body.accountId = g.accountId;
           if (_isPosterWo && rk !== '__none__') body.reasonId = rk;          // причина списання Poster
-          if (_selStoreId && (scope === 'bar' || scope === 'dishware')) body.storeId = _selStoreId;   // обраний склад — бар (ТОВ/ФОП) або Посуд
+          if (storeOverride) body.storeId = storeOverride;   // авто-маршрут: склад, де лежить товар (ТОВ/ФОП)
+          else if (_selStoreId && (scope === 'bar' || scope === 'dishware')) body.storeId = _selStoreId;   // обраний склад — бар (ТОВ/ФОП) або Посуд
           const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -2874,7 +2890,7 @@ export default {
 
     // Завантажуємо товари: одразу з кешу, оновлення — у фоні тільки якщо кеш старіший 30 хв
     // v2 — інвалідація старого кешу (одиниці Poster тощо)
-    const prodsKey = `barops_prods_v9_${vId}`;   // v9 — + _dishProds (позиції складу «Посуда»)
+    const prodsKey = `barops_prods_v10_${vId}`;   // v10 — + bs (барні склади товару для ТОВ/ФОП-маршрутизації)
     let prodsCacheTs = 0;
     try {
       const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
@@ -2917,15 +2933,19 @@ export default {
                 if (!item.name || item.name.match(/^[0-9a-f-]{36}$/i)) continue;
                 if (isNonConsumable(item.name, item.category)) continue;   // обладнання/інвентар/посуд — не списуємо як товар
                 let e = byId[item.id];
-                if (!e) e = byId[item.id] = { id: item.id, name: item.name, stock: 0, unit: normalizeUnit(item.unit), category: item.category || '', zones: new Set() };
+                if (!e) e = byId[item.id] = { id: item.id, name: item.name, stock: 0, unit: normalizeUnit(item.unit), category: item.category || '', zones: new Set(), bstores: new Set() };
                 e.stock += (parseFloat(item.amount) || 0);
                 if (zone) e.zones.add(zone);
+                // На якому саме БАРНОМУ складі лежить товар (Бар ТОВ/ФОП) — для
+                // авто-маршрутизації акта: алко йде на свій склад, б/а — на свій
+                if (zone === 'bar' && store.storeId) e.bstores.add(store.storeId);
               }
             }
             _dishProds = Object.values(dishById).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk'));
             const fresh = Object.values(byId).map(e => ({
               id: e.id, name: e.name, stock: e.stock, unit: e.unit, category: e.category,
               zone: e.zones.size === 0 ? '' : (e.zones.has('bar') && e.zones.has('kitchen')) ? 'both' : [...e.zones][0],
+              bs: [...e.bstores],
             }));
             _prods = fresh;
             try { localStorage.setItem(prodsKey, JSON.stringify({ ts: Date.now(), data: _prods, dish: _dishProds, dishStoreId: _dishStoreId })); } catch {}
