@@ -586,9 +586,20 @@ function buildDatePicker() {
 }
 
 // ── render ────────────────────────────────────────────────────
-let _scrollKey = '';   // «екран» останнього рендера: скрол відновлюємо лише в межах того самого екрана
+let _scrollKey      = '';   // «екран» останнього рендера: скрол відновлюємо лише в межах того самого екрана
+let _scrollingUntil = 0;    // активна прокрутка: ре-рендер відкладаємо, щоб не смикати DOM під пальцем
+let _reQueued       = false;
 function re() {
   if (state.route !== 'excise') return;
+  // Під час прокрутки не перемальовуємо (інакше інерція обривається і сторінку
+  // «перекидає»); виконаємо відкладено, щойно скрол зупиниться
+  if (Date.now() < _scrollingUntil) {
+    if (!_reQueued) {
+      _reQueued = true;
+      setTimeout(() => { _reQueued = false; re(); }, Math.max(80, _scrollingUntil - Date.now() + 40));
+    }
+    return;
+  }
   const el = document.getElementById('exc-root');
   if (!el) return;
   // Зберігаємо прокрутку списку: повний ре-рендер інакше стрибав угору
@@ -599,9 +610,10 @@ function re() {
   const top = (sc && key === _scrollKey) ? sc.scrollTop : 0;
   el.innerHTML = buildPage();
   _scrollKey = key;
-  if (top) {
-    const sc2 = el.querySelector('.exc-scroll');
-    if (sc2) sc2.scrollTop = top;
+  const scNew = el.querySelector('.exc-scroll');
+  if (scNew) {
+    if (top) scNew.scrollTop = top;
+    scNew.addEventListener('scroll', () => { _scrollingUntil = Date.now() + 160; }, { passive: true });
   }
 }
 
