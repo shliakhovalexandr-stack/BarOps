@@ -12,6 +12,7 @@ const API = 'https://barops-backend-production.up.railway.app';
 let _tasks     = [];      // завдання з бекенду (date >= today)
 let _role      = 'bartender';
 let _taskModal = false;
+let _reqModal  = false;   // модалка «Запит сис. менеджеру» (бармен → адмін)
 let _taskDraft = { date: '', department: 'bartenders', userId: '', userName: '', priority: 'medium', text: '' };
 let _team      = [];      // склад закладу (для вибору виконавця; лише менеджер)
 
@@ -226,7 +227,8 @@ function esc(s) {
 ════════════════════════ */
 function buildWorkerChecklist() {
   const today = ymd(new Date());
-  const tasks = _tasks.filter(t => t.date === today);   // бекенд уже звузив до моїх завдань
+  // без запитів адміну (department='admin') — вони в окремій секції «Запити сис. менеджеру»
+  const tasks = _tasks.filter(t => t.date === today && (t.department || '') !== 'admin');
   if (!tasks.length) return `
   <div class="jrn-empty">
     <div class="jrn-empty-icon">✓</div>
@@ -248,8 +250,68 @@ function buildWorkerChecklist() {
   </div>`;
 }
 
+/* Запити працівника системному менеджеру (бармен → адмін): вільний текст, статус, видалення свого */
+function buildMyRequests() {
+  const reqs = _tasks
+    .filter(t => (t.department || '') === 'admin')
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const list = reqs.length ? reqs.map(t => `
+    <div class="jrn-cl-card${t.done ? ' done' : ''}">
+      <div class="jrn-task-row">
+        <div style="flex:1;min-width:0">
+          <div class="jrn-cl-name">${esc(t.text)}</div>
+          <div class="jrn-cl-meta">${fmtDateShort(t.date)}</div>
+          ${t.done
+            ? `<div class="jrn-done-badge">✓ Виконано${t.doneBy ? ` · ${esc(t.doneBy)}` : ''}</div>`
+            : `<div class="jrn-cl-meta" style="color:var(--amber,#e0a23a)">⏳ Очікує на сис. менеджера</div>`}
+        </div>
+        ${!t.done ? `<button class="jrn-task-del" onclick="window.__jrn.deleteTask('${t.id}')">×</button>` : ''}
+      </div>
+    </div>`).join('') : `
+    <div class="jrn-empty"><div class="jrn-empty-txt">Запитів ще немає</div></div>`;
+  return `
+    <div style="padding:0 14px 8px"><button class="jrn-add-btn" onclick="window.__jrn.openReqModal()">+ Запит сис. менеджеру</button></div>
+    ${list}`;
+}
+
+function buildReqModal() {
+  if (!_reqModal) return '';
+  return `
+  <div class="jrn-modal-ov" onclick="window.__jrn.closeReqModalOv(event)">
+    <div class="jrn-modal" onclick="event.stopPropagation()">
+      <div class="jrn-modal-title">Запит системному менеджеру</div>
+      <div class="jrn-modal-lbl">Що треба зробити?</div>
+      <textarea id="jrn-req-text" class="jrn-modal-inp" rows="4" maxlength="500"
+        placeholder="Напр.: змінити ТТК коктейлю «Апероль Шприц» — тепер 60 мл апероля" style="resize:none;height:auto"></textarea>
+      <div class="jrn-modal-btns">
+        <button class="jrn-btn-ghost" onclick="window.__jrn.closeReqModal()">Скасувати</button>
+        <button class="jrn-btn-cta" onclick="window.__jrn.sendRequest()">Надіслати</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function buildManagerTasks() {
-  const tasks = isFloorMgr() ? _tasks.filter(t => (t.department || '') === mgrDept()) : _tasks;
+  const all = isFloorMgr() ? _tasks.filter(t => (t.department || '') === mgrDept()) : _tasks;
+  // Запити від персоналу (department='admin') — окремим блоком зверху (лише адмін/керуючий їх бачить)
+  const reqs  = all.filter(t => (t.department || '') === 'admin')
+                   .sort((a, b) => (a.done - b.done) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const reqsHTML = reqs.length ? `
+    <div class="jrn-sec" style="padding-top:0">🛠 Запити від персоналу</div>
+    ${reqs.map(t => `
+    <div class="jrn-cl-card${t.done ? ' done' : ''}">
+      <div class="jrn-task-row">
+        <div class="jrn-cl-check ${t.done ? 'done' : ''}" onclick="window.__jrn.toggleReq('${t.id}')" style="cursor:pointer;flex-shrink:0;margin-top:2px">${t.done ? CHECK_SVG : ''}</div>
+        <div style="flex:1;min-width:0">
+          <div class="jrn-cl-name">${esc(t.text)}</div>
+          <div class="jrn-cl-meta">від ${esc(t.author || '—')} · ${fmtDateShort(t.date)}</div>
+          ${t.done ? `<div class="jrn-done-badge">✓ Виконано${t.doneBy ? ` · ${esc(t.doneBy)}` : ''}</div>` : ''}
+        </div>
+        <button class="jrn-task-del" onclick="window.__jrn.deleteTask('${t.id}')">×</button>
+      </div>
+    </div>`).join('')}` : '';
+
+  const tasks = all.filter(t => (t.department || '') !== 'admin');
   const listHTML = tasks.length ? tasks.map(t => `
     <div class="jrn-cl-card${t.done ? ' done' : ''}">
       <div class="jrn-task-row">
@@ -266,6 +328,8 @@ function buildManagerTasks() {
     </div>`).join('') : `
     <div class="jrn-empty"><div class="jrn-empty-txt">Завдань ще немає. Створіть перше.</div></div>`;
   return `
+    ${reqsHTML}
+    ${reqsHTML ? '<div class="jrn-sec" style="padding-top:6px">Завдання</div>' : ''}
     <div style="padding:0 14px 8px"><button class="jrn-add-btn" onclick="window.__jrn.openTaskModal()">+ Завдання</button></div>
     ${listHTML}`;
 }
@@ -492,11 +556,17 @@ function buildHTML() {
       </div>
       ${tabBody}`;
   } else {
+    // Бармен може ставити задачі системному менеджеру (вільний текст: «змінити ТТК…»)
+    const r = (_role || '').toLowerCase();
+    const reqsSection = (r === 'bartender' || r === 'barman')
+      ? `<div class="jrn-sec">Запити сис. менеджеру</div>${buildMyRequests()}`
+      : '';
     body = `
       <div class="jrn-sec" style="padding-top:8px">Чек-листи</div>
       ${buildTodayChecklists()}
       <div class="jrn-sec">Завдання на сьогодні</div>
-      ${buildWorkerChecklist()}`;
+      ${buildWorkerChecklist()}
+      ${reqsSection}`;
   }
 
   return `
@@ -521,7 +591,7 @@ ${CSS}
     <div style="height:20px"></div>
   </div>
 </div>
-<div id="jrn-modal-host">${buildTaskModal()}${buildClModal()}</div>`;
+<div id="jrn-modal-host">${buildTaskModal()}${buildClModal()}${buildReqModal()}</div>`;
 }
 
 /* ════════════════════════
@@ -636,7 +706,7 @@ function updateTaskDOM(t) {
     if (txt) txt.classList.toggle('done', t.done);
   }
   const today = ymd(new Date());
-  const done = _tasks.filter(x => x.date === today && x.done).length;
+  const done = _tasks.filter(x => x.date === today && x.done && (x.department || '') !== 'admin').length;
   const cnt = document.querySelector('[data-task-count]');
   if (cnt) cnt.textContent = String(done);
 }
@@ -649,6 +719,7 @@ export default {
     _tasks       = [];
     _team        = [];
     _taskModal   = false;
+    _reqModal    = false;
     _checklists  = [];
     _clTemplates = [];
     _clView      = 'today';
@@ -748,6 +819,37 @@ export default {
           });
         } catch { /* silent */ }
         loadTasks();
+      },
+
+      /* ── ЗАПИТИ СИС. МЕНЕДЖЕРУ (бармен → адмін) ── */
+      openReqModal()  { _reqModal = true; rerender(); },
+      closeReqModal() { _reqModal = false; rerender(); },
+      closeReqModalOv(e) { if (e?.target?.classList?.contains('jrn-modal-ov')) { _reqModal = false; rerender(); } },
+      async sendRequest() {
+        const text = (document.getElementById('jrn-req-text')?.value || '').trim();
+        if (!text) return;
+        const venueId = state.venueId || localStorage.getItem('barops_venueId') || '';
+        const btn = document.querySelector('.jrn-btn-cta');
+        if (btn) { btn.disabled = true; btn.textContent = 'Надсилаю…'; }
+        try {
+          const res = await fetch(`${API}/api/tasks/request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+            body: JSON.stringify({ venueId, text }),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || 'Помилка');
+          _reqModal = false;
+          await loadTasks();
+        } catch (e) {
+          console.error('[tasks] request:', e);
+          if (btn) { btn.disabled = false; btn.textContent = 'Надіслати'; }
+        }
+      },
+      // Чекбокс на запиті в адміна: toggle + повне перемалювання (картка міняє вигляд)
+      async toggleReq(id) {
+        await window.__jrn.toggleTask(id);
+        rerender();
       },
 
       /* ── ЧЕК-ЛИСТИ ── */
