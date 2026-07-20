@@ -459,7 +459,7 @@ async function processFile(f) {
     const ocrRes = await fetch(`${API}/api/invoices/ocr`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` }, body: fd });
     const ocrD = await ocrRes.json();
     if (!ocrRes.ok) throw new Error(ocrD.error || 'OCR не вдалось');
-    if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
+    if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error(ocrD.parsed?.error || 'Не вдалося розпізнати позиції накладної');
     _parsed = ocrD.parsed; _supplierHint = ocrD.supplierHint || '';
     await matchAndReview();
   } catch (e) { _err = friendlyErr(e); _step = 'error'; rerender(); }
@@ -477,7 +477,7 @@ async function processPages(files) {
     const ocrRes = await fetch(`${API}/api/invoices/ocr`, { method: 'POST', headers: { Authorization: `Bearer ${_token}` }, body: fd });
     const ocrD = await ocrRes.json();
     if (!ocrRes.ok) throw new Error(ocrD.error || 'OCR не вдалось');
-    if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error('Не вдалося розпізнати позиції накладної');
+    if (!ocrD.parsed || ocrD.parsed.error || !(ocrD.parsed.items || []).length) throw new Error(ocrD.parsed?.error || 'Не вдалося розпізнати позиції накладної');
     _parsed = ocrD.parsed; _supplierHint = ocrD.supplierHint || '';
     await matchAndReview();
   } catch (e) { _err = friendlyErr(e); _step = 'error'; rerender(); }
