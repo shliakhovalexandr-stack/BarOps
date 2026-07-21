@@ -119,7 +119,9 @@ body {
   #app-view > * { width: 100%; max-width: 920px; }
 
   /* Сторінки з власною десктопною розкладкою — на всю ширину вікна */
-  #phone[data-page="schedule"] #app-view > * { max-width: none; }
+  #phone[data-page="schedule"]    #app-view > *,
+  #phone[data-page="performance"] #app-view > *,
+  #phone[data-page="team"]        #app-view > * { max-width: none; }
 
   /* Нижнє меню-вкладки — по центру, щоб не розповзалось на всю ширину */
   #app-tab-bar { justify-content: center; gap: clamp(16px, 3vw, 52px); }

@@ -89,6 +89,12 @@ const CSS = `<style id="perf-css">
 .pf-c.v{font-weight:700;color:var(--text0);font-family:var(--font-h)}
 .pf-c.muted{color:var(--text3)}
 .pf-dow{color:var(--text3);font-size:10px}
+/* ── Десктоп: контент по центру, KPI в 4 колонки, таби/чипи не розповзаються ── */
+@media (min-width:1024px){
+  .pf-scroll{max-width:1100px;margin:0 auto;width:100%}
+  .pf-kpis{grid-template-columns:repeat(4,1fr)}
+  .pf-tabs,.pf-chips{max-width:660px}
+}
 /* compare */
 .pf-cmp{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:0.5px solid var(--border)}
 .pf-cmp:last-child{border-bottom:none}

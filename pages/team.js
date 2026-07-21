@@ -186,6 +186,13 @@ const CSS = `<style id="tm-css">
 .tm-confirm-ok.danger{background:var(--red);color:#fff}
 .tm-confirm-ok.warning{background:var(--amber);color:#000}
 .tm-confirm-ok:active{opacity:.8}
+/* ── Десктоп: команда сіткою карток у кілька колонок, заголовки груп на всю ширину ── */
+@media (min-width:1024px){
+  .tm-scroll{max-width:1120px;margin:0 auto;width:100%}
+  .tm-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;align-items:start}
+  .tm-list .tm-sec{grid-column:1/-1}
+  .tm-list .tm-add-btn{grid-column:1/-1}
+}
 </style>`;
 
 /* ════════════════════════
