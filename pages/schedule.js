@@ -30,7 +30,7 @@ function canEdit() {
 function canEditDept(key) {
   const r = resolveRole();
   if (r === 'admin')                       return true;
-  if (r === 'manager' || r === 'director') return key === 'waiters' || key === 'cleaners';
+  if (r === 'manager' || r === 'director') return key === 'waiters' || key === 'cleaners' || key === 'managers';
   if (r === 'chef')                        return key === 'cooks';
   return false;
 }
@@ -40,7 +40,7 @@ function canSeeRequests(key) {
   const r = resolveRole();
   if (r === 'admin' || r === 'director') return true;
   if (r === 'chef')                      return key === 'cooks';
-  if (r === 'manager')                   return key === 'waiters' || key === 'cleaners';
+  if (r === 'manager')                   return key === 'waiters' || key === 'cleaners' || key === 'managers';
   return false;
 }
 // Які підрозділи бачить роль у графіку: кухонні (шеф/кухар) — лише кухня; решта — усі
@@ -55,6 +55,7 @@ const ROLE_CONFIG = {
   cooks:      { label: 'Кухарі',    icon: 'fork',  color: 'var(--amber)', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']                    },
   bartenders: { label: 'Бармени',   icon: 'glass', color: 'var(--green)', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']             },
   waiters:    { label: 'Офіціанти', icon: 'tray',  color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']                         },
+  managers:   { label: 'Менеджери', icon: 'badge', color: 'var(--blue)',  bgIcon: 'rgba(96,165,250,0.10)',   bdIcon: 'rgba(96,165,250,0.28)',   apiRoles: ['manager','director']             },
   cleaners:   { label: 'Хозяюшки', icon: 'broom', color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess','cleaner','housekeeper'] },
 };
 
@@ -621,6 +622,7 @@ function roleIcon(icon) {
     glass:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8M12 11v11M5 2l2 9h10l2-9z"/><path d="M9 7h6"/></svg>`,
     tray: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="20" height="4" rx="2"/><path d="M6 14V9a6 6 0 0 1 12 0v5"/></svg>`,
     star: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`,
+    badge:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M12 12v4M9.5 14h5"/></svg>`,
     broom:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2L9 14"/><path d="M3 22l7-7"/><path d="M7 22c0-2.8 2.2-5 5-5"/><path d="M21 2l-5 5"/></svg>`,
   };
   return m[icon] || m.star;
