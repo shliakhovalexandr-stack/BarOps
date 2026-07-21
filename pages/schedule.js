@@ -55,7 +55,7 @@ const ROLE_CONFIG = {
   cooks:      { label: 'Кухарі',    icon: 'fork',  color: 'var(--amber)', bgIcon: 'rgba(251,191,36,0.10)',   bdIcon: 'rgba(251,191,36,0.28)',   apiRoles: ['cook','chef']                    },
   bartenders: { label: 'Бармени',   icon: 'glass', color: 'var(--green)', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']             },
   waiters:    { label: 'Офіціанти', icon: 'tray',  color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']                         },
-  managers:   { label: 'Менеджери', icon: 'badge', color: 'var(--blue)',  bgIcon: 'rgba(96,165,250,0.10)',   bdIcon: 'rgba(96,165,250,0.28)',   apiRoles: ['manager','director']             },
+  managers:   { label: 'Менеджери', icon: 'badge', color: 'var(--blue)',  bgIcon: 'rgba(96,165,250,0.10)',   bdIcon: 'rgba(96,165,250,0.28)',   apiRoles: ['manager']                        },
   cleaners:   { label: 'Хозяюшки', icon: 'broom', color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess','cleaner','housekeeper'] },
 };
 
