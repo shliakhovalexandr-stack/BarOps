@@ -834,6 +834,10 @@ export async function navigate(route, opts = {}) {
   if (!opts.replace && state.route !== route) state.history.push(state.route);
   state.route = route;
 
+  // Ідентифікатор поточної сторінки на рамці — гачок для десктопних розкладок (CSS #phone[data-page=...])
+  const phoneEl = document.getElementById('phone');
+  if (phoneEl) phoneEl.dataset.page = route;
+
   const view = document.getElementById('app-view');
   if (!view) return;
 
