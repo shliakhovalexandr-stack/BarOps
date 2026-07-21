@@ -193,7 +193,7 @@ const CSS = `<style id="tm-css">
 ════════════════════════ */
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 function roleLabel(role) {
-  const map = { admin:'Системний менеджер', manager:'Менеджер', director:'Керуючий', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант', trainee:'Стажер', runner:'Ранер' };
+  const map = { admin:'Системний менеджер', manager:'Менеджер', director:'Керуючий', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант', trainee:'Стажер', runner:'Ранер', cleaner:'Хозяюшка', hostess:'Хозяюшка', housekeeper:'Хозяюшка' };
   return map[(role||'').toLowerCase()] || role || 'Бармен';
 }
 function roleClass(role) {
@@ -212,6 +212,7 @@ const ROLE_OPTIONS = [
   ['CHEF',       '👨‍🍳', 'Шеф-кухар'],
   ['COOK',       '🍳', 'Кухар'],
   ['WAITER',     '🍽', 'Офіціант'],
+  ['CLEANER',    '🧹', 'Хозяюшка'],
   ['TRAINEE',    '🎓', 'Стажер'],
   ['RUNNER',     '🏃', 'Ранер'],
   ['ADMIN',      '🛡', 'Системний менеджер'],
@@ -223,7 +224,7 @@ const ROLE_OPTIONS = [
 // решта (керуючий тощо) — усі, окрім Системного менеджера.
 function availableRoleOptions() {
   const r = (state.role || '').toLowerCase();
-  if (r === 'manager') return ROLE_OPTIONS.filter(o => ['WAITER', 'MANAGER', 'TRAINEE', 'RUNNER'].includes(o[0]));
+  if (r === 'manager') return ROLE_OPTIONS.filter(o => ['WAITER', 'MANAGER', 'TRAINEE', 'RUNNER', 'CLEANER'].includes(o[0]));
   if (r === 'chef')    return ROLE_OPTIONS.filter(o => o[0] === 'COOK' || o[0] === 'CHEF');   // шеф — лише кухня
   if (r === 'admin')   return ROLE_OPTIONS;
   return ROLE_OPTIONS.filter(o => o[0] !== 'ADMIN');
@@ -265,6 +266,7 @@ const TEAM_GROUPS = [
   { label: 'Бармени',     roles: ['bartender', 'barman'] },
   { label: 'Кухня',       roles: ['chef', 'cook'] },
   { label: 'Офіціанти',   roles: ['waiter'] },
+  { label: 'Хозяюшки',    roles: ['cleaner', 'hostess', 'housekeeper'] },
   { label: 'Стажери / Ранери', roles: ['trainee', 'runner'] },
 ];
 

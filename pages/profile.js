@@ -217,7 +217,7 @@ ${CSS}
         </div>
         <div>
           <div class="prof-name">${name}</div>
-          <div class="prof-role">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':state.role==='trainee'?'Стажер':state.role==='runner'?'Ранер':'Бармен'} · ${venue}</div>
+          <div class="prof-role">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':state.role==='trainee'?'Стажер':state.role==='runner'?'Ранер':(state.role==='cleaner'||state.role==='hostess'||state.role==='housekeeper')?'Хозяюшка':'Бармен'} · ${venue}</div>
           <div class="prof-venue">${s?.shift ? 'На зміні' : 'Поза зміною'}</div>
         </div>
       </div>
@@ -233,7 +233,7 @@ ${CSS}
       ${_team.slice(0, 5).map(m => {
         const isActive = m.status === 'active';
         const _rm = (m.role||'').toLowerCase();
-        const roleLbl = _rm==='admin'?'Системний менеджер':_rm==='manager'?'Менеджер':_rm==='director'?'Керуючий':_rm==='accountant'?'Бухгалтер':_rm==='chef'?'Шеф-кухар':_rm==='cook'?'Кухар':_rm==='waiter'?'Офіціант':_rm==='trainee'?'Стажер':_rm==='runner'?'Ранер':'Бармен';
+        const roleLbl = _rm==='admin'?'Системний менеджер':_rm==='manager'?'Менеджер':_rm==='director'?'Керуючий':_rm==='accountant'?'Бухгалтер':_rm==='chef'?'Шеф-кухар':_rm==='cook'?'Кухар':_rm==='waiter'?'Офіціант':_rm==='trainee'?'Стажер':_rm==='runner'?'Ранер':(_rm==='cleaner'||_rm==='hostess'||_rm==='housekeeper')?'Хозяюшка':'Бармен';
         const lastLogin = m.lastLogin ? new Date(m.lastLogin).toLocaleDateString('uk-UA') : 'не входив';
         return `
         <div class="prof-shift-row">

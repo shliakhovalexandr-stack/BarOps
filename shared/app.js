@@ -219,7 +219,8 @@ const TAB_BAR_COOK = [
   },
 ];
 
-// Стажер / Ранер — доступ ЛИШЕ до перегляду графіку (+ профіль для виходу)
+// Ролі з доступом ЛИШЕ до перегляду графіку (+ профіль для виходу): стажер, ранер, хозяюшка
+const SCHEDULE_ONLY_ROLES = ['trainee', 'runner', 'cleaner', 'hostess', 'housekeeper'];
 const TAB_BAR_TRAINEE = [
   {
     route: 'schedule', label: 'Графік',
@@ -822,9 +823,9 @@ export async function deleteVenue(id, name) {
    5. НАВІГАЦІЯ
    ══════════════════════════════════════ */
 export async function navigate(route, opts = {}) {
-  // Обмежені ролі (Стажер/Ранер) — доступ ЛИШЕ до графіку + профілю; будь-що інше → графік
+  // Обмежені ролі (Стажер/Ранер/Хозяюшка) — доступ ЛИШЕ до графіку + профілю; будь-що інше → графік
   const _rlim = (state.role || '').toLowerCase();
-  if ((_rlim === 'trainee' || _rlim === 'runner') && !['schedule', 'profile', 'auth'].includes(route)) {
+  if (SCHEDULE_ONLY_ROLES.includes(_rlim) && !['schedule', 'profile', 'auth'].includes(route)) {
     route = 'schedule';
   }
   const page = PAGES[route];
@@ -910,7 +911,7 @@ export function goBack() {
 function updateTabBarActive() {
   const el = document.getElementById('app-tab-bar');
   if (!el || !el.children.length) { renderTabBar(); return; }
-  const tabs = state.role === 'trainee' || state.role === 'runner' ? TAB_BAR_TRAINEE
+  const tabs = SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
              : state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
              : state.role === 'admin' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
@@ -954,7 +955,7 @@ function updateDrawerActive() {
 function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
-  const tabs = state.role === 'trainee' || state.role === 'runner' ? TAB_BAR_TRAINEE
+  const tabs = SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
              : state.role === 'admin'       ? TAB_BAR_MANAGER
              : state.role === 'manager'     ? TAB_BAR_MGR_JOURNAL
              : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
