@@ -125,8 +125,34 @@ body {
   #phone[data-page="analytics"]   #app-view > *,
   #phone[data-page="team"]        #app-view > * { max-width: none; }
 
-  /* Нижнє меню-вкладки — по центру, щоб не розповзалось на всю ширину */
-  #app-tab-bar { justify-content: center; gap: clamp(16px, 3vw, 52px); }
+  /* ── Нижній таб-бар → верхній хедер-меню (як на сайті) ── */
+  #app-tab-bar {
+    order: -1;                              /* flex order: піднімаємо на верх вікна */
+    justify-content: flex-start;
+    gap: 2px;
+    padding: 8px 18px;
+    border-top: none;
+    border-bottom: 0.5px solid var(--border);
+  }
+  /* Пункти — іконка+підпис у рядок, як навігаційні лінки */
+  #app-tab-bar .tab-bar__item,
+  #app-tab-bar .tab-bar__fab-wrap {
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    transition: background .15s;
+  }
+  #app-tab-bar .tab-bar__item:hover,
+  #app-tab-bar .tab-bar__fab-wrap:hover { background: var(--bg2); }
+  #app-tab-bar .tab-bar__item--active { background: rgba(168,139,255,0.10); }
+  #app-tab-bar .tab-bar__label { font-size: 13px; font-weight: 500; }
+  /* Центральна FAB стає звичайним пунктом (без «підняття» й тіні) */
+  #app-tab-bar .tab-bar__fab {
+    width: 28px; height: 28px; border-radius: 8px;
+    margin-top: 0; box-shadow: none;
+  }
+  #app-tab-bar .tab-bar__fab svg { width: 16px; height: 16px; }
 }
 
 /* ────────────────────────────
