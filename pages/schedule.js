@@ -104,6 +104,9 @@ const BASE_DEFAULTS = {
   bartenders: { s: '09:00', e: '23:00' },
   waiters:    { s: '11:00', e: '23:00' },
   cleaners:   { s: '06:00', e: '14:00' },
+  managers:   { s: '09:00', e: '22:00' },
+  security:   { s: '09:00', e: '21:00' },
+  storekeeper:{ s: '08:00', e: '17:00' },
 };
 const DEFAULTS = JSON.parse(JSON.stringify(BASE_DEFAULTS));   // робоча копія (мутується + персиститься)
 function defaultsKey() { return 'barops_sch_def_' + (_venueId || state.venueId || localStorage.getItem('barops_venueId') || ''); }
@@ -1178,11 +1181,12 @@ function renderRoleView(roleKey) {
   }
 
   // Defaults (edit mode)
+  const _def = DEFAULTS[roleKey] || { s: '09:00', e: '23:00' };   // фолбек — новий підрозділ без запису в DEFAULTS
   const defaultsSection = _mode === 'edit' ? `
     <div style="margin:0 18px 12px;padding:12px 14px;background:var(--bg1);border:0.5px solid rgba(168,139,255,0.22);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
       <div>
         <div style="font-size:10px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Стандартна зміна</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text0);font-variant-numeric:tabular-nums">${DEFAULTS[roleKey].s} – ${DEFAULTS[roleKey].e}</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text0);font-variant-numeric:tabular-nums">${_def.s} – ${_def.e}</div>
       </div>
       <button onclick="window.__sch.openDefaultsSheet('${roleKey}')" style="height:30px;padding:0 12px;border-radius:8px;background:rgba(168,139,255,0.10);border:0.5px solid rgba(168,139,255,0.28);font-size:12px;color:var(--green);cursor:pointer;font-family:inherit">Змінити</button>
     </div>` : '';
@@ -1792,7 +1796,7 @@ export function init() {
 
     resetToDefault() {
       if (!_cellSheet) return;
-      const def = DEFAULTS[_cellSheet.roleKey];
+      const def = DEFAULTS[_cellSheet.roleKey] || { s: '09:00', e: '23:00' };
       const s = document.getElementById('sch-t-start');
       const e = document.getElementById('sch-t-end');
       if (s) s.value = def.s;
@@ -1803,10 +1807,11 @@ export function init() {
       if (!_cellSheet) return;
       const { roleKey, pi, di, station } = _cellSheet;
       const isOff = _cellMode === 'off';
+      const _rdef = DEFAULTS[roleKey] || { s: '09:00', e: '23:00' };
       const value = isOff
         ? { dayOff: true }
-        : { s: document.getElementById('sch-t-start')?.value || DEFAULTS[roleKey].s,
-            e: document.getElementById('sch-t-end')?.value   || DEFAULTS[roleKey].e,
+        : { s: document.getElementById('sch-t-start')?.value || _rdef.s,
+            e: document.getElementById('sch-t-end')?.value   || _rdef.e,
             station: station || null };
       _rosters[roleKey].grid[pi][di] = value;
       saveShiftToStorage(roleKey, pi, di, isOff ? null : value);   // зняти зміну, якщо вихідний
