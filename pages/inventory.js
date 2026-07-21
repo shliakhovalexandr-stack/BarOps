@@ -59,9 +59,10 @@ let _search          = '';     // пошук товару
 /* ── Параметризація за видом інвентаризації (бар / посуд / далі кухня) ── */
 // kind визначається за маршрутом; bar = стара поведінка (нічого не змінюється).
 const INV_KIND = {
-  bar:      { title: '',                      store: null,            photoCfg: false },
-  dishware: { title: 'Інвентаризація посуд',   store: /посуд/i,        photoCfg: true  },
-  kitchen:  { title: 'Інвентаризація кухні',   store: /кух|kitchen/i,  photoCfg: false },
+  bar:       { title: 'Інвентаризація бару',      store: null,                        photoCfg: false },
+  dishware:  { title: 'Інвентаризація посуд',     store: /посуд/i,                    photoCfg: true  },
+  kitchen:   { title: 'Інвентаризація кухні',     store: /кух|kitchen/i,              photoCfg: false },
+  household: { title: 'Інвентаризація хозтоварів', store: /хоз|госп|побут|household/i, photoCfg: false },
 };
 let _kind        = 'bar';
 let _posMode     = '';         // тип POS закладу ('poster' | 'syrve' | '')
@@ -81,14 +82,17 @@ function isDish() { return _kind === 'dishware'; }
 function isChef() { return (_role || '').toLowerCase() === 'chef'; }
 function isKitchenRole() { return ['chef', 'cook'].includes((_role || '').toLowerCase()); } // кухонні ролі рахують кухню (шеф керує, кухар лише рахує)
 function isKitchen() { return _kind === 'kitchen'; }                   // вид «кухня»
+function isHousehold() { return _kind === 'household'; }               // вид «хоз товари»
 function posLabel() { return _posMode === 'poster' ? 'Poster' : 'Syrve'; }   // назва POS для міток
+// Керівні ролі, що планують інвентаризацію по ЗОНАХ (бар/кухня/хоз) — з перемикачем зон.
+function canPlanZones() { return ['admin', 'accountant', 'director'].includes((_role || '').toLowerCase()); }
 // Хто бачить менеджерський вид (планування/налаштування):
-//   бар — admin/accountant (як було); посуд — ще й manager/director; кухня — шеф (керує власною інвентаризацією).
+//   керуючий/бухгалтер/адмін — усі зони (бар/кухня/хоз); шеф — кухня; менеджер — посуд.
 function canManageInv() {
   const r = (_role || '').toLowerCase();
-  if (r === 'admin' || r === 'accountant') return true;
+  if (r === 'admin' || r === 'accountant' || r === 'director') return true;
   if (isKitchen() && r === 'chef') return true;
-  return isDish() && (r === 'manager' || r === 'director');
+  return isDish() && r === 'manager';
 }
 
 // ── Розподіл позицій (посуд) ──
@@ -228,6 +232,10 @@ const CSS = `<style id="inv-css">
 .inv-role-tabs{display:flex;gap:2px;margin:8px 20px 4px;background:var(--bg1);border:0.5px solid var(--border);border-radius:9px;padding:3px;flex-shrink:0}
 .inv-rtab{flex:1;height:30px;border-radius:7px;border:none;background:transparent;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
 .inv-rtab.act{background:var(--bg3);color:var(--text0);border:0.5px solid var(--border)}
+/* Zone tabs (керівні: бар/кухня/хоз) */
+.inv-zone-tabs{display:flex;gap:6px;margin:6px 18px 4px;flex-shrink:0}
+.inv-ztab{flex:1;height:34px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg1);font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer;font-family:var(--font-b);transition:all .15s}
+.inv-ztab.act{background:var(--purple-bg,rgba(168,139,255,.14));color:var(--purple,#a88bff);border-color:var(--purple,#a88bff)}
 
 /* Session header */
 .inv-session-hdr{margin:10px 20px 16px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:14px;padding:14px 16px}
@@ -844,6 +852,8 @@ async function loadAll() {
         ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || ''))
         : isKitchen()
         ? (d.stores || []).filter(s => /кух|kitchen/i.test(s.storeName || ''))
+        : isHousehold()
+        ? (d.stores || []).filter(s => /хоз|госп|побут|household/i.test(s.storeName || ''))
         // бар (Syrve+Poster): усі барні склади (Бар ТОВ/ФОП/Хочу + «Без залишку · Бар»), без обладнання/інвентарю
         : (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '') && !/обладнан|інвентар|inventar|equipment/i.test(s.storeName || ''));
       if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
@@ -1112,7 +1122,7 @@ async function submitInventory(dryRun) {
         items:        syrveItems,
         preparations: prepPayload,
         date:    os.scheduledAt,
-        comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : isKitchen() ? 'Інвентаризація кухні' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
+        comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : isKitchen() ? 'Інвентаризація кухні' : isHousehold() ? 'Інвентаризація хозтоварів' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
         dryRun:  !!dryRun,
         ...(isDish() && _dishStoreId ? { storeId: _dishStoreId } : isKitchen() && _kitchenStoreId ? { storeId: _kitchenStoreId } : {}),
       }),
@@ -1190,7 +1200,7 @@ function buildPage() {
     ${CSS}
     <div class="inv-wrap">
       ${(state.role || '').toLowerCase() === 'accountant' ? `<div style="padding:8px 20px 0;display:flex"><div onclick="window.__barops.openDrawer()" aria-label="Меню" style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);border:0.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0"><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div><div style="width:14px;height:1.5px;background:var(--text1);border-radius:1px"></div></div></div>` : `<div style="padding:10px 18px 0;display:flex"><div onclick="window.__barops.navigate('dashboard')" aria-label="Назад" style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>`}
-      ${(isDish() || isKitchen()) ? `<div style="padding:2px 20px 6px"><div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em">${kindCfg().title}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${(state.venue || '')}</div></div>` : ''}
+      ${(isDish() || isKitchen() || isHousehold()) ? `<div style="padding:2px 20px 6px"><div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:var(--text0);letter-spacing:-.02em">${kindCfg().title}</div><div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${(state.venue || '')}</div></div>` : ''}
       ${canManageInv() ? roleTabs() : ''}
       <div class="inv-scroll" id="inv-scroll">
         ${_view === 'mgr' ? buildMgr() : buildBar()}
@@ -1751,12 +1761,23 @@ function inputPanelHTML(p, c, m) {
 
 /* ── MANAGER VIEW ── */
 
+// Перемикач зон для керівних ролей: Бар / Кухня / Хоз товари (кожну планують окремо)
+function zoneSwitcher() {
+  if (!canPlanZones()) return '';
+  const zones = [['bar', 'Бар'], ['kitchen', 'Кухня'], ['household', 'Хоз товари']];
+  return `
+    <div class="inv-zone-tabs">
+      ${zones.map(([k, l]) => `<button class="inv-ztab${_kind === k ? ' act' : ''}" data-a="zone" data-zone="${k}">${l}</button>`).join('')}
+    </div>`;
+}
+
 function buildMgr() {
   return `
+    ${zoneSwitcher()}
     ${_error ? `<div class="inv-alert" style="margin-top:10px">${_error}</div>` : ''}
 
     <div class="inv-sec">
-      Сесії
+      Сесії${canPlanZones() ? ' · ' + (INV_KIND[_kind]?.title || '').replace('Інвентаризація ', '') : ''}
       <button class="inv-sec-link" data-a="sched-toggle">
         ${_showSchedForm ? '✕ Скасувати' : '+ Запланувати'}
       </button>
@@ -2177,6 +2198,16 @@ function on(e) {
 
   if (a === 'tab-bar') { _view = 'bar'; re(); return; }
   if (a === 'tab-mgr') { _view = 'mgr'; re(); return; }
+  // Перемикач зон (керівні ролі): бар/кухня/хоз — окреме планування кожної
+  if (a === 'zone') {
+    const z = t.dataset.zone;
+    if (z && z !== _kind && INV_KIND[z]) {
+      _kind = z; _showSchedForm = false; _calOpen = false; _openPid = null; _search = '';
+      _balance = []; _sessions = []; _counts = {};
+      re(); loadAll();
+    }
+    return;
+  }
   if (a === 'cfg-filter') { _cfgFilter = _cfgFilter === 'unset' ? 'all' : 'unset'; re(); return; }
   if (a === 'search-clear') { _search = ''; re(); return; }
   if (a === 'hist-toggle') {
