@@ -968,7 +968,9 @@ function renderTabBar() {
              : state.role === 'chef'        ? TAB_BAR_CHEF
              : state.role === 'waiter'      ? TAB_BAR_WAITER
              : TAB_BAR_BARTENDER;
-  el.innerHTML = tabs.map(tab => {
+  // Лого зліва — видно лише на десктопі (CSS ховає на телефоні); клік → головна
+  const brand = `<div class="tab-bar__brand" onclick="window.__barops.navigate('dashboard')">bar<span>ops.</span></div>`;
+  el.innerHTML = brand + tabs.map(tab => {
     const isActive = state.route === tab.route;
     const color = isActive ? 'var(--green)' : 'var(--text2)';
     if (tab.fab) return `

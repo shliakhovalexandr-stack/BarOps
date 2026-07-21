@@ -14,6 +14,9 @@
   position: relative;
 }
 
+/* Лого-бренд у меню — лише на десктопі (див. index.html @media); на телефоні приховано */
+.tab-bar__brand { display: none; }
+
 .tab-bar__item {
   display: flex;
   flex-direction: column;

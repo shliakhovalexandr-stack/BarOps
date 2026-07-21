@@ -134,6 +134,21 @@ body {
     border-top: none;
     border-bottom: 0.5px solid var(--border);
   }
+  /* Лого зліва — як на сайті; веде на головну */
+  #app-tab-bar .tab-bar__brand {
+    display: flex;
+    align-items: center;
+    font-family: 'Geist', 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: -0.045em;
+    color: var(--text0);
+    padding: 0 10px 0 6px;
+    margin-right: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  #app-tab-bar .tab-bar__brand span { color: var(--green); }
   /* Пункти — іконка+підпис у рядок, як навігаційні лінки */
   #app-tab-bar .tab-bar__item,
   #app-tab-bar .tab-bar__fab-wrap {
