@@ -246,6 +246,8 @@ const CSS = `<style id="an-css">
 .an-swipe-con{flex:1;min-width:100%}
 .an-swipe-del{width:90px;flex-shrink:0;background:var(--red,#dc3c32);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:2px}
 .an-swipe-del span{font-size:11px;color:#fff;font-family:var(--font-b);font-weight:600;text-align:center;line-height:1.3;padding:0 6px}
+/* ── Десктоп: контент по центру, ширше для порівняльних таблиць ── */
+@media (min-width:1024px){ .an-scroll{max-width:1040px;margin:0 auto;width:100%} }
 </style>`;
 
 // ── Filter bar ────────────────────────────────────────────────

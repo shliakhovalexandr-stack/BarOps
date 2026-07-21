@@ -334,6 +334,12 @@ const CSS = `<style id="dash-css">
 /* skeleton */
 .d-skel{background:var(--glass-bg);border-radius:12px;animation:dSkel 1.2s ease-in-out infinite}
 @keyframes dSkel{0%,100%{opacity:.4}50%{opacity:.9}}
+/* ── Десктоп: головна ширшою сіткою плиток, контент по центру ── */
+@media (min-width:1024px){
+  .d-scroll{max-width:1100px;margin:0 auto;width:100%}
+  .d-grid{grid-template-columns:repeat(4,1fr)}
+  .d-mgr-grid{grid-template-columns:repeat(3,1fr)}
+}
 </style>`;
 
 /* ════════════════════════
