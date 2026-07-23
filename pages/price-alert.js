@@ -16,7 +16,7 @@ function roleZones() {
   const r = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
   if (r === 'chef' || r === 'cook') return ['kitchen'];
   if (r === 'accountant')           return ['bar', 'kitchen', 'household', 'dishware', 'other'];
-  return ['bar', 'kitchen'];
+  return ['bar', 'kitchen', 'other'];   // системний менеджер / керуючий: бар+кухня окремо + «Інше» (некласифіковані склади)
 }
 const ZONE_LABEL = { kitchen: 'кухня', bar: 'бар', household: 'госп-товари', dishware: 'посуд', other: 'інше' };
 const ZONE_TAB   = { kitchen: 'Кухня', bar: 'Бар', household: 'Госп', dishware: 'Посуд', other: 'Інше' };
