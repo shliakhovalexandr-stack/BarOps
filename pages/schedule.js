@@ -28,7 +28,7 @@ function canEdit() {
 //   адмін(сис.менеджер) → ВСІ;  менеджер/керуючий → офіціанти + хозяюшки;
 //   шеф → лише кухарі;  кухар/бармен/офіціант/бухгалтер → лише перегляд.
 // Підрозділи, які веде менеджер/керуючий (окрім барменів=адмін і кухні=шеф)
-const MGR_DEPTS = ['waiters', 'cleaners', 'managers', 'security', 'storekeeper'];
+const MGR_DEPTS = ['waiters', 'cleaners', 'managers', 'security', 'storekeeper', 'hostess', 'babysitter'];
 function canEditDept(key) {
   const r = resolveRole();
   if (r === 'admin')                       return true;
@@ -63,10 +63,12 @@ const ROLE_CONFIG = {
   bartenders: { label: 'Бармени',   icon: 'glass', color: 'var(--green)', bgIcon: 'rgba(168,139,255,0.10)',  bdIcon: 'rgba(168,139,255,0.28)',  apiRoles: ['bartender','barman']             },
   waiters:    { label: 'Офіціанти', icon: 'tray',  color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['waiter']                         },
   managers:   { label: 'Менеджери', icon: 'badge', color: 'var(--blue)',  bgIcon: 'rgba(96,165,250,0.10)',   bdIcon: 'rgba(96,165,250,0.28)',   apiRoles: ['manager']                        },
-  cleaners:   { label: 'Хозяюшки', icon: 'broom', color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['hostess','cleaner','housekeeper'] },
+  cleaners:   { label: 'Хозяюшки', icon: 'broom', color: 'var(--success)', bgIcon: 'rgba(134,239,172,0.10)',  bdIcon: 'rgba(134,239,172,0.28)',  apiRoles: ['cleaner','housekeeper'] },
   // Опційні: показуються лише в закладах, де є такий персонал (напр. Тераса)
   security:   { label: 'Охоронці', icon: 'shield', color: 'var(--red,#e85555)', bgIcon: 'rgba(232,85,85,0.10)', bdIcon: 'rgba(232,85,85,0.28)', apiRoles: ['security','guard'],       optional: true },
   storekeeper:{ label: 'Завгосп',  icon: 'box',    color: 'var(--amber)',       bgIcon: 'rgba(251,191,36,0.10)', bdIcon: 'rgba(251,191,36,0.28)', apiRoles: ['storekeeper','warehouse'], optional: true },
+  hostess:    { label: 'Хостес',    icon: 'star',  color: 'var(--teal)',        bgIcon: 'rgba(34,211,238,0.10)',  bdIcon: 'rgba(34,211,238,0.28)',  apiRoles: ['hostess'],                optional: true },
+  babysitter: { label: 'Babysitter', icon: 'heart', color: 'var(--purple,#a855f7)', bgIcon: 'rgba(168,139,255,0.10)', bdIcon: 'rgba(168,139,255,0.28)', apiRoles: ['babysitter'],        optional: true },
 };
 
 /* ════════════════════════════════════════
@@ -107,6 +109,8 @@ const BASE_DEFAULTS = {
   managers:   { s: '09:00', e: '22:00' },
   security:   { s: '09:00', e: '21:00' },
   storekeeper:{ s: '08:00', e: '17:00' },
+  hostess:    { s: '11:00', e: '23:00' },
+  babysitter: { s: '11:00', e: '23:00' },
 };
 const DEFAULTS = JSON.parse(JSON.stringify(BASE_DEFAULTS));   // робоча копія (мутується + персиститься)
 function defaultsKey() { return 'barops_sch_def_' + (_venueId || state.venueId || localStorage.getItem('barops_venueId') || ''); }
@@ -639,6 +643,7 @@ function roleIcon(icon) {
     shield:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
     box:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>`,
     broom:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2L9 14"/><path d="M3 22l7-7"/><path d="M7 22c0-2.8 2.2-5 5-5"/><path d="M21 2l-5 5"/></svg>`,
+    heart:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>`,
   };
   return m[icon] || m.star;
 }
@@ -681,7 +686,7 @@ const ROLE_LABEL = {
   chef: 'Шеф', cook: 'Кухар', bartender: 'Бармен', barman: 'Бармен',
   waiter: 'Офіціант', manager: 'Менеджер', admin: 'Системний менеджер',
   hostess: 'Хостес', cleaner: 'Хозяюшка', housekeeper: 'Хозяюшка',
-  accountant: 'Бухгалтер',
+  babysitter: 'Babysitter', accountant: 'Бухгалтер',
 };
 function shortName(n) {
   const p = (n || '').trim().split(/\s+/);

@@ -200,7 +200,7 @@ const CSS = `<style id="tm-css">
 ════════════════════════ */
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 function roleLabel(role) {
-  const map = { admin:'Системний менеджер', manager:'Менеджер', director:'Керуючий', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант', trainee:'Стажер', runner:'Ранер', cleaner:'Хозяюшка', hostess:'Хозяюшка', housekeeper:'Хозяюшка', security:'Охоронець', guard:'Охоронець', storekeeper:'Завгосп', warehouse:'Завгосп' };
+  const map = { admin:'Системний менеджер', manager:'Менеджер', director:'Керуючий', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант', trainee:'Стажер', runner:'Ранер', cleaner:'Хозяюшка', hostess:'Хостес', housekeeper:'Хозяюшка', babysitter:'Babysitter', security:'Охоронець', guard:'Охоронець', storekeeper:'Завгосп', warehouse:'Завгосп' };
   return map[(role||'').toLowerCase()] || role || 'Бармен';
 }
 function roleClass(role) {
@@ -220,6 +220,8 @@ const ROLE_OPTIONS = [
   ['COOK',       '🍳', 'Кухар'],
   ['WAITER',     '🍽', 'Офіціант'],
   ['CLEANER',    '🧹', 'Хозяюшка'],
+  ['HOSTESS',    '💁', 'Хостес'],
+  ['BABYSITTER', '🧸', 'Babysitter'],
   ['SECURITY',   '💂', 'Охоронець'],
   ['STOREKEEPER','📦', 'Завгосп'],
   ['TRAINEE',    '🎓', 'Стажер'],
@@ -233,7 +235,7 @@ const ROLE_OPTIONS = [
 // решта (керуючий тощо) — усі, окрім Системного менеджера.
 function availableRoleOptions() {
   const r = (state.role || '').toLowerCase();
-  if (r === 'manager') return ROLE_OPTIONS.filter(o => ['WAITER', 'MANAGER', 'TRAINEE', 'RUNNER', 'CLEANER', 'SECURITY', 'STOREKEEPER'].includes(o[0]));
+  if (r === 'manager') return ROLE_OPTIONS.filter(o => ['WAITER', 'MANAGER', 'TRAINEE', 'RUNNER', 'CLEANER', 'HOSTESS', 'BABYSITTER', 'SECURITY', 'STOREKEEPER'].includes(o[0]));
   if (r === 'chef')    return ROLE_OPTIONS.filter(o => o[0] === 'COOK' || o[0] === 'CHEF');   // шеф — лише кухня
   if (r === 'admin')   return ROLE_OPTIONS;
   return ROLE_OPTIONS.filter(o => o[0] !== 'ADMIN');
@@ -275,7 +277,8 @@ const TEAM_GROUPS = [
   { label: 'Бармени',     roles: ['bartender', 'barman'] },
   { label: 'Кухня',       roles: ['chef', 'cook'] },
   { label: 'Офіціанти',   roles: ['waiter'] },
-  { label: 'Хозяюшки',    roles: ['cleaner', 'hostess', 'housekeeper'] },
+  { label: 'Хозяюшки',    roles: ['cleaner', 'housekeeper'] },
+  { label: 'Хостес / Babysitter', roles: ['hostess', 'babysitter'] },
   { label: 'Охорона / Завгосп', roles: ['security', 'guard', 'storekeeper', 'warehouse'] },
   { label: 'Стажери / Ранери', roles: ['trainee', 'runner'] },
 ];

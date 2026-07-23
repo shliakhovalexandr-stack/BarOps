@@ -220,7 +220,7 @@ const TAB_BAR_COOK = [
 ];
 
 // Ролі з доступом ЛИШЕ до перегляду графіку (+ профіль для виходу): стажер, ранер, хозяюшка
-const SCHEDULE_ONLY_ROLES = ['trainee', 'runner', 'cleaner', 'hostess', 'housekeeper', 'security', 'guard', 'storekeeper', 'warehouse'];
+const SCHEDULE_ONLY_ROLES = ['trainee', 'runner', 'cleaner', 'hostess', 'housekeeper', 'babysitter', 'security', 'guard', 'storekeeper', 'warehouse'];
 const TAB_BAR_TRAINEE = [
   {
     route: 'schedule', label: 'Графік',
