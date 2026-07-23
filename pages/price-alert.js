@@ -109,7 +109,7 @@ function cardHTML(a) {
     <div class="pa-card ${a.highFc ? 'red' : ''}"${hasDetail ? ` onclick="window.__pa.toggle('${a.dishId}')" style="cursor:pointer"` : ''}>
       <div class="pa-card-row">
         <div class="pa-card-main">
-          <div class="pa-card-name">${esc(a.name)}</div>
+          <div class="pa-card-name">${esc(a.name)}${a.estimated ? ' <span style="color:var(--text3);font-weight:400" title="собівартість оцінена (без продажів)">≈</span>' : ''}</div>
           <div class="pa-card-meta">фудкост ${fcTxt} · маржа <b>${money(a.marginNow)} ₴</b> · ціна ${money(a.sellingPrice)} ₴</div>
           ${culpLine}
         </div>
@@ -143,7 +143,7 @@ function listHTML() {
   if (nRed) bits.push(`${nRed} з високим фудкостом`);
   if (nDrop) bits.push(`${nDrop} із падінням маржі`);
   return `
-    <div class="pa-sub">${bits.join(' · ')}. Червоне — фудкост вище норми; ▲ — інгредієнт, що підняв собівартість. Лише страви, що реально продаються.</div>
+    <div class="pa-sub">${bits.join(' · ')}. Червоне — фудкост вище норми; ▲ — інгредієнт, що підняв собівартість; «≈» — собівартість оцінена (страва без продажів у періоді).</div>
     ${list.map(cardHTML).join('')}`;
 }
 
