@@ -115,7 +115,7 @@ function listHTML() {
   if (nRed) bits.push(`${nRed} з високим фудкостом`);
   if (nDrop) bits.push(`${nDrop} із падінням маржі`);
   return `
-    <div class="pa-sub">${bits.join(' · ')}. Червоне — фудкост вище норми; ▲ — інгредієнт, що підняв собівартість. «≈» — оцінка з ТТК.</div>
+    <div class="pa-sub">${bits.join(' · ')}. Червоне — фудкост вище норми; ▲ — інгредієнт, що підняв собівартість. Лише страви, що реально продаються.</div>
     ${list.map(cardHTML).join('')}`;
 }
 
