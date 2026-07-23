@@ -124,7 +124,7 @@ function priceChipHTML(r) {
 function bigChangeCount() { return _rows.filter(r => { const d = priceDelta(r); return d && Math.abs(d.pct) >= BIG_PCT; }).length; }
 function bigWarnHTML() {
   const n = bigChangeCount();
-  return n ? `⚠️ ${n} поз. суттєво змінили ціну проти минулого приходу — перевір суми перед проведенням` : '';
+  return n ? `⚠️ ${n} поз. сильно відрізняються від останньої закупівельної ціни — перевір кількість і суму (можлива помилка)` : '';
 }
 function refreshPriceUI() {
   _rows.forEach((r, i) => { const c = document.getElementById('io-chip-' + i); if (c) c.innerHTML = priceChipHTML(r); });
