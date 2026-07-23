@@ -10,6 +10,14 @@ import { state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 function token()   { return localStorage.getItem('barops_token') || state.token || ''; }
 function venueId()  { return state.venueId || localStorage.getItem('barops_venueId') || ''; }
+// Зона за роллю: шеф/кухар → кухня; системний менеджер (admin) → бар; керуючий/інші → усі зони
+function roleZone() {
+  const r = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
+  if (r === 'chef' || r === 'cook') return 'kitchen';
+  if (r === 'admin') return 'bar';
+  return '';
+}
+const ZONE_LABEL = { kitchen: 'кухня', bar: 'бар' };
 
 let _alerts  = null;    // null=ще не вантажили | масив
 let _loading = false;
@@ -85,7 +93,7 @@ function buildHTML() {
         <div class="pa-back" onclick="window.__barops.navigate('dashboard')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="pa-ttl">Алерт ціни</div>
+        <div class="pa-ttl">Алерт цін${ZONE_LABEL[roleZone()] ? ` · ${ZONE_LABEL[roleZone()]}` : ''}</div>
         <button class="pa-refresh" onclick="window.__pa.reload()" title="Оновити">↻</button>
       </div>
       <div class="pa-scroll">${listHTML()}</div>
@@ -99,7 +107,8 @@ async function load() {
   _loading = true; _err = ''; re();
   try {
     const vid = venueId();
-    const r = await fetch(`${API}/api/invoices/price-alerts/${vid}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const zone = roleZone();
+    const r = await fetch(`${API}/api/invoices/price-alerts/${vid}${zone ? `?zone=${zone}` : ''}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json().catch(() => ({}));
     if (!r.ok || !d.success) throw new Error(d.error || 'Не вдалося завантажити');
     _alerts  = d.alerts || [];

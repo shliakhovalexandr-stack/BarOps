@@ -184,6 +184,12 @@ const QUICK_ADMIN = [
          <path d="M5 10h2M8 10h2M11 10h2M5 13h2M8 13h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` },
 ];
 
+// Алерт цін постачальників (підняття цін). Зона фільтрується на сторінці за роллю:
+// шеф→кухня, системний менеджер (admin)→бар, керуючий (director)→все.
+const QUICK_PRICE_ALERT = { route:'price-alert', badge:null, label:'Алерт цін', hint:'Підняття цін постачальників', color:'var(--amber-bg)', iconColor:'var(--amber)',
+  svg:`<path d="M2 12l4-4 3 3 5-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+       <path d="M11 5h4v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` };
+
 /* ════════════════════════
    SCOPED CSS
 ════════════════════════ */
@@ -365,15 +371,15 @@ function quickGrid(items) {
 // ── Нова головна: плитки-сітка по секціях ──────────────────
 function tileByRoute() {
   const m = {};
-  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION, QUICK_DISASSEMBLY]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
-// Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист
-const CHEF_ROUTES = ['performance', 'playlist', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'production', 'disassembly', 'inventory'];
+// Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист + алерт цін (кухня)
+const CHEF_ROUTES = ['performance', 'playlist', 'price-alert', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'production', 'disassembly', 'inventory'];
 
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
-  ['Зведення',         ['digest', 'performance', 'discipline', 'playlist']],
+  ['Зведення',         ['digest', 'performance', 'discipline', 'playlist', 'price-alert']],
   ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
   ['Акти',             ['production', 'disassembly']],   // акти в Syrve (приготування + розбір). Порожній — ховається
   ['Ревізія',          ['dishware']],
@@ -639,8 +645,8 @@ function buildHTML() {
   const isAcc = (state.role || '').toLowerCase() === 'accountant';
   // Керуючий — менеджерські швидкі дії (без Замовлень/Інвентаризації) + «Графіки»
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
-  const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY]
-              : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
+  const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT]
+              : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : []), QUICK_PRICE_ALERT]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? [QUICK_INVOICE_OCR, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
