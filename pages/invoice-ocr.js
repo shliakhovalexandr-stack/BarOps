@@ -41,8 +41,9 @@ let _batchCreated  = 0;      // скільки накладних СТВОРЕН
 let _batchCount    = 0;      // скільки накладних опрацьовано
 let _lastPrices    = {};     // productId → { price, median, volatile, date, points } — з історії Syrve (порівняння цін)
 let _dupInfo       = null;   // детект дубля накладної: { duplicate, matches:[{source,date,docNumber,supplierName}] }
-const BIG_PCT      = 40;     // «суттєва» різниця ціни (%) — марка «щось не так» (грубі помилки введення)
-const CHIP_MIN_PCT = 10;     // менші відхилення не показуємо чипом (шум)
+const BIG_PCT      = 40;     // >40% → червоний «перевір» (груба помилка введення)
+const WARN_PCT     = 10;     // 10–40% → помаранчевий + банер
+const CHIP_MIN_PCT = 1;      // <1% — суто округлення, чип не показуємо
 const ASSORTMENT_RE = /асортимент|ассорт|assort/i;   // «в асортименті» — кошик різних товарів, ціну не порівнюємо
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -121,17 +122,17 @@ function priceDelta(r) {
 }
 function priceChipHTML(r) {
   const d = priceDelta(r);
-  if (!d || Math.abs(d.pct) < CHIP_MIN_PCT) return '';       // дрібні відхилення — шум, не показуємо
-  const up = d.pct > 0, mag = Math.abs(d.pct), big = mag >= BIG_PCT;
-  const cls = up ? (big ? 'red' : 'amber') : (big ? 'red' : 'green');
+  if (!d || Math.abs(d.pct) < CHIP_MIN_PCT) return '';       // <1% — округлення, не показуємо
+  const up = d.pct > 0, mag = Math.abs(d.pct), big = mag > BIG_PCT;
+  const cls = big ? 'red' : (mag >= WARN_PCT ? 'amber' : 'grey');   // тир за величиною: <10 сірий, 10–40 помаранч., >40 черв.
   return `<div class="io-pchip ${cls}"><span class="io-pchip-p">${up ? '↑ +' : '↓ '}${d.pct}%</span>`
     + `<span class="io-pchip-x">типова ${money(d.old)} → ${money(d.now)} ₴/${baseUnitOf(r) || 'од'}</span>`
     + `${big ? '<span class="io-pchip-b">перевір</span>' : ''}</div>`;
 }
-function bigChangeCount() { return _rows.filter(r => { const d = priceDelta(r); return d && Math.abs(d.pct) >= BIG_PCT; }).length; }
+function bigChangeCount() { return _rows.filter(r => { const d = priceDelta(r); return d && Math.abs(d.pct) >= WARN_PCT; }).length; }
 function bigWarnHTML() {
   const n = bigChangeCount();
-  return n ? `⚠️ ${n} поз. сильно відрізняються від типової закупівельної ціни — перевір кількість і суму (можлива помилка)` : '';
+  return n ? `⚠️ ${n} поз. відрізняються від типової ціни на 10%+ — перевір кількість і суму (можлива помилка)` : '';
 }
 function refreshPriceUI() {
   _rows.forEach((r, i) => { const c = document.getElementById('io-chip-' + i); if (c) c.innerHTML = priceChipHTML(r); });
@@ -277,6 +278,7 @@ const CSS = `<style id="invoc-css">
 .io-pchip.red{background:var(--red-bg,#2a1212);color:var(--red,#ff6b6b)}
 .io-pchip.amber{background:var(--amber-bg,#2e2410);color:var(--amber,#E0A93B)}
 .io-pchip.green{background:var(--green-bg);color:var(--green)}
+.io-pchip.grey{background:var(--bg3);color:var(--text2)}
 .io-bigwarn{background:var(--amber-bg,#2e2410);border:0.5px solid var(--amber-border,#4a3a10);color:var(--amber,#e8b84a);font-size:12px;font-family:var(--font-b);border-radius:11px;padding:9px 12px;margin:0 2px 10px;line-height:1.4}
 .io-dupwarn{background:var(--red-bg,#2a1212);border:0.5px solid var(--red-border,#5c2d2d);color:var(--red,#ff6b6b);font-size:12.5px;font-family:var(--font-b);border-radius:12px;padding:10px 13px;margin:0 0 10px;line-height:1.45}
 .io-dupwarn b{font-weight:700}
