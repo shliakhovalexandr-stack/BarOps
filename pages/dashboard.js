@@ -387,7 +387,7 @@ const SECTIONS_MGR = [
 ];
 const SECTIONS_WORKER = [
   ['Акти',      ['production', 'disassembly']],   // акт приготування/розбору → вгорі для кухаря
-  ['Аналітика', ['performance']],   // лише для тих, у кого є плитка (напр. шеф-кухар)
+  ['Аналітика', ['performance', 'price-alert']],   // лише для тих, у кого є плитка (шеф-кухар/бухгалтер)
   ['Операції',  ['writeoff', 'inventory', 'dishware', 'ordering', 'ocr', 'excise']],
   ['Рецепти',   ['recipe-book']],   // напр. кухар — рецепти кухні
   ['Моя зміна', ['cash', 'stop-list', 'debts', 'schedule', 'current-shift']],
@@ -648,7 +648,7 @@ function buildHTML() {
   const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT]
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : []), QUICK_PRICE_ALERT]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
-              : isAcc ? [QUICK_INVOICE_OCR, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
+              : isAcc ? [QUICK_INVOICE_OCR, QUICK_PRICE_ALERT, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
               : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_PRODUCTION, QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар, замовлення + виробництво + рецепти кухні

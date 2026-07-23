@@ -10,19 +10,24 @@ import { state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 function token()   { return localStorage.getItem('barops_token') || state.token || ''; }
 function venueId()  { return state.venueId || localStorage.getItem('barops_venueId') || ''; }
-// Зона за роллю: шеф/кухар → кухня; системний менеджер (admin) → бар; керуючий/інші → усі зони
-function roleZone() {
+// Зони, які бачить роль (таби):
+//  шеф/кухар → лише кухня; бухгалтер → усі (бар/кухня/госп/посуд/інше); системний менеджер, керуючий → бар+кухня
+function roleZones() {
   const r = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
-  if (r === 'chef' || r === 'cook') return 'kitchen';
-  if (r === 'admin') return 'bar';
-  return '';
+  if (r === 'chef' || r === 'cook') return ['kitchen'];
+  if (r === 'accountant')           return ['bar', 'kitchen', 'household', 'dishware', 'other'];
+  return ['bar', 'kitchen'];
 }
-const ZONE_LABEL = { kitchen: 'кухня', bar: 'бар' };
+const ZONE_LABEL = { kitchen: 'кухня', bar: 'бар', household: 'госп-товари', dishware: 'посуд', other: 'інше' };
+const ZONE_TAB   = { kitchen: 'Кухня', bar: 'Бар', household: 'Госп', dishware: 'Посуд', other: 'Інше' };
+// Належність алерта до зони (некласифіковані → 'other')
+function inZone(a, z) { return (a.zone || 'other') === z; }
 
-let _alerts  = null;    // null=ще не вантажили | масив
+let _alerts  = null;    // null=ще не вантажили | масив (усі зони, кожен несе zone)
 let _loading = false;
 let _err     = '';
 let _tracked = 0;       // скільки товарів має історію цін
+let _zoneTab = roleZones()[0];   // активна зона (таб)
 
 const CSS = `<style id="pa-css">
 .pa-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -47,6 +52,10 @@ const CSS = `<style id="pa-css">
 .pa-empty-t{font-size:15px;color:var(--text0);font-weight:600;margin-bottom:8px}
 .pa-empty-s{font-size:13px;line-height:1.6}
 .pa-state{text-align:center;padding:40px 24px;color:var(--text2);font-family:var(--font-b);font-size:13px}
+.pa-tabs{display:flex;gap:6px;padding:0 16px 12px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}.pa-tabs::-webkit-scrollbar{height:0}
+.pa-tab{flex-shrink:0;height:36px;padding:0 14px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-family:var(--font-h);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pa-tab.on{background:var(--amber-bg,rgba(245,158,11,.14));border-color:var(--amber,#f59e0b);color:var(--amber,#f59e0b)}
+.pa-tab-n{font-size:11px;font-family:var(--font-b);opacity:.75}
 </style>`;
 
 function fmtPrice(v) { return (Math.round(v * 100) / 100).toLocaleString('uk-UA', { maximumFractionDigits: 2 }); }
@@ -69,15 +78,29 @@ function cardHTML(a) {
     </div>`;
 }
 
+function activeZone() { const zs = roleZones(); return zs.includes(_zoneTab) ? _zoneTab : zs[0]; }
+function zoneAlerts() { return (_alerts || []).filter(a => inZone(a, activeZone())); }
+
+function tabsHTML() {
+  const zs = roleZones();
+  if (zs.length < 2) return '';
+  const cur = activeZone();
+  return `<div class="pa-tabs">${zs.map(z => {
+    const n = (_alerts || []).filter(a => inZone(a, z)).length;
+    return `<button class="pa-tab${z === cur ? ' on' : ''}" onclick="window.__pa.setZone('${z}')">${ZONE_TAB[z]}${_alerts ? ` <span class="pa-tab-n">${n}</span>` : ''}</button>`;
+  }).join('')}</div>`;
+}
+
 function listHTML() {
   if (_loading && _alerts === null) return `<div class="pa-state">Аналізую історію цін…</div>`;
   if (_err) return `<div class="pa-state" style="color:var(--red)">${_err}<div style="margin-top:12px"><button class="pa-refresh" style="width:auto;padding:0 16px;height:36px" onclick="window.__pa.reload()">Спробувати ще</button></div></div>`;
-  const list = _alerts || [];
+  const list = zoneAlerts();
   if (!list.length) {
+    const zoneNote = roleZones().length > 1 ? ` в зоні «${ZONE_TAB[activeZone()]}»` : '';
     return `
       <div class="pa-empty">
         <div class="pa-empty-ic">📉</div>
-        <div class="pa-empty-t">Підняття цін не виявлено</div>
+        <div class="pa-empty-t">Підняття цін не виявлено${zoneNote}</div>
         <div class="pa-empty-s">Алерти з'являться, коли той самий товар прийде в накладних щонайменше <b>двічі</b> — порівняємо нову ціну з попередньою.${_tracked ? `<br><br>Зараз із історією цін: <b>${_tracked}</b> товар(ів).` : '<br><br>Поки що немає історії цін із накладних.'}</div>
       </div>`;
   }
@@ -93,9 +116,10 @@ function buildHTML() {
         <div class="pa-back" onclick="window.__barops.navigate('dashboard')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="pa-ttl">Алерт цін${ZONE_LABEL[roleZone()] ? ` · ${ZONE_LABEL[roleZone()]}` : ''}</div>
+        <div class="pa-ttl">Алерт цін${roleZones().length === 1 ? ` · ${ZONE_LABEL[roleZones()[0]]}` : ''}</div>
         <button class="pa-refresh" onclick="window.__pa.reload()" title="Оновити">↻</button>
       </div>
+      ${tabsHTML()}
       <div class="pa-scroll">${listHTML()}</div>
     </div>`;
 }
@@ -107,8 +131,8 @@ async function load() {
   _loading = true; _err = ''; re();
   try {
     const vid = venueId();
-    const zone = roleZone();
-    const r = await fetch(`${API}/api/invoices/price-alerts/${vid}${zone ? `?zone=${zone}` : ''}`, { headers: { Authorization: `Bearer ${token()}` } });
+    // тягнемо ВСІ зони (кожен алерт несе zone); фільтруємо табами на клієнті
+    const r = await fetch(`${API}/api/invoices/price-alerts/${vid}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json().catch(() => ({}));
     if (!r.ok || !d.success) throw new Error(d.error || 'Не вдалося завантажити');
     _alerts  = d.alerts || [];
@@ -122,11 +146,14 @@ async function load() {
 
 export default {
   render() {
-    _alerts = null; _err = ''; _tracked = 0;
+    _alerts = null; _err = ''; _tracked = 0; _zoneTab = roleZones()[0];
     return `<div id="pa-root">${buildHTML()}</div>`;
   },
   init() {
-    window.__pa = { reload: load };
+    window.__pa = {
+      reload: load,
+      setZone: (z) => { _zoneTab = z; re(); },
+    };
     load();
   },
 };
