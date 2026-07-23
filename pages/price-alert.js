@@ -1,8 +1,9 @@
 /* ============================================================
    BarOps — pages/price-alert.js
-   Алерт ціни (РЕАЛЬНИЙ): підняття цін з історії накладних.
-   Для кожного товару порівнюємо останню ціну з попередньою
-   (GET /api/invoices/price-alerts/:venueId). Демо прибрано.
+   Алерт МАРЖІ страв (price-alert × фудкост).
+   Страви з високим фудкостом та/або падінням маржі через
+   подорожчання інгредієнтів (GET /api/invoices/dish-margin/:venueId).
+   Дані: собівартість/ціна з Syrve (OLAP+ТТК) + історія цін інгредієнтів.
    ============================================================ */
 
 import { state } from '../shared/app.js';
@@ -10,24 +11,22 @@ import { state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 function token()   { return localStorage.getItem('barops_token') || state.token || ''; }
 function venueId()  { return state.venueId || localStorage.getItem('barops_venueId') || ''; }
-// Зони, які бачить роль (таби):
-//  шеф/кухар → лише кухня; бухгалтер → усі (бар/кухня/госп/посуд/інше); системний менеджер, керуючий → бар+кухня
+
+// Зони страв за роллю: шеф/кухар → лише кухня; решта (керуючий/системний менеджер/бухгалтер) → кухня+бар
 function roleZones() {
   const r = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
   if (r === 'chef' || r === 'cook') return ['kitchen'];
-  if (r === 'accountant')           return ['bar', 'kitchen', 'household', 'dishware', 'other'];
-  return ['bar', 'kitchen', 'other'];   // системний менеджер / керуючий: бар+кухня окремо + «Інше» (некласифіковані склади)
+  return ['kitchen', 'bar'];
 }
-const ZONE_LABEL = { kitchen: 'кухня', bar: 'бар', household: 'госп-товари', dishware: 'посуд', other: 'інше' };
-const ZONE_TAB   = { kitchen: 'Кухня', bar: 'Бар', household: 'Госп', dishware: 'Посуд', other: 'Інше' };
-// Належність алерта до зони (некласифіковані → 'other')
-function inZone(a, z) { return (a.zone || 'other') === z; }
+const ZONE_LABEL = { kitchen: 'кухня', bar: 'бар' };
+const ZONE_TAB   = { kitchen: 'Кухня', bar: 'Бар' };
 
-let _alerts  = null;    // null=ще не вантажили | масив (усі зони, кожен несе zone)
+let _dishes  = null;    // null=ще не вантажили | масив алертів
 let _loading = false;
 let _err     = '';
-let _tracked = 0;       // скільки товарів має історію цін
-let _zoneTab = roleZones()[0];   // активна зона (таб)
+let _tracked = 0;       // скільки страв проаналізовано
+let _warming = false;   // холодний кеш страв — собівартість ще прогрівається
+let _zoneTab = roleZones()[0];
 
 const CSS = `<style id="pa-css">
 .pa-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -36,76 +35,86 @@ const CSS = `<style id="pa-css">
 .pa-ttl{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--text0);flex:1}
 .pa-refresh{width:34px;height:34px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);cursor:pointer;color:var(--text1);font-size:15px}
 .pa-scroll{flex:1;overflow-y:auto;padding:0 16px 28px}.pa-scroll::-webkit-scrollbar{width:0}
-.pa-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);padding:0 2px 12px}
-.pa-card{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border);margin-bottom:10px}
+.pa-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);padding:0 2px 12px;line-height:1.5}
+.pa-card{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border);margin-bottom:10px}
+.pa-card.red{border-color:var(--red,#ff5a5a)}
 .pa-card-main{flex:1;min-width:0}
 .pa-card-name{font-size:15px;font-weight:600;font-family:var(--font-b);color:var(--text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pa-card-meta{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
-.pa-card-price{font-size:13px;color:var(--text1);font-family:var(--font-b);margin-top:4px}
-.pa-card-price b{color:var(--text0)}
-.pa-card-old{color:var(--text3);text-decoration:line-through}
-.pa-pct{flex-shrink:0;text-align:center;padding:7px 11px;border-radius:11px;font-family:var(--font-h);font-weight:700;font-size:15px;min-width:62px}
-.pa-pct.red{background:var(--red-bg,rgba(255,90,90,.14));color:var(--red,#ff5a5a)}
-.pa-pct.amber{background:var(--amber-bg,rgba(245,158,11,.14));color:var(--amber,#f59e0b)}
+.pa-card-meta b{color:var(--text0)}
+.pa-card-meta .old{color:var(--text3);text-decoration:line-through}
+.pa-culp{font-size:11.5px;color:var(--amber,#e0a93b);font-family:var(--font-b);margin-top:5px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pa-fc{flex-shrink:0;text-align:center;padding:7px 10px;border-radius:11px;font-family:var(--font-h);font-weight:700;font-size:16px;min-width:58px}
+.pa-fc.red{background:var(--red-bg,rgba(255,90,90,.14));color:var(--red,#ff5a5a)}
+.pa-fc.amber{background:var(--amber-bg,rgba(245,158,11,.14));color:var(--amber,#f59e0b)}
+.pa-fc-l{font-size:8px;font-weight:600;opacity:.7;text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
 .pa-empty{text-align:center;padding:48px 24px;color:var(--text2);font-family:var(--font-b)}
 .pa-empty-ic{font-size:40px;margin-bottom:12px}
 .pa-empty-t{font-size:15px;color:var(--text0);font-weight:600;margin-bottom:8px}
 .pa-empty-s{font-size:13px;line-height:1.6}
 .pa-state{text-align:center;padding:40px 24px;color:var(--text2);font-family:var(--font-b);font-size:13px}
-.pa-tabs{display:flex;gap:6px;padding:0 16px 12px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}.pa-tabs::-webkit-scrollbar{height:0}
-.pa-tab{flex-shrink:0;height:36px;padding:0 14px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-family:var(--font-h);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pa-tabs{display:flex;gap:6px;padding:0 16px 12px;flex-shrink:0}
+.pa-tab{flex:1;height:36px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-family:var(--font-h);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .pa-tab.on{background:var(--amber-bg,rgba(245,158,11,.14));border-color:var(--amber,#f59e0b);color:var(--amber,#f59e0b)}
 .pa-tab-n{font-size:11px;font-family:var(--font-b);opacity:.75}
 </style>`;
 
-function fmtPrice(v) { return (Math.round(v * 100) / 100).toLocaleString('uk-UA', { maximumFractionDigits: 2 }); }
-function fmtDate(d) {
-  if (!d) return '';
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : d;
-}
-
-function cardHTML(a) {
-  const cls = a.pct >= 10 ? 'red' : 'amber';
-  return `
-    <div class="pa-card">
-      <div class="pa-card-main">
-        <div class="pa-card-name">${a.name}</div>
-        <div class="pa-card-meta">${a.supplier ? a.supplier + ' · ' : ''}${fmtDate(a.date)}${a.points > 2 ? ` · ${a.points} приходів` : ''}</div>
-        <div class="pa-card-price"><span class="pa-card-old">${fmtPrice(a.oldPrice)}</span> → <b>${fmtPrice(a.newPrice)} ₴</b> за од.</div>
-      </div>
-      <div class="pa-pct ${cls}">+${a.pct}%</div>
-    </div>`;
-}
-
+function money(v) { return (Math.round((+v || 0) * 100) / 100).toLocaleString('uk-UA', { maximumFractionDigits: 2 }); }
+function inZone(a, z) { return a.zone === z; }
 function activeZone() { const zs = roleZones(); return zs.includes(_zoneTab) ? _zoneTab : zs[0]; }
-function zoneAlerts() { return (_alerts || []).filter(a => inZone(a, activeZone())); }
+function zoneDishes() { return (_dishes || []).filter(a => inZone(a, activeZone())); }
 
 function tabsHTML() {
   const zs = roleZones();
   if (zs.length < 2) return '';
   const cur = activeZone();
   return `<div class="pa-tabs">${zs.map(z => {
-    const n = (_alerts || []).filter(a => inZone(a, z)).length;
-    return `<button class="pa-tab${z === cur ? ' on' : ''}" onclick="window.__pa.setZone('${z}')">${ZONE_TAB[z]}${_alerts ? ` <span class="pa-tab-n">${n}</span>` : ''}</button>`;
+    const n = (_dishes || []).filter(a => inZone(a, z)).length;
+    return `<button class="pa-tab${z === cur ? ' on' : ''}" onclick="window.__pa.setZone('${z}')">${ZONE_TAB[z]}${_dishes ? ` <span class="pa-tab-n">${n}</span>` : ''}</button>`;
   }).join('')}</div>`;
 }
 
+function cardHTML(a) {
+  const cls = a.highFc ? 'red' : 'amber';
+  const fcTxt = a.dropped ? `<span class="old">${a.fcOld}%</span> → <b>${a.fcNow}%</b>` : `<b>${a.fcNow}%</b>`;
+  const culp = (a.culprits || []).length
+    ? `<div class="pa-culp">▲ ${a.culprits.map(c => `${c.name} +${c.pct}%`).join(' · ')}</div>` : '';
+  return `
+    <div class="pa-card ${a.highFc ? 'red' : ''}">
+      <div class="pa-card-main">
+        <div class="pa-card-name">${a.name}${a.estimated ? ' <span style="color:var(--text3);font-weight:400">≈</span>' : ''}</div>
+        <div class="pa-card-meta">фудкост ${fcTxt} · маржа <b>${money(a.marginNow)} ₴</b> · ціна ${money(a.sellingPrice)} ₴</div>
+        ${culp}
+      </div>
+      <div class="pa-fc ${cls}">${a.fcNow}%<div class="pa-fc-l">фудкост</div></div>
+    </div>`;
+}
+
 function listHTML() {
-  if (_loading && _alerts === null) return `<div class="pa-state">Аналізую історію цін…</div>`;
+  if (_loading && _dishes === null) return `<div class="pa-state">Рахую собівартість і маржу…</div>`;
   if (_err) return `<div class="pa-state" style="color:var(--red)">${_err}<div style="margin-top:12px"><button class="pa-refresh" style="width:auto;padding:0 16px;height:36px" onclick="window.__pa.reload()">Спробувати ще</button></div></div>`;
-  const list = zoneAlerts();
+  if (_warming) return `
+      <div class="pa-empty">
+        <div class="pa-empty-ic">⏳</div>
+        <div class="pa-empty-t">Собівартість прогрівається</div>
+        <div class="pa-empty-s">Syrve підтягує собівартість страв. Оновіть екран за ~хвилину.<div style="margin-top:14px"><button class="pa-refresh" style="width:auto;padding:0 16px;height:36px" onclick="window.__pa.reload()">Оновити</button></div></div>
+      </div>`;
+  const list = zoneDishes();
   if (!list.length) {
-    const zoneNote = roleZones().length > 1 ? ` в зоні «${ZONE_TAB[activeZone()]}»` : '';
+    const zn = roleZones().length > 1 ? ` в зоні «${ZONE_TAB[activeZone()]}»` : '';
     return `
       <div class="pa-empty">
-        <div class="pa-empty-ic">📉</div>
-        <div class="pa-empty-t">Підняття цін не виявлено${zoneNote}</div>
-        <div class="pa-empty-s">Алерти з'являться, коли той самий товар прийде в накладних щонайменше <b>двічі</b> — порівняємо нову ціну з попередньою.${_tracked ? `<br><br>Зараз із історією цін: <b>${_tracked}</b> товар(ів).` : '<br><br>Поки що немає історії цін із накладних.'}</div>
+        <div class="pa-empty-ic">✅</div>
+        <div class="pa-empty-t">Проблемних страв немає${zn}</div>
+        <div class="pa-empty-s">Тут з'являться страви з <b>високим фудкостом</b> (кухня >30%, бар >25%) або ті, де <b>маржа впала</b> через подорожчання інгредієнтів.${_tracked ? `<br><br>Проаналізовано страв: <b>${_tracked}</b>.` : ''}</div>
       </div>`;
   }
+  const nRed = list.filter(a => a.highFc).length, nDrop = list.filter(a => a.dropped && !a.highFc).length;
+  const bits = [];
+  if (nRed) bits.push(`${nRed} з високим фудкостом`);
+  if (nDrop) bits.push(`${nDrop} із падінням маржі`);
   return `
-    <div class="pa-sub">Порівняння останньої ціни з попередньою (за історією приходів). ${list.length} товар(ів) подорожчало.</div>
+    <div class="pa-sub">${bits.join(' · ')}. Червоне — фудкост вище норми; ▲ — інгредієнт, що підняв собівартість. «≈» — оцінка з ТТК.</div>
     ${list.map(cardHTML).join('')}`;
 }
 
@@ -116,7 +125,7 @@ function buildHTML() {
         <div class="pa-back" onclick="window.__barops.navigate('dashboard')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="pa-ttl">Алерт цін${roleZones().length === 1 ? ` · ${ZONE_LABEL[roleZones()[0]]}` : ''}</div>
+        <div class="pa-ttl">Алерт маржі${roleZones().length === 1 ? ` · ${ZONE_LABEL[roleZones()[0]]}` : ''}</div>
         <button class="pa-refresh" onclick="window.__pa.reload()" title="Оновити">↻</button>
       </div>
       ${tabsHTML()}
@@ -131,22 +140,22 @@ async function load() {
   _loading = true; _err = ''; re();
   try {
     const vid = venueId();
-    // тягнемо ВСІ зони (кожен алерт несе zone); фільтруємо табами на клієнті
-    const r = await fetch(`${API}/api/invoices/price-alerts/${vid}`, { headers: { Authorization: `Bearer ${token()}` } });
+    const r = await fetch(`${API}/api/invoices/dish-margin/${vid}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json().catch(() => ({}));
     if (!r.ok || !d.success) throw new Error(d.error || 'Не вдалося завантажити');
-    _alerts  = d.alerts || [];
-    _tracked = d.productsTracked || 0;
+    _dishes  = d.dishes || [];
+    _tracked = d.dishesTracked || 0;
+    _warming = !!d.warming;
   } catch (e) {
     _err = e.message || 'Помилка';
-    if (_alerts === null) _alerts = [];
+    if (_dishes === null) _dishes = [];
   }
   _loading = false; re();
 }
 
 export default {
   render() {
-    _alerts = null; _err = ''; _tracked = 0; _zoneTab = roleZones()[0];
+    _dishes = null; _err = ''; _tracked = 0; _zoneTab = roleZones()[0];
     return `<div id="pa-root">${buildHTML()}</div>`;
   },
   init() {

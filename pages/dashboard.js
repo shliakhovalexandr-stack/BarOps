@@ -186,7 +186,7 @@ const QUICK_ADMIN = [
 
 // Алерт цін постачальників (підняття цін). Зона фільтрується на сторінці за роллю:
 // шеф→кухня, системний менеджер (admin)→бар, керуючий (director)→все.
-const QUICK_PRICE_ALERT = { route:'price-alert', badge:null, label:'Алерт цін', hint:'Підняття цін постачальників', color:'var(--amber-bg)', iconColor:'var(--amber)',
+const QUICK_PRICE_ALERT = { route:'price-alert', badge:null, label:'Алерт маржі', hint:'Страви, що втрачають маржу', color:'var(--amber-bg)', iconColor:'var(--amber)',
   svg:`<path d="M2 12l4-4 3 3 5-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
        <path d="M11 5h4v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` };
 
