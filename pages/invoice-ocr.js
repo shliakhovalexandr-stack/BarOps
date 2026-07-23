@@ -39,8 +39,11 @@ let _queue         = [];     // черга фото (пакетний режим
 let _queueTotal    = 0;
 let _batchCreated  = 0;      // скільки накладних СТВОРЕНО за пачку (реальні приходи; навчання = теж вони)
 let _batchCount    = 0;      // скільки накладних опрацьовано
-let _lastPrices    = {};     // productId → { price, date, supplier, points } — остання ціна з історії (порівняння цін)
-const BIG_PCT      = 20;     // «суттєва» зміна ціни (%) — банер-попередження
+let _lastPrices    = {};     // productId → { price, median, volatile, date, points } — з історії Syrve (порівняння цін)
+let _dupInfo       = null;   // детект дубля накладної: { duplicate, matches:[{source,date,docNumber,supplierName}] }
+const BIG_PCT      = 40;     // «суттєва» різниця ціни (%) — марка «щось не так» (грубі помилки введення)
+const CHIP_MIN_PCT = 10;     // менші відхилення не показуємо чипом (шум)
+const ASSORTMENT_RE = /асортимент|ассорт|assort/i;   // «в асортименті» — кошик різних товарів, ціну не порівнюємо
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 // ── строк оплати (dueDate): дата накладної + N днів → докрутка до дня тижня оплати ──
@@ -106,25 +109,29 @@ function totalSum() { return _rows.reduce((s, r) => s + (+r.sum || 0), 0); }
 function unitPriceOf(r) { const a = amountOf(r); return a > 0 ? (+r.sum || 0) / a : 0; }
 function priceDelta(r) {
   const lp = r.productId ? _lastPrices[r.productId] : null;
-  if (!lp || !(lp.price > 0)) return null;
+  if (!lp) return null;
+  if (lp.volatile) return null;                              // природно плаваюча ціна — не порівнюємо
+  if (ASSORTMENT_RE.test(r.productName || '')) return null;  // «в асортименті» — кошик різних товарів
+  const base = (lp.median > 0) ? lp.median : lp.price;       // ТИПОВА (медіана) ціна, не випадкова остання
+  if (!(base > 0)) return null;
   const nu = unitPriceOf(r);
   if (!(nu > 0)) return null;
-  const pct = Math.round((nu - lp.price) / lp.price * 1000) / 10;   // % з 0.1
-  return { old: lp.price, now: nu, pct, date: lp.date };
+  const pct = Math.round((nu - base) / base * 1000) / 10;   // % з 0.1
+  return { old: base, now: nu, pct };
 }
 function priceChipHTML(r) {
   const d = priceDelta(r);
-  if (!d || d.pct === 0) return '';
+  if (!d || Math.abs(d.pct) < CHIP_MIN_PCT) return '';       // дрібні відхилення — шум, не показуємо
   const up = d.pct > 0, mag = Math.abs(d.pct), big = mag >= BIG_PCT;
-  const cls = up ? (big ? 'red' : 'amber') : 'green';
+  const cls = up ? (big ? 'red' : 'amber') : (big ? 'red' : 'green');
   return `<div class="io-pchip ${cls}"><span class="io-pchip-p">${up ? '↑ +' : '↓ '}${d.pct}%</span>`
-    + `<span class="io-pchip-x">${money(d.old)}→${money(d.now)} ₴/${baseUnitOf(r) || 'од'}</span>`
-    + `${big ? '<span class="io-pchip-b">суттєво</span>' : ''}</div>`;
+    + `<span class="io-pchip-x">типова ${money(d.old)} → ${money(d.now)} ₴/${baseUnitOf(r) || 'од'}</span>`
+    + `${big ? '<span class="io-pchip-b">перевір</span>' : ''}</div>`;
 }
 function bigChangeCount() { return _rows.filter(r => { const d = priceDelta(r); return d && Math.abs(d.pct) >= BIG_PCT; }).length; }
 function bigWarnHTML() {
   const n = bigChangeCount();
-  return n ? `⚠️ ${n} поз. сильно відрізняються від останньої закупівельної ціни — перевір кількість і суму (можлива помилка)` : '';
+  return n ? `⚠️ ${n} поз. сильно відрізняються від типової закупівельної ціни — перевір кількість і суму (можлива помилка)` : '';
 }
 function refreshPriceUI() {
   _rows.forEach((r, i) => { const c = document.getElementById('io-chip-' + i); if (c) c.innerHTML = priceChipHTML(r); });
@@ -142,6 +149,38 @@ async function loadLastPrices() {
     const d = await res.json();
     if (res.ok && d.success) { _lastPrices = Object.assign({}, _lastPrices, d.prices || {}); refreshPriceUI(); }
   } catch {}
+}
+
+// ── Детект дубля накладної за номером (Syrve + BarOps) ──────────
+function fmtDupDate(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? `${m[3]}.${m[2]}.${m[1]}` : (s || ''); }
+function dupBannerHTML() {
+  if (!_dupInfo || !_dupInfo.duplicate || !(_dupInfo.matches || []).length) return '';
+  const m = _dupInfo.matches[0];
+  const where = m.source === 'syrve' ? 'у Syrve' : 'у BarOps';
+  const parts = [where];
+  if (m.date) parts.push(`від ${fmtDupDate(m.date)}`);
+  if (m.docNumber) parts.push(`док №${m.docNumber}`);
+  if (m.supplierName) parts.push(m.supplierName);
+  const more = _dupInfo.matches.length > 1 ? ` (+${_dupInfo.matches.length - 1})` : '';
+  return `<div class="io-dupwarn">⚠️ Схоже на <b>дубль</b>: накладна №${_invoiceNumber} вже є ${parts.join(' · ')}${more}. Перевір, чи не вводиш повторно.</div>`;
+}
+function refreshDupBanner() {
+  const el = document.getElementById('io-dupwarn');
+  if (el) { const h = dupBannerHTML(); el.innerHTML = h; el.style.display = h ? 'block' : 'none'; }
+}
+async function checkDuplicate() {
+  _dupInfo = null;
+  const num = (_invoiceNumber || '').trim();
+  if (!num) { refreshDupBanner(); return; }
+  try {
+    const res = await fetch(`${API}/api/invoices/check-duplicate/${_venueId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body: JSON.stringify({ supplierId: _supplier?.id || '', invoiceNumber: num, date: _invoiceDate || '' }),
+    });
+    const d = await res.json();
+    if (res.ok && d.success) _dupInfo = d;
+  } catch {}
+  refreshDupBanner();
 }
 
 const CSS = `<style id="invoc-css">
@@ -239,6 +278,8 @@ const CSS = `<style id="invoc-css">
 .io-pchip.amber{background:var(--amber-bg,#2e2410);color:var(--amber,#E0A93B)}
 .io-pchip.green{background:var(--green-bg);color:var(--green)}
 .io-bigwarn{background:var(--amber-bg,#2e2410);border:0.5px solid var(--amber-border,#4a3a10);color:var(--amber,#e8b84a);font-size:12px;font-family:var(--font-b);border-radius:11px;padding:9px 12px;margin:0 2px 10px;line-height:1.4}
+.io-dupwarn{background:var(--red-bg,#2a1212);border:0.5px solid var(--red-border,#5c2d2d);color:var(--red,#ff6b6b);font-size:12.5px;font-family:var(--font-b);border-radius:12px;padding:10px 13px;margin:0 0 10px;line-height:1.45}
+.io-dupwarn b{font-weight:700}
 </style>`;
 
 function rerender() {
@@ -331,6 +372,7 @@ function reviewView() {
   const ready = _supplier && _store && _rows.length && _rows.every(r => r.productId);
   const batch = _queueTotal > 1;
   return `<div class="io-scroll">
+    <div id="io-dupwarn" class="io-dupwarn" style="display:${dupBannerHTML() ? 'block' : 'none'}">${dupBannerHTML()}</div>
     <div class="io-card">
       <div class="io-lbl">Постачальник</div>
       <div class="io-sup" onclick="window.__io.openSearch('supplier',-1)">
@@ -612,6 +654,7 @@ async function matchAndReview() {
   if (!_catalog.products.length) loadCatalog(); else { pickDefaultStore(); pickDefaultConception(); }
   _step = 'review'; rerender();
   loadLastPrices();   // порівняння цін із попереднім приходом (чипи + банер)
+  checkDuplicate();   // чи не дубль ця накладна (за номером)
 }
 
 async function loadCatalog() {
@@ -753,7 +796,7 @@ async function termsImport() {
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _vatGrossed = false; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
   _supplierHint = ''; _hintOpen = false; _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
-  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {};
+  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {}; _dupInfo = null;
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
 }
@@ -767,7 +810,7 @@ export default {
     _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
     _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
     _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _catalog = { products: [], suppliers: [] };
-    _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {};
+    _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {}; _dupInfo = null;
     return buildHTML();
   },
   init() {
@@ -787,7 +830,7 @@ export default {
         if (k === 'sum') { const f = document.querySelector('.io-foot-sum-v'); if (f) f.textContent = money(totalSum()) + ' ₴'; }
         if (k === 'qty' || k === 'unitsPerPack' || k === 'volumeL' || k === 'sum') { const c = document.getElementById(`io-chip-${i}`); if (c) c.innerHTML = priceChipHTML(_rows[i]); const w = document.getElementById('io-bigwarn'); if (w) { const h = bigWarnHTML(); w.innerHTML = h; w.style.display = h ? 'block' : 'none'; } }
       },
-      metaNum: (v) => { _invoiceNumber = v; },
+      metaNum: (v) => { _invoiceNumber = v; checkDuplicate(); },
       setComment: (v) => { _comment = v; },
       metaDate: (v) => { _invoiceDate = v; recomputeDue(); },
       payDays: (v) => { v = (v + '').trim(); _payDays = v === '' ? null : Math.max(0, Math.round(+v) || 0); _dueTouched = false; recomputeDue(); },
@@ -798,10 +841,10 @@ export default {
       searchInput: (v) => { _search.q = v; updateResults(); },
       pick: (id) => {
         if (!_search) return;
-        let pickedProduct = false;
+        let pickedProduct = false, pickedSupplier = false;
         if (_search.type === 'supplier') {
           const s = _catalog.suppliers.find(x => x.id === id);
-          if (s) { _supplier = { id: s.id, name: s.name }; applyTerms(termsOf(s.id)); recomputeDue(); }
+          if (s) { _supplier = { id: s.id, name: s.name }; applyTerms(termsOf(s.id)); recomputeDue(); pickedSupplier = true; }
         } else if (_search.type === 'store') {
           const s = _catalog.stores.find(x => x.id === id);
           if (s) _store = { id: s.id, name: s.name };
@@ -813,9 +856,10 @@ export default {
           const r = _rows[_search.row];
           if (p && r) { r.productId = p.id; r.productName = p.name; r.source = 'manual'; r.confidence = 100; pickedProduct = true; }
         }
-        const wasProduct = pickedProduct;
+        const wasProduct = pickedProduct, wasSupplier = pickedSupplier;
         _search = null; rerender();
-        if (wasProduct) loadLastPrices();   // підтягнути ціну щойно обраного товару
+        if (wasProduct) loadLastPrices();     // підтягнути ціну щойно обраного товару
+        if (wasSupplier) checkDuplicate();    // перевірити дубль під нового постачальника
       },
     };
   },
