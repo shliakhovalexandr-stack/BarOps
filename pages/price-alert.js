@@ -31,6 +31,7 @@ let _err     = '';
 let _tracked = 0;       // скільки страв проаналізовано
 let _warming = false;   // холодний кеш страв — собівартість ще прогрівається
 let _storeTab = '';     // активний склад (вкладка)
+let _open     = new Set();   // розгорнуті картки (dishId) — історія приходів інгредієнтів
 
 const CSS = `<style id="pa-css">
 .pa-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -40,9 +41,18 @@ const CSS = `<style id="pa-css">
 .pa-refresh{width:34px;height:34px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);cursor:pointer;color:var(--text1);font-size:15px}
 .pa-scroll{flex:1;overflow-y:auto;padding:0 16px 28px}.pa-scroll::-webkit-scrollbar{width:0}
 .pa-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);padding:0 2px 12px;line-height:1.5}
-.pa-card{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border);margin-bottom:10px}
+.pa-card{padding:13px 14px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border);margin-bottom:10px}
 .pa-card.red{border-color:var(--red,#ff5a5a)}
+.pa-card-row{display:flex;align-items:center;gap:12px}
 .pa-card-main{flex:1;min-width:0}
+.pa-more{opacity:.8;font-weight:600}
+.pa-detail{margin-top:11px;padding-top:11px;border-top:0.5px solid var(--border)}
+.pa-di{margin-bottom:10px}
+.pa-di:last-child{margin-bottom:0}
+.pa-di-h{font-size:12.5px;font-weight:600;font-family:var(--font-b);color:var(--text0);margin-bottom:4px}
+.pa-di-row{font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.8}
+.pa-di-row b{color:var(--text1);font-weight:600}
+.pa-di-new{color:var(--red,#ff5a5a);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.03em}
 .pa-card-name{font-size:15px;font-weight:600;font-family:var(--font-b);color:var(--text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pa-card-meta{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
 .pa-card-meta b{color:var(--text0)}
@@ -64,6 +74,17 @@ const CSS = `<style id="pa-css">
 </style>`;
 
 function money(v) { return (Math.round((+v || 0) * 100) / 100).toLocaleString('uk-UA', { maximumFractionDigits: 2 }); }
+function fmtDate(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? `${m[3]}.${m[2]}.${m[1]}` : (s || ''); }
+// Деталь по інгредієнту: історія приходів (дата — ціна за од.), остання = нова з подорожчанням
+function detailHTML(c) {
+  const hist = c.hist || [];
+  if (!hist.length) return '';
+  const rows = hist.map((h, i) => {
+    const isNew = i === hist.length - 1;
+    return `<div class="pa-di-row">${isNew ? '●' : '○'} прихід <b>${fmtDate(h.date)}</b> — ${money(h.price)} ₴/од${isNew ? ' <span class="pa-di-new">нова ▲</span>' : ''}</div>`;
+  }).join('');
+  return `<div class="pa-di"><div class="pa-di-h">${esc(c.name)} <span style="color:var(--amber,#e0a93b)">+${c.pct}%</span></div>${rows}</div>`;
+}
 
 function tabsHTML() {
   const stores = storeList();
@@ -78,16 +99,23 @@ function tabsHTML() {
 function cardHTML(a) {
   const cls = a.highFc ? 'red' : 'amber';
   const fcTxt = a.dropped ? `<span class="old">${a.fcOld}%</span> → <b>${a.fcNow}%</b>` : `<b>${a.fcNow}%</b>`;
-  const culp = (a.culprits || []).length
-    ? `<div class="pa-culp">▲ ${a.culprits.map(c => `${c.name} +${c.pct}%`).join(' · ')}</div>` : '';
+  const culps = a.culprits || [];
+  const hasDetail = culps.some(c => (c.hist || []).length);
+  const open = _open.has(a.dishId);
+  const culpLine = culps.length
+    ? `<div class="pa-culp">▲ ${culps.map(c => `${esc(c.name)} +${c.pct}%`).join(' · ')}${hasDetail ? ` <span class="pa-more">${open ? '▲ згорнути' : '▾ приходи'}</span>` : ''}</div>` : '';
+  const detail = (open && hasDetail) ? `<div class="pa-detail">${culps.map(detailHTML).join('')}</div>` : '';
   return `
-    <div class="pa-card ${a.highFc ? 'red' : ''}">
-      <div class="pa-card-main">
-        <div class="pa-card-name">${a.name}${a.estimated ? ' <span style="color:var(--text3);font-weight:400">≈</span>' : ''}</div>
-        <div class="pa-card-meta">фудкост ${fcTxt} · маржа <b>${money(a.marginNow)} ₴</b> · ціна ${money(a.sellingPrice)} ₴</div>
-        ${culp}
+    <div class="pa-card ${a.highFc ? 'red' : ''}"${hasDetail ? ` onclick="window.__pa.toggle('${a.dishId}')" style="cursor:pointer"` : ''}>
+      <div class="pa-card-row">
+        <div class="pa-card-main">
+          <div class="pa-card-name">${esc(a.name)}</div>
+          <div class="pa-card-meta">фудкост ${fcTxt} · маржа <b>${money(a.marginNow)} ₴</b> · ціна ${money(a.sellingPrice)} ₴</div>
+          ${culpLine}
+        </div>
+        <div class="pa-fc ${cls}">${a.fcNow}%<div class="pa-fc-l">фудкост</div></div>
       </div>
-      <div class="pa-fc ${cls}">${a.fcNow}%<div class="pa-fc-l">фудкост</div></div>
+      ${detail}
     </div>`;
 }
 
@@ -134,7 +162,12 @@ function buildHTML() {
     </div>`;
 }
 
-function re() { const el = document.getElementById('pa-root'); if (el) el.innerHTML = buildHTML(); }
+function re() {
+  const el = document.getElementById('pa-root'); if (!el) return;
+  const sc = el.querySelector('.pa-scroll'); const top = sc ? sc.scrollTop : 0;
+  el.innerHTML = buildHTML();
+  const sc2 = el.querySelector('.pa-scroll'); if (sc2 && top) sc2.scrollTop = top;
+}
 
 async function load() {
   if (_loading) return;
@@ -156,13 +189,14 @@ async function load() {
 
 export default {
   render() {
-    _dishes = null; _err = ''; _tracked = 0; _warming = false; _storeTab = '';
+    _dishes = null; _err = ''; _tracked = 0; _warming = false; _storeTab = ''; _open = new Set();
     return `<div id="pa-root">${buildHTML()}</div>`;
   },
   init() {
     window.__pa = {
       reload: load,
       setStore: (i) => { const s = storeList()[i]; if (s != null) { _storeTab = s; re(); } },
+      toggle: (id) => { if (_open.has(id)) _open.delete(id); else _open.add(id); re(); },
     };
     load();
   },
