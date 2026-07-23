@@ -47,6 +47,19 @@ const CHIP_MIN_PCT = 1;      // <1% — суто округлення, чип н
 const ASSORTMENT_RE = /асортимент|ассорт|assort/i;   // «в асортименті» — кошик різних товарів, ціну не порівнюємо
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// Нормалізація року дати накладної: OCR ставить 2020, коли рік не надруковано.
+// Явно хибний рік (поза [поточний-1..поточний+1]) → найновіше минуле входження місяця/дня.
+function normInvDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((s || '').toString().trim());
+  if (!m) return (s || '');
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return s;
+  const now = new Date(), curY = now.getFullYear();
+  if (y >= curY - 1 && y <= curY + 1) return `${m[1]}-${m[2]}-${m[3]}`;
+  let yy = curY;
+  if (new Date(yy, mo - 1, d) > now) yy -= 1;
+  return `${yy}-${m[2]}-${m[3]}`;
+}
 // ── строк оплати (dueDate): дата накладної + N днів → докрутка до дня тижня оплати ──
 const WD_NAMES = ['—', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 function addDays(iso, n) { const d = new Date(iso + 'T00:00:00Z'); if (isNaN(d)) return ''; d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
@@ -473,7 +486,7 @@ function doneView() {
     <div class="io-c-t">${_isPoster ? 'Прихід проведено' : 'Накладну створено'}</div>
     <div class="io-c-s">${_isPoster
       ? `Прихід${_result?.syrveDocNumber ? ` №${_result.syrveDocNumber}` : ''} проведено в Poster${_result?.lineCount ? ` · ${_result.lineCount} поз.` : ''}. Залишки оновлено.`
-      : `Непроведена прихідна накладна${_result?.syrveDocNumber ? ` №${_result.syrveDocNumber}` : ''} у Syrve Office${_result?.lineCount ? ` · ${_result.lineCount} поз.` : ''}. Бухгалтер перевірить і проведе.`}</div>
+      : `Непроведена прихідна накладна${_result?.syrveDocNumber ? ` №${_result.syrveDocNumber}` : ''} у Syrve Office${_result?.lineCount ? ` · ${_result.lineCount} поз.` : ''}. Бухгалтер перевірить і проведе.`}${_result?.clampedToPeriod ? `<br><br>⚠️ Дату змінено на <b>${fmtDupDate(_result.clampedToPeriod)}</b> — вихідна була раніша за відкритий обліковий період.` : ''}</div>
     <button class="io-c-btn" onclick="window.__io.reset()">Нова накладна</button>
     <button class="io-c-btn2" onclick="window.__io.back()">На головний</button>
   </div>`;
@@ -586,7 +599,7 @@ async function processPages(files) {
 async function matchAndReview() {
   _supplierRaw = _parsed.supplierName || '';
   _invoiceNumber = _parsed.invoiceNumber || '';
-  _invoiceDate = _parsed.date || '';
+  _invoiceDate = normInvDate(_parsed.date || '');   // виправити рік (OCR ставить 2020 без року)
 
   _scanMsg = 'Зіставляю товари…'; rerender();
   const mRes = await fetch(`${API}/api/invoices/match/${_venueId}`, {
