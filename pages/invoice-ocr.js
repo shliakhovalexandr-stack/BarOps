@@ -39,6 +39,8 @@ let _queue         = [];     // черга фото (пакетний режим
 let _queueTotal    = 0;
 let _batchCreated  = 0;      // скільки накладних СТВОРЕНО за пачку (реальні приходи; навчання = теж вони)
 let _batchCount    = 0;      // скільки накладних опрацьовано
+let _lastPrices    = {};     // productId → { price, date, supplier, points } — остання ціна з історії (порівняння цін)
+const BIG_PCT      = 20;     // «суттєва» зміна ціни (%) — банер-попередження
 
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 // ── строк оплати (dueDate): дата накладної + N днів → докрутка до дня тижня оплати ──
@@ -99,6 +101,48 @@ function amountOf(r) {
 }
 function matchedCount() { return _rows.filter(r => r.productId).length; }
 function totalSum() { return _rows.reduce((s, r) => s + (+r.sum || 0), 0); }
+
+// ── Порівняння цін із попереднім приходом ──────────────────────
+function unitPriceOf(r) { const a = amountOf(r); return a > 0 ? (+r.sum || 0) / a : 0; }
+function priceDelta(r) {
+  const lp = r.productId ? _lastPrices[r.productId] : null;
+  if (!lp || !(lp.price > 0)) return null;
+  const nu = unitPriceOf(r);
+  if (!(nu > 0)) return null;
+  const pct = Math.round((nu - lp.price) / lp.price * 1000) / 10;   // % з 0.1
+  return { old: lp.price, now: nu, pct, date: lp.date };
+}
+function priceChipHTML(r) {
+  const d = priceDelta(r);
+  if (!d || d.pct === 0) return '';
+  const up = d.pct > 0, mag = Math.abs(d.pct), big = mag >= BIG_PCT;
+  const cls = up ? (big ? 'red' : 'amber') : 'green';
+  return `<div class="io-pchip ${cls}"><span class="io-pchip-p">${up ? '↑ +' : '↓ '}${d.pct}%</span>`
+    + `<span class="io-pchip-x">${money(d.old)}→${money(d.now)} ₴/${baseUnitOf(r) || 'од'}</span>`
+    + `${big ? '<span class="io-pchip-b">суттєво</span>' : ''}</div>`;
+}
+function bigChangeCount() { return _rows.filter(r => { const d = priceDelta(r); return d && Math.abs(d.pct) >= BIG_PCT; }).length; }
+function bigWarnHTML() {
+  const n = bigChangeCount();
+  return n ? `⚠️ ${n} поз. суттєво змінили ціну проти минулого приходу — перевір суми перед проведенням` : '';
+}
+function refreshPriceUI() {
+  _rows.forEach((r, i) => { const c = document.getElementById('io-chip-' + i); if (c) c.innerHTML = priceChipHTML(r); });
+  const w = document.getElementById('io-bigwarn');
+  if (w) { const h = bigWarnHTML(); w.innerHTML = h; w.style.display = h ? 'block' : 'none'; }
+}
+async function loadLastPrices() {
+  const ids = [...new Set(_rows.filter(r => r.productId).map(r => r.productId))];
+  if (!ids.length) return;
+  try {
+    const res = await fetch(`${API}/api/invoices/last-prices/${_venueId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body: JSON.stringify({ productIds: ids }),
+    });
+    const d = await res.json();
+    if (res.ok && d.success) { _lastPrices = Object.assign({}, _lastPrices, d.prices || {}); refreshPriceUI(); }
+  } catch {}
+}
 
 const CSS = `<style id="invoc-css">
 .io-wrap{position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
@@ -186,6 +230,15 @@ const CSS = `<style id="invoc-css">
 .io-c-s{font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.5;max-width:300px}
 .io-c-btn{margin-top:22px;height:50px;padding:0 26px;border-radius:13px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:700;font-family:var(--font-h);cursor:pointer}
 .io-c-btn2{margin-top:10px;height:44px;padding:0 20px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer}
+
+.io-pchip{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:11px;font-family:var(--font-b);padding:3px 8px;border-radius:8px;margin-bottom:8px}
+.io-pchip-p{font-weight:700}
+.io-pchip-x{font-weight:400;opacity:.85}
+.io-pchip-b{font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:9px;padding:1px 5px;border-radius:5px;background:rgba(255,255,255,.14)}
+.io-pchip.red{background:var(--red-bg,#2a1212);color:var(--red,#ff6b6b)}
+.io-pchip.amber{background:var(--amber-bg,#2e2410);color:var(--amber,#E0A93B)}
+.io-pchip.green{background:var(--green-bg);color:var(--green)}
+.io-bigwarn{background:var(--amber-bg,#2e2410);border:0.5px solid var(--amber-border,#4a3a10);color:var(--amber,#e8b84a);font-size:12px;font-family:var(--font-b);border-radius:11px;padding:9px 12px;margin:0 2px 10px;line-height:1.4}
 </style>`;
 
 function rerender() {
@@ -260,6 +313,7 @@ function reviewView() {
         ${r.productId ? badge : ''}
         <svg class="io-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
       </div>
+      <div id="io-chip-${i}">${priceChipHTML(r)}</div>
       <div class="io-nums">
         <div class="io-num"><div class="io-num-l">К-сть</div><input type="number" inputmode="decimal" value="${r.qty}" onfocus="this.select()" oninput="window.__io.edit(${i},'qty',this.value)"></div>
         ${isMeasureRow(r)
@@ -321,6 +375,7 @@ function reviewView() {
     </div>
     ${_supplier && _payDays == null && !_payWeekday && !_dueDate ? `<div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:0 2px 10px;line-height:1.4">Введи умови оплати постачальника раз (днів відстрочки та/або день тижня, як «чт» у картці) — запамʼятається, дата рахуватиметься сама.</div>` : ''}`}
     <div class="io-lbl" style="margin:4px 2px 8px">Позиції · зіставлено ${matchedCount()}/${_rows.length}</div>
+    <div id="io-bigwarn" class="io-bigwarn" style="display:${bigWarnHTML() ? 'block' : 'none'}">${bigWarnHTML()}</div>
     ${_vatGrossed ? `<div style="font-size:10px;color:var(--amber,#e8b84a);font-family:var(--font-b);margin:-4px 2px 8px;line-height:1.4">⚠ Суми рядків були без ПДВ — додано ПДВ, разом = «До сплати» з накладної.</div>` : ''}
     ${rows}
     <div class="io-meta" style="margin-top:8px"><div class="io-meta-l">Коментар (в Syrve Office)</div><input value="${(_comment || '').replace(/"/g, '&quot;')}" placeholder="необовʼязково" onchange="window.__io.setComment(this.value)"></div>
@@ -556,6 +611,7 @@ async function matchAndReview() {
 
   if (!_catalog.products.length) loadCatalog(); else { pickDefaultStore(); pickDefaultConception(); }
   _step = 'review'; rerender();
+  loadLastPrices();   // порівняння цін із попереднім приходом (чипи + банер)
 }
 
 async function loadCatalog() {
@@ -697,7 +753,7 @@ async function termsImport() {
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _vatGrossed = false; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
   _supplierHint = ''; _hintOpen = false; _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
-  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0;
+  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {};
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
 }
@@ -711,7 +767,7 @@ export default {
     _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
     _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
     _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _catalog = { products: [], suppliers: [] };
-    _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0;
+    _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {};
     return buildHTML();
   },
   init() {
@@ -729,6 +785,7 @@ export default {
         _rows[i][k] = (k === 'qty' || k === 'unitsPerPack' || k === 'volumeL' || k === 'sum' || k === 'vatPercent') ? (parseFloat(v) || 0) : v;
         if (k === 'qty' || k === 'unitsPerPack' || k === 'volumeL') { const el = document.getElementById(`io-amt-${i}`); if (el) el.textContent = amountOf(_rows[i]); }
         if (k === 'sum') { const f = document.querySelector('.io-foot-sum-v'); if (f) f.textContent = money(totalSum()) + ' ₴'; }
+        if (k === 'qty' || k === 'unitsPerPack' || k === 'volumeL' || k === 'sum') { const c = document.getElementById(`io-chip-${i}`); if (c) c.innerHTML = priceChipHTML(_rows[i]); const w = document.getElementById('io-bigwarn'); if (w) { const h = bigWarnHTML(); w.innerHTML = h; w.style.display = h ? 'block' : 'none'; } }
       },
       metaNum: (v) => { _invoiceNumber = v; },
       setComment: (v) => { _comment = v; },
@@ -741,6 +798,7 @@ export default {
       searchInput: (v) => { _search.q = v; updateResults(); },
       pick: (id) => {
         if (!_search) return;
+        let pickedProduct = false;
         if (_search.type === 'supplier') {
           const s = _catalog.suppliers.find(x => x.id === id);
           if (s) { _supplier = { id: s.id, name: s.name }; applyTerms(termsOf(s.id)); recomputeDue(); }
@@ -753,9 +811,11 @@ export default {
         } else {
           const p = _catalog.products.find(x => x.id === id);
           const r = _rows[_search.row];
-          if (p && r) { r.productId = p.id; r.productName = p.name; r.source = 'manual'; r.confidence = 100; }
+          if (p && r) { r.productId = p.id; r.productName = p.name; r.source = 'manual'; r.confidence = 100; pickedProduct = true; }
         }
+        const wasProduct = pickedProduct;
         _search = null; rerender();
+        if (wasProduct) loadLastPrices();   // підтягнути ціну щойно обраного товару
       },
     };
   },
