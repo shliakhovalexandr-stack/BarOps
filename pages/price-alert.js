@@ -12,21 +12,25 @@ const API = 'https://barops-backend-production.up.railway.app';
 function token()   { return localStorage.getItem('barops_token') || state.token || ''; }
 function venueId()  { return state.venueId || localStorage.getItem('barops_venueId') || ''; }
 
-// Зони страв за роллю: шеф/кухар → лише кухня; решта (керуючий/системний менеджер/бухгалтер) → кухня+бар
-function roleZones() {
-  const r = (state.role || localStorage.getItem('barops_role') || '').toLowerCase();
-  if (r === 'chef' || r === 'cook') return ['kitchen'];
-  return ['kitchen', 'bar'];
+// Розподіл СТРАВ ЗА СКЛАДОМ (надійніше за ключові слова). Шеф/кухар бачить лише кухонні
+// склади (zone==='kitchen'); керуючий/системний менеджер/бухгалтер — усі склади.
+function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function kitchenOnly() { const r = (state.role || localStorage.getItem('barops_role') || '').toLowerCase(); return r === 'chef' || r === 'cook'; }
+function visibleDishes() { const all = _dishes || []; return kitchenOnly() ? all.filter(a => a.zone === 'kitchen') : all; }
+function storeList() {
+  const cnt = new Map();
+  for (const a of visibleDishes()) cnt.set(a.store || 'Інше', (cnt.get(a.store || 'Інше') || 0) + 1);
+  return [...cnt.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);   // за кількістю спадаюче
 }
-const ZONE_LABEL = { kitchen: 'кухня', bar: 'бар' };
-const ZONE_TAB   = { kitchen: 'Кухня', bar: 'Бар' };
+function activeStore() { const s = storeList(); return s.includes(_storeTab) ? _storeTab : s[0]; }
+function storeDishes() { return visibleDishes().filter(a => (a.store || 'Інше') === activeStore()); }
 
 let _dishes  = null;    // null=ще не вантажили | масив алертів
 let _loading = false;
 let _err     = '';
 let _tracked = 0;       // скільки страв проаналізовано
 let _warming = false;   // холодний кеш страв — собівартість ще прогрівається
-let _zoneTab = roleZones()[0];
+let _storeTab = '';     // активний склад (вкладка)
 
 const CSS = `<style id="pa-css">
 .pa-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -53,24 +57,21 @@ const CSS = `<style id="pa-css">
 .pa-empty-t{font-size:15px;color:var(--text0);font-weight:600;margin-bottom:8px}
 .pa-empty-s{font-size:13px;line-height:1.6}
 .pa-state{text-align:center;padding:40px 24px;color:var(--text2);font-family:var(--font-b);font-size:13px}
-.pa-tabs{display:flex;gap:6px;padding:0 16px 12px;flex-shrink:0}
-.pa-tab{flex:1;height:36px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-family:var(--font-h);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.pa-tabs{display:flex;gap:6px;padding:0 16px 12px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}.pa-tabs::-webkit-scrollbar{height:0}
+.pa-tab{flex:0 0 auto;height:36px;padding:0 13px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-family:var(--font-h);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .pa-tab.on{background:var(--amber-bg,rgba(245,158,11,.14));border-color:var(--amber,#f59e0b);color:var(--amber,#f59e0b)}
 .pa-tab-n{font-size:11px;font-family:var(--font-b);opacity:.75}
 </style>`;
 
 function money(v) { return (Math.round((+v || 0) * 100) / 100).toLocaleString('uk-UA', { maximumFractionDigits: 2 }); }
-function inZone(a, z) { return a.zone === z; }
-function activeZone() { const zs = roleZones(); return zs.includes(_zoneTab) ? _zoneTab : zs[0]; }
-function zoneDishes() { return (_dishes || []).filter(a => inZone(a, activeZone())); }
 
 function tabsHTML() {
-  const zs = roleZones();
-  if (zs.length < 2) return '';
-  const cur = activeZone();
-  return `<div class="pa-tabs">${zs.map(z => {
-    const n = (_dishes || []).filter(a => inZone(a, z)).length;
-    return `<button class="pa-tab${z === cur ? ' on' : ''}" onclick="window.__pa.setZone('${z}')">${ZONE_TAB[z]}${_dishes ? ` <span class="pa-tab-n">${n}</span>` : ''}</button>`;
+  const stores = storeList();
+  if (stores.length < 2) return '';
+  const cur = activeStore();
+  return `<div class="pa-tabs">${stores.map((s, i) => {
+    const n = visibleDishes().filter(a => (a.store || 'Інше') === s).length;
+    return `<button class="pa-tab${s === cur ? ' on' : ''}" onclick="window.__pa.setStore(${i})">${esc(s)} <span class="pa-tab-n">${n}</span></button>`;
   }).join('')}</div>`;
 }
 
@@ -99,9 +100,9 @@ function listHTML() {
         <div class="pa-empty-t">Собівартість прогрівається</div>
         <div class="pa-empty-s">Syrve підтягує собівартість страв. Оновіть екран за ~хвилину.<div style="margin-top:14px"><button class="pa-refresh" style="width:auto;padding:0 16px;height:36px" onclick="window.__pa.reload()">Оновити</button></div></div>
       </div>`;
-  const list = zoneDishes();
+  const list = storeDishes();
   if (!list.length) {
-    const zn = roleZones().length > 1 ? ` в зоні «${ZONE_TAB[activeZone()]}»` : '';
+    const zn = storeList().length > 1 ? ` на складі «${activeStore() || ''}»` : '';
     return `
       <div class="pa-empty">
         <div class="pa-empty-ic">✅</div>
@@ -125,7 +126,7 @@ function buildHTML() {
         <div class="pa-back" onclick="window.__barops.navigate('dashboard')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="pa-ttl">Алерт маржі${roleZones().length === 1 ? ` · ${ZONE_LABEL[roleZones()[0]]}` : ''}</div>
+        <div class="pa-ttl">Алерт маржі</div>
         <button class="pa-refresh" onclick="window.__pa.reload()" title="Оновити">↻</button>
       </div>
       ${tabsHTML()}
@@ -155,13 +156,13 @@ async function load() {
 
 export default {
   render() {
-    _dishes = null; _err = ''; _tracked = 0; _zoneTab = roleZones()[0];
+    _dishes = null; _err = ''; _tracked = 0; _warming = false; _storeTab = '';
     return `<div id="pa-root">${buildHTML()}</div>`;
   },
   init() {
     window.__pa = {
       reload: load,
-      setZone: (z) => { _zoneTab = z; re(); },
+      setStore: (i) => { const s = storeList()[i]; if (s != null) { _storeTab = s; re(); } },
     };
     load();
   },
