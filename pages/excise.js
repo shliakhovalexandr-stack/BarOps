@@ -340,6 +340,28 @@ function rsHandleFile(input) {
   re();
 }
 
+// Прикріпити фото до НАЯВНОЇ марки (досканувати без створення дубля)
+let _addPhotoTargetId = null;
+let _addingPhotoId    = null;
+function addPhotoPick(id) { _addPhotoTargetId = id; document.getElementById('exc-addphoto-inp')?.click(); }
+async function addPhotoFile(input) {
+  const file = input.files?.[0]; input.value = '';
+  const id = _addPhotoTargetId; _addPhotoTargetId = null;
+  if (!file || !id) return;
+  _addingPhotoId = id; re();
+  try {
+    let photoData = ''; try { photoData = await compressToBase64(file); } catch {}
+    if (!photoData) { alert('Не вдалося обробити фото'); _addingPhotoId = null; re(); return; }
+    const res = await fetch(`${API}/api/excise/mark/${id}/photo`, {
+      method: 'PATCH', headers: { ...hdrs(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photoData }),
+    });
+    if (res.ok) await loadRescan();          // марка отримала фото → зникне з черги «без фото»
+    else { const d = await res.json().catch(() => ({})); alert(d.error || 'Помилка збереження фото'); }
+  } catch { alert('Помилка збереження фото'); }
+  _addingPhotoId = null; re();
+}
+
 async function saveRescanManual() {
   const codeInp = document.getElementById('exc-rs-code');
   const nameInp = document.getElementById('exc-rs-name');
@@ -710,6 +732,9 @@ const CSS = `<style id="exc-css">
 .exc-as-cancel:active{opacity:.8}
 .exc-rs-send{height:32px;border-radius:9px;border:0.5px solid var(--green-border,#2d5c3a);background:var(--green-bg,#1a3320);color:var(--green);font-size:11px;font-weight:600;font-family:var(--font-b);cursor:pointer;padding:0 10px;flex-shrink:0}
 .exc-rs-send:active{opacity:.8}
+.exc-rs-photo{height:32px;border-radius:9px;border:0.5px solid var(--amber-border,#5a4a1a);background:var(--amber-bg,rgba(245,158,11,.14));color:var(--amber,#e0a93b);font-size:11px;font-weight:600;font-family:var(--font-b);cursor:pointer;padding:0 10px;flex-shrink:0}
+.exc-rs-photo:active{opacity:.8}.exc-rs-photo:disabled{opacity:.5}
+.exc-nophoto{display:inline-block;font-size:9px;font-weight:700;color:var(--amber,#e0a93b);background:var(--amber-bg,rgba(245,158,11,.14));border-radius:5px;padding:1px 5px;vertical-align:middle}
 
 /* Product name required */
 .exc-manual-inp.pn-error{border-color:var(--red,#e85555)!important;background:var(--red-bg,#2a1212)}
@@ -822,6 +847,7 @@ function buildPage() {
   <input class="exc-file" id="exc-gal-inp" type="file" accept="image/*" onchange="window.__exc.handleFile(this)"/>
   <input class="exc-file" id="exc-rs-cam" type="file" accept="image/*" capture="environment" onchange="window.__exc.rsHandleFile(this)"/>
   <input class="exc-file" id="exc-rs-gal" type="file" accept="image/*" onchange="window.__exc.rsHandleFile(this)"/>
+  <input class="exc-file" id="exc-addphoto-inp" type="file" accept="image/*" capture="environment" onchange="window.__exc.addPhotoFile(this)"/>
   ${_rowMenuId ? buildRowMenu() : ''}
   ${_pickerOpen ? buildDatePicker() : ''}
   ${_photoView ? buildPhotoView() : ''}
@@ -1003,7 +1029,7 @@ function buildRescanScreen() {
   const list = _rescanLoading
     ? `<div class="exc-spin-wrap" style="padding:40px 20px"><div class="exc-spinner"></div></div>`
     : (items.length === 0
-        ? `<div class="exc-empty">Черга порожня${admin ? '<br><span style="font-size:11px">Відправте марку з «Сьогодні» через ⋮ або додайте вручну</span>' : ''}</div>`
+        ? `<div class="exc-empty">Черга порожня<br><span style="font-size:11px">Тут зʼявляються марки <b>без фото</b> та надіслані в чергу${admin ? ' (через ⋮ або вручну)' : ''}</span></div>`
         : `<div style="border:0.5px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg1);padding:0 14px">
             ${items.map(rescanRowHTML).join('')}
           </div>`);
@@ -1061,16 +1087,21 @@ function rsAddFormHTML() {
 function rescanRowHTML(m) {
   const admin    = isSysMgr();
   const deleting = _deletingIds.has(m.id);
+  const adding   = _addingPhotoId === m.id;
   const tap = m.hasPhoto
     ? `onclick="window.__exc.openPhoto('${m.id}')" style="flex:1;min-width:0;cursor:pointer"`
     : `style="flex:1;min-width:0"`;
+  // без фото → «Додати фото» (прикріплює до цієї ж марки); з фото → «→ Сьогодні»
+  const action = m.hasPhoto
+    ? `<button class="exc-rs-send" onclick="window.__exc.sendToToday('${m.id}')">→ Сьогодні</button>`
+    : `<button class="exc-rs-photo" onclick="window.__exc.addPhotoPick('${m.id}')" ${adding ? 'disabled' : ''}>${adding ? '…' : '📷 Фото'}</button>`;
   return `<div class="exc-mark-row">
     <div ${tap}>
-      <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
+      <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : '<span class="exc-nophoto">без фото</span> '}${m.code}</div>
       ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
       <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
     </div>
-    <button class="exc-rs-send" onclick="window.__exc.sendToToday('${m.id}')">→ Сьогодні</button>
+    ${action}
     ${admin ? `
       <button class="exc-del-btn" onclick="window.__exc.deleteRescanItem('${m.id}')" ${deleting ? 'disabled' : ''}>
         ${deleting
@@ -1339,6 +1370,8 @@ export default {
       saveRescanManual: saveRescanManual,
       sendToRescan: sendToRescan,
       sendToToday:  sendToToday,
+      addPhotoPick: addPhotoPick,
+      addPhotoFile: addPhotoFile,
       deleteRescanItem: deleteRescanItem,
       toggleRowMenu: (id) => { _rowMenuId = _rowMenuId === id ? null : id; re(); },
       closeRowMenu:  () => { _rowMenuId = null; re(); },
