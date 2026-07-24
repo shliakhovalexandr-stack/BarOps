@@ -12,6 +12,10 @@ let _step    = 'idle';     // idle | scanning | review | sending | done | error
 let _scanMsg = '';
 let _err     = '';
 let _photoUrl = null;
+let _photoB64 = '';   // фото накладної для історії (лише бухгалтер) — стиснене base64
+let _history    = null;   // історія накладних (60 днів) | масив
+let _histLoading = false;
+let _histPhoto  = null;   // перегляд фото { id, url, loading }
 
 let _parsed        = null;
 let _supplierRaw   = '';
@@ -320,7 +324,46 @@ function buildHTML() {
   if (_step === 'done')     return `${CSS}<div class="io-wrap">${topbar('')}${doneView()}</div>`;
   if (_step === 'error')    return `${CSS}<div class="io-wrap">${topbar('')}${errorView()}</div>`;
   if (_step === 'review')   return `${CSS}<div class="io-wrap">${topbar(_venueName || '')}${reviewView()}${_search ? searchSheet() : ''}</div>${fileInputs()}`;
+  if (_step === 'history')  return `${CSS}${historyView()}`;
   return `${CSS}<div class="io-wrap">${topbar(_venueName || '')}${idleView()}</div>${fileInputs()}`;
+}
+
+function fmtHistDate(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? `${m[3]}.${m[2]}.${m[1]}` : (s || ''); }
+function histRowHTML(v) {
+  const tap = v.hasPhoto ? `onclick="window.__io.viewHistPhoto('${v.id}')" style="cursor:pointer"` : '';
+  return `<div class="io-row" ${tap}>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div class="io-prod-n" style="font-size:14px">${(v.supplierRawName || '—').replace(/</g, '&lt;')}</div>
+        <div class="io-raw" style="margin:3px 0 0">№${v.invoiceNumber || '—'} · ${fmtHistDate(v.invoiceDate)} · ${money(v.totalWithVat)} ₴${v.syrveDocNumber ? ` · Syrve №${v.syrveDocNumber}` : ''}</div>
+      </div>
+      <div style="flex-shrink:0">${v.hasPhoto ? '<span style="font-size:12px;color:var(--green)">📷 ↗</span>' : '<span style="font-size:10px;color:var(--text3)">без фото</span>'}</div>
+    </div>
+  </div>`;
+}
+function histPhotoOverlay() {
+  return `<div class="io-ov" onclick="window.__io.closeHistPhoto()">
+    <div onclick="event.stopPropagation()" style="max-width:94vw;max-height:90vh">
+      ${_histPhoto.loading ? '<div style="color:#fff;padding:40px;font-family:var(--font-b)">Завантаження фото…</div>'
+        : _histPhoto.url ? `<img src="${_histPhoto.url}" style="max-width:94vw;max-height:90vh;border-radius:12px;display:block"/>`
+        : '<div style="color:#fff;padding:40px;font-family:var(--font-b)">Фото недоступне (можливо, старше 60 днів)</div>'}
+    </div>
+  </div>`;
+}
+function historyView() {
+  const back = `<div class="io-top">
+    <div class="io-back" onclick="window.__io.closeHistory()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div><div class="io-title">Історія накладних</div><div class="io-sub">Фото за 60 днів</div></div>
+  </div>`;
+  let body;
+  if (_histLoading && _history === null) body = `<div style="text-align:center;padding:44px;color:var(--text2);font-family:var(--font-b);font-size:13px">Завантаження…</div>`;
+  else {
+    const list = _history || [];
+    body = list.length
+      ? list.map(histRowHTML).join('')
+      : `<div style="text-align:center;padding:48px 24px;color:var(--text2);font-family:var(--font-b)"><div style="font-size:40px;margin-bottom:12px">🗂</div><div style="font-size:14px;color:var(--text0);font-weight:600">Історія порожня</div><div style="font-size:12px;line-height:1.6;margin-top:8px">Тут зберігаються фото накладних, які ти ставиш на прихід (останні 60 днів).</div></div>`;
+  }
+  return `<div class="io-wrap">${back}<div class="io-scroll">${body}</div></div>${_histPhoto ? histPhotoOverlay() : ''}`;
 }
 
 function fileInputs() {
@@ -345,6 +388,7 @@ function idleView() {
       Кілька сторінок = 1 накладна
     </button>
     ${(_role === 'admin' || _role === 'accountant') ? `
+    <button class="io-fullbtn" onclick="window.__io.openHistory()">🗂 Історія фото накладних (60 днів)</button>
     <button class="io-fullbtn" id="io-terms-btn" onclick="window.__io.termsImport()">⏱ Підтягнути відстрочки з історії Syrve</button>
     <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:6px 2px 0;line-height:1.4">Разово: бере строки оплати з накладних, які бухгалтер створювала руками, і запамʼятовує відстрочку кожного постачальника.</div>` : ''}
   </div>`;
@@ -559,10 +603,17 @@ async function compressImage(file, maxDim = 1600, quality = 0.7) {
     return blob.size < file.size ? new File([blob], 'invoice.jpg', { type: 'image/jpeg' }) : file;
   } catch { return file; }
 }
+// Стиснене фото в base64 для історії (лише бухгалтер зберігає в БарОпс)
+function blobToB64(blob) { return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result || ''); fr.onerror = () => r(''); fr.readAsDataURL(blob); }); }
+async function capturePhotoForHistory(file) {
+  if (_role !== 'accountant') { _photoB64 = ''; return; }
+  try { _photoB64 = await blobToB64(await compressImage(file, 1200, 0.55)); } catch { _photoB64 = ''; }
+}
 
 async function processFile(f) {
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoUrl = URL.createObjectURL(f);
+  capturePhotoForHistory(f);
   _supplier = null; _supplierRaw = ''; _invoiceNumber = ''; _invoiceDate = ''; _rows = []; _err = '';
   _step = 'scanning'; _scanMsg = 'Розпізнаю накладну…'; rerender();
   try {
@@ -581,6 +632,7 @@ async function processFile(f) {
 async function processPages(files) {
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoUrl = URL.createObjectURL(files[0]);
+  capturePhotoForHistory(files[0]);
   _supplier = null; _supplierRaw = ''; _invoiceNumber = ''; _invoiceDate = ''; _rows = []; _err = '';
   _step = 'scanning'; _scanMsg = `Розпізнаю накладну (${files.length} фото)…`; rerender();
   try {
@@ -745,6 +797,7 @@ async function submit(aliasesOnly) {
         dueDate: _dueDate || '', paymentDays: (_payDays != null && _payDays !== '') ? +_payDays : null, paymentWeekday: _payWeekday || null,
         comment: _comment || '',
         aliasesOnly: !!aliasesOnly, items,
+        photoData: aliasesOnly ? '' : _photoB64,   // фото накладної в історію (бекенд зберігає лише бухгалтеру)
       }),
     });
     let d = {}; try { d = await res.json(); } catch { d = { error: `HTTP ${res.status} (не-JSON відповідь)` }; }
@@ -808,10 +861,34 @@ async function termsImport() {
   } catch (e) { restore(); alert('Помилка: ' + (e.message || e)); }
 }
 
+// ── Історія фото накладних (бухгалтер) ─────────────────────────
+function openHistory() { _step = 'history'; _history = null; _histPhoto = null; rerender(); loadHistory(); }
+function closeHistory() { _step = 'idle'; _history = null; _histPhoto = null; rerender(); }
+async function loadHistory() {
+  if (_histLoading) return;
+  _histLoading = true; rerender();
+  try {
+    const r = await fetch(`${API}/api/invoices/history/${_venueId}`, { headers: { Authorization: `Bearer ${_token}` } });
+    const d = await r.json().catch(() => ({}));
+    _history = (r.ok && d.success) ? (d.invoices || []) : [];
+  } catch { _history = []; }
+  _histLoading = false; rerender();
+}
+async function viewHistPhoto(id) {
+  _histPhoto = { id, url: '', loading: true }; rerender();
+  try {
+    const r = await fetch(`${API}/api/invoices/history/${id}/photo`, { headers: { Authorization: `Bearer ${_token}` } });
+    const d = await r.json().catch(() => ({}));
+    if (_histPhoto && _histPhoto.id === id) _histPhoto.url = (r.ok && d.photoUrl) ? d.photoUrl : '';
+  } catch { if (_histPhoto && _histPhoto.id === id) _histPhoto.url = ''; }
+  if (_histPhoto && _histPhoto.id === id) { _histPhoto.loading = false; rerender(); }
+}
+function closeHistPhoto() { _histPhoto = null; rerender(); }
+
 function reset() {
   _step = 'idle'; _err = ''; _parsed = null; _rows = []; _vatGrossed = false; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
   _supplierHint = ''; _hintOpen = false; _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
-  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {}; _dupInfo = null;
+  _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {}; _dupInfo = null; _photoB64 = '';
   if (_photoUrl) { URL.revokeObjectURL(_photoUrl); _photoUrl = null; }
   rerender();
 }
@@ -825,12 +902,14 @@ export default {
     _step = 'idle'; _err = ''; _parsed = null; _rows = []; _supplier = null; _supplierRaw = ''; _store = null; _conception = null;
     _payDays = null; _payWeekday = null; _dueDate = ''; _dueTouched = false; _comment = '';
     _invoiceNumber = ''; _invoiceDate = ''; _search = null; _result = null; _catalog = { products: [], suppliers: [] };
-    _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {}; _dupInfo = null;
+    _queue = []; _queueTotal = 0; _batchCreated = 0; _batchCount = 0; _lastPrices = {}; _dupInfo = null; _photoB64 = '';
+    _history = null; _histLoading = false; _histPhoto = null;
     return buildHTML();
   },
   init() {
     window.__io = {
       back: () => navigate('dashboard'),
+      openHistory, closeHistory, loadHistory, viewHistPhoto, closeHistPhoto,
       file: handleFiles,
       pages: handlePages,
       toggleHint, saveHint, termsImport,
