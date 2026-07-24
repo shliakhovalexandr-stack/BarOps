@@ -387,8 +387,9 @@ function idleView() {
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3h8l4 4v14a1 1 0 01-1 1H8a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M4 7v13a1 1 0 001 1h11" opacity=".5"/><path d="M15 3v5h5"/></svg>
       Кілька сторінок = 1 накладна
     </button>
+    ${savesPhoto() ? `
+    <button class="io-fullbtn" onclick="window.__io.openHistory()">🗂 Історія фото накладних (60 днів)</button>` : ''}
     ${(_role === 'admin' || _role === 'accountant') ? `
-    <button class="io-fullbtn" onclick="window.__io.openHistory()">🗂 Історія фото накладних (60 днів)</button>
     <button class="io-fullbtn" id="io-terms-btn" onclick="window.__io.termsImport()">⏱ Підтягнути відстрочки з історії Syrve</button>
     <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:6px 2px 0;line-height:1.4">Разово: бере строки оплати з накладних, які бухгалтер створювала руками, і запамʼятовує відстрочку кожного постачальника.</div>` : ''}
   </div>`;
@@ -605,8 +606,10 @@ async function compressImage(file, maxDim = 1600, quality = 0.7) {
 }
 // Стиснене фото в base64 для історії (лише бухгалтер зберігає в БарОпс)
 function blobToB64(blob) { return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result || ''); fr.onerror = () => r(''); fr.readAsDataURL(blob); }); }
+// Зберігають фото: бухгалтер, системний менеджер (admin), керуючий (director). Бармен — ні (у нього фото в Telegram).
+function savesPhoto() { return ['accountant', 'admin', 'director'].includes(_role); }
 async function capturePhotoForHistory(file) {
-  if (_role !== 'accountant') { _photoB64 = ''; return; }
+  if (!savesPhoto()) { _photoB64 = ''; return; }
   try { _photoB64 = await blobToB64(await compressImage(file, 1200, 0.55)); } catch { _photoB64 = ''; }
 }
 
