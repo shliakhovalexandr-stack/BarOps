@@ -170,10 +170,6 @@ const QUICK_ADMIN = [
     svg:`<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
          <path d="M6 6h7M6 9h7M6 12h5M6 15h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   ...QUICK_MANAGER,
-  { route:'recipes',  badge:null, label:'Фудкост',         hint:'Розрахунок собівартості страв',  color:'var(--purple-bg)', iconColor:'var(--purple)',
-    svg:`<path d="M5 2v5a3 3 0 006 0V2M5 9h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-         <path d="M8 12v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-         <path d="M5 16h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
   { route:'ocr',      badge:null, label:'Накладна',        hint:'Сканування товарних накладних', color:'var(--green-bg)', iconColor:'var(--green)',
     svg:`<rect x="3" y="2" width="12" height="15" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
          <path d="M6 6h7M6 9h7M6 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
@@ -375,12 +371,12 @@ function tileByRoute() {
   return m;
 }
 // Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист + алерт цін (кухня)
-const CHEF_ROUTES = ['performance', 'playlist', 'price-alert', 'journal', 'stop-list', 'schedule', 'recipes', 'ordering', 'ocr', 'stock', 'writeoff', 'production', 'disassembly', 'inventory'];
+const CHEF_ROUTES = ['performance', 'playlist', 'price-alert', 'journal', 'stop-list', 'schedule', 'ordering', 'ocr', 'stock', 'writeoff', 'production', 'disassembly', 'inventory'];
 
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
   ['Зведення',         ['digest', 'performance', 'discipline', 'playlist', 'price-alert']],
-  ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule', 'recipes']],
+  ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule']],
   ['Акти',             ['production', 'disassembly']],   // акти в Syrve (приготування + розбір). Порожній — ховається
   ['Ревізія',          ['dishware']],
   ['Операції',         ['ordering', 'inventory', 'ocr', 'writeoff', 'excise', 'stock']],

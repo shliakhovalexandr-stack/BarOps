@@ -325,7 +325,7 @@ function buildFCCockpit() {
     return `
     <div class="an-sec">FC Аналітика</div>
     <div style="padding:0 14px 16px;text-align:center">
-      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b)">Страви не завантажені — перейдіть до Фудкост для завантаження</div>
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b)">Страви ще завантажуються з POS — оновіть за хвилину</div>
     </div>`;
   }
 
