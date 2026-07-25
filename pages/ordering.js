@@ -244,14 +244,17 @@ function isOrderMgr() { const r = (state.role || '').toLowerCase(); return r ===
 function orderZone() {
   const r = (state.role || '').toLowerCase();
   if (r === 'chef' || r === 'cook') return 'kitchen';
-  if (r === 'admin' || r === 'manager' || r === 'director') return _mgrZone;
+  if (r === 'manager') return 'hoz';   // менеджер залу — закупка ЛИШЕ хоз-товарів (замкнено)
+  if (r === 'admin' || r === 'director') return _mgrZone;   // перемикач Бар/Кухня/Хоз
   return 'bar';   // бармен
 }
 // Зона складу за назвою — заклад може мати кілька складів однієї зони (Дім18: «Бар ТОВ» + «Бар ФОП»).
-// Службові (обладнання/посуд/меблі/…) бекенд уже не віддає при zoneMerge, тут — підстраховка.
+// Хоз/господарчі склади — окрема зона 'hoz' (закупка менеджера залу). Решта службових (обладнання/
+// посуд/меблі/…) = 'service' (бекенд їх не віддає при zoneMerge; тут — підстраховка).
 function storeZoneName(name) {
   const n = (name || '').toLowerCase();
-  if (/обладн|посуд|мебл|ремонт|залишк|панг|господар|хоз|доброго|спецодяг|уніформ|мшп|малоцін/.test(n)) return 'service';
+  if (/господар|хоз/.test(n)) return 'hoz';
+  if (/обладн|посуд|мебл|ремонт|залишк|панг|доброго|спецодяг|уніформ|мшп|малоцін/.test(n)) return 'service';
   if (/кухн|kitchen/.test(n)) return 'kitchen';
   if (/бар|bar/.test(n)) return 'bar';
   return '';
@@ -293,7 +296,8 @@ async function fetchBalanceRetry(maxAttempts = 3) {
     if (attempt > 1) await new Promise(r => setTimeout(r, 2500));
     if (state.route !== 'ordering') return null;
     try {
-      const res  = await fetch(`${API}/api/pos/balance/${_venueId}?zoneMerge=1`, { headers: h });
+      const hozQ = orderZone() === 'hoz' ? '&hoz=1' : '';   // хоз-зона — просимо бекенд включити господарчі склади
+      const res  = await fetch(`${API}/api/pos/balance/${_venueId}?zoneMerge=1${hozQ}`, { headers: h });
       const data = await res.json();
       if (data.success && data.stores?.length) return data;
       console.warn(`[Ordering] balance attempt ${attempt}/${maxAttempts}: empty`);
@@ -902,20 +906,21 @@ function renderManager() {
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div style="flex:1">
-      <div class="ord-title">Замовлення</div>
-      <div class="ord-sub">${isKitchenRole() ? 'Кухня' : 'Менеджер'} · ${state.venue}</div>
+      <div class="ord-title">${orderZone()==='hoz' ? 'Хоз-товари' : 'Замовлення'}</div>
+      <div class="ord-sub">${isKitchenRole() ? 'Кухня' : orderZone()==='hoz' ? 'Господарчі товари' : 'Менеджер'} · ${state.venue}</div>
     </div>
   </div>
 
   <div class="ord-scroll">
-    ${(isOrderMgr() && !isKitchenRole()) ? `
+    ${(state.role==='admin' || state.role==='director') ? `
     <div style="display:flex;gap:6px;margin:0 18px 12px;padding:3px;background:var(--bg2);border-radius:11px;border:0.5px solid var(--border)">
       <button onclick="window.__ord.setMgrZone('bar')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='bar'?'var(--bg3)':'transparent'};color:${_mgrZone==='bar'?'var(--text0)':'var(--text2)'}">🍸 Бар</button>
       <button onclick="window.__ord.setMgrZone('kitchen')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='kitchen'?'var(--bg3)':'transparent'};color:${_mgrZone==='kitchen'?'var(--text0)':'var(--text2)'}">🍳 Кухня</button>
+      <button onclick="window.__ord.setMgrZone('hoz')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='hoz'?'var(--bg3)':'transparent'};color:${_mgrZone==='hoz'?'var(--text0)':'var(--text2)'}">🧻 Хоз</button>
     </div>` : ''}
     <div class="ord-mgr-tabs">
       <button class="ord-mt ${_mgrTab==='orders'?'act':''}"     onclick="window.__ord.setMgrTab('orders')">Замовлення</button>
-      <button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>
+      ${orderZone()!=='hoz' ? `<button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>` : ''}
       <button class="ord-mt ${_mgrTab==='suppliers'?'act':''}"  onclick="window.__ord.setMgrTab('suppliers')">Постачальники</button>
       <button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>
     </div>
@@ -1314,9 +1319,9 @@ async function markOrderDone(id) {
    MANAGER ACTIONS
 ════════════════════════ */
 function setMgrTab(tab) { _mgrTab = tab; fullRender(); if (tab === 'suggest' && _suggest === null) loadSuggest(); }
-// Адмін/менеджер: перемкнути зону закупки (Бар↔Кухня) — перезавантажити постачальників+заявки
+// Адмін/керуючий: перемкнути зону закупки (Бар/Кухня/Хоз) — перезавантажити постачальників+заявки+баланс
 function setMgrZone(z) {
-  if ((z !== 'bar' && z !== 'kitchen') || _mgrZone === z) return;
+  if (!['bar', 'kitchen', 'hoz'].includes(z) || _mgrZone === z) return;
   _mgrZone = z; _mgrTab = 'orders';
   _suppliers = []; _orders = []; _suggest = null; _loading = true;
   fullRender();

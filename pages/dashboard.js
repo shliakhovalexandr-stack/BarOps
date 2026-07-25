@@ -52,6 +52,10 @@ const QUICK_DISHWARE = { route:'dishware', badge:null, label:'Інвентари
   svg:`<circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
        <circle cx="9" cy="9" r="2.5" stroke="currentColor" stroke-width="1.2" fill="none"/>` };
 
+const QUICK_HOZ = { route:'ordering', badge:null, label:'Хоз-товари', hint:'Закупка господарчих товарів у постачальника', color:'var(--teal-bg)', iconColor:'var(--teal)',
+  svg:`<path d="M4 6h10l-1 9.5H5L4 6z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>
+       <path d="M6.5 6V4.5A2.5 2.5 0 0 1 9 2a2.5 2.5 0 0 1 2.5 2.5V6" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>` };
+
 const QUICK_MY_SHIFT = { route:'my-shift', badge:null, label:'Моя зміна', hint:'Мої продажі, чеки та фокус-страви', color:'var(--purple-bg)', iconColor:'var(--purple)',
   svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
        <path d="M3.5 15.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
@@ -650,7 +654,7 @@ function buildHTML() {
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
   const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT, QUICK_ABC]
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : []), QUICK_PRICE_ALERT, QUICK_ABC]
-              : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : [])]
+              : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), QUICK_HOZ, ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? [QUICK_INVOICE_OCR, QUICK_PRICE_ALERT, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
