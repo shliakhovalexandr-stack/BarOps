@@ -52,7 +52,7 @@ const QUICK_DISHWARE = { route:'dishware', badge:null, label:'Інвентари
   svg:`<circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3" fill="none"/>
        <circle cx="9" cy="9" r="2.5" stroke="currentColor" stroke-width="1.2" fill="none"/>` };
 
-const QUICK_HOZ = { route:'ordering', badge:null, label:'Хоз-товари', hint:'Закупка господарчих товарів у постачальника', color:'var(--teal-bg)', iconColor:'var(--teal)',
+const QUICK_HOZ = { route:'ordering', badge:null, label:'Хоз-товари', hint:'Замовлення господарчих товарів (перелік + кількості)', color:'var(--teal-bg)', iconColor:'var(--teal)',
   svg:`<path d="M4 6h10l-1 9.5H5L4 6z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>
        <path d="M6.5 6V4.5A2.5 2.5 0 0 1 9 2a2.5 2.5 0 0 1 2.5 2.5V6" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>` };
 

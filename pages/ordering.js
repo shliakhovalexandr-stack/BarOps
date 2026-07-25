@@ -37,6 +37,15 @@ let _suggest        = null;   // підказки закупівлі (рух з�
 let _suggestLoading = false;
 let _suggestOnlyLow = false;  // фільтр «лише те, що треба замовити»
 
+/* ── ХОЗ-ТОВАРИ (окремий простий флоу: список асортименту з Syrve + кількості, без постачальників) ── */
+let _hoz         = [];        // [{id,name,unit,stock,lastPrice,lastDate,custom?}]
+let _hozQty      = {};        // productId → кількість до замовлення
+let _hozLoading  = false;
+let _hozLoaded   = false;     // чи завершився перший запит асортименту
+let _hozError    = '';
+let _hozSearch   = '';
+let _hozOnlyOut  = false;     // фільтр «лише закінчились» (0 залишку)
+
 /* Supplier management */
 let _suppSheet        = null;   // null | 'add' | suppId(string) для edit
 let _suppDraft        = { name:'', contact:'', orderDays:'', fop:'', paymentForm:'' };
@@ -230,6 +239,15 @@ const CSS = `<style id="ord-css">
 .ord-req-iqty{font-size:13px;font-weight:700;color:var(--teal);flex-shrink:0}
 .ord-req-icomment{font-size:11px;color:var(--text2);margin-top:1px;font-style:italic}
 .ord-req-done-btn{display:block;width:calc(100% - 28px);margin:10px 14px 12px;height:40px;border-radius:12px;background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);font-size:13px;font-family:var(--font-b);font-weight:600;cursor:pointer}
+
+/* ── ХОЗ-ТОВАРИ ── */
+.hoz-search{flex:1;height:38px;border-radius:11px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text0);font-family:var(--font-b);font-size:13px;padding:0 14px;outline:none}
+.hoz-chip{height:38px;padding:0 12px;border-radius:11px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-family:var(--font-b);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.hoz-chip.act{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.hoz-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:0.5px solid var(--border)}
+.hoz-name{font-size:14px;color:var(--text0);font-family:var(--font-b);line-height:1.3}
+.hoz-stock{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
+.hoz-step{display:flex;align-items:center;gap:6px;flex-shrink:0}
 </style>`;
 
 /* ════════════════════════
@@ -240,6 +258,11 @@ function getBalance(productId) {
 }
 // Шеф/кухар — кухонна закупка; бармен — барна; адмін/менеджер — перемикач (_mgrZone)
 function isKitchenRole() { const r = (state.role || '').toLowerCase(); return r === 'chef' || r === 'cook'; }
+// Перемикач зони закупки для адміна/керуючого (Бар/Кухня/Хоз). Менеджер залу — замкнено на Хоз (без тогла).
+function zoneToggleHTML() {
+  const btn = (z, label) => `<button onclick="window.__ord.setMgrZone('${z}')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone===z?'var(--bg3)':'transparent'};color:${_mgrZone===z?'var(--text0)':'var(--text2)'}">${label}</button>`;
+  return `<div style="display:flex;gap:6px;margin:0 18px 12px;padding:3px;background:var(--bg2);border-radius:11px;border:0.5px solid var(--border)">${btn('bar','🍸 Бар')}${btn('kitchen','🍳 Кухня')}${btn('hoz','🧻 Хоз')}</div>`;
+}
 function isOrderMgr() { const r = (state.role || '').toLowerCase(); return r === 'admin' || r === 'manager' || r === 'director' || r === 'chef'; }
 function orderZone() {
   const r = (state.role || '').toLowerCase();
@@ -912,12 +935,7 @@ function renderManager() {
   </div>
 
   <div class="ord-scroll">
-    ${(state.role==='admin' || state.role==='director') ? `
-    <div style="display:flex;gap:6px;margin:0 18px 12px;padding:3px;background:var(--bg2);border-radius:11px;border:0.5px solid var(--border)">
-      <button onclick="window.__ord.setMgrZone('bar')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='bar'?'var(--bg3)':'transparent'};color:${_mgrZone==='bar'?'var(--text0)':'var(--text2)'}">🍸 Бар</button>
-      <button onclick="window.__ord.setMgrZone('kitchen')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='kitchen'?'var(--bg3)':'transparent'};color:${_mgrZone==='kitchen'?'var(--text0)':'var(--text2)'}">🍳 Кухня</button>
-      <button onclick="window.__ord.setMgrZone('hoz')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone==='hoz'?'var(--bg3)':'transparent'};color:${_mgrZone==='hoz'?'var(--text0)':'var(--text2)'}">🧻 Хоз</button>
-    </div>` : ''}
+    ${(state.role==='admin' || state.role==='director') ? zoneToggleHTML() : ''}
     <div class="ord-mgr-tabs">
       <button class="ord-mt ${_mgrTab==='orders'?'act':''}"     onclick="window.__ord.setMgrTab('orders')">Замовлення</button>
       ${orderZone()!=='hoz' ? `<button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>` : ''}
@@ -1014,10 +1032,133 @@ function customHTML() {
 }
 
 /* ════════════════════════
+   ХОЗ-ТОВАРИ — простий екран (список асортименту + кількості + копіювати)
+   Хозтовари привозить представник постачальника, який приймає замовлення на місці,
+   тож ніяких «постачальники+Telegram» — лише перелік + кількість.
+════════════════════════ */
+async function loadHoz() {
+  _hozLoading = true; _hozError = ''; fullRender();
+  try {
+    const r = await fetch(`${API}/api/pos/hoz-assortment/${_venueId}`, { headers: { Authorization: `Bearer ${_token}` } });
+    const d = await r.json();
+    if (d.success) _hoz = d.items || [];
+    else _hozError = d.error || d.note || 'Не вдалося завантажити асортимент';
+  } catch (e) { _hozError = e.message; }
+  _hozLoading = false; _hozLoaded = true; fullRender();
+}
+function hozUpdateCount() {
+  const n = Object.values(_hozQty).filter(q => q > 0).length;
+  const c = document.getElementById('hoz-count'); if (c) c.textContent = n ? `${n} поз.` : '';
+  const b = document.getElementById('hoz-copybtn');
+  if (b) { b.style.opacity = n ? '1' : '.5'; b.textContent = `📋 Скопіювати замовлення${n ? ` (${n})` : ''}`; }
+}
+function hozChangeQty(id, delta) {
+  _hozQty[id] = Math.max(0, (+_hozQty[id] || 0) + delta);
+  const el = document.getElementById(`hq-${id}`); if (el) el.value = _hozQty[id] || '';
+  hozUpdateCount();
+}
+function hozSetQty(id, val) { _hozQty[id] = Math.max(0, parseFloat(val) || 0); hozUpdateCount(); }
+function hozSearchChange(v) { _hozSearch = v; const el = document.getElementById('hoz-list'); if (el) el.innerHTML = hozListHTML(); }
+function hozToggleOut() { _hozOnlyOut = !_hozOnlyOut; fullRender(); }
+function hozAddCustom() {
+  const name = prompt('Назва позиції (якої немає у списку):');
+  if (!name || !name.trim()) return;
+  const id = 'custom-' + Math.random().toString(36).slice(2, 9);
+  _hoz.unshift({ id, name: name.trim(), unit: '', stock: null, custom: true });
+  _hozQty[id] = 1;
+  fullRender();
+}
+async function hozCopy() {
+  const rows = _hoz.filter(i => (+_hozQty[i.id] || 0) > 0);
+  if (!rows.length) return;
+  const date  = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+  const lines = rows.map(i => `• ${i.name} — ${_hozQty[i.id]}${i.unit ? ' ' + i.unit : ''}`);
+  const text  = `Замовлення (хоз-товари)\n${state.venue} · ${date}\n\n${lines.join('\n')}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    const b = document.getElementById('hoz-copybtn');
+    if (b) { const o = b.textContent; b.textContent = '✓ Скопійовано'; b.style.color = 'var(--green)'; setTimeout(() => { b.textContent = o; b.style.color = ''; }, 2000); }
+  } catch { prompt('Скопіюйте вручну:', text); }
+}
+function hozClear() {
+  _confirm = { title: 'Очистити замовлення?', message: 'Усі введені кількості буде скинуто.', confirmLabel: 'Очистити', danger: true, action: () => { _hozQty = {}; fullRender(); } };
+  fullRender();
+}
+function hozListHTML() {
+  if (_hozLoading || (!_hozLoaded && !_hozError))
+    return `<div style="padding:30px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px">Завантаження асортименту…</div>`;
+  if (_hozError)
+    return `<div style="padding:24px;text-align:center;color:var(--red);font-family:var(--font-b);font-size:13px;line-height:1.5">${esc(_hozError)}
+      <div style="margin-top:12px"><button onclick="window.__ord.loadHoz()" style="height:34px;padding:0 16px;border-radius:9px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer">Оновити</button></div></div>`;
+  const ql = (_hozSearch || '').toLowerCase().trim();
+  const list = _hoz.filter(i =>
+    (!ql || i.name.toLowerCase().includes(ql)) &&
+    (!_hozOnlyOut || (i.stock !== null && i.stock <= 0)));
+  if (!list.length)
+    return `<div style="padding:24px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:12px">${_hoz.length ? 'Нічого не знайдено' : 'Асортимент хоз-складу порожній'}</div>`;
+  return list.map(i => {
+    const q = _hozQty[i.id] || 0;
+    const stockTxt = i.stock === null ? ''
+      : (i.stock <= 0 ? `<span style="color:var(--red)">Закінчилось</span>` : `Залишок: ${fmtN(i.stock)} ${esc(i.unit || '')}`);
+    return `<div class="hoz-row">
+      <div style="flex:1;min-width:0">
+        <div class="hoz-name">${esc(i.name)}${i.custom ? ' <span style="color:var(--purple);font-size:10px;font-weight:600">свій</span>' : ''}</div>
+        ${stockTxt ? `<div class="hoz-stock">${stockTxt}</div>` : ''}
+      </div>
+      <div class="hoz-step">
+        <div class="ord-qbtn-lg" onclick="window.__ord.hozChangeQty('${i.id}',-1)">−</div>
+        <input class="ord-qinput" id="hq-${i.id}" type="number" min="0" inputmode="numeric" value="${q || ''}" placeholder="0"
+          onchange="window.__ord.hozSetQty('${i.id}',this.value)" onfocus="this.select()">
+        <div class="ord-qbtn-lg plus" onclick="window.__ord.hozChangeQty('${i.id}',1)">+</div>
+        ${i.unit ? `<div style="font-size:12px;color:var(--purple);font-family:var(--font-b);font-weight:600;margin-left:2px">${esc(i.unit)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderHoz() {
+  const n = Object.values(_hozQty).filter(q => q > 0).length;
+  const isAdminDir = state.role === 'admin' || state.role === 'director';
+  const outCount = _hoz.filter(i => i.stock !== null && i.stock <= 0).length;
+  return `
+  <div class="ord-topbar" style="flex-shrink:0">
+    <div class="ord-back" onclick="window.__barops.navigate('dashboard')">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8l5-5" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div style="flex:1">
+      <div class="ord-title">Хоз-товари</div>
+      <div class="ord-sub">Замовлення · ${state.venue}</div>
+    </div>
+    <div id="hoz-count" style="font-family:var(--font-h);font-size:13px;font-weight:700;color:var(--teal)">${n ? n + ' поз.' : ''}</div>
+  </div>
+
+  <div class="ord-scroll">
+    ${isAdminDir ? zoneToggleHTML() : ''}
+    <div style="padding:6px 14px 8px;display:flex;gap:8px;align-items:center">
+      <input class="hoz-search" placeholder="Пошук товару…" value="${(_hozSearch || '').replace(/"/g, '&quot;')}" oninput="window.__ord.hozSearchChange(this.value)">
+      ${outCount ? `<button onclick="window.__ord.hozToggleOut()" class="hoz-chip ${_hozOnlyOut ? 'act' : ''}">Закінчились · ${outCount}</button>` : ''}
+    </div>
+    <div id="hoz-list">${hozListHTML()}</div>
+    <div style="padding:12px 14px 8px">
+      <button class="ord-btn ord-btn-ghost" onclick="window.__ord.hozAddCustom()">+ Додати позицію вручну</button>
+    </div>
+    <div style="height:90px"></div>
+  </div>
+
+  <div class="ord-actions">
+    <button id="hoz-copybtn" class="ord-btn ord-btn-teal" style="opacity:${n ? '1' : '.5'}" onclick="window.__ord.hozCopy()">📋 Скопіювати замовлення${n ? ` (${n})` : ''}</button>
+    ${n ? `<button class="ord-btn ord-btn-ghost" style="margin-top:8px" onclick="window.__ord.hozClear()">Очистити</button>` : ''}
+  </div>
+
+  <div id="ord-confirm-host">${confirmHTML()}</div>`;
+}
+
+/* ════════════════════════
    BUILD + RENDER
 ════════════════════════ */
 function buildHTML() {
-  const body = isOrderMgr() ? renderManager() : renderBartender();   // chef = кухонний «менеджер» закупки
+  const body = orderZone() === 'hoz' ? renderHoz()            // менеджер залу / хоз-зона адміна
+             : isOrderMgr() ? renderManager()                 // chef = кухонний «менеджер» закупки
+             : renderBartender();
   return `${CSS}<div class="ord-wrap">${body}</div>`;
 }
 function fullRender() {
@@ -1323,6 +1464,9 @@ function setMgrTab(tab) { _mgrTab = tab; fullRender(); if (tab === 'suggest' && 
 function setMgrZone(z) {
   if (!['bar', 'kitchen', 'hoz'].includes(z) || _mgrZone === z) return;
   _mgrZone = z; _mgrTab = 'orders';
+  if (z === 'hoz') {   // хоз — окремий флоу (асортимент із Syrve, без постачальників)
+    _hozLoaded = false; fullRender(); loadHoz(); return;
+  }
   _suppliers = []; _orders = []; _suggest = null; _loading = true;
   fullRender();
   loadData();    // постачальники нової зони (+ баланс)
@@ -1603,12 +1747,14 @@ export default {
     _suppError     = '';
     _suppSaving    = false;
     _loading       = true;
+    _hoz = []; _hozQty = {}; _hozLoaded = false; _hozLoading = false; _hozError = ''; _hozSearch = ''; _hozOnlyOut = false;
     return buildHTML();
   },
   init() {
     window.__ord = {
       toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, clearOrderConfirm, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
       setMgrTab, setMgrZone, loadSuggest, toggleSuggestLow,
+      loadHoz, hozChangeQty, hozSetQty, hozSearchChange, hozToggleOut, hozAddCustom, hozCopy, hozClear,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
       closeConfirm, confirmYes,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
@@ -1618,6 +1764,8 @@ export default {
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
+    // Хоз-зона (менеджер залу або адмін/керуючий у режимі Хоз) — окремий флоу, свій запит
+    if (orderZone() === 'hoz') { _hozLoaded = false; loadHoz(); return; }
     loadDraft();   // відновити збережену чернетку заявки
     loadCopied();  // відновити позначки «вже копіювали»
     // ПОСЛІДОВНО: обидва ходять у Syrve (один REST-слот) — паралельний loadSuggest
