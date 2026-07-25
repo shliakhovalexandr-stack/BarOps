@@ -248,6 +248,7 @@ const CSS = `<style id="ord-css">
 .hoz-name{font-size:14px;color:var(--text0);font-family:var(--font-b);line-height:1.3}
 .hoz-stock{font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px}
 .hoz-step{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.hoz-unit{font-size:12px;color:var(--purple);font-family:var(--font-b);font-weight:600;margin-left:2px;width:26px;flex-shrink:0;text-align:left}
 </style>`;
 
 /* ════════════════════════
@@ -1110,7 +1111,7 @@ function hozListHTML() {
         <input class="ord-qinput" id="hq-${i.id}" type="number" min="0" inputmode="numeric" value="${q || ''}" placeholder="0"
           onchange="window.__ord.hozSetQty('${i.id}',this.value)" onfocus="this.select()">
         <div class="ord-qbtn-lg plus" onclick="window.__ord.hozChangeQty('${i.id}',1)">+</div>
-        ${i.unit ? `<div style="font-size:12px;color:var(--purple);font-family:var(--font-b);font-weight:600;margin-left:2px">${esc(i.unit)}</div>` : ''}
+        <div class="hoz-unit">${esc(i.unit || '')}</div>
       </div>
     </div>`;
   }).join('');
