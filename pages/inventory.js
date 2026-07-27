@@ -209,7 +209,7 @@ function searchBoxHTML() {
       <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%)" width="15" height="15" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="var(--text2)" stroke-width="1.2"/><path d="M9.5 9.5l3 3" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round"/></svg>
       <input id="inv-search" type="text" placeholder="Пошук товару…" value="${(_search || '').replace(/"/g, '&quot;')}"
         style="width:100%;height:44px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:0 36px 0 36px;font-size:15px;color:var(--text0);font-family:var(--font-b);outline:none;box-sizing:border-box">
-      ${_search ? `<div data-a="search-clear" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg></div>` : ''}
+      ${_search ? `<button type="button" id="inv-search-clear" aria-label="Очистити пошук" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:var(--bg3);border:none;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" style="pointer-events:none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg></button>` : ''}
     </div>
   </div>`;
 }
@@ -831,6 +831,13 @@ function bindLiveInputs() {
     const s2 = document.getElementById('inv-search');
     if (s2) { s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); }
   };
+  // Хрестик очищення пошуку — пряма привʼязка (iOS не завжди віддає click на div/делегування;
+  // pointerdown preventDefault не дає першому тапу «зʼїстись» на закриття клавіатури)
+  const clr = document.getElementById('inv-search-clear');
+  if (clr) {
+    clr.onpointerdown = e => e.preventDefault();
+    clr.onclick = () => { _search = ''; re(); };
+  }
   // Склади: назва нового складу (без re) і перейменування активного (в пам'ять; PATCH при закритті)
   const ln = document.getElementById('loc-new-name');
   if (ln) ln.oninput = e => { _locNewName = e.target.value; };
