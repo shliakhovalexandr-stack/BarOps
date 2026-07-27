@@ -686,6 +686,31 @@ function re() {
   if (isDish()) loadDishImgs();
 }
 
+/* ════════════════════════ КАЛЬКУЛЯТОР У ПОЛЯХ КІЛЬКОСТІ ════════════════════════ */
+// Безпечний обчислювач простих виразів: лише цифри й оператори (без ідентифікаторів → eval-безпечно).
+// Приймає укр «х» / lat «x» / «×» як множення, «÷» як ділення, кому як крапку. Напр. «5х230» → 1150.
+function evalExpr(s) {
+  const e = String(s).replace(/,/g, '.').replace(/[хx×]/gi, '*').replace(/÷/g, '/').trim();
+  if (!/^[0-9+\-*\/.()\s]+$/.test(e)) return null;
+  try {
+    const v = Function('"use strict";return (' + e + ')')();
+    if (typeof v !== 'number' || !isFinite(v)) return null;
+    return Math.round(v * 1000) / 1000;   // 3 знаки — як усюди в інвентарі
+  } catch { return null; }
+}
+// Вагові/обʼємні поля — type="text", тож символ оператора вводиться. На blur рахуємо вираз і
+// підставляємо результат, після чого існуючий oninput збереже число (нічого більше міняти не треба).
+function attachCalc(inp) {
+  inp.onblur = () => {
+    const raw = (inp.value || '').trim();
+    if (!/[-+*\/хx×÷]/i.test(raw)) return;   // немає виразу — не чіпаємо
+    const v = evalExpr(raw);
+    if (v === null) return;                   // некоректний вираз — лишаємо як ввів
+    inp.value = String(v);
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+}
+
 /* ════════════════════════ LIVE INPUT BINDING ════════════════════════ */
 // After each re() we rebind input events without full re-render
 function bindLiveInputs() {
@@ -752,6 +777,10 @@ function bindLiveInputs() {
       persistCounts();
     };
   });
+  // Калькулятор: у вагових/обʼємних полях (кг/л/ПФ/ваги пляшок/дод. заміри) можна ввести вираз
+  // «5х230» → на blur підставиться 1150. Степери штук — цілі одиниці, там не потрібно.
+  document.querySelectorAll('[data-live-inp],[data-add-inp],[data-nf-inp],[data-partial-inp]').forEach(attachCalc);
+
   const se = document.getElementById('inv-search');
   if (se) se.oninput = e => {
     _search = e.target.value; re();
@@ -1719,9 +1748,9 @@ function inputPanelHTML(p, c, m) {
   if (m === 'kg') {
     return `
       <div class="inv-ipanel">
-        <div class="inv-inp-lbl">Скільки залишилось, кг</div>
+        <div class="inv-inp-lbl">Скільки залишилось, кг <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">· можна порахувати: 5х230</span></div>
         <input class="inv-field" type="text" inputmode="decimal"
-          placeholder="0.000" value="${c.kg || ''}"
+          placeholder="0.000  (або 5х230)" value="${c.kg || ''}"
           data-live-inp="kg" data-pid="${p.id}">
         ${addsHTML(p, 'кг')}
         <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (кг)</div>
@@ -1733,9 +1762,9 @@ function inputPanelHTML(p, c, m) {
   if (m === 'ml') {   // ручний ввід одразу в ЛІТРАХ (база Syrve для рідини)
     return `
       <div class="inv-ipanel">
-        <div class="inv-inp-lbl">Скільки залишилось, л</div>
+        <div class="inv-inp-lbl">Скільки залишилось, л <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">· можна порахувати: 3х0.7</span></div>
         <input class="inv-field" type="text" inputmode="decimal"
-          placeholder="0.000" value="${c.ml || ''}"
+          placeholder="0.000  (або 3х0.7)" value="${c.ml || ''}"
           data-live-inp="ml" data-pid="${p.id}">
         ${addsHTML(p, 'л')}
         <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (л)</div>
