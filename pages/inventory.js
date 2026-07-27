@@ -279,6 +279,10 @@ const CSS = `<style id="inv-css">
 .inv-inp-lbl{font-size:10px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
 .inv-field{height:40px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:11px;padding:0 12px;font-size:17px;font-weight:700;color:var(--text0);outline:none;width:100%;text-align:center;transition:border-color .2s}
 .inv-field:focus{border-color:var(--green)}
+.inv-calc{display:flex;align-items:center;gap:6px;margin:7px 0 2px}
+.inv-calc-b{width:44px;height:34px;border-radius:9px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text0);font-size:18px;font-weight:700;font-family:var(--font-h);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.inv-calc-b:active{background:var(--purple-bg);border-color:var(--purple-border,rgba(168,139,255,.4));color:var(--purple)}
+.inv-calc-eq{margin-left:auto;font-size:16px;font-weight:700;color:var(--purple);font-family:var(--font-h);padding-right:4px;min-height:20px}
 .inv-stepper{display:flex;gap:8px;align-items:center}
 .inv-stbtn{width:40px;height:40px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:11px;font-size:18px;color:var(--text0);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none}
 .inv-stbtn:active{background:rgba(255,255,255,.08)}
@@ -710,6 +714,31 @@ function attachCalc(inp) {
     inp.dispatchEvent(new Event('input', { bubbles: true }));
   };
 }
+// Курсорна вставка оператора / бекспейс у поле (фокус зберігається — кнопки роблять preventDefault).
+function calcInsert(inp, ch) {
+  const s = inp.selectionStart ?? inp.value.length, e = inp.selectionEnd ?? inp.value.length;
+  if (ch === 'bk') {
+    if (s === e && s > 0) { inp.value = inp.value.slice(0, s - 1) + inp.value.slice(e); inp.setSelectionRange(s - 1, s - 1); }
+    else { inp.value = inp.value.slice(0, s) + inp.value.slice(e); inp.setSelectionRange(s, s); }
+  } else {
+    inp.value = inp.value.slice(0, s) + ch + inp.value.slice(e);
+    inp.setSelectionRange(s + ch.length, s + ch.length);
+  }
+}
+// Живий прев'ю «= N» біля поля, поки в ньому вираз.
+function updateEq(inp) {
+  if (!inp || !inp.id) return;
+  const eq = document.getElementById(inp.id.replace('inv-cnt-', 'inv-eq-'));
+  if (!eq) return;
+  const raw = (inp.value || '').trim();
+  if (/[-+*\/хx×÷]/i.test(raw)) { const v = evalExpr(raw); eq.textContent = v === null ? '' : '= ' + v; }
+  else eq.textContent = '';
+}
+// Ряд-калькулятор під полем: × + − ⌫ + прев'ю. Потрібен, бо цифрова клавіатура телефона не має «×».
+function calcBarHTML(pid, kind) {
+  const b = (op, lbl) => `<button type="button" class="inv-calc-b" data-calc="${pid}|${kind}|${op}">${lbl}</button>`;
+  return `<div class="inv-calc">${b('×', '×')}${b('+', '+')}${b('-', '−')}${b('bk', '⌫')}<span class="inv-calc-eq" id="inv-eq-${kind}-${pid}"></span></div>`;
+}
 
 /* ════════════════════════ LIVE INPUT BINDING ════════════════════════ */
 // After each re() we rebind input events without full re-render
@@ -722,6 +751,7 @@ function bindLiveInputs() {
       _counts[pid][kind] = (e.target.value || '').replace(',', '.');   // кома→крапка (укр. локаль)
       updateConvDisplay(pid);
       updateAddTotal(pid);   // основне значення ml змінилось → оновити суму, якщо є дод. заміри
+      updateEq(e.target);    // калькулятор: прев'ю «= N»
       persistCounts();
     };
   });
@@ -762,6 +792,7 @@ function bindLiveInputs() {
       const bar = document.getElementById(`inv-nfbar-${pid}`);
       if (bar) bar.style.background = isCounted(pid) ? 'var(--green)' : 'var(--bg3)';
       updateAddTotal(pid);   // оновити «= разом», якщо є дод. заміри
+      updateEq(e.target);    // калькулятор: прев'ю «= N»
       persistCounts();
     };
   });
@@ -780,6 +811,19 @@ function bindLiveInputs() {
   // Калькулятор: у вагових/обʼємних полях (кг/л/ПФ/ваги пляшок/дод. заміри) можна ввести вираз
   // «5х230» → на blur підставиться 1150. Степери штук — цілі одиниці, там не потрібно.
   document.querySelectorAll('[data-live-inp],[data-add-inp],[data-nf-inp],[data-partial-inp]').forEach(attachCalc);
+  // Кнопки калькулятора × + − ⌫ — вставляють у поле, не забираючи фокус (цифрова клавіатура «×» не має)
+  document.querySelectorAll('[data-calc]').forEach(btn => {
+    btn.onpointerdown = e => e.preventDefault();   // зберегти фокус/курсор у полі
+    btn.onclick = () => {
+      const [pid, kind, op] = btn.dataset.calc.split('|');
+      const inp = document.getElementById(`inv-cnt-${kind}-${pid}`);
+      if (!inp) return;
+      calcInsert(inp, op);
+      inp.focus();
+      inp.dispatchEvent(new Event('input', { bubbles: true }));   // існуючий oninput збереже
+      updateEq(inp);
+    };
+  });
 
   const se = document.getElementById('inv-search');
   if (se) se.oninput = e => {
@@ -1695,11 +1739,11 @@ function prepRowHTML(p) {
           <div class="inv-pmeta">↳ розкладеться на товари</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <input class="inv-field" style="width:88px;margin:0;height:38px;font-size:16px" type="text" inputmode="decimal" placeholder="0" value="${c.nf || ''}" data-nf-inp data-pid="${p.id}" onfocus="this.select()">
+          <input class="inv-field" style="width:88px;margin:0;height:38px;font-size:16px" type="text" inputmode="decimal" placeholder="0" value="${c.nf || ''}" id="inv-cnt-nf-${p.id}" data-nf-inp data-pid="${p.id}" onfocus="this.select()">
           <span class="inv-punit" style="min-width:20px;text-align:left">${p.unit || ''}</span>
         </div>
       </div>
-      <div class="inv-ipanel">${addsHTML(p, p.unit || 'кг')}</div>
+      <div class="inv-ipanel">${calcBarHTML(p.id, 'nf')}${addsHTML(p, p.unit || 'кг')}</div>
     </div>`;
 }
 
@@ -1751,7 +1795,8 @@ function inputPanelHTML(p, c, m) {
         <div class="inv-inp-lbl">Скільки залишилось, кг <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">· можна порахувати: 5х230</span></div>
         <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0.000  (або 5х230)" value="${c.kg || ''}"
-          data-live-inp="kg" data-pid="${p.id}">
+          id="inv-cnt-kg-${p.id}" data-live-inp="kg" data-pid="${p.id}">
+        ${calcBarHTML(p.id, 'kg')}
         ${addsHTML(p, 'кг')}
         <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (кг)</div>
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
@@ -1765,7 +1810,8 @@ function inputPanelHTML(p, c, m) {
         <div class="inv-inp-lbl">Скільки залишилось, л <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">· можна порахувати: 3х0.7</span></div>
         <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0.000  (або 3х0.7)" value="${c.ml || ''}"
-          data-live-inp="ml" data-pid="${p.id}">
+          id="inv-cnt-ml-${p.id}" data-live-inp="ml" data-pid="${p.id}">
+        ${calcBarHTML(p.id, 'ml')}
         ${addsHTML(p, 'л')}
         <div class="inv-syrve-hint">↳ так і піде в ${posLabel()} (л)</div>
         <button class="inv-save-next" data-a="toggle-prod" data-pid="${p.id}">Зберегти й до наступного →</button>
