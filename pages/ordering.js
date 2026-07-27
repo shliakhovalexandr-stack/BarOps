@@ -1366,7 +1366,12 @@ async function loadMyOrder() {
     const res  = await fetch(`${API}/api/orders?venueId=${_venueId}&mine=1&zone=${orderZone()}`, { headers: { Authorization: `Bearer ${_token}` } });
     const data = await res.json().catch(() => ({}));
     if (!data.success) return;
-    const editable = (data.data || []).find(o => o.status === 'pending' || o.status === 'approved');
+    // Редагованою вважаємо лише заявку ЗА СЬОГОДНІ. Інакше стара незакрита заявка (менеджер не
+    // позначив «виконано») підхоплювалась як чернетка → нова відправка мовчки PATCH-ила стару
+    // (без пушу, зі старою датою), і менеджеру «нічого не приходило». Тепер новий день → нова заявка.
+    const kyiv  = t => new Date(new Date(t).getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+    const today = kyiv(Date.now());
+    const editable = (data.data || []).find(o => (o.status === 'pending' || o.status === 'approved') && kyiv(o.createdAt) === today);
     if (!editable) return;
     _myOrderId = editable.id;
     _submitted = true;
