@@ -927,15 +927,18 @@ async function loadAll() {
       const d = await balRes.json();
       _posMode = d.mode || '';            // 'poster' | 'selfhosted' | 'cloud' | '' (з detectSyrveMode; НЕ 'syrve')
       _balance = [];
+      // ⚠ Виключення службових складів ОБОВʼЯЗКОВЕ для всіх зон: напр. «Обладнання Кухня» теж
+      // матчить /кух/ → без цього кухонна інвентаризація йшла на склад обладнання (Дім18, баг 2026-07).
+      const SVC_STORE = /обладнан|інвентар|inventar|equipment|мебл|ремонт|панг|залишк/i;
       // посуд — лише склад «Посуд»; кухня (шеф/кухар) — лише склад «Кухня»; Poster-бар — склад «Бар»; Syrve-бар — усі повернуті
       const stores = isDish()
         ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || ''))
         : isKitchen()
-        ? (d.stores || []).filter(s => /кух|kitchen/i.test(s.storeName || ''))
+        ? (d.stores || []).filter(s => /кух|kitchen/i.test(s.storeName || '') && !SVC_STORE.test(s.storeName || ''))
         : isHousehold()
-        ? (d.stores || []).filter(s => /хоз|госп|побут|household/i.test(s.storeName || ''))
+        ? (d.stores || []).filter(s => /хоз|госп|побут|household/i.test(s.storeName || '') && !SVC_STORE.test(s.storeName || ''))
         // бар (Syrve+Poster): усі барні склади (Бар ТОВ/ФОП/Хочу + «Без залишку · Бар»), без обладнання/інвентарю
-        : (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '') && !/обладнан|інвентар|inventar|equipment/i.test(s.storeName || ''));
+        : (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '') && !SVC_STORE.test(s.storeName || ''));
       if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
       if (isKitchen() && stores[0]) _kitchenStoreId = stores[0].storeId || '';
       for (const store of stores) {
@@ -1118,6 +1121,15 @@ async function deleteSession(sessionId) {
   re();
 }
 
+// Дата документа: планова дата сесії. Якщо вона застаріла (>3 днів у минулому — стару заплановану
+// сесію порахували значно пізніше), беремо СЬОГОДНІ. Інакше документ ляже на стару дату й з хибними
+// цифрами (Syrve рахує теоретичний залишок станом на дату документа). Баг Дім18 30.06→27.07, 2026-07.
+function inventoryActDate(scheduled) {
+  const now = new Date();
+  const s = scheduled ? new Date(scheduled) : now;
+  return ((now - s) / 86400000 > 3) ? now.toISOString() : (scheduled || now.toISOString());
+}
+
 async function submitInventory(dryRun) {
   const os = openSession();
   if (!os) return;
@@ -1201,7 +1213,7 @@ async function submitInventory(dryRun) {
       body: JSON.stringify({
         items:        syrveItems,
         preparations: prepPayload,
-        date:    os.scheduledAt,
+        date:    inventoryActDate(os.scheduledAt),
         comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : isKitchen() ? 'Інвентаризація кухні' : isHousehold() ? 'Інвентаризація хозтоварів' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
         dryRun:  !!dryRun,
         ...(isDish() && _dishStoreId ? { storeId: _dishStoreId } : isKitchen() && _kitchenStoreId ? { storeId: _kitchenStoreId } : {}),
