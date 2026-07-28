@@ -383,7 +383,7 @@ function quickGrid(items) {
 // ── Нова головна: плитки-сітка по секціях ──────────────────
 function tileByRoute() {
   const m = {};
-  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT, QUICK_ABC]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
 // Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист + алерт цін (кухня)
@@ -391,7 +391,7 @@ const CHEF_ROUTES = ['performance', 'playlist', 'price-alert', 'abc', 'journal',
 
 // Розкладка секцій: менеджер (нагляд вгорі) / працівник (операції вгорі)
 const SECTIONS_MGR = [
-  ['Зведення',         ['digest', 'performance', 'discipline', 'playlist', 'price-alert', 'abc']],
+  ['Зведення',         ['digest', 'performance', 'discipline', 'playlist', 'price-alert', 'abc', 'pay-audit']],
   ['Моніторинг зміни', ['open-tables', 'current-shift', 'journal', 'cash', 'debts', 'stop-list', 'schedule']],
   ['Акти',             ['production', 'disassembly']],   // акти в Syrve (приготування + розбір). Порожній — ховається
   ['Ревізія',          ['dishware']],
