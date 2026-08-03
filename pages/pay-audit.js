@@ -74,6 +74,7 @@ async function selDay(date) {
 }
 
 function fmtMoney(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA'); }
+function fmtAmt(n) { const v = Math.round((n || 0) * 1000) / 1000; return Number.isInteger(v) ? String(v) : String(v).replace('.', ','); }
 function syncLabel() {
   if (!_syncedAt) return '';
   const s = Math.round((Date.now() - _syncedAt) / 1000);
@@ -91,6 +92,10 @@ function rowHTML(v) {
         <span class="pa-pay">${esc(v.payType)}</span>
       </div>
       <div class="pa-row-sub">${esc(v.waiter || 'офіціант ?')}${time ? ` · ${time}` : ''}</div>
+      ${(v.dishes && v.dishes.length) ? `<div class="pa-dishes">${v.dishes.map(d => `<div class="pa-dish">
+        <span class="pa-dish-n">${esc(d.name)}${d.amount && Math.abs(d.amount - 1) > 0.001 ? ` <span class="pa-dish-x">×${fmtAmt(d.amount)}</span>` : ''}${d.comped ? ' <span class="pa-dish-g">🎁</span>' : ''}</span>
+        <span class="pa-dish-s">${fmtMoney(d.sum)}</span>
+      </div>`).join('')}</div>` : ''}
       ${v.comped ? `<div class="pa-comped">🎁 знижка 100% — товар роздано на чеку ФОП</div>` : ''}
     </div>
     <div class="pa-sum">${fmtMoney(v.sum)}<span class="pa-cur">грн</span></div>
@@ -99,7 +104,7 @@ function rowHTML(v) {
 
 function stripHTML() {
   if (!_data || !_data.date) return '';
-  const days = lastNDays(_data.date, 14);
+  const days = lastNDays(_data.date, 14).reverse();   // найстаріший ліворуч, «сьогодні» праворуч
   return `<div class="pa-strip">${days.map(d => {
     const isToday = d === _data.date;
     const cnt = isToday ? (_data.violations || []).length : (_hist[d] ? _hist[d].count : 0);
@@ -161,7 +166,18 @@ function inner() {
   return back + `<div class="pa-scroll">${body}<div style="height:24px"></div></div>`;
 }
 
-function rerender() { const el = document.getElementById('pa-inner'); if (el) el.innerHTML = inner(); }
+function rerender() {
+  const host = document.getElementById('pa-inner');
+  if (!host) return;
+  const old = host.querySelector('.pa-strip');
+  const prevLeft = old ? old.scrollLeft : null;      // зберегти горизонтальну позицію між перерендерами
+  host.innerHTML = inner();
+  const strip = host.querySelector('.pa-strip');
+  if (strip) {
+    const apply = () => { strip.scrollLeft = (prevLeft != null) ? prevLeft : strip.scrollWidth; };  // перший показ → правий край (сьогодні)
+    apply(); requestAnimationFrame(apply);
+  }
+}
 
 const CSS = `<style id="pa-css">
 .pa-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -198,6 +214,12 @@ const CSS = `<style id="pa-css">
 .pa-pay{font-size:11px;color:var(--red);font-family:var(--font-b);font-weight:600;background:var(--red-bg);border:0.5px solid var(--red-border);border-radius:6px;padding:1px 7px}
 .pa-row-sub{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
 .pa-comped{font-size:11px;color:var(--amber);font-family:var(--font-b);margin-top:4px}
+.pa-dishes{margin-top:7px;display:flex;flex-direction:column;gap:3px;padding-right:10px}
+.pa-dish{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-family:var(--font-b)}
+.pa-dish-n{font-size:12px;color:var(--text1);line-height:1.35;min-width:0}
+.pa-dish-x{color:var(--text3);font-size:11px}
+.pa-dish-g{font-size:10px}
+.pa-dish-s{font-size:12px;color:var(--text2);white-space:nowrap;flex-shrink:0}
 .pa-sum{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);flex-shrink:0;text-align:right;white-space:nowrap}
 .pa-cur{font-size:11px;color:var(--text2);font-weight:500;margin-left:3px}
 .pa-note{font-size:11px;color:var(--text3);font-family:var(--font-b);line-height:1.5;padding:14px 6px 4px}
