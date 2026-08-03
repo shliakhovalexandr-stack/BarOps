@@ -3,6 +3,7 @@
    «Типи оплат» (звірка закриттів): рахунки, де товар складу «Бар ТОВ»
    закрито на ФОП-івський тип оплати (ГРН/Ощад/Glovo/Bolt/MONO…).
    Живий екран для менеджера залу — авто-оновлення кожні 45с.
+   + Історія по днях: стрічка останніх днів із лічильниками (1 OLAP-запит).
    ============================================================ */
 
 import { state } from '../shared/app.js';
@@ -10,13 +11,29 @@ import { state } from '../shared/app.js';
 const API = 'https://barops-backend-production.up.railway.app';
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-let _data      = null;   // { supported, date, count, violations:[{orderNum,table,waiter,payType,sum,net,comped,closeTime}] }
+let _data      = null;   // сьогодні (живе): { supported, date, violations:[...] }
 let _loading   = false;
 let _error     = '';
 let _pollTimer = null;
 let _syncedAt  = 0;
+// історія
+let _hist      = {};     // date → { count, sum }
+let _selDate   = '';     // обраний день (YYYY-MM-DD); '' поки не завантажено сьогодні
+let _dayCache  = {};     // date → { violations:[...] } для минулих днів
+let _dayLoading= false;
+let _dayError  = '';
 
-async function load() {
+const WD = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+function lastNDays(endStr, n) {          // масив YYYY-MM-DD, найновіший перший
+  const [y, m, d] = endStr.split('-').map(Number);
+  const base = Date.UTC(y, m - 1, d);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(new Date(base - i * 86400000).toISOString().slice(0, 10));
+  return out;
+}
+function dowOf(str) { const [y, m, d] = str.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); }
+
+async function load() {                  // сьогодні
   const venueId = state.venueId || localStorage.getItem('barops_venueId');
   const token   = localStorage.getItem('barops_token');
   if (!venueId || !token) { _error = 'Немає доступу'; _loading = false; rerender(); return; }
@@ -24,10 +41,36 @@ async function load() {
   try {
     const r = await fetch(`${API}/api/pos/close-audit/${venueId}`, { headers: { Authorization: `Bearer ${token}` } });
     const d = await r.json();
-    if (d.success) { _data = d; _error = ''; _syncedAt = Date.now(); }
+    if (d.success) { _data = d; _error = ''; _syncedAt = Date.now(); if (!_selDate && d.date) _selDate = d.date; }
     else _error = d.error || 'Не вдалося завантажити';
   } catch (e) { _error = e.message; }
   _loading = false; rerender();
+}
+
+async function loadHistory() {           // лічильники по днях (1 запит)
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  const token   = localStorage.getItem('barops_token');
+  if (!venueId || !token) return;
+  try {
+    const r = await fetch(`${API}/api/pos/close-audit-history/${venueId}?days=14`, { headers: { Authorization: `Bearer ${token}` } });
+    const d = await r.json();
+    if (d.success && Array.isArray(d.days)) { const m = {}; for (const x of d.days) m[x.date] = { count: x.count, sum: x.sum }; _hist = m; rerender(); }
+  } catch { /* тихо — стрічка просто без бейджів минулих днів */ }
+}
+
+async function selDay(date) {
+  _selDate = date; _dayError = '';
+  if (!_data || date === _data.date || _dayCache[date]) { rerender(); return; }   // сьогодні або вже в кеші
+  _dayLoading = true; rerender();
+  const venueId = state.venueId || localStorage.getItem('barops_venueId');
+  const token   = localStorage.getItem('barops_token');
+  try {
+    const r = await fetch(`${API}/api/pos/close-audit/${venueId}?date=${date}`, { headers: { Authorization: `Bearer ${token}` } });
+    const d = await r.json();
+    if (d.success) _dayCache[date] = { violations: d.violations || [] };
+    else _dayError = d.error || 'Не вдалося завантажити';
+  } catch (e) { _dayError = e.message; }
+  _dayLoading = false; rerender();
 }
 
 function fmtMoney(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA'); }
@@ -54,6 +97,43 @@ function rowHTML(v) {
   </div>`;
 }
 
+function stripHTML() {
+  if (!_data || !_data.date) return '';
+  const days = lastNDays(_data.date, 14);
+  return `<div class="pa-strip">${days.map(d => {
+    const isToday = d === _data.date;
+    const cnt = isToday ? (_data.violations || []).length : (_hist[d] ? _hist[d].count : 0);
+    const [, mo, da] = d.split('-');
+    const sel = d === _selDate;
+    return `<button class="pa-day${sel ? ' pa-day-sel' : ''}" onclick="window.__payAudit.selDay('${d}')">
+      <span class="pa-day-wd">${isToday ? 'сьогодні' : WD[dowOf(d)]}</span>
+      <span class="pa-day-dm">${da}.${mo}</span>
+      <span class="pa-day-b ${cnt ? 'pa-day-bad' : 'pa-day-ok'}">${cnt || '✓'}</span>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+function dayViewHTML() {
+  const isToday = _selDate === (_data && _data.date);
+  if (!isToday && _dayLoading && !_dayCache[_selDate]) return `<div class="pa-msg">Завантаження…</div>`;
+  if (!isToday && _dayError) return `<div class="pa-msg" style="color:var(--red)">${esc(_dayError)}<div style="margin-top:12px"><button class="pa-btn" onclick="window.__payAudit.selDay('${_selDate}')">Спробувати ще</button></div></div>`;
+  const vs = isToday ? ((_data && _data.violations) || []) : ((_dayCache[_selDate] && _dayCache[_selDate].violations) || []);
+  const [y, mo, da] = (_selDate || '').split('-');
+  const meta = isToday ? `за сьогодні${syncLabel() ? ` · ${syncLabel()}` : ''}` : `за ${da}.${mo}.${y}`;
+  const totalSum = vs.reduce((s, v) => s + (v.sum || 0), 0);
+  const head = `<div class="pa-head">
+    <div>
+      <div class="pa-head-n" style="color:${vs.length ? 'var(--red)' : 'var(--green)'}">${vs.length}</div>
+      <div class="pa-head-lbl">${vs.length ? `закрито не так · ${fmtMoney(totalSum)} грн` : 'усе коректно'}</div>
+    </div>
+    <div class="pa-head-meta">${meta}</div>
+  </div>`;
+  return head + (vs.length
+    ? `<div class="pa-list">${vs.map(rowHTML).join('')}</div>
+       <div class="pa-note">Показано частину чека, що припадає на товар складу «Бар ТОВ». Правильні типи для ТОВ: Наличные / Банковские карти / Expirenza.${isToday ? ' Виправлені закриття зникають самі при наступному оновленні.' : ''}</div>`
+    : `<div class="pa-ok"><div class="pa-ok-ic">✓</div><div>${isToday ? 'Сьогодні всі' : 'Усі'} товари «Бар ТОВ» цього дня закриті правильним типом оплати</div></div>`);
+}
+
 function inner() {
   const back = `<div class="pa-topbar">
     <div class="pa-back" onclick="window.__barops.navigate('dashboard')">
@@ -76,18 +156,7 @@ function inner() {
   } else if (_data && _data.supported === false) {
     body = `<div class="pa-msg">Для цього закладу не застосовується<div class="pa-subtle" style="margin-top:6px">Немає розділення складу «Бар ТОВ / Бар ФОП»</div></div>`;
   } else {
-    const vs = (_data && _data.violations) || [];
-    const head = `<div class="pa-head">
-      <div>
-        <div class="pa-head-n" style="color:${vs.length ? 'var(--red)' : 'var(--green)'}">${vs.length}</div>
-        <div class="pa-head-lbl">${vs.length ? 'закрито не так' : 'усе коректно'}</div>
-      </div>
-      <div class="pa-head-meta">за сьогодні${syncLabel() ? ` · ${syncLabel()}` : ''}</div>
-    </div>`;
-    body = head + (vs.length
-      ? `<div class="pa-list">${vs.map(rowHTML).join('')}</div>
-         <div class="pa-note">Показано частину чека, що припадає на товар складу «Бар ТОВ». Правильні типи для ТОВ: Наличные / Банковские карты / Expirenza. Виправлені закриття зникають самі при наступному оновленні.</div>`
-      : `<div class="pa-ok"><div class="pa-ok-ic">✓</div><div>Сьогодні всі товари «Бар ТОВ» закриті правильним типом оплати</div></div>`);
+    body = stripHTML() + dayViewHTML();
   }
   return back + `<div class="pa-scroll">${body}<div style="height:24px"></div></div>`;
 }
@@ -106,6 +175,16 @@ const CSS = `<style id="pa-css">
 .pa-scroll::-webkit-scrollbar{width:0}
 .pa-msg{padding:40px 20px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.5}
 .pa-btn{height:36px;padding:0 16px;border-radius:10px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);cursor:pointer}
+.pa-strip{display:flex;gap:8px;overflow-x:auto;padding:4px 6px 14px;scrollbar-width:none}
+.pa-strip::-webkit-scrollbar{height:0}
+.pa-day{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;padding:8px 8px 7px;border-radius:12px;background:var(--bg1);border:0.5px solid var(--border);cursor:pointer}
+.pa-day:active{background:rgba(255,255,255,.06)}
+.pa-day-sel{background:var(--bg3);border-color:var(--text3)}
+.pa-day-wd{font-size:10px;color:var(--text2);font-family:var(--font-b);font-weight:600}
+.pa-day-dm{font-size:12px;color:var(--text1);font-family:var(--font-h);font-weight:700}
+.pa-day-b{margin-top:2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--font-b);font-weight:700;line-height:1}
+.pa-day-bad{background:var(--red-bg);border:0.5px solid var(--red-border);color:var(--red)}
+.pa-day-ok{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
 .pa-head{display:flex;align-items:flex-end;justify-content:space-between;padding:6px 6px 14px}
 .pa-head-n{font-family:var(--font-h);font-size:34px;font-weight:700;line-height:1;letter-spacing:-.02em}
 .pa-head-lbl{font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px}
@@ -134,11 +213,12 @@ export function render() {
 }
 export function init() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
-  window.__payAudit = { refresh() { load(); } };
+  window.__payAudit = { refresh() { load(); loadHistory(); }, selDay };
   load();
+  loadHistory();
   _pollTimer = setInterval(() => {
     if (!document.querySelector('.pa-wrap')) { clearInterval(_pollTimer); _pollTimer = null; return; }
-    load();
+    load();   // оновлюємо лише «сьогодні»; минулі дні статичні
   }, 45000);
 }
 export default { render, init };
