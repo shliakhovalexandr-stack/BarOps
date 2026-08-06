@@ -332,6 +332,25 @@ async function fetchBalanceRetry(maxAttempts = 3) {
   return null;
 }
 
+// Моршинська як звичайний постачальник: товари підтягуємо з ЄМоршинська (API), решта —
+// як усі (розкриття/steppers/submit reuse). Якщо в закладі вже є постачальник «Моршинська» —
+// накладаємо на нього асортимент з API; інакше додаємо синтетичного.
+async function injectMorshSupplier() {
+  if (orderZone() !== 'bar') return;   // вода — лише бар
+  try {
+    const r = await fetch(`${API}/api/morshynska/catalog`, { headers: { Authorization: `Bearer ${_token}` } });
+    const d = await r.json();
+    if (!d.success || !Array.isArray(d.products)) return;
+    const prods = d.products.map(p => ({ id: String(p.id), productId: String(p.id), productName: p.name, _price: p.price, _unit: p.unit }));
+    _suppliers = _suppliers.filter(s => s.id !== 'morshynska');            // прибрати попередній інжект
+    const existing = _suppliers.find(s => /моршинськ/i.test(s.name || '') && !s._morsh);
+    let mid;
+    if (existing) { existing.supplierProducts = prods; existing._morsh = true; mid = existing.id; }
+    else { _suppliers.push({ id: 'morshynska', name: 'Моршинська', orderDays: '', _morsh: true, supplierProducts: prods }); mid = 'morshynska'; }
+    _openSuppliers.delete(mid);                                            // згорнутий за замовч. (багато товарів)
+  } catch { /* тихо — просто без Моршинської */ }
+}
+
 async function loadData() {
   _loading = true;
   _loadError = '';
@@ -356,6 +375,7 @@ async function loadData() {
     }
     _loading = false;
     fullRender(); // відразу показуємо постачальників
+    injectMorshSupplier().then(() => { if (state.route === 'ordering') fullRender(); });   // Моршинська як постачальник (товари з API)
 
     // Баланс — ретрай у фоні (Railway cold start + Syrve latency)
     const bData = await fetchBalanceRetry(3);
@@ -498,7 +518,7 @@ function barSuppliersHTML() {
 
 // Моршинська — постачальник з API-відправкою (окремий флоу, спільний екран закупки)
 function morshEntryHTML() {
-  if (orderZone() === 'hoz') return '';
+  if (orderZone() !== 'bar') return '';   // вода — лише бар
   return `<div onclick="window.__barops.navigate('morshynska')" style="display:flex;align-items:center;gap:12px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:14px;padding:13px 14px;margin-bottom:14px;cursor:pointer">
     <div style="font-size:22px;line-height:1">💧</div>
     <div style="flex:1;min-width:0">
@@ -533,7 +553,6 @@ function renderBartender() {
       </div>
     </div>` : ''}
 
-    ${morshEntryHTML()}
     <div class="ord-sec">По постачальниках</div>
     <div id="ord-bar-supps">${barSuppliersHTML()}</div>
     <div style="height:14px"></div>
@@ -659,7 +678,7 @@ function mgrSuppliersHTML() {
     </div>`;
   }
   return `<div class="ord-supp-card">
-    ${_suppliers.map(s => {
+    ${_suppliers.filter(s => s.id !== 'morshynska').map(s => {
       const n = (s.supplierProducts || []).length;
       return `
       <div class="ord-ssc-row" onclick="window.__ord.openSuppEdit('${s.id}')">
@@ -1331,8 +1350,17 @@ function clearOrderConfirm() {
 }
 
 async function submitOrder() {
-  // Збираємо дані по постачальниках
-  const suppliers = _suppliers.map(s => {
+  // Моршинська — окрема заявка через їхній API-контур (не в звичайний Order): менеджер оформлює в ЄМоршинська
+  const morshSupp = _suppliers.find(s => s._morsh);
+  const morshItems = morshSupp ? (morshSupp.supplierProducts || [])
+    .map(sp => ({ productId: sp.productId, name: sp.customName || sp.productName, price: sp._price ?? null, unit: sp._unit || '', qty: _barQtys[sp.productId] || 0 }))
+    .filter(i => i.qty > 0) : [];
+  if (morshItems.length) {
+    fetch(`${API}/api/morshynska/requests`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` }, body: JSON.stringify({ venueId: _venueId, items: morshItems, note: '' }) }).catch(() => {});
+  }
+
+  // Збираємо дані по звичайних постачальниках
+  const suppliers = _suppliers.filter(s => !s._morsh).map(s => {
     const items = (s.supplierProducts || [])
       .map(sp => ({
         productId:   sp.productId,
@@ -1345,7 +1373,10 @@ async function submitOrder() {
     return { supplierId: s.id, supplierName: s.name, items };
   }).filter(s => s.items.length > 0);
 
-  if (!suppliers.length) return;
+  if (!suppliers.length) {
+    if (morshItems.length) { _submitted = true; clearDraftStorage(); fullRender(); }   // лише Моршинська
+    return;
+  }
 
   // Якщо заявку вже подано й вона ще редагована → ОНОВЛЮЄМО ту саму (PATCH), а не створюємо дубль
   const url    = _myOrderId ? `${API}/api/orders/${_myOrderId}` : `${API}/api/orders`;
