@@ -304,7 +304,7 @@ const CSS = `<style id="mo-css">
 .mo-pm:disabled{opacity:.4}
 .mo-q{min-width:20px;text-align:center;font-family:var(--font-h);font-weight:700;font-size:15px;color:var(--text0)}
 .mo-foot{position:sticky;bottom:0;background:var(--bg);padding:10px 0 12px;display:flex;flex-direction:column;gap:8px;border-top:0.5px solid var(--border);margin-top:6px}
-.mo-submit{height:46px;border-radius:12px;background:var(--blue);border:0;color:#08131f;font-size:14px;font-family:var(--font-h);font-weight:700;cursor:pointer}
+.mo-submit{display:block;width:100%;height:46px;padding:0 16px;border-radius:12px;background:var(--blue);border:0;color:#08131f;font-size:14px;font-family:var(--font-h);font-weight:700;cursor:pointer;text-align:center}
 .mo-card{background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:12px 13px}
 .mo-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .mo-who{font-size:13px;font-family:var(--font-h);font-weight:700;color:var(--text0)}
