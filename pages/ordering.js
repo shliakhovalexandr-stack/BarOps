@@ -519,21 +519,6 @@ function barSuppliersHTML() {
 }
 
 // Моршинська — постачальник з API-відправкою (окремий флоу, спільний екран закупки)
-// Лише адмін: вхід у налаштування асортименту Моршинської (ховати товари). Самі замовлення
-// приходять у звичайний список менеджера (Моршинська = постачальник із кнопкою «Відправити ЄМоршинська»).
-function morshEntryHTML() {
-  if (orderZone() !== 'bar') return '';
-  if ((state.role || '').toLowerCase() !== 'admin') return '';
-  return `<div onclick="window.__barops.navigate('morshynska')" style="display:flex;align-items:center;gap:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:11px 14px;margin-bottom:14px;cursor:pointer">
-    <div style="font-size:18px;line-height:1">💧</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-family:var(--font-h);font-weight:700;font-size:13px;color:var(--text1)">Моршинська — асортимент</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-top:1px">Сховати/показати товари для барменів</div>
-    </div>
-    <svg width="8" height="12" viewBox="0 0 8 12" fill="none"><path d="M2 2l4 4-4 4" stroke="var(--text3)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </div>`;
-}
-
 function renderBartender() {
   const totalItems = Object.values(_barQtys).filter(q => q > 0).length;
   return `
@@ -733,18 +718,21 @@ function mgrSuppliersHTML() {
       <div class="ord-empty-sub">Натисніть "+ Додати" щоб додати першого постачальника</div>
     </div>`;
   }
+  const isAdminRole = (state.role || '').toLowerCase() === 'admin';
   return `<div class="ord-supp-card">
-    ${_suppliers.filter(s => s.id !== 'morshynska').map(s => {
+    ${_suppliers.filter(s => !s._morsh || isAdminRole).map(s => {
       const n = (s.supplierProducts || []).length;
+      const isM = !!s._morsh;   // Моршинська — редагування = її налаштування (Асортимент/Акаунт/юр.особа)
+      const click = isM ? `window.__barops.navigate('morshynska')` : `window.__ord.openSuppEdit('${s.id}')`;
       return `
-      <div class="ord-ssc-row" onclick="window.__ord.openSuppEdit('${s.id}')">
-        <div class="ord-ssc-icon">🏭</div>
+      <div class="ord-ssc-row" onclick="${click}">
+        <div class="ord-ssc-icon">${isM ? '💧' : '🏭'}</div>
         <div style="flex:1;min-width:0">
           <div class="ord-ssc-name">${esc(s.name)}</div>
-          <div class="ord-ssc-items">${nProds(n)}${s.contact ? ' · ' + s.contact : ''}</div>
+          <div class="ord-ssc-items">${isM ? 'Асортимент · акаунт · юр.особа' : nProds(n) + (s.contact ? ' · ' + s.contact : '')}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          ${s.orderDays ? `<div class="ord-ssc-day">${s.orderDays}</div>` : ''}
+          ${!isM && s.orderDays ? `<div class="ord-ssc-day">${s.orderDays}</div>` : ''}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="color:var(--text3);display:block;margin-top:4px"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>`;
@@ -1033,7 +1021,7 @@ function renderManager() {
       <button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>
     </div>
 
-    ${_mgrTab === 'orders' ? morshEntryHTML() + mgrOrdersHTML() : ''}
+    ${_mgrTab === 'orders' ? mgrOrdersHTML() : ''}
     ${_mgrTab === 'suggest' ? suggestHTML() : ''}
 
     ${_mgrTab === 'suppliers' ? `
