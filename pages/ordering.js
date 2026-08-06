@@ -342,6 +342,7 @@ async function injectMorshSupplier() {
     const d = await r.json();
     if (!d.success || !Array.isArray(d.products)) return;
     const prods = d.products.map(p => ({ id: String(p.id), productId: String(p.id), productName: p.name, _price: p.price, _unit: p.unit }));
+    prods.forEach(p => { if (!_barUnits[p.productId]) _barUnits[p.productId] = 'Ящ'; });   // Моршинська замовляється ящиками — дефолт «Ящ»
     _suppliers = _suppliers.filter(s => s.id !== 'morshynska');            // прибрати попередній інжект
     const existing = _suppliers.find(s => /моршинськ/i.test(s.name || '') && !s._morsh);
     let mid;
@@ -1353,7 +1354,7 @@ async function submitOrder() {
   // Моршинська — окрема заявка через їхній API-контур (не в звичайний Order): менеджер оформлює в ЄМоршинська
   const morshSupp = _suppliers.find(s => s._morsh);
   const morshItems = morshSupp ? (morshSupp.supplierProducts || [])
-    .map(sp => ({ productId: sp.productId, name: sp.customName || sp.productName, price: sp._price ?? null, unit: sp._unit || '', qty: _barQtys[sp.productId] || 0 }))
+    .map(sp => ({ productId: sp.productId, name: sp.customName || sp.productName, price: sp._price ?? null, unit: _barUnits[sp.productId] || 'Ящ', qty: _barQtys[sp.productId] || 0 }))
     .filter(i => i.qty > 0) : [];
   if (morshItems.length) {
     fetch(`${API}/api/morshynska/requests`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` }, body: JSON.stringify({ venueId: _venueId, items: morshItems, note: '' }) }).catch(() => {});
