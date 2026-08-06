@@ -446,7 +446,7 @@ function barSuppliersHTML() {
         inner = `<div class="ord-supp-items">` + prods.map(p => {
           const isOpen = _openCards.has(p.productId);
           const unit   = _barUnits[p.productId] || '';
-          const UNITS  = ['Ящ','пл','л','шт','кг'];
+          const UNITS  = s._morsh ? ['Ящ'] : ['Ящ','пл','л','шт','кг'];   // Моршинська — тільки паками (Ящ)
           const sug    = getSuggest(p.productId);
           return `
           <div class="ord-prod-wrap">
