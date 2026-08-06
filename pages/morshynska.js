@@ -206,7 +206,15 @@ function inner() {
   return back + tabs + err + `<div class="mo-scroll">${body}<div style="height:28px"></div></div>`;
 }
 
-function rerender() { const el = document.getElementById('mo-inner'); if (el) el.innerHTML = inner(); }
+function rerender() {
+  const el = document.getElementById('mo-inner');
+  if (!el) return;
+  const sc = el.querySelector('.mo-scroll');
+  const top = sc ? sc.scrollTop : 0;      // зберегти позицію прокрутки, щоб список не стрибав на початок
+  el.innerHTML = inner();
+  const sc2 = el.querySelector('.mo-scroll');
+  if (sc2 && top) sc2.scrollTop = top;
+}
 
 const CSS = `<style id="mo-css">
 .mo-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
