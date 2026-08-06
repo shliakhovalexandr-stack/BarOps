@@ -20,6 +20,11 @@ let _note     = '';
 let _loading  = false;
 let _busy     = '';          // id заявки, що оформлюється
 let _error    = '';
+let _assort   = null;        // [{id,name,price,hidden}] — для адмін-налаштування асортименту
+let _hidDirty = false;
+let _saving   = false;
+
+const isAdmin = () => (state.role || '').toLowerCase() === 'admin';
 
 function venueId() { return state.venueId || localStorage.getItem('barops_venueId'); }
 function token()   { return localStorage.getItem('barops_token'); }
@@ -75,6 +80,41 @@ async function sendToMorsh(id) {
 async function cancelReq(id) {
   try { await fetch(`${API}/api/morshynska/requests/${id}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: '{}' }); } catch {}
   await loadRequests();
+}
+
+async function loadAssort() {
+  try {
+    const r = await fetch(`${API}/api/morshynska/catalog?all=1`, { headers: { Authorization: `Bearer ${token()}` } });
+    const d = await r.json();
+    if (d.success) { _assort = d.products; _hidDirty = false; }
+  } catch (e) { _error = e.message; }
+  rerender();
+}
+
+async function saveHidden() {
+  _saving = true; rerender();
+  const hiddenIds = (_assort || []).filter(p => p.hidden).map(p => String(p.id));
+  try {
+    const r = await fetch(`${API}/api/morshynska/hidden`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ venueId: venueId(), hiddenIds }) });
+    const d = await r.json();
+    if (d.success) { _hidDirty = false; _catalog = null; } else _error = d.error || 'Не збережено';
+  } catch (e) { _error = e.message; }
+  _saving = false; rerender();
+}
+
+function assortHTML() {
+  if (!_assort) return `<div class="mo-msg">Завантаження асортименту…</div>`;
+  const q = _search.trim().toLowerCase();
+  const prods = _assort.filter(p => !q || (p.name || '').toLowerCase().includes(q));
+  const hiddenN = _assort.filter(p => p.hidden).length;
+  const rows = prods.map(p => `<div class="mo-row">
+    <div style="flex:1;min-width:0"><div class="mo-name"${p.hidden ? ' style="opacity:.45"' : ''}>${esc(p.name)}</div><div class="mo-sub">${p.price != null ? money(p.price) + ' грн' : ''}</div></div>
+    <button class="mo-hide ${p.hidden ? 'off' : 'on'}" onclick="window.__morsh.toggle('${p.id}')">${p.hidden ? 'Приховано' : 'Показ'}</button>
+  </div>`).join('');
+  return `<div class="mo-searchwrap"><input class="mo-search" placeholder="Пошук товару…" value="${esc(_search)}" oninput="window.__morsh.search(this.value)"/></div>
+    <div class="mo-hint">Приховані товари бармен не бачить у заявці. Зараз сховано: <b>${hiddenN}</b>.</div>
+    <div class="mo-list">${rows}</div>
+    ${_hidDirty ? `<div class="mo-foot"><button class="mo-submit" onclick="window.__morsh.saveHidden()" ${_saving ? 'disabled' : ''}>${_saving ? 'Збереження…' : 'Зберегти асортимент'}</button></div>` : ''}`;
 }
 
 const STATUS = {
@@ -159,9 +199,10 @@ function inner() {
   const tabs = `<div class="mo-tabs">
     <button class="mo-tab${_tab === 'catalog' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('catalog')">Каталог</button>
     <button class="mo-tab${_tab === 'requests' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('requests')">Заявки${_requests?.length ? ` · ${_requests.length}` : ''}</button>
+    ${isAdmin() ? `<button class="mo-tab${_tab === 'assort' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('assort')">Асортимент</button>` : ''}
   </div>`;
   const err = _error ? `<div class="mo-banner">${esc(_error)}</div>` : '';
-  const body = _tab === 'catalog' ? catalogHTML() : requestsHTML();
+  const body = _tab === 'catalog' ? catalogHTML() : _tab === 'assort' ? assortHTML() : requestsHTML();
   return back + tabs + err + `<div class="mo-scroll">${body}<div style="height:28px"></div></div>`;
 }
 
@@ -216,6 +257,10 @@ const CSS = `<style id="mo-css">
 .mo-send-busy{opacity:.6}
 .mo-cancel{height:36px;padding:0 12px;border-radius:10px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2);font-size:12.5px;font-family:var(--font-b);cursor:pointer}
 .mo-ok{padding:34px 20px;text-align:center;color:var(--text1);font-family:var(--font-b);font-size:13px}
+.mo-hint{font-size:11px;color:var(--text2);font-family:var(--font-b);padding:4px 2px 10px;line-height:1.4}
+.mo-hide{height:32px;padding:0 12px;border-radius:9px;font-size:12px;font-family:var(--font-b);font-weight:600;cursor:pointer;flex-shrink:0;border:0.5px solid}
+.mo-hide.on{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.mo-hide.off{background:var(--bg3);border-color:var(--border);color:var(--text3)}
 </style>`;
 
 function buildPage() { return `${CSS}<div class="mo-wrap"><div id="mo-inner">${inner()}</div></div>`; }
@@ -225,7 +270,7 @@ export function render() { _loading = !_catalog; return buildPage(); }
 export function init() {
   _tab = isMgr() ? 'requests' : 'catalog';
   window.__morsh = {
-    tab(t) { _tab = t; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); },
+    tab(t) { _tab = t; _search = ''; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); if (t === 'assort' && !_assort) loadAssort(); },
     inc(id) { _qty[id] = (_qty[id] || 0) + 1; rerender(); },
     dec(id) { _qty[id] = Math.max(0, (_qty[id] || 0) - 1); if (!_qty[id]) delete _qty[id]; rerender(); },
     search(v) { _search = v; rerender(); },
@@ -233,6 +278,8 @@ export function init() {
     submit() { submitRequest(); },
     send(id) { sendToMorsh(id); },
     cancel(id) { cancelReq(id); },
+    toggle(id) { const p = (_assort || []).find(x => String(x.id) === String(id)); if (p) { p.hidden = !p.hidden; _hidDirty = true; rerender(); } },
+    saveHidden() { saveHidden(); },
     reload() { loadCatalog(); },
   };
   loadCatalog();

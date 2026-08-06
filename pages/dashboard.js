@@ -61,9 +61,6 @@ const QUICK_PAY_AUDIT = { route:'pay-audit', badge:null, label:'Типи опл�
        <path d="M2 7.5h14" stroke="currentColor" stroke-width="1.3"/>
        <path d="M11.5 11l1.3 1.3L15 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>` };
 
-const QUICK_MORSH = { route:'morshynska', badge:null, label:'Замовлення води', hint:'Заявка на воду → менеджер оформлює в ЄМоршинська', color:'var(--blue-bg)', iconColor:'var(--blue)',
-  svg:`<path d="M9 2.5s5 5.2 5 8.5A5 5 0 0 1 4 11c0-3.3 5-8.5 5-8.5z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>` };
-
 const QUICK_MY_SHIFT = { route:'my-shift', badge:null, label:'Моя зміна', hint:'Мої продажі, чеки та фокус-страви', color:'var(--purple-bg)', iconColor:'var(--purple)',
   svg:`<circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/>
        <path d="M3.5 15.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` };
@@ -386,7 +383,7 @@ function quickGrid(items) {
 // ── Нова головна: плитки-сітка по секціях ──────────────────
 function tileByRoute() {
   const m = {};
-  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT, QUICK_MORSH]) if (t && t.route && !m[t.route]) m[t.route] = t;
+  for (const t of [...QUICK_ADMIN, ...QUICK_BARTENDER, QUICK_RECIPE_BOOK, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT]) if (t && t.route && !m[t.route]) m[t.route] = t;
   return m;
 }
 // Шеф-кухар = керівник КУХНІ: кухонні операції + нагляд (продуктивність/журнал/графік кухні) + плей-лист + алерт цін (кухня)
@@ -660,14 +657,14 @@ function buildHTML() {
   const isAcc = (state.role || '').toLowerCase() === 'accountant';
   // Керуючий — менеджерські швидкі дії (без Замовлень/Інвентаризації) + «Графіки»
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
-  const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT, QUICK_MORSH]
-              : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : []), QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT, QUICK_MORSH]
-              : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), QUICK_HOZ, QUICK_PAY_AUDIT, QUICK_MORSH, ...(scheduleAction ? [scheduleAction] : [])]
+  const quick = state.role === 'admin' ? [...QUICK_ADMIN, QUICK_PRODUCTION, QUICK_DISASSEMBLY, QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT]
+              : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : []), QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT]
+              : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), QUICK_HOZ, QUICK_PAY_AUDIT, ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? [QUICK_INVOICE_OCR, QUICK_PRICE_ALERT, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
               : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_PRODUCTION, QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар, замовлення + виробництво + рецепти кухні
-              : [...QUICK_BARTENDER, QUICK_MORSH];
+              : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
   // Бейдж невиконаних чек-листів на тайлі «Журнал» (лише працівникам — у менеджерів своя аналітика)

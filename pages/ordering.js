@@ -496,6 +496,19 @@ function barSuppliersHTML() {
   return blocks.join('');
 }
 
+// Моршинська — постачальник з API-відправкою (окремий флоу, спільний екран закупки)
+function morshEntryHTML() {
+  if (orderZone() === 'hoz') return '';
+  return `<div onclick="window.__barops.navigate('morshynska')" style="display:flex;align-items:center;gap:12px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:14px;padding:13px 14px;margin-bottom:14px;cursor:pointer">
+    <div style="font-size:22px;line-height:1">💧</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--font-h);font-weight:700;font-size:14px;color:var(--text0)">Моршинська — вода</div>
+      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Каталог із цінами · заявка одразу в ЄМоршинська</div>
+    </div>
+    <svg width="8" height="12" viewBox="0 0 8 12" fill="none"><path d="M2 2l4 4-4 4" stroke="var(--text3)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>`;
+}
+
 function renderBartender() {
   const totalItems = Object.values(_barQtys).filter(q => q > 0).length;
   return `
@@ -520,6 +533,7 @@ function renderBartender() {
       </div>
     </div>` : ''}
 
+    ${morshEntryHTML()}
     <div class="ord-sec">По постачальниках</div>
     <div id="ord-bar-supps">${barSuppliersHTML()}</div>
     <div style="height:14px"></div>
@@ -944,7 +958,7 @@ function renderManager() {
       <button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>
     </div>
 
-    ${_mgrTab === 'orders' ? mgrOrdersHTML() : ''}
+    ${_mgrTab === 'orders' ? morshEntryHTML() + mgrOrdersHTML() : ''}
     ${_mgrTab === 'suggest' ? suggestHTML() : ''}
 
     ${_mgrTab === 'suppliers' ? `
