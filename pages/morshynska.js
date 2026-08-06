@@ -27,7 +27,7 @@ let _saving   = false;
 let _account   = null;       // { connected, login, base }
 let _accLogin  = '';
 let _accPass   = '';
-let _accBase   = 'https://sandbox.e.morshynska.com';
+let _accBase   = 'https://e.morshynska.com';
 let _accResult = null;       // { outlets, productsCount, withPrice } після успішного тесту
 let _accBusy   = false;
 let _accErr    = '';
@@ -142,7 +142,6 @@ async function saveAccount() {
 }
 function accountHTML() {
   const a = _account, connected = a && a.connected;
-  const isProd = !/sandbox/.test(_accBase);
   return `<div style="padding:2px 2px 0">
     ${connected ? `<div class="mo-acc-ok">✓ Підключено: <b>${esc(a.login)}</b><div class="mo-sub" style="margin-top:2px">${esc(a.base)}</div></div>`
                 : `<div class="mo-hint">Введи акаунт ЄМоршинська. Пароль зберігається лише на сервері (у браузер не повертається).</div>`}
@@ -150,11 +149,6 @@ function accountHTML() {
     <input class="mo-search" style="margin-bottom:10px" placeholder="+380..." value="${esc(_accLogin)}" oninput="window.__morsh.accField('login',this.value)">
     <div class="mo-lbl">Пароль</div>
     <input class="mo-search" style="margin-bottom:10px" type="password" placeholder="${connected ? 'залиш порожнім щоб не міняти' : 'пароль'}" value="${esc(_accPass)}" oninput="window.__morsh.accField('pass',this.value)">
-    <div class="mo-lbl">Середовище</div>
-    <div class="mo-envrow">
-      <button class="mo-env ${!isProd ? 'on' : ''}" onclick="window.__morsh.accField('base','https://sandbox.e.morshynska.com')">Пісочниця (тест)</button>
-      <button class="mo-env ${isProd ? 'on' : ''}" onclick="window.__morsh.accField('base','https://e.morshynska.com')">Прод (реальний)</button>
-    </div>
     ${_accErr ? `<div class="mo-banner" style="margin:10px 0 0">${esc(_accErr)}</div>` : ''}
     ${_accResult ? `<div class="mo-acc-res">
       <div style="color:var(--green);font-weight:700;margin-bottom:6px">✓ Підключення успішне</div>
