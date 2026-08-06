@@ -102,18 +102,23 @@ async function saveHidden() {
   _saving = false; rerender();
 }
 
-function assortHTML() {
-  if (!_assort) return `<div class="mo-msg">Завантаження асортименту…</div>`;
+function assortListHTML() {
   const q = _search.trim().toLowerCase();
-  const prods = _assort.filter(p => !q || (p.name || '').toLowerCase().includes(q));
-  const hiddenN = _assort.filter(p => p.hidden).length;
-  const rows = prods.map(p => `<div class="mo-row">
+  const prods = _assort
+    .filter(p => !q || (p.name || '').toLowerCase().includes(q))
+    .slice()
+    .sort((a, b) => (a.hidden === b.hidden) ? 0 : (a.hidden ? 1 : -1));   // приховані — вниз, відкриті — вгорі
+  return prods.map(p => `<div class="mo-row">
     <div style="flex:1;min-width:0"><div class="mo-name"${p.hidden ? ' style="opacity:.45"' : ''}>${esc(p.name)}</div><div class="mo-sub">${p.price != null ? money(p.price) + ' грн' : ''}</div></div>
     <button class="mo-hide ${p.hidden ? 'off' : 'on'}" onclick="window.__morsh.toggle('${p.id}')">${p.hidden ? 'Приховано' : 'Показ'}</button>
-  </div>`).join('');
+  </div>`).join('') || '<div class="mo-msg">Нічого не знайдено</div>';
+}
+function assortHTML() {
+  if (!_assort) return `<div class="mo-msg">Завантаження асортименту…</div>`;
+  const hiddenN = _assort.filter(p => p.hidden).length;
   return `<div class="mo-searchwrap"><input class="mo-search" placeholder="Пошук товару…" value="${esc(_search)}" oninput="window.__morsh.search(this.value)"/></div>
     <div class="mo-hint">Приховані товари бармен не бачить у заявці. Зараз сховано: <b>${hiddenN}</b>.</div>
-    <div class="mo-list">${rows}</div>
+    <div class="mo-list" id="mo-listhost">${assortListHTML()}</div>
     ${_hidDirty ? `<div class="mo-foot"><button class="mo-submit" onclick="window.__morsh.saveHidden()" ${_saving ? 'disabled' : ''}>${_saving ? 'Збереження…' : 'Зберегти асортимент'}</button></div>` : ''}`;
 }
 
@@ -125,13 +130,9 @@ const STATUS = {
 };
 
 /* ── КАТАЛОГ (набір заявки) ── */
-function catalogHTML() {
-  if (_loading && !_catalog) return `<div class="mo-msg">Завантаження каталогу…</div>`;
-  if (!_catalog) return `<div class="mo-msg" style="color:var(--red)">${esc(_error || 'Немає даних')}<div style="margin-top:12px"><button class="mo-btn" onclick="window.__morsh.reload()">Оновити</button></div></div>`;
+function catalogListHTML() {
   const q = _search.trim().toLowerCase();
   const prods = (_catalog.products || []).filter(p => !q || (p.name || '').toLowerCase().includes(q));
-  const chosen = (_catalog.products || []).filter(p => (_qty[p.id] || 0) > 0);
-  const sum = chosen.reduce((s, p) => s + (p.price || 0) * _qty[p.id], 0);
   const rows = prods.map(p => {
     const n = _qty[p.id] || 0;
     return `<div class="mo-row${n ? ' mo-row-on' : ''}">
@@ -146,12 +147,19 @@ function catalogHTML() {
       </div>
     </div>`;
   }).join('');
+  return rows || '<div class="mo-msg">Нічого не знайдено</div>';
+}
+function catalogHTML() {
+  if (_loading && !_catalog) return `<div class="mo-msg">Завантаження каталогу…</div>`;
+  if (!_catalog) return `<div class="mo-msg" style="color:var(--red)">${esc(_error || 'Немає даних')}<div style="margin-top:12px"><button class="mo-btn" onclick="window.__morsh.reload()">Оновити</button></div></div>`;
+  const chosen = (_catalog.products || []).filter(p => (_qty[p.id] || 0) > 0);
+  const sum = chosen.reduce((s, p) => s + (p.price || 0) * _qty[p.id], 0);
   const footer = chosen.length ? `<div class="mo-foot">
     <input class="mo-note" placeholder="Коментар (необовʼязково)" value="${esc(_note)}" oninput="window.__morsh.note(this.value)"/>
     <button class="mo-submit" onclick="window.__morsh.submit()">Подати заявку · ${chosen.length} поз · ${money(sum)} грн</button>
   </div>` : '';
   return `<div class="mo-searchwrap"><input class="mo-search" placeholder="Пошук товару…" value="${esc(_search)}" oninput="window.__morsh.search(this.value)"/></div>
-    <div class="mo-list">${rows || '<div class="mo-msg">Нічого не знайдено</div>'}</div>${footer}`;
+    <div class="mo-list" id="mo-listhost">${catalogListHTML()}</div>${footer}`;
 }
 
 /* ── ЗАЯВКИ ── */
@@ -281,7 +289,7 @@ export function init() {
     tab(t) { _tab = t; _search = ''; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); if (t === 'assort' && !_assort) loadAssort(); },
     inc(id) { _qty[id] = (_qty[id] || 0) + 1; rerender(); },
     dec(id) { _qty[id] = Math.max(0, (_qty[id] || 0) - 1); if (!_qty[id]) delete _qty[id]; rerender(); },
-    search(v) { _search = v; rerender(); },
+    search(v) { _search = v; const el = document.getElementById('mo-listhost'); if (el) el.innerHTML = (_tab === 'assort' ? assortListHTML() : catalogListHTML()); },
     note(v) { _note = v; },
     submit() { submitRequest(); },
     send(id) { sendToMorsh(id); },
