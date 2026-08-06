@@ -23,6 +23,7 @@ let _openCards    = new Set(); // productId для яких розгорнуто
 let _orders           = [];   // менеджерський список заявок
 let _ordersLoading    = false;
 let _expandedOrders   = new Set(); // id виконаних заявок які розгорнуті
+let _morshEdit        = {};   // `${orderId}|${si}|${productId}` → редагована менеджером к-сть перед відправкою в ЄМоршинська
 let _venueId      = null;
 let _token        = null;
 let _loading      = true;
@@ -518,13 +519,16 @@ function barSuppliersHTML() {
 }
 
 // Моршинська — постачальник з API-відправкою (окремий флоу, спільний екран закупки)
+// Лише адмін: вхід у налаштування асортименту Моршинської (ховати товари). Самі замовлення
+// приходять у звичайний список менеджера (Моршинська = постачальник із кнопкою «Відправити ЄМоршинська»).
 function morshEntryHTML() {
-  if (orderZone() !== 'bar') return '';   // вода — лише бар
-  return `<div onclick="window.__barops.navigate('morshynska')" style="display:flex;align-items:center;gap:12px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:14px;padding:13px 14px;margin-bottom:14px;cursor:pointer">
-    <div style="font-size:22px;line-height:1">💧</div>
+  if (orderZone() !== 'bar') return '';
+  if ((state.role || '').toLowerCase() !== 'admin') return '';
+  return `<div onclick="window.__barops.navigate('morshynska')" style="display:flex;align-items:center;gap:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:14px;padding:11px 14px;margin-bottom:14px;cursor:pointer">
+    <div style="font-size:18px;line-height:1">💧</div>
     <div style="flex:1;min-width:0">
-      <div style="font-family:var(--font-h);font-weight:700;font-size:14px;color:var(--text0)">Моршинська — вода</div>
-      <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">Каталог із цінами · заявка одразу в ЄМоршинська</div>
+      <div style="font-family:var(--font-h);font-weight:700;font-size:13px;color:var(--text1)">Моршинська — асортимент</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-top:1px">Сховати/показати товари для барменів</div>
     </div>
     <svg width="8" height="12" viewBox="0 0 8 12" fill="none"><path d="M2 2l4 4-4 4" stroke="var(--text3)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>`;
@@ -570,6 +574,56 @@ function renderBartender() {
   </div>`;
 }
 
+// Блок Моршинської в замовленні менеджера: редаговані к-сті (Ящ) + «Відправити ЄМоршинська»
+function morshSuppHTML(o, s, si, items) {
+  if (s.morshSent) {
+    return `<div class="ord-req-supp">
+      <div class="ord-req-sname" style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>💧 ${esc(s.supplierName || 'Моршинська')}</span><span style="font-size:10px;color:var(--green);font-weight:600">✓ відправлено в ЄМоршинська</span></div>
+      ${items.map(i => `<div class="ord-req-item"><span class="ord-req-iname">${esc(i.productName)}</span><span class="ord-req-iqty">${i.qty} ${i.unit || 'Ящ'}</span></div>`).join('')}
+    </div>`;
+  }
+  const rows = items.map(i => {
+    const k = `${o.id}|${si}|${i.productId}`;
+    if (_morshEdit[k] == null) _morshEdit[k] = i.qty;
+    return `<div class="ord-req-item" style="align-items:center">
+      <span class="ord-req-iname" style="flex:1;min-width:0">${esc(i.productName)}</span>
+      <span style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+        <button onclick="window.__ord.morshStep('${o.id}',${si},'${i.productId}',-1)" style="width:26px;height:26px;border-radius:7px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text0);font-size:16px;line-height:1;cursor:pointer">−</button>
+        <input id="me-${o.id}-${si}-${i.productId}" type="number" min="0" inputmode="numeric" value="${_morshEdit[k]}" onchange="window.__ord.morshSetQty('${o.id}',${si},'${i.productId}',this.value)" onfocus="this.select()" style="width:44px;height:26px;text-align:center;border-radius:7px;border:0.5px solid var(--border);background:var(--bg1);color:var(--text0);font-family:var(--font-h);font-weight:700;font-size:13px">
+        <button onclick="window.__ord.morshStep('${o.id}',${si},'${i.productId}',1)" style="width:26px;height:26px;border-radius:7px;background:var(--blue-bg);border:0.5px solid var(--blue-border);color:var(--blue);font-size:16px;line-height:1;cursor:pointer">+</button>
+        <span style="font-size:11px;color:var(--text3);width:20px">${i.unit || 'Ящ'}</span>
+      </span>
+    </div>`;
+  }).join('');
+  return `<div class="ord-req-supp">
+    <div class="ord-req-sname" style="margin-bottom:8px">💧 ${esc(s.supplierName || 'Моршинська')} <span style="font-size:10px;color:var(--text3);font-weight:400">· к-сть можна виправити</span></div>
+    ${rows}
+    <button onclick="window.__ord.sendMorsh('${o.id}',${si})" style="width:100%;height:42px;border-radius:10px;background:var(--blue);border:0;color:#08131f;font-size:13px;font-weight:700;font-family:var(--font-b);cursor:pointer;margin-top:10px">💧 Відправити ЄМоршинська</button>
+  </div>`;
+}
+
+async function sendMorshOrder(oid, si) {
+  const order = _orders.find(o => o.id === oid);
+  const supp = order && (order.suppliers || [])[si];
+  if (!supp) return;
+  const items = (supp.items || []).map(i => {
+    const k = `${oid}|${si}|${i.productId}`;
+    const q = _morshEdit[k] != null ? _morshEdit[k] : i.qty;
+    return { productId: i.productId, name: i.productName, qty: Number(q) || 0 };
+  }).filter(i => i.qty > 0);
+  if (!items.length) { alert('Немає позицій для відправки'); return; }
+  if (!confirm(`Відправити замовлення в ЄМоршинська? Позицій: ${items.length}`)) return;
+  try {
+    const res = await fetch(`${API}/api/morshynska/place`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body: JSON.stringify({ venueId: _venueId, orderId: oid, si, items }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (d.success) { alert('✓ Відправлено в ЄМоршинська'); loadOrders(); }
+    else alert(d.error || 'Не вдалося відправити');
+  } catch (e) { alert('Мережева помилка: ' + e.message); }
+}
+
 /* ════════════════════════
    MANAGER: orders tab
 ════════════════════════ */
@@ -592,6 +646,7 @@ function mgrOrdersHTML() {
   function suppliersHTML(o) {
     return (o.suppliers || []).map((s, si) => {
       const items  = (s.items || []).filter(i => (i.qty || 0) > 0);
+      if (s.morsh) return morshSuppHTML(o, s, si, items);   // Моршинська — API-відправка + редагування к-сті
       const copyId = `copy-${o.id}-${si}`;
       return `
       <div class="ord-req-supp">
@@ -1351,17 +1406,9 @@ function clearOrderConfirm() {
 }
 
 async function submitOrder() {
-  // Моршинська — окрема заявка через їхній API-контур (не в звичайний Order): менеджер оформлює в ЄМоршинська
-  const morshSupp = _suppliers.find(s => s._morsh);
-  const morshItems = morshSupp ? (morshSupp.supplierProducts || [])
-    .map(sp => ({ productId: sp.productId, name: sp.customName || sp.productName, price: sp._price ?? null, unit: _barUnits[sp.productId] || 'Ящ', qty: _barQtys[sp.productId] || 0 }))
-    .filter(i => i.qty > 0) : [];
-  if (morshItems.length) {
-    fetch(`${API}/api/morshynska/requests`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` }, body: JSON.stringify({ venueId: _venueId, items: morshItems, note: '' }) }).catch(() => {});
-  }
-
-  // Збираємо дані по звичайних постачальниках
-  const suppliers = _suppliers.filter(s => !s._morsh).map(s => {
+  // Збираємо дані по постачальниках. Моршинська — теж звичайний постачальник, лише з прапорцем
+  // morsh:true → менеджер у списку побачить кнопку «Відправити ЄМоршинська» (API) замість «Копіювати».
+  const suppliers = _suppliers.map(s => {
     const items = (s.supplierProducts || [])
       .map(sp => ({
         productId:   sp.productId,
@@ -1371,13 +1418,10 @@ async function submitOrder() {
         comment:     _barComments[sp.productId] || '',
       }))
       .filter(i => i.qty > 0);
-    return { supplierId: s.id, supplierName: s.name, items };
+    return { supplierId: s.id, supplierName: s.name, items, ...(s._morsh ? { morsh: true } : {}) };
   }).filter(s => s.items.length > 0);
 
-  if (!suppliers.length) {
-    if (morshItems.length) { _submitted = true; clearDraftStorage(); fullRender(); }   // лише Моршинська
-    return;
-  }
+  if (!suppliers.length) return;
 
   // Якщо заявку вже подано й вона ще редагована → ОНОВЛЮЄМО ту саму (PATCH), а не створюємо дубль
   const url    = _myOrderId ? `${API}/api/orders/${_myOrderId}` : `${API}/api/orders`;
@@ -1812,6 +1856,9 @@ export default {
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
       renameProduct, renameInput, renameCancel, renameSave,
       openCustomProd, customInput, customCancel, saveCustomProd,
+      morshStep(oid, si, pid, d) { const k = `${oid}|${si}|${pid}`; _morshEdit[k] = Math.max(0, (Number(_morshEdit[k]) || 0) + d); const el = document.getElementById(`me-${oid}-${si}-${pid}`); if (el) el.value = _morshEdit[k]; },
+      morshSetQty(oid, si, pid, v) { _morshEdit[`${oid}|${si}|${pid}`] = Math.max(0, parseInt(v, 10) || 0); },
+      sendMorsh: sendMorshOrder,
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
