@@ -23,6 +23,14 @@ let _error    = '';
 let _assort   = null;        // [{id,name,price,hidden}] — для адмін-налаштування асортименту
 let _hidDirty = false;
 let _saving   = false;
+// вкладка «Акаунт»
+let _account   = null;       // { connected, login, base }
+let _accLogin  = '';
+let _accPass   = '';
+let _accBase   = 'https://sandbox.e.morshynska.com';
+let _accResult = null;       // { outlets, productsCount, withPrice } після успішного тесту
+let _accBusy   = false;
+let _accErr    = '';
 
 const isAdmin = () => (state.role || '').toLowerCase() === 'admin';
 
@@ -112,6 +120,50 @@ function assortListHTML() {
     <div style="flex:1;min-width:0"><div class="mo-name"${p.hidden ? ' style="opacity:.45"' : ''}>${esc(p.name)}</div><div class="mo-sub">${p.price != null ? money(p.price) + ' грн' : ''}</div></div>
     <button class="mo-hide ${p.hidden ? 'off' : 'on'}" onclick="window.__morsh.toggle('${p.id}')">${p.hidden ? 'Приховано' : 'Показ'}</button>
   </div>`).join('') || '<div class="mo-msg">Нічого не знайдено</div>';
+}
+async function loadAccount() {
+  try {
+    const r = await fetch(`${API}/api/morshynska/account`, { headers: { Authorization: `Bearer ${token()}` } });
+    const d = await r.json();
+    if (d.success) { _account = d; if (d.login && !_accLogin) _accLogin = d.login; if (d.base) _accBase = d.base; }
+  } catch {}
+  rerender();
+}
+async function saveAccount() {
+  if (!_accLogin || (!_accPass && !(_account && _account.connected))) { _accErr = 'Введи логін і пароль'; rerender(); return; }
+  _accBusy = true; _accErr = ''; _accResult = null; rerender();
+  try {
+    const r = await fetch(`${API}/api/morshynska/account`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ venueId: venueId(), login: _accLogin, password: _accPass || undefined, base: _accBase }) });
+    const d = await r.json();
+    if (d.success) { _accResult = d; _accPass = ''; _catalog = null; await loadAccount(); }
+    else _accErr = d.error || 'Не вдалось підключитись';
+  } catch (e) { _accErr = e.message; }
+  _accBusy = false; rerender();
+}
+function accountHTML() {
+  const a = _account, connected = a && a.connected;
+  const isProd = !/sandbox/.test(_accBase);
+  return `<div style="padding:2px 2px 0">
+    ${connected ? `<div class="mo-acc-ok">✓ Підключено: <b>${esc(a.login)}</b><div class="mo-sub" style="margin-top:2px">${esc(a.base)}</div></div>`
+                : `<div class="mo-hint">Введи акаунт ЄМоршинська. Пароль зберігається лише на сервері (у браузер не повертається).</div>`}
+    <div class="mo-lbl">Логін (телефон)</div>
+    <input class="mo-search" style="margin-bottom:10px" placeholder="+380..." value="${esc(_accLogin)}" oninput="window.__morsh.accField('login',this.value)">
+    <div class="mo-lbl">Пароль</div>
+    <input class="mo-search" style="margin-bottom:10px" type="password" placeholder="${connected ? 'залиш порожнім щоб не міняти' : 'пароль'}" value="${esc(_accPass)}" oninput="window.__morsh.accField('pass',this.value)">
+    <div class="mo-lbl">Середовище</div>
+    <div class="mo-envrow">
+      <button class="mo-env ${!isProd ? 'on' : ''}" onclick="window.__morsh.accField('base','https://sandbox.e.morshynska.com')">Пісочниця (тест)</button>
+      <button class="mo-env ${isProd ? 'on' : ''}" onclick="window.__morsh.accField('base','https://e.morshynska.com')">Прод (реальний)</button>
+    </div>
+    ${_accErr ? `<div class="mo-banner" style="margin:10px 0 0">${esc(_accErr)}</div>` : ''}
+    ${_accResult ? `<div class="mo-acc-res">
+      <div style="color:var(--green);font-weight:700;margin-bottom:6px">✓ Підключення успішне</div>
+      <div class="mo-sub">Каталог: <b>${_accResult.productsCount}</b> товарів (${_accResult.withPrice} з цінами)</div>
+      <div class="mo-sub" style="margin:8px 0 4px">Торгові точки / юр.особи: <b>${(_accResult.outlets || []).length}</b></div>
+      ${(_accResult.outlets || []).map(o => `<div class="mo-li"><span>${esc(o.name)}${o.custName ? ` · ${esc(o.custName)}` : ''}</span><span class="mo-li-q">ol ${o.id}</span></div>`).join('')}
+    </div>` : ''}
+    <button class="mo-submit" style="margin-top:14px" onclick="window.__morsh.saveAccount()" ${_accBusy ? 'disabled' : ''}>${_accBusy ? 'Підключення…' : 'Підключитись і зберегти'}</button>
+  </div>`;
 }
 function assortHTML() {
   if (!_assort) return `<div class="mo-msg">Завантаження асортименту…</div>`;
@@ -208,9 +260,10 @@ function inner() {
     <button class="mo-tab${_tab === 'catalog' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('catalog')">Каталог</button>
     <button class="mo-tab${_tab === 'requests' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('requests')">Заявки${_requests?.length ? ` · ${_requests.length}` : ''}</button>
     ${isAdmin() ? `<button class="mo-tab${_tab === 'assort' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('assort')">Асортимент</button>` : ''}
+    ${isAdmin() ? `<button class="mo-tab${_tab === 'account' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('account')">Акаунт</button>` : ''}
   </div>`;
   const err = _error ? `<div class="mo-banner">${esc(_error)}</div>` : '';
-  const body = _tab === 'catalog' ? catalogHTML() : _tab === 'assort' ? assortHTML() : requestsHTML();
+  const body = _tab === 'catalog' ? catalogHTML() : _tab === 'assort' ? assortHTML() : _tab === 'account' ? accountHTML() : requestsHTML();
   return back + tabs + err + `<div class="mo-scroll">${body}<div style="height:28px"></div></div>`;
 }
 
@@ -277,6 +330,12 @@ const CSS = `<style id="mo-css">
 .mo-hide{height:32px;padding:0 12px;border-radius:9px;font-size:12px;font-family:var(--font-b);font-weight:600;cursor:pointer;flex-shrink:0;border:0.5px solid}
 .mo-hide.on{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .mo-hide.off{background:var(--bg3);border-color:var(--border);color:var(--text3)}
+.mo-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b);font-weight:600;margin:0 2px 5px}
+.mo-envrow{display:flex;gap:8px;margin-bottom:2px}
+.mo-env{flex:1;height:36px;border-radius:10px;background:var(--bg1);border:0.5px solid var(--border);color:var(--text2);font-size:12px;font-family:var(--font-b);font-weight:600;cursor:pointer}
+.mo-env.on{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)}
+.mo-acc-ok{background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:var(--text0);font-family:var(--font-b)}
+.mo-acc-res{margin-top:12px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:11px 13px;font-family:var(--font-b)}
 </style>`;
 
 function buildPage() { return `${CSS}<div class="mo-wrap"><div id="mo-inner">${inner()}</div></div>`; }
@@ -286,7 +345,9 @@ export function render() { _loading = !_catalog; return buildPage(); }
 export function init() {
   _tab = isMgr() ? 'requests' : 'catalog';
   window.__morsh = {
-    tab(t) { _tab = t; _search = ''; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); if (t === 'assort' && !_assort) loadAssort(); },
+    tab(t) { _tab = t; _search = ''; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); if (t === 'assort' && !_assort) loadAssort(); if (t === 'account' && !_account) loadAccount(); },
+    accField(f, v) { if (f === 'login') _accLogin = v; else if (f === 'pass') _accPass = v; else if (f === 'base') { _accBase = v; rerender(); } },
+    saveAccount() { saveAccount(); },
     inc(id) { _qty[id] = (_qty[id] || 0) + 1; rerender(); },
     dec(id) { _qty[id] = Math.max(0, (_qty[id] || 0) - 1); if (!_qty[id]) delete _qty[id]; rerender(); },
     search(v) { _search = v; const el = document.getElementById('mo-listhost'); if (el) el.innerHTML = (_tab === 'assort' ? assortListHTML() : catalogListHTML()); },
