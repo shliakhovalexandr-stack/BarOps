@@ -169,7 +169,7 @@ function accountHTML() {
       </div>`;
     }).join('')}
     <button class="mo-submit" style="margin-top:12px;background:var(--bg3);color:var(--text0)" onclick="window.__morsh.dryRun()" ${_dryBusy ? 'disabled' : ''}>${_dryBusy ? 'Перевірка…' : '🧪 Перевірити без замовлення'}</button>
-    ${_dryResult ? `<div class="mo-acc-res">${_dryResult.error ? `<div style="color:var(--red)">❌ ${esc(_dryResult.error)}</div>` : `<div style="color:var(--green);font-weight:700">✓ Перевірка ОК</div><div class="mo-sub" style="margin-top:4px">Замовлення піде на: <b>${esc(_dryResult.outlet?.name || '?')}</b></div>${_dryResult.sum != null ? `<div class="mo-sub">Сума тестового кошика: ${_dryResult.sum} грн</div>` : ''}`}</div>` : ''}
+    ${_dryResult ? `<div class="mo-acc-res">${(_dryResult.error || !_dryResult.outlet) ? `<div style="color:var(--red)">❌ ${esc(_dryResult.error || 'не вдалось визначити точку')}</div>` : `<div style="color:var(--green);font-weight:700">✓ Перевірка ОК — замовлення піде на:</div><div class="mo-sub" style="margin-top:4px"><b>${esc(_dryResult.outlet.name || '?')}</b>${_dryResult.outlet.custName ? ' · ' + esc(_dryResult.outlet.custName) : ''}</div>${_dryResult.minError ? `<div class="mo-sub" style="color:var(--amber);margin-top:4px">ℹ ${esc(_dryResult.minError)}</div>` : ''}`}</div>` : ''}
   ` : (connected ? `<div class="mo-hint" style="margin-top:14px">У акаунті ще немає торгових точок. Додай юр.особи в додатку ЄМоршинська (за номером накладної) — вони зʼявляться тут.</div>` : '');
   return `<div style="padding:2px 2px 0">
     ${connected ? `<div class="mo-acc-ok">✓ Підключено: <b>${esc(a.login)}</b><div class="mo-sub" style="margin-top:2px">${esc(a.base)}</div></div>`
