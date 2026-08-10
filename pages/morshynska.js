@@ -33,6 +33,12 @@ let _accBusy   = false;
 let _accErr    = '';
 let _dryResult = null;       // результат «перевірки без замовлення»
 let _dryBusy   = false;
+let _accEdit   = false;      // показати поля логіна/пароля (коли акаунт уже підключений — сховані)
+// адреса доставки ЦЬОГО закладу (=торгова точка Моршинської; від неї залежать ціни та юр.особа)
+let _vOutlets  = [];
+let _vSel      = null;
+let _vBusy     = false;
+let _vErr      = '';
 
 const isAdmin = () => (state.role || '').toLowerCase() === 'admin';
 
@@ -88,7 +94,7 @@ async function sendToMorsh(id) {
 }
 
 async function cancelReq(id) {
-  try { await fetch(`${API}/api/morshynska/requests/${id}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: '{}' }); } catch {}
+  try { await fetch(`${API}/api/morshynska/requests/${id}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ venueId: venueId() }) }); } catch {}
   await loadRequests();
 }
 
@@ -142,12 +148,31 @@ async function saveAccount() {
   } catch (e) { _accErr = e.message; }
   _accBusy = false; rerender();
 }
-async function selectOutlet(olId, name) {
+// Адреса доставки закладу. Список адрес — з акаунта Моршинської, привʼязка — на заклад.
+async function loadVenueOutlet() {
   try {
-    const r = await fetch(`${API}/api/morshynska/select-outlet`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ venueId: venueId(), olId, name }) });
+    const r = await fetch(`${API}/api/morshynska/venue-outlet?venueId=${venueId()}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json();
-    if (d.success) { _dryResult = null; await loadAccount(); }
+    if (d.success) { _vOutlets = d.outlets || []; _vSel = d.selected || null; }
   } catch {}
+  rerender();
+}
+
+async function pickVenueOutlet(olId) {
+  const o = _vOutlets.find(x => String(x.id) === String(olId));
+  if (!o || _vBusy) return;
+  _vBusy = true; _vErr = ''; _dryResult = null; rerender();
+  try {
+    const r = await fetch(`${API}/api/morshynska/venue-outlet`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ venueId: venueId(), olId: o.id, name: o.name, address: o.address }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Не вдалось зберегти');
+    _vSel = d.selected || null;
+    _catalog = null;   // ціни контрактні для точки — каталог перечитати
+  } catch (e) { _vErr = e.message; }
+  _vBusy = false; rerender();
 }
 async function dryRun() {
   _dryBusy = true; _dryResult = null; rerender();
@@ -158,36 +183,65 @@ async function dryRun() {
   _dryBusy = false; rerender();
 }
 function accountHTML() {
-  const a = _account, connected = a && a.connected;
-  const outletsHTML = (connected && (a.outlets || []).length) ? `
-    <div class="mo-lbl" style="margin-top:14px">Торгова точка / юр.особа <span style="font-weight:400;color:var(--text3)">(куди йдуть замовлення)</span></div>
-    ${(a.outlets || []).map(o => {
-      const sel = a.selectedOutlet && String(a.selectedOutlet.olId) === String(o.id);
-      return `<div class="mo-row${sel ? ' mo-row-on' : ''}" onclick="window.__morsh.selOutlet('${o.id}','${esc(String(o.name)).replace(/'/g, '')}')">
-        <div style="flex:1;min-width:0"><div class="mo-name">${esc(o.name)}</div><div class="mo-sub">${esc(o.custName || '')}${o.address ? ' · ' + esc(o.address) : ''}</div></div>
+  const a = _account, connected = a && a.connected, admin = isAdmin();
+
+  // 1. Адреса доставки цього закладу — вона ж визначає ціни й юр.особу
+  const addrHTML = `
+    <div class="mo-lbl">Адреса доставки · ${esc(state.venue || 'цей заклад')}</div>
+    <div class="mo-hint" style="margin-bottom:8px">Заявки цього закладу поїдуть на цю адресу. Від неї ж залежать ціни в каталозі та юр.особа в рахунку.</div>
+    ${_vOutlets.length ? _vOutlets.map(o => {
+      const sel = _vSel && String(_vSel.olId) === String(o.id);
+      return `<div class="mo-row${sel ? ' mo-row-on' : ''}" style="cursor:pointer" onclick="window.__morsh.pickOutlet('${esc(String(o.id))}')">
+        <div style="flex:1;min-width:0">
+          <div class="mo-name">${esc(o.address || o.name)}</div>
+          <div class="mo-sub">${esc(o.name)}${o.custName ? ' · ' + esc(o.custName) : ''}</div>
+        </div>
         <div style="flex-shrink:0;font-size:12px;font-weight:700;color:${sel ? 'var(--green)' : 'var(--text3)'}">${sel ? '✓ обрано' : 'обрати'}</div>
       </div>`;
-    }).join('')}
-    <button class="mo-submit" style="margin-top:12px;background:var(--bg3);color:var(--text0)" onclick="window.__morsh.dryRun()" ${_dryBusy ? 'disabled' : ''}>${_dryBusy ? 'Перевірка…' : '🧪 Перевірити без замовлення'}</button>
-    ${_dryResult ? `<div class="mo-acc-res">${(_dryResult.error || !_dryResult.outlet) ? `<div style="color:var(--red)">❌ ${esc(_dryResult.error || 'не вдалось визначити точку')}</div>` : `<div style="color:var(--green);font-weight:700">✓ Перевірка ОК — замовлення піде на:</div><div class="mo-sub" style="margin-top:4px"><b>${esc(_dryResult.outlet.name || '?')}</b>${_dryResult.outlet.custName ? ' · ' + esc(_dryResult.outlet.custName) : ''}</div>${_dryResult.minError ? `<div class="mo-sub" style="color:var(--amber);margin-top:4px">ℹ ${esc(_dryResult.minError)}</div>` : ''}`}</div>` : ''}
-  ` : (connected ? `<div class="mo-hint" style="margin-top:14px">У акаунті ще немає торгових точок. Додай юр.особи в додатку ЄМоршинська (за номером накладної) — вони зʼявляться тут.</div>` : '');
-  return `<div style="padding:2px 2px 0">
-    ${connected ? `<div class="mo-acc-ok">✓ Підключено: <b>${esc(a.login)}</b><div class="mo-sub" style="margin-top:2px">${esc(a.base)}</div></div>`
-                : `<div class="mo-hint">Введи акаунт ЄМоршинська. Пароль зберігається лише на сервері (у браузер не повертається).</div>`}
-    ${outletsHTML}
-    <div class="mo-lbl" style="margin-top:14px">Логін (телефон)</div>
-    <input class="mo-search" style="margin-bottom:10px" placeholder="+380..." value="${esc(_accLogin)}" oninput="window.__morsh.accField('login',this.value)">
-    <div class="mo-lbl">Пароль</div>
-    <input class="mo-search" style="margin-bottom:10px" type="password" placeholder="${connected ? 'залиш порожнім щоб не міняти' : 'пароль'}" value="${esc(_accPass)}" oninput="window.__morsh.accField('pass',this.value)">
-    ${_accErr ? `<div class="mo-banner" style="margin:10px 0 0">${esc(_accErr)}</div>` : ''}
-    ${_accResult ? `<div class="mo-acc-res">
-      <div style="color:var(--green);font-weight:700;margin-bottom:6px">✓ Підключення успішне</div>
-      <div class="mo-sub">Каталог: <b>${_accResult.productsCount}</b> товарів (${_accResult.withPrice} з цінами)</div>
-      <div class="mo-sub" style="margin:8px 0 4px">Торгові точки / юр.особи: <b>${(_accResult.outlets || []).length}</b></div>
-      ${(_accResult.outlets || []).map(o => `<div class="mo-li"><span>${esc(o.name)}${o.custName ? ` · ${esc(o.custName)}` : ''}</span><span class="mo-li-q">ol ${o.id}</span></div>`).join('')}
-    </div>` : ''}
-    <button class="mo-submit" style="margin-top:14px" onclick="window.__morsh.saveAccount()" ${_accBusy ? 'disabled' : ''}>${_accBusy ? 'Підключення…' : 'Підключитись і зберегти'}</button>
-  </div>`;
+    }).join('') : `<div class="mo-msg">${connected === false ? 'Спершу підключи акаунт' : 'Адрес не знайдено'}</div>`}
+    ${_vBusy ? `<div class="mo-sub" style="margin-top:8px">Збереження…</div>` : ''}
+    ${_vErr ? `<div class="mo-banner" style="margin:10px 0 0">${esc(_vErr)}</div>` : ''}
+    ${_vSel ? `<div class="mo-acc-res">
+      <div class="mo-sub">🧾 Юр.особа: <b>${esc(_vSel.legalPerson ? _vSel.legalPerson.name : '—')}</b></div>
+      ${_vSel.legalPersonCount > 1 ? `<div class="mo-sub" style="margin-top:3px;color:var(--amber)">У цієї адреси ${_vSel.legalPersonCount} юр.осіб — рахунок піде на першу</div>` : ''}
+    </div>` : ''}`;
+
+  // 2. Акаунт: коли підключений — показуємо, а не питаємо заново
+  const credsHTML = !admin ? '' : `
+    <div class="mo-lbl" style="margin-top:20px">Акаунт ЄМоршинська</div>
+    ${connected && !_accEdit ? `
+      <div class="mo-acc-ok">✓ Підключено: <b>${esc(a.login)}</b>
+        <div class="mo-sub" style="margin-top:3px">Пароль: ${a.hasPassword ? '•••••••• збережено' : 'не збережено'}</div>
+        <div class="mo-sub">${esc(a.base)}</div>
+      </div>
+      <div class="mo-hint" style="margin-bottom:10px">Пароль зберігається лише на сервері і в браузер не повертається — показати його не можемо, лише замінити.</div>
+      <button class="mo-submit" style="background:var(--bg3);color:var(--text0)" onclick="window.__morsh.accEdit(1)">Змінити логін або пароль</button>
+    ` : `
+      ${connected ? '' : `<div class="mo-hint">Введи акаунт ЄМоршинська. Пароль зберігається лише на сервері.</div>`}
+      <div class="mo-lbl" style="margin-top:10px">Логін (телефон)</div>
+      <input class="mo-search" style="margin-bottom:10px" placeholder="+380..." value="${esc(_accLogin)}" oninput="window.__morsh.accField('login',this.value)">
+      <div class="mo-lbl">Пароль</div>
+      <input class="mo-search" style="margin-bottom:10px" type="password" placeholder="${connected ? 'залиш порожнім щоб не міняти' : 'пароль'}" value="${esc(_accPass)}" oninput="window.__morsh.accField('pass',this.value)">
+      ${_accErr ? `<div class="mo-banner" style="margin:10px 0 0">${esc(_accErr)}</div>` : ''}
+      ${_accResult ? `<div class="mo-acc-res">
+        <div style="color:var(--green);font-weight:700;margin-bottom:6px">✓ Підключення успішне</div>
+        <div class="mo-sub">Каталог: <b>${_accResult.productsCount}</b> товарів (${_accResult.withPrice} з цінами)</div>
+        <div class="mo-sub" style="margin:8px 0 4px">Адрес у акаунті: <b>${(_accResult.outlets || []).length}</b></div>
+      </div>` : ''}
+      <button class="mo-submit" style="margin-top:8px" onclick="window.__morsh.saveAccount()" ${_accBusy ? 'disabled' : ''}>${_accBusy ? 'Підключення…' : 'Підключитись і зберегти'}</button>
+      ${connected ? `<button class="mo-submit" style="margin-top:8px;background:var(--bg3);color:var(--text0)" onclick="window.__morsh.accEdit(0)">Скасувати</button>` : ''}
+    `}`;
+
+  // 3. Перевірка без замовлення (admin)
+  const dryHTML = !admin || !_vSel ? '' : `
+    <button class="mo-submit" style="margin-top:16px;background:var(--bg3);color:var(--text0)" onclick="window.__morsh.dryRun()" ${_dryBusy ? 'disabled' : ''}>${_dryBusy ? 'Перевірка…' : '🧪 Перевірити без замовлення'}</button>
+    ${_dryResult ? `<div class="mo-acc-res">${(_dryResult.error || !_dryResult.outlet)
+      ? `<div style="color:var(--red)">❌ ${esc(_dryResult.error || 'не вдалось визначити точку')}</div>`
+      : `<div style="color:var(--green);font-weight:700">✓ Перевірка ОК — замовлення піде на:</div>
+         <div class="mo-sub" style="margin-top:4px"><b>${esc(_dryResult.outlet.name || '?')}</b>${_dryResult.outlet.custName ? ' · ' + esc(_dryResult.outlet.custName) : ''}</div>
+         ${_dryResult.minError ? `<div class="mo-sub" style="color:var(--amber);margin-top:4px">ℹ ${esc([].concat(_dryResult.minError).join(' · '))}</div>` : ''}`}</div>` : ''}`;
+
+  return `<div style="padding:2px 2px 0">${addrHTML}${credsHTML}${dryHTML}</div>`;
 }
 function assortHTML() {
   if (!_assort) return `<div class="mo-msg">Завантаження асортименту…</div>`;
@@ -284,7 +338,7 @@ function inner() {
     <button class="mo-tab${_tab === 'catalog' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('catalog')">Каталог</button>
     <button class="mo-tab${_tab === 'requests' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('requests')">Заявки${_requests?.length ? ` · ${_requests.length}` : ''}</button>
     ${isAdmin() ? `<button class="mo-tab${_tab === 'assort' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('assort')">Асортимент</button>` : ''}
-    ${isAdmin() ? `<button class="mo-tab${_tab === 'account' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('account')">Акаунт</button>` : ''}
+    ${isMgr() ? `<button class="mo-tab${_tab === 'account' ? ' mo-tab-on' : ''}" onclick="window.__morsh.tab('account')">Акаунт</button>` : ''}
   </div>`;
   const err = _error ? `<div class="mo-banner">${esc(_error)}</div>` : '';
   const body = _tab === 'catalog' ? catalogHTML() : _tab === 'assort' ? assortHTML() : _tab === 'account' ? accountHTML() : requestsHTML();
@@ -368,11 +422,19 @@ export function render() { _loading = !_catalog; return buildPage(); }
 
 export function init() {
   _tab = isMgr() ? 'requests' : 'catalog';
+  // вхід з картки постачальника у «Замовленнях» — одразу в налаштування
+  if (localStorage.getItem('barops_morsh_tab') === 'account' && isMgr()) {
+    localStorage.removeItem('barops_morsh_tab');
+    _tab = 'account';
+    if (isAdmin()) loadAccount();
+    loadVenueOutlet();
+  }
   window.__morsh = {
-    tab(t) { _tab = t; _search = ''; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); if (t === 'assort' && !_assort) loadAssort(); if (t === 'account' && !_account) loadAccount(); },
+    tab(t) { _tab = t; _search = ''; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); if (t === 'assort' && !_assort) loadAssort(); if (t === 'account') { if (isAdmin() && !_account) loadAccount(); loadVenueOutlet(); } },
     accField(f, v) { if (f === 'login') _accLogin = v; else if (f === 'pass') _accPass = v; else if (f === 'base') { _accBase = v; rerender(); } },
     saveAccount() { saveAccount(); },
-    selOutlet(id, name) { selectOutlet(id, name); },
+    pickOutlet(id) { pickVenueOutlet(id); },
+    accEdit(on) { _accEdit = !!on; _accErr = ''; _accPass = ''; rerender(); },
     dryRun() { dryRun(); },
     inc(id) { _qty[id] = (_qty[id] || 0) + 1; rerender(); },
     dec(id) { _qty[id] = Math.max(0, (_qty[id] || 0) - 1); if (!_qty[id]) delete _qty[id]; rerender(); },
