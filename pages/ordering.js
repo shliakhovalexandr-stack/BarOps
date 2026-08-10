@@ -27,6 +27,7 @@ let _morshEdit        = {};   // `${orderId}|${si}|${productId}` → редаг�
 let _morshOutlets     = [];   // адреси доставки (=торгові точки) акаунта Моршинської
 let _morshSel         = null; // адреса, привʼязана до ЦЬОГО закладу — від неї залежать і доставка, і ціни
 let _morshDraft       = null; // вибір у відкритій панелі (щоб закриття без «Зберегти» не міняло показане)
+let _morshSend        = null; // відкрита модалка відправки: {oid,si,items,dates,date,info,loading,sending,err}
 let _morshSheet       = false, _morshSaving = false, _morshErr = '';
 let _venueId      = null;
 let _token        = null;
@@ -583,10 +584,18 @@ function renderBartender() {
 function morshDestHTML(s) {
   const addr  = s.morshSent ? (s.morshAddress || '') : (_morshSel ? (_morshSel.address || _morshSel.name || '') : '');
   const legal = s.morshSent ? (s.morshLegal || '')   : (_morshSel && _morshSel.legalPerson ? _morshSel.legalPerson.name : '');
+  const date  = s.morshSent ? (s.morshDate || '') : '';
   if (!addr) return `<div style="font-size:11px;color:var(--red);font-family:var(--font-b);margin-bottom:8px">Адресу доставки не обрано · Постачальники → Моршинська</div>`;
   return `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:8px">
-    📍 ${esc(addr)}${legal ? `<br>🧾 ${esc(legal)}` : ''}
+    📍 ${esc(addr)}${legal ? `<br>🧾 ${esc(legal)}` : ''}${date ? `<br>🚚 ${esc(morshFmtDate(date))}` : ''}
   </div>`;
+}
+
+// Дата доставки для показу: «12.08, вт»
+function morshFmtDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return iso;
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}, ${['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'][d.getDay()]}`;
 }
 
 function morshSuppHTML(o, s, si, items) {
@@ -627,17 +636,95 @@ async function sendMorshOrder(oid, si) {
     const q = _morshEdit[k] != null ? _morshEdit[k] : i.qty;
     return { productId: i.productId, name: i.productName, qty: Number(q) || 0 };
   }).filter(i => i.qty > 0);
-  if (!items.length) { alert('Немає позицій для відправки'); return; }
-  if (!confirm(`Відправити замовлення в ЄМоршинська? Позицій: ${items.length}`)) return;
+  if (!items.length) { morshToast('Немає позицій для відправки', 'error'); return; }
+  // Відкриваємо модалку одразу (з «Завантаження…»), а дати доставки дочитуємо —
+  // вони в кожної точки свої і приходять із чекауту Моршинської.
+  _morshSend = { oid, si, items, dates: [], date: '', info: null, loading: true, sending: false, err: '' };
+  refreshConfirmHost();
+  try {
+    const r = await fetch(`${API}/api/morshynska/checkout-info?venueId=${_venueId}`, { headers: { Authorization: `Bearer ${_token}` } });
+    const d = await r.json().catch(() => ({}));
+    if (!_morshSend) return;                       // встигли закрити
+    if (!d.success) { _morshSend.err = d.error || 'Не вдалося отримати дані замовлення'; }
+    else {
+      _morshSend.info  = d;
+      _morshSend.dates = d.deliveryDays || [];
+      _morshSend.date  = d.autoDate || _morshSend.dates[0] || '';
+    }
+  } catch (e) { if (_morshSend) _morshSend.err = 'Мережева помилка: ' + e.message; }
+  if (_morshSend) { _morshSend.loading = false; refreshConfirmHost(); }
+}
+
+// Відправка після підтвердження в модалці
+async function morshSendGo() {
+  if (!_morshSend || _morshSend.sending) return;
+  const { oid, si, items, date } = _morshSend;
+  _morshSend.sending = true; _morshSend.err = '';
+  refreshConfirmHost();
   try {
     const res = await fetch(`${API}/api/morshynska/place`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-      body: JSON.stringify({ venueId: _venueId, orderId: oid, si, items }),
+      body: JSON.stringify({ venueId: _venueId, orderId: oid, si, items, deliveryDate: date || undefined }),
     });
     const d = await res.json().catch(() => ({}));
-    if (d.success) { alert('✓ Відправлено в ЄМоршинська'); loadOrders(); }
-    else alert(d.error || 'Не вдалося відправити');
-  } catch (e) { alert('Мережева помилка: ' + e.message); }
+    if (!d.success) throw new Error(d.error || 'Не вдалося відправити');
+    _morshSend = null; refreshConfirmHost();
+    morshToast('✓ Відправлено в ЄМоршинська');
+    loadOrders();
+  } catch (e) {
+    if (_morshSend) { _morshSend.sending = false; _morshSend.err = e.message; refreshConfirmHost(); }
+  }
+}
+
+function morshSendClose() { if (_morshSend && _morshSend.sending) return; _morshSend = null; refreshConfirmHost(); }
+function morshSendDate(v) { if (_morshSend) _morshSend.date = v; }
+
+// Коротке повідомлення в стилі додатку (замість системного alert)
+function morshToast(msg, type = 'success') {
+  const el = document.createElement('div');
+  const ok = type !== 'error';
+  el.textContent = msg;
+  el.style.cssText = `position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:9999;max-width:88vw;
+    padding:11px 16px;border-radius:12px;font-family:var(--font-b);font-size:13px;font-weight:600;
+    background:${ok ? 'var(--green-bg,#0f2a1c)' : 'var(--red-bg,#2a1113)'};color:${ok ? 'var(--green,#3ad07a)' : 'var(--red,#ff6b6b)'};
+    border:0.5px solid ${ok ? 'var(--green-border,#1e5a38)' : 'var(--red-border,#5a1e22)'};
+    box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transition:opacity .18s`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => { el.style.opacity = '1'; });
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 220); }, 2600);
+}
+
+// Модалка відправки: куди, на кого, коли — і лише потім «Відправити»
+function morshSendHTML() {
+  if (!_morshSend) return '';
+  const m = _morshSend;
+  const qty = m.items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
+  const info = m.info;
+  return `
+  <div class="ord-confirm-ov open" onclick="window.__ord.morshSendClose()">
+    <div class="ord-confirm" onclick="event.stopPropagation()">
+      <div class="ord-confirm-title">💧 Відправити в ЄМоршинська?</div>
+      ${m.loading ? `<div class="ord-confirm-msg">Завантаження…</div>` : `
+        <div class="ord-confirm-msg" style="text-align:left;line-height:1.65">
+          ${info ? `📍 ${esc(info.address)}<br>${info.legalPerson ? `🧾 ${esc(info.legalPerson.name)}<br>` : ''}` : ''}
+          📦 Позицій: ${m.items.length} · ${qty} ящ
+        </div>
+        ${m.dates.length ? `
+          <div style="text-align:left;font-size:11px;color:var(--text2);font-family:var(--font-b);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px">День доставки</div>
+          <select class="ord-inp" onchange="window.__ord.morshSendDate(this.value)">
+            ${m.dates.map(d => `<option value="${esc(d)}"${d === m.date ? ' selected' : ''}>${esc(morshFmtDate(d))}</option>`).join('')}
+          </select>` : `
+          <div style="text-align:left;font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:10px">
+            ${esc((info && info.noScheduleMessage) || 'Доступних дат доставки немає — Моршинська підбере дату сама.')}
+          </div>`}
+      `}
+      ${m.err ? `<div style="text-align:left;margin-top:12px;padding:10px 12px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;color:var(--red);font-size:12px;font-family:var(--font-b)">${esc(m.err)}</div>` : ''}
+      <div class="ord-confirm-btns">
+        <button class="ord-confirm-cancel" onclick="window.__ord.morshSendClose()" ${m.sending ? 'disabled' : ''}>Скасувати</button>
+        <button class="ord-confirm-ok" onclick="window.__ord.morshSendGo()" ${m.loading || m.sending ? 'disabled' : ''}>${m.sending ? 'Відправка…' : 'Відправити'}</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ════════════════════════
@@ -1121,7 +1208,7 @@ function renderManager() {
 
   <div id="ord-sheet-host">${suppSheetHTML()}${morshSheetHTML()}</div>
   <div id="ord-picker-host">${prodPickerHTML()}</div>
-  <div id="ord-confirm-host">${confirmHTML()}${renameHTML()}${customHTML()}</div>`;
+  <div id="ord-confirm-host">${confirmHTML()}${renameHTML()}${customHTML()}${morshSendHTML()}</div>`;
 }
 
 /* ════════════════════════
@@ -1338,7 +1425,7 @@ function refreshPickerHost() {
 function refreshConfirmHost() {
   const el = document.getElementById('ord-confirm-host');
   if (!el) { fullRender(); return; }
-  el.innerHTML = confirmHTML() + renameHTML() + customHTML();
+  el.innerHTML = confirmHTML() + renameHTML() + customHTML() + morshSendHTML();
   if (_rename) {
     const inp = document.getElementById('ord-rename-inp');
     if (inp) { inp.focus(); inp.select(); }
@@ -1963,13 +2050,13 @@ export default {
       openCustomProd, customInput, customCancel, saveCustomProd,
       morshStep(oid, si, pid, d) { const k = `${oid}|${si}|${pid}`; _morshEdit[k] = Math.max(0, (Number(_morshEdit[k]) || 0) + d); const el = document.getElementById(`me-${oid}-${si}-${pid}`); if (el) el.value = _morshEdit[k]; },
       morshSetQty(oid, si, pid, v) { _morshEdit[`${oid}|${si}|${pid}`] = Math.max(0, parseInt(v, 10) || 0); },
-      sendMorsh: sendMorshOrder,
+      sendMorsh: sendMorshOrder, morshSendGo, morshSendClose, morshSendDate,
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
     // Стан модуля переживає навігацію: якщо не скинути, відкрита панель «зависає» і
     // вилазить при кожному вході в Замовлення, перемальовуючись на кожне довантаження.
-    _suppSheet = null; _morshSheet = false; _morshDraft = null; _morshErr = '';
+    _suppSheet = null; _morshSheet = false; _morshDraft = null; _morshErr = ''; _morshSend = null;
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
     // Хоз-зона (менеджер залу або адмін/керуючий у режимі Хоз) — окремий флоу, свій запит
     if (orderZone() === 'hoz') { _hozLoaded = false; loadHoz(); return; }
