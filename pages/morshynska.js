@@ -31,6 +31,8 @@ let _accBase   = 'https://e.morshynska.com';
 let _accResult = null;       // { outlets, productsCount, withPrice } після успішного тесту
 let _accBusy   = false;
 let _accErr    = '';
+let _dryResult = null;       // результат «перевірки без замовлення»
+let _dryBusy   = false;
 
 const isAdmin = () => (state.role || '').toLowerCase() === 'admin';
 
@@ -140,12 +142,40 @@ async function saveAccount() {
   } catch (e) { _accErr = e.message; }
   _accBusy = false; rerender();
 }
+async function selectOutlet(olId, name) {
+  try {
+    const r = await fetch(`${API}/api/morshynska/select-outlet`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ venueId: venueId(), olId, name }) });
+    const d = await r.json();
+    if (d.success) { _dryResult = null; await loadAccount(); }
+  } catch {}
+}
+async function dryRun() {
+  _dryBusy = true; _dryResult = null; rerender();
+  try {
+    const r = await fetch(`${API}/api/morshynska/dry-run`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: '{}' });
+    _dryResult = await r.json();
+  } catch (e) { _dryResult = { error: e.message }; }
+  _dryBusy = false; rerender();
+}
 function accountHTML() {
   const a = _account, connected = a && a.connected;
+  const outletsHTML = (connected && (a.outlets || []).length) ? `
+    <div class="mo-lbl" style="margin-top:14px">Торгова точка / юр.особа <span style="font-weight:400;color:var(--text3)">(куди йдуть замовлення)</span></div>
+    ${(a.outlets || []).map(o => {
+      const sel = a.selectedOutlet && String(a.selectedOutlet.olId) === String(o.id);
+      return `<div class="mo-row${sel ? ' mo-row-on' : ''}" onclick="window.__morsh.selOutlet('${o.id}','${esc(String(o.name)).replace(/'/g, '')}')">
+        <div style="flex:1;min-width:0"><div class="mo-name">${esc(o.name)}</div><div class="mo-sub">${esc(o.custName || '')}${o.address ? ' · ' + esc(o.address) : ''}</div></div>
+        <div style="flex-shrink:0;font-size:12px;font-weight:700;color:${sel ? 'var(--green)' : 'var(--text3)'}">${sel ? '✓ обрано' : 'обрати'}</div>
+      </div>`;
+    }).join('')}
+    <button class="mo-submit" style="margin-top:12px;background:var(--bg3);color:var(--text0)" onclick="window.__morsh.dryRun()" ${_dryBusy ? 'disabled' : ''}>${_dryBusy ? 'Перевірка…' : '🧪 Перевірити без замовлення'}</button>
+    ${_dryResult ? `<div class="mo-acc-res">${_dryResult.error ? `<div style="color:var(--red)">❌ ${esc(_dryResult.error)}</div>` : `<div style="color:var(--green);font-weight:700">✓ Перевірка ОК</div><div class="mo-sub" style="margin-top:4px">Замовлення піде на: <b>${esc(_dryResult.outlet?.name || '?')}</b></div>${_dryResult.sum != null ? `<div class="mo-sub">Сума тестового кошика: ${_dryResult.sum} грн</div>` : ''}`}</div>` : ''}
+  ` : (connected ? `<div class="mo-hint" style="margin-top:14px">У акаунті ще немає торгових точок. Додай юр.особи в додатку ЄМоршинська (за номером накладної) — вони зʼявляться тут.</div>` : '');
   return `<div style="padding:2px 2px 0">
     ${connected ? `<div class="mo-acc-ok">✓ Підключено: <b>${esc(a.login)}</b><div class="mo-sub" style="margin-top:2px">${esc(a.base)}</div></div>`
                 : `<div class="mo-hint">Введи акаунт ЄМоршинська. Пароль зберігається лише на сервері (у браузер не повертається).</div>`}
-    <div class="mo-lbl">Логін (телефон)</div>
+    ${outletsHTML}
+    <div class="mo-lbl" style="margin-top:14px">Логін (телефон)</div>
     <input class="mo-search" style="margin-bottom:10px" placeholder="+380..." value="${esc(_accLogin)}" oninput="window.__morsh.accField('login',this.value)">
     <div class="mo-lbl">Пароль</div>
     <input class="mo-search" style="margin-bottom:10px" type="password" placeholder="${connected ? 'залиш порожнім щоб не міняти' : 'пароль'}" value="${esc(_accPass)}" oninput="window.__morsh.accField('pass',this.value)">
@@ -342,6 +372,8 @@ export function init() {
     tab(t) { _tab = t; _search = ''; rerender(); if (t === 'requests') loadRequests(); if (t === 'catalog' && !_catalog) loadCatalog(); if (t === 'assort' && !_assort) loadAssort(); if (t === 'account' && !_account) loadAccount(); },
     accField(f, v) { if (f === 'login') _accLogin = v; else if (f === 'pass') _accPass = v; else if (f === 'base') { _accBase = v; rerender(); } },
     saveAccount() { saveAccount(); },
+    selOutlet(id, name) { selectOutlet(id, name); },
+    dryRun() { dryRun(); },
     inc(id) { _qty[id] = (_qty[id] || 0) + 1; rerender(); },
     dec(id) { _qty[id] = Math.max(0, (_qty[id] || 0) - 1); if (!_qty[id]) delete _qty[id]; rerender(); },
     search(v) { _search = v; const el = document.getElementById('mo-listhost'); if (el) el.innerHTML = (_tab === 'assort' ? assortListHTML() : catalogListHTML()); },
