@@ -24,6 +24,10 @@ let _orders           = [];   // менеджерський список зая�
 let _ordersLoading    = false;
 let _expandedOrders   = new Set(); // id виконаних заявок які розгорнуті
 let _morshEdit        = {};   // `${orderId}|${si}|${productId}` → редагована менеджером к-сть перед відправкою в ЄМоршинська
+let _morshOutlets     = [];   // адреси доставки (=торгові точки) акаунта Моршинської
+let _morshSel         = null; // адреса, привʼязана до ЦЬОГО закладу — від неї залежать і доставка, і ціни
+let _morshDraft       = null; // вибір у відкритій панелі (щоб закриття без «Зберегти» не міняло показане)
+let _morshSheet       = false, _morshSaving = false, _morshErr = '';
 let _venueId      = null;
 let _token        = null;
 let _loading      = true;
@@ -339,7 +343,7 @@ async function fetchBalanceRetry(maxAttempts = 3) {
 async function injectMorshSupplier() {
   if (orderZone() !== 'bar') return;   // вода — лише бар
   try {
-    const r = await fetch(`${API}/api/morshynska/catalog`, { headers: { Authorization: `Bearer ${_token}` } });
+    const r = await fetch(`${API}/api/morshynska/catalog?venueId=${_venueId}`, { headers: { Authorization: `Bearer ${_token}` } });
     const d = await r.json();
     if (!d.success || !Array.isArray(d.products)) return;
     const prods = d.products.map(p => ({ id: String(p.id), productId: String(p.id), productName: p.name, _price: p.price, _unit: p.unit }));
@@ -351,7 +355,21 @@ async function injectMorshSupplier() {
     else { _suppliers.push({ id: 'morshynska', name: 'Моршинська', orderDays: '', _morsh: true, supplierProducts: prods }); mid = 'morshynska'; }
     _openSuppliers.delete(mid);                                            // згорнутий за замовч. (багато товарів)
   } catch { /* тихо — просто без Моршинської */ }
+  loadMorshOutlet();
 }
+
+// Адреса доставки цього закладу + список доступних адрес акаунта (менеджерські ролі).
+async function loadMorshOutlet() {
+  if (!isMgrRole()) return;
+  try {
+    const r = await fetch(`${API}/api/morshynska/venue-outlet?venueId=${_venueId}`, { headers: { Authorization: `Bearer ${_token}` } });
+    const d = await r.json();
+    if (!d.success) return;
+    _morshOutlets = d.outlets || [];
+    _morshSel     = d.selected || null;
+  } catch { /* тихо */ }
+}
+const isMgrRole = () => ['admin', 'manager', 'director'].includes((state.role || '').toLowerCase());
 
 async function loadData() {
   _loading = true;
@@ -718,18 +736,19 @@ function mgrSuppliersHTML() {
       <div class="ord-empty-sub">Натисніть "+ Додати" щоб додати першого постачальника</div>
     </div>`;
   }
-  const isAdminRole = (state.role || '').toLowerCase() === 'admin';
   return `<div class="ord-supp-card">
-    ${_suppliers.filter(s => !s._morsh || isAdminRole).map(s => {
+    ${_suppliers.filter(s => !s._morsh || isMgrRole()).map(s => {
       const n = (s.supplierProducts || []).length;
-      const isM = !!s._morsh;   // Моршинська — редагування = її налаштування (Асортимент/Акаунт/юр.особа)
-      const click = isM ? `window.__barops.navigate('morshynska')` : `window.__ord.openSuppEdit('${s.id}')`;
+      const isM = !!s._morsh;   // Моршинська — налаштування = адреса доставки цього закладу
+      const click = isM ? `window.__ord.openMorshSheet()` : `window.__ord.openSuppEdit('${s.id}')`;
       return `
       <div class="ord-ssc-row" onclick="${click}">
         <div class="ord-ssc-icon">${isM ? '💧' : '🏭'}</div>
         <div style="flex:1;min-width:0">
           <div class="ord-ssc-name">${esc(s.name)}</div>
-          <div class="ord-ssc-items">${isM ? 'Асортимент · акаунт · юр.особа' : nProds(n) + (s.contact ? ' · ' + s.contact : '')}</div>
+          <div class="ord-ssc-items"${isM && !_morshSel ? ' style="color:var(--red)"' : ''}>${
+            isM ? (_morshSel ? '📍 ' + esc(_morshSel.address || _morshSel.name) : 'Адресу доставки не обрано')
+                : nProds(n) + (s.contact ? ' · ' + s.contact : '')}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           ${!isM && s.orderDays ? `<div class="ord-ssc-day">${s.orderDays}</div>` : ''}
@@ -824,6 +843,50 @@ function suppSheetHTML() {
       <div class="ord-sheet-foot">
         <button id="supp-save-btn" class="ord-btn ord-btn-teal" onclick="window.__ord.saveSuppEdit()" ${_suppSaving ? 'disabled' : ''}>
           ${_suppSaving ? 'Збереження…' : isEdit ? 'Зберегти зміни' : 'Додати постачальника'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Моршинська: адреса доставки цього закладу. Адреса = торгова точка в ЄМоршинській,
+   від неї залежить не лише куди привезуть, а й ціни в каталозі (вони контрактні для точки). */
+function morshSheetHTML() {
+  if (!_morshSheet) return '';
+  const isAdm = (state.role || '').toLowerCase() === 'admin';
+  return `
+  <div class="ord-sheet-overlay open" onclick="window.__ord.closeMorshSheet(event)" id="morsh-sheet-ov">
+    <div class="ord-sheet" onclick="event.stopPropagation()">
+      <div class="ord-sheet-handle"></div>
+      <div class="ord-sheet-hdr">
+        <div class="ord-sheet-title">💧 Моршинська</div>
+        <div class="ord-sheet-close" onclick="window.__ord.closeMorshSheet()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="var(--text1)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <div class="ord-sheet-body">
+        ${_morshErr ? `<div style="padding:10px 12px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;color:var(--red);font-size:12px;font-family:var(--font-b);margin-bottom:14px">${esc(_morshErr)}</div>` : ''}
+
+        <div class="ord-inp-lbl">Адреса доставки</div>
+        ${_morshOutlets.length ? `
+        <select class="ord-inp" onchange="window.__ord.morshPick(this.value)">
+          <option value="">— не обрано —</option>
+          ${_morshOutlets.map(o => `<option value="${esc(String(o.id))}"${_morshDraft && String(_morshDraft.olId) === String(o.id) ? ' selected' : ''}>${esc(o.address || o.name || ('Точка ' + o.id))}</option>`).join('')}
+        </select>
+        <div style="margin-top:8px;font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.55">
+          Заявки цього закладу поїдуть на цю адресу. Від неї ж залежать ціни в каталозі — вони контрактні для кожної точки.
+        </div>` : `
+        <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Адреси не завантажились — перевірте акаунт Моршинської в налаштуваннях.</div>`}
+
+        ${isAdm ? `
+        <div onclick="window.__barops.navigate('morshynska')"
+          style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;cursor:pointer;border-radius:10px;border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);margin-top:16px">
+          Асортимент і акаунт
+        </div>` : ''}
+      </div>
+      <div class="ord-sheet-foot">
+        <button id="morsh-save-btn" class="ord-btn ord-btn-teal" onclick="window.__ord.saveMorshOutlet()" ${_morshSaving ? 'disabled' : ''}>
+          ${_morshSaving ? 'Збереження…' : 'Зберегти'}
         </button>
       </div>
     </div>
@@ -1043,7 +1106,7 @@ function renderManager() {
     <div style="height:20px"></div>
   </div>
 
-  <div id="ord-sheet-host">${suppSheetHTML()}</div>
+  <div id="ord-sheet-host">${suppSheetHTML()}${morshSheetHTML()}</div>
   <div id="ord-picker-host">${prodPickerHTML()}</div>
   <div id="ord-confirm-host">${confirmHTML()}${renameHTML()}${customHTML()}</div>`;
 }
@@ -1251,7 +1314,7 @@ function partialRefreshSupps() {
 // Точкові оновлення — щоб не перебудовувати всю сторінку (без «скоку» й повторних анімацій)
 function refreshSheetHost() {
   const el = document.getElementById('ord-sheet-host');
-  if (el) el.innerHTML = suppSheetHTML();
+  if (el) el.innerHTML = suppSheetHTML() + morshSheetHTML();
   else fullRender();
 }
 function refreshPickerHost() {
@@ -1580,6 +1643,46 @@ function closeSuppSheet(e) {
   refreshSheetHost();
 }
 
+/* ── Моршинська: адреса доставки закладу ───────────────────────────── */
+function openMorshSheet() {
+  _morshErr = ''; _morshSheet = true;
+  _morshDraft = _morshSel ? { ..._morshSel } : null;
+  refreshSheetHost();
+  loadMorshOutlet().then(() => { if (_morshSheet) refreshSheetHost(); });   // список адрес міг ще не приїхати
+}
+
+function closeMorshSheet(e) {
+  if (e && e.target?.id !== 'morsh-sheet-ov') return;
+  _morshSheet = false;
+  refreshSheetHost();
+}
+
+function morshPick(olId) {
+  const o = _morshOutlets.find(x => String(x.id) === String(olId));
+  _morshDraft = o ? { olId: String(o.id), name: o.name || '', address: o.address || '' } : null;
+}
+
+async function saveMorshOutlet() {
+  _morshSaving = true; _morshErr = '';
+  const btn = document.getElementById('morsh-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Збереження…'; }
+  try {
+    const res = await fetch(`${API}/api/morshynska/venue-outlet`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body:    JSON.stringify({ venueId: _venueId, olId: _morshDraft?.olId || null, name: _morshDraft?.name || '', address: _morshDraft?.address || '' }),
+    });
+    const d = await res.json();
+    if (!res.ok || !d.success) throw new Error(d.error || 'Не збереглось');
+    _morshSel = d.selected || null;
+    _morshSheet = false; _morshSaving = false;
+    fullRender();
+    injectMorshSupplier().then(() => { if (state.route === 'ordering') fullRender(); });   // ціни контрактні для точки — перечитати каталог
+  } catch (e) {
+    _morshErr = e.message; _morshSaving = false; refreshSheetHost();
+  }
+}
+
 function suppDraft(field, value) {
   _suppDraft[field] = value;
 }
@@ -1840,6 +1943,7 @@ export default {
       setMgrTab, setMgrZone, loadSuggest, toggleSuggestLow,
       loadHoz, hozChangeQty, hozSetQty, hozSearchChange, hozToggleOut, hozAddCustom, hozCopy, hozClear,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
+      openMorshSheet, closeMorshSheet, morshPick, saveMorshOutlet,
       closeConfirm, confirmYes,
       openProdPicker, closeProdPicker, prodSearchChange, toggleProduct, removeProduct,
       renameProduct, renameInput, renameCancel, renameSave,
