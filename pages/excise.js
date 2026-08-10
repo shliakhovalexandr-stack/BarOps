@@ -1146,9 +1146,11 @@ function buildListTab() {
           <div ${tap}>
             <div class="exc-mark-code">${m.hasPhoto ? '<span class="exc-cam-ic">📷</span> ' : ''}${m.code}</div>
             ${m.productName ? `<div class="exc-mark-meta" style="color:var(--text1);font-weight:500">${m.productName}</div>` : ''}
-            <div class="exc-mark-meta">${m.scannedBy} · ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
+            <div class="exc-mark-meta">${m.scannedBy} · 📷 ${fmtDateTime(m.scannedAt)}${m.hasPhoto ? ' · фото ↗' : ''}</div>
             ${posReceiptHTML(m.posReceipt)}
-            ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Доскановано: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
+            ${/* дві дати в рядку плутали: перша — коли бармен сфотографував, друга — коли марку
+                  перенесли з черги досканування у ЦЕЙ звіт. Пишемо це словами. */''}
+            ${m.rescannedAt ? `<div class="exc-mark-meta" style="color:var(--green)">↻ Перенесено в цей день: ${fmtDateTime(m.rescannedAt)}</div>` : ''}
           </div>
           <div class="exc-badge ${cls}">${label}</div>
           ${isSysMgr() ? `
