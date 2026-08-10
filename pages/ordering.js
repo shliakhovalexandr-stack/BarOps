@@ -355,7 +355,7 @@ async function injectMorshSupplier() {
     else { _suppliers.push({ id: 'morshynska', name: 'Моршинська', orderDays: '', _morsh: true, supplierProducts: prods }); mid = 'morshynska'; }
     _openSuppliers.delete(mid);                                            // згорнутий за замовч. (багато товарів)
   } catch { /* тихо — просто без Моршинської */ }
-  loadMorshOutlet();
+  await loadMorshOutlet();   // до перемальовки — інакше в заявці блимне «адресу не обрано»
 }
 
 // Адреса доставки цього закладу + список доступних адрес акаунта (менеджерські ролі).
@@ -578,10 +578,22 @@ function renderBartender() {
 }
 
 // Блок Моршинської в замовленні менеджера: редаговані к-сті (Ящ) + «Відправити ЄМоршинська»
+// Куди й на кого поїде заявка. Менеджер має бачити це ДО натискання «Відправити»,
+// а не дізнаватись постфактум: у мережі 5 адрес і різні юр.особи.
+function morshDestHTML(s) {
+  const addr  = s.morshSent ? (s.morshAddress || '') : (_morshSel ? (_morshSel.address || _morshSel.name || '') : '');
+  const legal = s.morshSent ? (s.morshLegal || '')   : (_morshSel && _morshSel.legalPerson ? _morshSel.legalPerson.name : '');
+  if (!addr) return `<div style="font-size:11px;color:var(--red);font-family:var(--font-b);margin-bottom:8px">Адресу доставки не обрано · Постачальники → Моршинська</div>`;
+  return `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:8px">
+    📍 ${esc(addr)}${legal ? `<br>🧾 ${esc(legal)}` : ''}
+  </div>`;
+}
+
 function morshSuppHTML(o, s, si, items) {
   if (s.morshSent) {
     return `<div class="ord-req-supp">
       <div class="ord-req-sname" style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>💧 ${esc(s.supplierName || 'Моршинська')}</span><span style="font-size:10px;color:var(--green);font-weight:600">✓ відправлено в ЄМоршинська</span></div>
+      ${morshDestHTML(s)}
       ${items.map(i => `<div class="ord-req-item"><span class="ord-req-iname">${esc(i.productName)}</span><span class="ord-req-iqty">${i.qty} ${i.unit || 'Ящ'}</span></div>`).join('')}
     </div>`;
   }
@@ -600,6 +612,7 @@ function morshSuppHTML(o, s, si, items) {
   }).join('');
   return `<div class="ord-req-supp">
     <div class="ord-req-sname" style="margin-bottom:8px">💧 ${esc(s.supplierName || 'Моршинська')} <span style="font-size:10px;color:var(--text3);font-weight:400">· к-сть можна виправити</span></div>
+    ${morshDestHTML(s)}
     ${rows}
     <button onclick="window.__ord.sendMorsh('${o.id}',${si})" style="width:100%;height:42px;border-radius:10px;background:var(--blue);border:0;color:#08131f;font-size:13px;font-weight:700;font-family:var(--font-b);cursor:pointer;margin-top:10px">💧 Відправити ЄМоршинська</button>
   </div>`;
@@ -879,7 +892,7 @@ function morshSheetHTML() {
         <div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Адреси не завантажились — перевірте акаунт Моршинської в налаштуваннях.</div>`}
 
         ${isAdm ? `
-        <div onclick="window.__barops.navigate('morshynska')"
+        <div onclick="window.__ord.closeMorshSheet();window.__barops.navigate('morshynska')"
           style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;cursor:pointer;border-radius:10px;border:0.5px solid var(--border);color:var(--text1);font-size:13px;font-family:var(--font-b);margin-top:16px">
           Асортимент і акаунт
         </div>` : ''}
@@ -1954,6 +1967,9 @@ export default {
     };
     _venueId = state.venueId || localStorage.getItem('barops_venueId');
     _token   = localStorage.getItem('barops_token');
+    // Стан модуля переживає навігацію: якщо не скинути, відкрита панель «зависає» і
+    // вилазить при кожному вході в Замовлення, перемальовуючись на кожне довантаження.
+    _suppSheet = null; _morshSheet = false; _morshDraft = null; _morshErr = '';
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
     // Хоз-зона (менеджер залу або адмін/керуючий у режимі Хоз) — окремий флоу, свій запит
     if (orderZone() === 'hoz') { _hozLoaded = false; loadHoz(); return; }
