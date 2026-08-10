@@ -42,6 +42,18 @@ let _vErr      = '';
 
 const isAdmin = () => (state.role || '').toLowerCase() === 'admin';
 
+// Модуль живе між навігаціями, а майже все тут — ЗАЛЕЖИТЬ ВІД ЗАКЛАДУ (адреса, ціни, заявки).
+// Без скидання при зміні закладу Ла Паста показувала б адресу й перевірку Дому18.
+let _stVenue = null;
+function resetVenueState() {
+  const v = venueId();
+  if (_stVenue === v) { _dryResult = null; return; }   // перевірка транзитна — не переживає навіть повернення на екран
+  _stVenue = v;
+  _catalog = null; _requests = null; _assort = null; _qty = {}; _note = '';
+  _vOutlets = []; _vSel = null; _vErr = '';
+  _dryResult = null; _accResult = null; _accEdit = false; _accErr = ''; _error = '';
+}
+
 function venueId() { return state.venueId || localStorage.getItem('barops_venueId'); }
 function token()   { return localStorage.getItem('barops_token'); }
 
@@ -422,6 +434,7 @@ function buildPage() { return `${CSS}<div class="mo-wrap"><div id="mo-inner">${i
 export function render() { _loading = !_catalog; return buildPage(); }
 
 export function init() {
+  resetVenueState();
   _tab = isMgr() ? 'requests' : 'catalog';
   // вхід з картки постачальника у «Замовленнях» — одразу в налаштування
   if (localStorage.getItem('barops_morsh_tab') === 'account' && isMgr()) {
