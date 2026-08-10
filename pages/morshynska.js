@@ -48,7 +48,7 @@ function token()   { return localStorage.getItem('barops_token'); }
 async function loadCatalog() {
   _loading = true; rerender();
   try {
-    const r = await fetch(`${API}/api/morshynska/catalog`, { headers: { Authorization: `Bearer ${token()}` } });
+    const r = await fetch(`${API}/api/morshynska/catalog?venueId=${venueId()}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json();
     if (d.success) { _catalog = d; _error = ''; } else _error = d.error || 'Не вдалося завантажити каталог';
   } catch (e) { _error = e.message; }
@@ -100,7 +100,7 @@ async function cancelReq(id) {
 
 async function loadAssort() {
   try {
-    const r = await fetch(`${API}/api/morshynska/catalog?all=1`, { headers: { Authorization: `Bearer ${token()}` } });
+    const r = await fetch(`${API}/api/morshynska/catalog?all=1&venueId=${venueId()}`, { headers: { Authorization: `Bearer ${token()}` } });
     const d = await r.json();
     if (d.success) { _assort = d.products; _hidDirty = false; }
   } catch (e) { _error = e.message; }
@@ -177,7 +177,7 @@ async function pickVenueOutlet(olId) {
 async function dryRun() {
   _dryBusy = true; _dryResult = null; rerender();
   try {
-    const r = await fetch(`${API}/api/morshynska/dry-run`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: '{}' });
+    const r = await fetch(`${API}/api/morshynska/dry-run`, { method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ venueId: venueId() }) });
     _dryResult = await r.json();
   } catch (e) { _dryResult = { error: e.message }; }
   _dryBusy = false; rerender();
@@ -238,7 +238,8 @@ function accountHTML() {
     ${_dryResult ? `<div class="mo-acc-res">${(_dryResult.error || !_dryResult.outlet)
       ? `<div style="color:var(--red)">❌ ${esc(_dryResult.error || 'не вдалось визначити точку')}</div>`
       : `<div style="color:var(--green);font-weight:700">✓ Перевірка ОК — замовлення піде на:</div>
-         <div class="mo-sub" style="margin-top:4px"><b>${esc(_dryResult.outlet.name || '?')}</b>${_dryResult.outlet.custName ? ' · ' + esc(_dryResult.outlet.custName) : ''}</div>
+         <div class="mo-sub" style="margin-top:4px">📍 <b>${esc(_dryResult.outlet.address || _dryResult.outlet.name || '?')}</b></div>
+         <div class="mo-sub">🧾 ${esc(_dryResult.outlet.name || '')}</div>
          ${_dryResult.minError ? `<div class="mo-sub" style="color:var(--amber);margin-top:4px">ℹ ${esc([].concat(_dryResult.minError).join(' · '))}</div>` : ''}`}</div>` : ''}`;
 
   return `<div style="padding:2px 2px 0">${addrHTML}${credsHTML}${dryHTML}</div>`;
