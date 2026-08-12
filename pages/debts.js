@@ -159,7 +159,10 @@ async function loadProducts() {
   _productsLoading = true;
   if (_pickerOpen) refreshPickerList();   // показати «Завантаження…»
   try {
-    const d = await apiFetch(`/api/pos/balance/${venueId}`);
+    // zoneMerge=1 — усі товарні склади закладу: грейпфрут для коктейлю лежить на КУХОННОМУ
+    // складі (фрукти), а борг записує бармен. withCatalog=1 — і позиції з нульовим залишком:
+    // борг фіксують саме тоді, коли товару немає, тож без цього потрібне й випадало.
+    const d = await apiFetch(`/api/pos/balance/${venueId}?zoneMerge=1&withCatalog=1`);
     const seen = new Set();
     const flat = [];
     for (const store of (d.stores || [])) {
