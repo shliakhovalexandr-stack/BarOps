@@ -585,7 +585,10 @@ function morshDestHTML(s) {
   const date  = s.morshSent ? (s.morshDate || '') : '';
   if (!addr) return `<div style="font-size:11px;color:var(--red);font-family:var(--font-b);margin-bottom:8px">Адресу доставки не обрано · Постачальники → Моршинська</div>`;
   return `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.55;margin-bottom:8px">
-    📍 ${esc(addr)}${legal ? `<br>🧾 ${esc(legal)}` : ''}${date ? `<br>🚚 ${esc(morshFmtDate(date))}` : ''}
+    📍 ${esc(addr)}
+    ${legal ? `<br>🧾 ${esc(legal)}`
+            : `<br><span style="color:var(--amber,#e0a23a)">🧾 юр.особу ще не визначено — оновіть екран</span>`}
+    ${date ? `<br>🚚 ${esc(morshFmtDate(date))}` : ''}
   </div>`;
 }
 
