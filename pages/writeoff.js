@@ -49,6 +49,7 @@ let _detailDay   = null; // відкритий день історії (YYYY-MM-
 let _syrveConfirmOpen   = false;
 let _syrveConfirmGroups = [];
 let _syrveResult        = null; // { isError, lines:[] }
+let _woSendingAct       = false; // акт у польоті — переживає fullRender, на відміну від btn.disabled
 let _syrveStores        = []; // [{id, name}] — доступні склади для цього закладу
 let _barStores          = []; // барні склади (Бар ТОВ/ФОП) — вибір складу ПЕРШИМ кроком форми для бару
 let _dishProds          = []; // позиції складу «Посуда» (списання посуду — лише manager/director/admin)
@@ -1523,10 +1524,11 @@ function renderManager() {
       const isSplit = woViewZone() === null;   // адмін бачить обидва підрозділи → окремі кнопки Бар/Кухня
       const barCnt  = unsentWo.filter(w => woDeptOf(w) !== 'kitchen').length;
       const kitCnt  = unsentWo.filter(w => woDeptOf(w) === 'kitchen').length;
+      const busy = _woSendingAct;   // блокування переживає перемальовку, на відміну від btn.disabled
       const deptBtn = (label, cnt, dept) => `
-        <button onclick="window.__wo.sendActToSyrve('${dept}')" ${!cnt ? 'disabled' : ''}
-          style="flex:1;padding:10px 12px;border-radius:12px;border:0.5px solid var(--purple-border);background:${cnt ? 'var(--purple-bg)' : 'var(--bg2)'};color:${cnt ? 'var(--purple)' : 'var(--text3)'};font-size:13px;font-family:var(--font-b);cursor:${cnt ? 'pointer' : 'default'};white-space:nowrap">
-          ${label}${cnt ? ` · ${cnt}` : ''}
+        <button onclick="window.__wo.sendActToSyrve('${dept}')" ${(!cnt || busy) ? 'disabled' : ''}
+          style="flex:1;padding:10px 12px;border-radius:12px;border:0.5px solid var(--purple-border);background:${(cnt && !busy) ? 'var(--purple-bg)' : 'var(--bg2)'};color:${(cnt && !busy) ? 'var(--purple)' : 'var(--text3)'};font-size:13px;font-family:var(--font-b);cursor:${(cnt && !busy) ? 'pointer' : 'default'};white-space:nowrap">
+          ${busy ? 'Надсилаю…' : `${label}${cnt ? ` · ${cnt}` : ''}`}
         </button>`;
       return `<div style="margin:0 14px 8px;background:var(--glass-bg);border:0.5px solid var(--border);border-radius:16px;padding:14px 16px">
         <div style="display:flex;align-items:center;gap:12px${isSplit ? ';margin-bottom:12px' : ''}">
@@ -1539,8 +1541,8 @@ function renderManager() {
               ? (isSplit ? `Бар ${barCnt} · Кухня ${kitCnt} · окремими актами` : `${unsentWo.length} поз. до надсилання · буде непроведеним`)
               : 'Немає списань з товаром'}</div>
           </div>
-          ${isSplit ? '' : `<button id="wo-syrve-btn" onclick="window.__wo.sendActToSyrve()" ${!unsentWo.length ? 'disabled' : ''}
-            style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${unsentWo.length ? 'var(--purple-bg)' : 'var(--bg2)'};color:${unsentWo.length ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${unsentWo.length ? 'pointer' : 'default'};white-space:nowrap">Надіслати</button>`}
+          ${isSplit ? '' : `<button id="wo-syrve-btn" onclick="window.__wo.sendActToSyrve()" ${(!unsentWo.length || busy) ? 'disabled' : ''}
+            style="padding:7px 14px;border-radius:20px;border:0.5px solid var(--purple-border);background:${(unsentWo.length && !busy) ? 'var(--purple-bg)' : 'var(--bg2)'};color:${(unsentWo.length && !busy) ? 'var(--purple)' : 'var(--text3)'};font-size:12px;font-family:var(--font-b);cursor:${(unsentWo.length && !busy) ? 'pointer' : 'default'};white-space:nowrap">${busy ? 'Надсилаю…' : 'Надіслати'}</button>`}
         </div>
         ${isSplit ? `<div style="display:flex;gap:8px">${deptBtn('🍸 Бар', barCnt, 'bar')}${deptBtn('🍳 Кухня', kitCnt, 'kitchen')}</div>` : ''}
       </div>`;
@@ -2393,6 +2395,7 @@ function setMgrTo(v)   { _mgrTo = v; fullRender(); }
 function setMgrFilter(f) { _mgrFilter=f; fullRender(); }
 
 async function sendActToSyrve(dept) {
+  if (_woSendingAct) return;   // не даємо відкрити підтвердження, поки попередній акт летить
   const vId   = localStorage.getItem('barops_venueId') || state.venueId || '';
   const token = localStorage.getItem('barops_token');
   if (!vId || !token) { alert('Немає авторизації або venueId'); return; }
@@ -2441,23 +2444,24 @@ function closeSyrveResult() {
 }
 
 async function doSendActToSyrve() {
+  if (_woSendingAct) return;   // ре-ентрі: один «Надіслати» в польоті — другий тап нічого не робить
   const groups = [..._syrveConfirmGroups];
   _syrveConfirmOpen   = false;
   _syrveConfirmGroups = [];
-  fullRender();
 
   const vId   = localStorage.getItem('barops_venueId') || state.venueId || '';
   const token = localStorage.getItem('barops_token');
-  if (!vId || !token || !groups.length) return;
+  if (!vId || !token || !groups.length) { fullRender(); return; }
 
-  // Позиції, що фактично надсилаються (усі з груп, включно з попередніми змінами)
-  const sentItems = groups.flatMap(g => g.items);
-
-  const btn = document.getElementById('wo-syrve-btn');
-  if (btn) { btn.textContent = 'Надсилаю…'; btn.disabled = true; }
+  // ⚠️ Прапорець, а НЕ btn.disabled: кнопку перемальовує будь-який fullRender (фільтр, згортання
+  // групи, фонове loadPreps), і вона знову ставала активною посеред польоту. У поділі Бар/Кухня
+  // елемента #wo-syrve-btn узагалі немає, тож блокування через DOM було no-op.
+  _woSendingAct = true;
+  fullRender();
 
   const results = [];
   const errors  = [];
+  const okActs  = [];   // акти, що РЕАЛЬНО створились у Syrve — лише їх позначаємо надісланими
   for (const g of groups) {
     // розбиваємо позиції рахунку за ЦІЛЬОВИМ складом (bar/kitchen) — кухонні товари/ПФ йдуть на склад кухні.
     // Пріоритет: storeZone запису → відновлення за складом товару з актуального балансу _prods
@@ -2521,6 +2525,7 @@ async function doSendActToSyrve() {
             throw new Error(det || data.error || 'Помилка');
           }
           results.push(`✓ ${label}${tag}: ${data.itemCount} позицій${data.syrveDocId ? ` · ID: ${data.syrveDocId.slice(0,8)}…` : ''}`);
+          okActs.push({ accountName: g.accountName, items: ritems });   // цей акт створено — позиції більше не надсилати
         } catch (err) {
           errors.push(`✗ ${label}${tag}: ${err.message}`);
         }
@@ -2528,16 +2533,22 @@ async function doSendActToSyrve() {
     }
   }
 
-  if (btn) { btn.textContent = 'Надіслати'; btn.disabled = false; }
+  _woSendingAct = false;
 
-  if (errors.length === 0 && results.length > 0) {
+  // ⚠️ РАНІШЕ: позначали надісланим лише якщо errors.length === 0. Тобто при частковій невдачі
+  // (кухонний акт пройшов, барний упав — типово для Ла Пасти з її ТОВ/ФОП складами) позиції
+  // успішного акта лишались у списку «до надсилання», менеджер тиснув «Надіслати» ще раз —
+  // і кухонний акт створювався в Syrve ВДРУГЕ. Тепер позначаємо по кожному акту окремо.
+  const sentItems = okActs.flatMap(a => a.items);
+
+  if (sentItems.length) {
     const now = new Date();
     const histEntry = {
       ts:        now.toISOString(),
       date:      `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')} · ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
       accounts:  results,
       itemCount: sentItems.length,
-      acts: groups.map(g => ({
+      acts: okActs.map(g => ({
         accountName: g.accountName,
         items: Object.values(g.items.reduce((acc, w) => {
           const k = w.prodId || w.prod;
@@ -2577,16 +2588,16 @@ async function doSendActToSyrve() {
     raw[vId] = _writeoffs;
     localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
 
-    _actComments = {};   // коментарі застосовано — чистимо для наступного акту
-    fullRender();
-    initSwipe();
-  } else {
-    _syrveResult = {
-      isError: errors.length > 0,
-      lines:   [...results, ...errors],
-    };
-    fullRender();
+    if (!errors.length) _actComments = {};   // усе пройшло — коментарі застосовано; інакше лишаємо для повтору
   }
+
+  if (errors.length) {
+    // Показуємо і успішні, і невдалі: у списку «до надсилання» лишились ЛИШЕ невдалі,
+    // тож повторний «Надіслати» відправить саме їх, а не створить дубль успішних.
+    _syrveResult = { isError: true, lines: [...results, ...errors] };
+  }
+  fullRender();
+  initSwipe();
 }
 function openActDetail(idx) { _detailAct = _sentHistory[idx] || null; fullRender(); }
 function closeActDetail()  { _detailAct = null; fullRender(); }
