@@ -1907,6 +1907,48 @@ function prevStep() {
 }
 
 // Запис списання для одного товару з кошика (спільні рахунок/причина/категорія)
+// Серверний id — uuid; локальний тимчасовий — короткий base36 з Date.now().
+// Розрізняти обовʼязково: mark-sent з локальним id мовчки оновлює 0 рядків, запис лишається
+// «ненадісланим» на сервері й після перезавантаження просить надіслати себе вдруге.
+const isServerId = id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
+
+// Черга непідтверджених mark-sent: сервер міг не оновити рядок (мережа, невідомий id),
+// і тоді після перезавантаження позиція «воскресає» як ненадіслана й піде в Syrve вдруге.
+const MARK_Q_KEY = 'barops_wo_marksent_pending';
+function queueMarkSent(ids) {
+  try {
+    const q = new Set(JSON.parse(localStorage.getItem(MARK_Q_KEY) || '[]'));
+    ids.forEach(i => q.add(i));
+    localStorage.setItem(MARK_Q_KEY, JSON.stringify([...q].slice(-500)));
+  } catch {}
+}
+async function flushMarkSent() {
+  let q = [];
+  try { q = JSON.parse(localStorage.getItem(MARK_Q_KEY) || '[]'); } catch {}
+  if (!q.length) return;
+  const token = localStorage.getItem('barops_token');
+  if (!token) return;
+  try {
+    const r = await fetch(`${API}/api/writeoffs/mark-sent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ids: q }),
+    });
+    if (r.ok) { localStorage.removeItem(MARK_Q_KEY); console.log(`[Writeoff] дописано mark-sent для ${q.length} поз.`); }
+  } catch { /* наступного разу */ }
+}
+
+// Запис не доїхав на сервер (мережа/таймаут). Позначаємо, щоб не загубити його при наступному
+// завантаженні — там серверний список повністю затирає локальний.
+function markNoSrv(entry, vId) {
+  entry.noSrv = true;
+  try {
+    const r = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    const i = (r[vId] || []).findIndex(w => w.id === entry.id);
+    if (i !== -1) { r[vId][i].noSrv = true; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r)); }
+  } catch {}
+}
+
 function buildWoEntry(it, finalCat, now, hhmm, dd) {
   const unit = it.unit || 'l';
   const uLbl = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[unit] || 'л';
@@ -1997,7 +2039,13 @@ async function submitFormImpl() {
       const editedId = _editId;
       try {
         const token = localStorage.getItem('barops_token');
-        await fetch(`${API}/api/writeoffs/${editedId}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        // ⚠️ Редагування = DELETE + CREATE. Раніше результат DELETE не перевірявся, тож при
+        // збої видалення в базі лишалися ОБИДВА рядки — старий і новий. Не створюємо заміну,
+        // поки не впевнені, що старий зник (404 теж годиться — його вже немає).
+        const delRes = await fetch(`${API}/api/writeoffs/${editedId}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (!delRes.ok && delRes.status !== 404) {
+          throw new Error(`старий запис не видалився (HTTP ${delRes.status}) — заміну не створюю, щоб не було дубля`);
+        }
         const { writeoffsAPI } = await import('../shared/api.js');
         const saved = await writeoffsAPI.create({
           items:    [{ productName: updated.prod, productId: updated.prodId, qty: vol, unit: uLbl }],
@@ -2012,12 +2060,16 @@ async function submitFormImpl() {
         });
         if (saved?.data?.id) {
           updated.id = saved.data.id;
+          delete updated.noSrv;
           const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
           const li2 = (r2[vId] || []).findIndex(w => w.id === editedId);
-          if (li2 !== -1) { r2[vId][li2].id = saved.data.id; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
+          if (li2 !== -1) { r2[vId][li2].id = saved.data.id; delete r2[vId][li2].noSrv; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
+        } else {
+          markNoSrv(updated, vId);
         }
       } catch (err) {
         console.warn('[Writeoff edit] Backend недоступний:', err.message);
+        markNoSrv(updated, vId);
       }
     }
     _editId   = null;
@@ -2045,31 +2097,46 @@ async function submitFormImpl() {
     }
     localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
 
-    // Бекенд-журнал best-effort: по одному запису на товар (реальний id підміняємо)
+    // Бекенд-журнал: по одному запису на товар (реальний id підміняємо).
+    // ⚠️ try був ОДИН на весь цикл — перший же мережевий збій обривав його, і решта позицій
+    // не доїжджала на сервер зовсім. А оскільки при наступному завантаженні серверний список
+    // затирає локальний, кухар просто втрачав частину кошика. Тепер кожна позиція окремо,
+    // з однією повторною спробою, а недоїхалі позначаються noSrv і переживають перезавантаження.
     try {
       const { writeoffsAPI } = await import('../shared/api.js');
       for (const e of entries) {
         const uLbl2 = {l:'л',ml:'мл',sht:'шт',kg:'кг',g:'г'}[e.unitKey] || 'л';
-        const saved = await writeoffsAPI.create({
-          items:    [{ productName: e.prod, productId: e.prodId, qty: e.volNum, unit: uLbl2 }],
-          category: CAT[finalCat]?.label || finalCat || 'Інше',
-          reason:   e.reason || null,
-          accountId:   e.accountId   || null,
-          accountName: e.accountName || null,
-          storeZone: e.storeZone || null,
-          scope:     e.scope || null,
-          isPrep:    !!e.isPrep,
-          venueId:  vId,
-        });
+        let saved = null;
+        for (let attempt = 0; attempt < 2 && !saved?.data?.id; attempt++) {
+          if (attempt) await new Promise(r => setTimeout(r, 600));
+          try {
+            saved = await writeoffsAPI.create({
+              items:    [{ productName: e.prod, productId: e.prodId, qty: e.volNum, unit: uLbl2 }],
+              category: CAT[finalCat]?.label || finalCat || 'Інше',
+              reason:   e.reason || null,
+              accountId:   e.accountId   || null,
+              accountName: e.accountName || null,
+              storeZone: e.storeZone || null,
+              scope:     e.scope || null,
+              isPrep:    !!e.isPrep,
+              venueId:  vId,
+            });
+          } catch (err) {
+            console.warn(`[Writeoff multi] «${e.prod}» спроба ${attempt + 1}/2:`, err.message);
+          }
+        }
         if (saved?.data?.id) {
           const oldId = e.id; e.id = saved.data.id;
           const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
           const idx = (r2[vId] || []).findIndex(w => w.id === oldId);
           if (idx !== -1) { r2[vId][idx].id = saved.data.id; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
+        } else {
+          markNoSrv(e, vId);   // не доїхало — але позиція лишається у списку, не зникає
         }
       }
     } catch (err) {
-      console.warn('[Writeoff multi] Backend недоступний:', err.message);
+      console.warn('[Writeoff multi] Журнал недоступний:', err.message);
+      for (const e of entries) if (!isServerId(e.id)) markNoSrv(e, vId);
     }
 
     const nItems  = entries.length;
@@ -2571,17 +2638,27 @@ async function doSendActToSyrve() {
       });
     } catch (e) { /* офлайн — лишається в localStorage */ }
 
-    // Позначаємо надісланими (не видаляємо — лишаються в історії 90 днів)
-    const sentIds = sentItems.map(w => w.id).filter(Boolean);
+    // Позначаємо надісланими (не видаляємо — лишаються в історії 90 днів).
+    // ⚠️ Лише СЕРВЕРНІ id: з локальним тимчасовим id updateMany мовчки оновлює 0 рядків,
+    // запис лишається «ненадісланим» на сервері й після перезавантаження просить надіслати
+    // себе вдруге. Те, що не підтвердилось, кладемо в чергу і повторюємо при наступному вході.
+    const sentIds = sentItems.map(w => w.id).filter(isServerId);
     if (sentIds.length) {
       try {
-        await fetch(`${API}/api/writeoffs/mark-sent`, {
+        const mr  = await fetch(`${API}/api/writeoffs/mark-sent`, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body:    JSON.stringify({ ids: sentIds }),
         });
-      } catch (e) { /* ігноруємо */ }
+        const md = await mr.json().catch(() => ({}));
+        if (!mr.ok || (md.updated || 0) < sentIds.length) {
+          console.warn(`[Writeoff] mark-sent підтвердив ${md.updated || 0}/${sentIds.length} — ставлю в чергу`);
+          queueMarkSent(sentIds);
+        }
+      } catch (e) { queueMarkSent(sentIds); }
     }
+    const localOnly = sentItems.filter(w => !isServerId(w.id)).length;
+    if (localOnly) console.warn(`[Writeoff] ${localOnly} поз. без серверного id — на сервері лишаються ненадісланими`);
     const nowIso = new Date().toISOString();
     for (const w of sentItems) w.sentAt = nowIso;   // зникають із «не відправлені», лишаються в історії
     const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
@@ -2793,6 +2870,8 @@ export default {
     // Собівартість товарів із Syrve Office — для «Збиток оціночно»
     await loadPrices(vId);
 
+    await flushMarkSent();   // дописати позначки, що минулого разу не підтвердились — ДО читання списку
+
     try {
       const woToken = localStorage.getItem('barops_token');
       const woRes = await fetch(`${API}/api/writeoffs?venueId=${encodeURIComponent(vId)}`, {
@@ -2839,6 +2918,17 @@ export default {
             author:      w.user?.name || '',
           };
         });
+        // ⚠️ Серверний список ПОВНІСТЮ заміщає локальний, тож позиції, які не доїхали на
+        // сервер (мережа впала посеред збереження кошика), просто зникали. Повертаємо їх:
+        // якщо на сервері вже є такий самий запис — беремо серверний, інакше лишаємо локальний.
+        const srvKey = w => `${w.prodId || w.prod}|${w.volNum}|${(w.ts || '').slice(0, 10)}`;
+        const onServer = new Set(_writeoffs.map(srvKey));
+        const kept = (stored[vId] || []).filter(w => w.noSrv && !onServer.has(srvKey(w)));
+        if (kept.length) {
+          console.warn(`[Writeoff] ${kept.length} поз. не збереглись на сервері — лишаю локально`);
+          _writeoffs = [...kept, ..._writeoffs];
+        }
+
         // Оновлюємо кеш
         const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
         raw[vId] = _writeoffs;
