@@ -487,17 +487,28 @@ async function doLogin() {
       setTimeout(() => d.classList.remove('error'), 400);
     });
     const errEl = document.getElementById('apin-err');
-    if (errEl) errEl.textContent = msg;
+    if (errEl) { errEl.style.color = ''; errEl.textContent = msg; }   // повертаємо червоний після «Вхід…»
   };
 
+  // Поки запит летить — показуємо це. Раніше екран просто стояв із заповненими крапками,
+  // і зависання виглядало як «нічого не відбувається».
+  const errEl0 = document.getElementById('apin-err');
+  if (errEl0) { errEl0.style.color = 'var(--text2)'; errEl0.textContent = 'Вхід…'; }
+
+  // ⚠️ fetch без таймауту може висіти нескінченно (поганий Wi-Fi, заблокований домен) —
+  // саме так виникала «тиша»: ні помилки, ні переходу.
+  const ctrl = new AbortController();
+  const killer = setTimeout(() => ctrl.abort(), 15000);
   try {
     const res  = await fetch(`${API}/api/auth/login`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ phone: _phone, pin: _pin }),
+      signal:  ctrl.signal,
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка входу');
+    clearTimeout(killer);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Помилка входу (${res.status})`);
     // Один PIN у кількох закладах → екран вибору закладу (а не крах на data.user)
     if (data.multiVenue) {
       _pickVenues    = data.venues || [];
@@ -507,9 +518,15 @@ async function doLogin() {
       return;
     }
     saveSession(data);
-    navigate('dashboard');
+    await navigate('dashboard');
   } catch (err) {
-    showError(err.message || 'Невірний PIN');
+    clearTimeout(killer);
+    console.error('[Auth] login:', err);
+    showError(
+      err.name === 'AbortError'   ? 'Сервер не відповідає. Перевірте інтернет і спробуйте ще раз.'
+      : /Failed to fetch|NetworkError|Load failed/i.test(err.message || '') ? 'Немає зʼязку з сервером. Перевірте інтернет.'
+      : (err.message || 'Невірний PIN')
+    );
   }
 }
 
@@ -518,19 +535,24 @@ async function pickVenue(userId) {
   if (_pickLoading) return;
   _pickLoading = true; rerender();
   try {
+    const ctrl2 = new AbortController();
+    const killer2 = setTimeout(() => ctrl2.abort(), 15000);
     const res  = await fetch(`${API}/api/auth/login-by-userid`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ userId, tempToken: _pickTempToken }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.user) throw new Error(data.error || 'Помилка входу');
+      signal:  ctrl2.signal,
+    }).finally(() => clearTimeout(killer2));
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.user) throw new Error(data.error || `Помилка входу (${res.status})`);
     saveSession(data);
-    navigate('dashboard');
+    await navigate('dashboard');
   } catch (err) {
+    console.error('[Auth] pickVenue:', err);
     _pickLoading = false;
     const e = document.getElementById('vpick-err');
-    if (e) e.textContent = err.message || 'Помилка входу';
+    const msg = err.name === 'AbortError' ? 'Сервер не відповідає. Спробуйте ще раз.' : (err.message || 'Помилка входу');
+    if (e) e.textContent = msg;
     else { alert(err.message || 'Помилка входу'); rerender(); }
   }
 }
