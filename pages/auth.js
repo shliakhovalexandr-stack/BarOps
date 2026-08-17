@@ -740,6 +740,7 @@ function saveSession(data) {
   localStorage.setItem('barops_refresh',        data.refreshToken || '');
   localStorage.setItem('barops_role',           data.user.role);
   localStorage.setItem('barops_user',           data.user.name);
+  localStorage.setItem('barops_userId',         data.user.id || '');
   localStorage.setItem('barops_telegram_topic', data.user.telegramTopicId || '');
   if (data.user.phone) {
     localStorage.setItem('barops_phone', data.user.phone);

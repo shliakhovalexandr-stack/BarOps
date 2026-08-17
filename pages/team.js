@@ -289,7 +289,7 @@ function memberCardHTML(t) {
     <div class="tm-card${isInactive ? ' inactive' : ''}"
          onclick="window.__tm.openProfile('${t.id}')">
       <div class="tm-card-main">
-        ${avatarHTML(t.name, 44, false)}
+        ${avatarHTML(t.name, 44, false, t)}
         <div style="flex:1;min-width:0">
           <div class="tm-name">${esc(t.name)}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">
@@ -322,14 +322,49 @@ function groupedTeamHTML() {
 function initials(name) {
   return (name || '').split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
 }
-function avatarHTML(name, size = 46, isLive = false) {
+// Аватар. Якщо в людини є фото — підвантажуємо ЛІНИВО, коли рядок потрапляє в екран:
+// 116 співробітників × ~20КБ = 2.3 МБ, тягнути це все одразу на телефоні немає сенсу.
+const _photoCache = new Map();   // userId → data URI
+
+function avatarHTML(name, size = 46, isLive = false, member = null) {
   const bg  = isLive ? 'var(--green)' : 'var(--bg3)';
   const col = isLive ? '#000' : 'var(--text0)';
   const fontSize = Math.round(size * 0.35);
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${col};display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;font-weight:600;font-family:var(--font-h);flex-shrink:0;position:relative">
-    ${initials(name)}
-    ${isLive ? `<span style="position:absolute;bottom:0;right:0;width:13px;height:13px;border-radius:50%;background:var(--amber);border:2.5px solid var(--bg)"></span>` : ''}
+  const uid = member && member.hasPhoto ? member.id : '';
+  const cached = uid ? _photoCache.get(uid) : null;
+  return `<div class="tm-ava"${uid ? ` data-uid="${uid}"` : ''} style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${col};display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;font-weight:600;font-family:var(--font-h);flex-shrink:0;position:relative;overflow:hidden">
+    ${cached ? `<img src="${cached}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : initials(name)}
+    ${isLive ? `<span style="position:absolute;bottom:0;right:0;width:13px;height:13px;border-radius:50%;background:var(--amber);border:2.5px solid var(--bg);z-index:1"></span>` : ''}
   </div>`;
+}
+
+let _avaObserver = null;
+function hydrateAvatars() {
+  const nodes = document.querySelectorAll('.tm-ava[data-uid]:not([data-done])');
+  if (!nodes.length) return;
+  const load = async (el) => {
+    const uid = el.dataset.uid;
+    el.dataset.done = '1';
+    let url = _photoCache.get(uid);
+    if (url === undefined) {
+      try {
+        const r = await fetch(`${API}/api/auth/user/${uid}/photo`, { headers: { Authorization: `Bearer ${token()}` } });
+        const d = await r.json();
+        url = d.photoUrl || '';
+      } catch { url = ''; }
+      _photoCache.set(uid, url);
+    }
+    if (url && el.isConnected) {
+      el.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`);
+    }
+  };
+  if (!('IntersectionObserver' in window)) { nodes.forEach(load); return; }
+  if (!_avaObserver) {
+    _avaObserver = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) if (e.isIntersecting) { obs.unobserve(e.target); load(e.target); }
+    }, { rootMargin: '200px' });
+  }
+  nodes.forEach(n => _avaObserver.observe(n));
 }
 function lastLoginStr(d) {
   if (!d) return 'Ніколи';
@@ -392,7 +427,12 @@ function profileHTML(t) {
         <div class="tm-ph-back-lbl">Назад до команди</div>
       </div>
       <div style="display:flex;align-items:center;gap:14px">
-        ${avatarHTML(t.name, 60, false)}
+        ${['admin','manager','director'].includes(state.role)
+          ? `<div onclick="window.__tm.pickPhoto('${t.id}')" style="cursor:pointer;position:relative" title="Змінити фото">
+               ${avatarHTML(t.name, 60, false, t)}
+               <div style="position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--bg1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px">📷</div>
+             </div>`
+          : avatarHTML(t.name, 60, false, t)}
         <div>
           <div style="font-family:var(--font-h);font-size:20px;font-weight:800;color:var(--text0)">${esc(t.name)}</div>
           <div style="font-size:12px;color:var(--text2);font-family:var(--font-b);margin-top:3px">${roleLabel(t.role)} · ${esc(t.venue?.name || state.venue)}</div>
@@ -632,11 +672,53 @@ function fullRender() {
   if (nameEl  && savedName)  nameEl.value  = savedName;
   if (phoneEl && savedPhone) phoneEl.value = savedPhone;
   if (editNameEl && savedEditName) editNameEl.value = savedEditName;
+
+  hydrateAvatars();   // фото підтягуються ліниво, коли рядок з'являється на екрані
 }
 
 /* ════════════════════════
    ACTIONS
 ════════════════════════ */
+
+// Аватар співробітника: керівництво може поставити фото тому, хто сам цього не зробить.
+// Стискаємо до 256px квадратом ПЕРЕД відправкою — у БД одне фото на людину.
+function pickPhoto(userId) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(f);
+        img.onload = () => {
+          const side = Math.min(img.width, img.height);
+          const c = document.createElement('canvas');
+          c.width = c.height = Math.min(256, side);
+          c.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          resolve(c.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не вдалось прочитати фото')); };
+        img.src = url;
+      });
+      const r = await fetch(`${API}/api/auth/user/${userId}/photo`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ photoData: dataUrl }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.success) throw new Error(d.error || 'Не вдалось зберегти');
+      _photoCache.set(userId, dataUrl);
+      const m = (_team || []).find(x => x.id === userId);
+      if (m) m.hasPhoto = true;
+      fullRender();
+    } catch (e) { alert(e.message || 'Не вдалось зберегти фото'); }
+  };
+  inp.click();
+}
+
 function openProfile(id)  { _openId = id; fullRender(); }
 function closeProfile()   { _openId = null; fullRender(); }
 
@@ -977,7 +1059,7 @@ export default {
   },
   init() {
     window.__tm = {
-      openProfile, closeProfile,
+      openProfile, closeProfile, pickPhoto,
       openAdd, openEdit, closeSheet, closeSheetOverlay,
       selectRole, selectVenue, switchTeamVenue, pinAdd, pinDel,
       toggleRoleDd, pickRole,

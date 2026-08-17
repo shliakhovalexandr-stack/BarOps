@@ -24,6 +24,7 @@ let _team    = null;
 let _plan    = null;
 let _loading = true;
 let _posSettings = null;
+let _photo   = '';   // аватар (data URI); тягнеться окремо від профілю — картинка важка
 let _tgSaving    = false;
 let _tgSaved     = false;
 
@@ -211,9 +212,12 @@ ${CSS}
     <!-- Hero -->
     <div class="prof-hero">
       <div class="prof-hero-card">
-        <div class="prof-avatar">
-          ${initials}
+        <div class="prof-avatar" id="prof-avatar" onclick="window.__prof.pickPhoto()" style="cursor:pointer;overflow:hidden;position:relative">
+          ${_photo
+            ? `<img src="${_photo}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`
+            : initials}
           <div class="prof-live-dot"></div>
+          <div style="position:absolute;right:-1px;bottom:-1px;width:22px;height:22px;border-radius:50%;background:var(--bg1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px">📷</div>
         </div>
         <div>
           <div class="prof-name">${name}</div>
@@ -467,7 +471,87 @@ function setPushToggle(on) {
   if (knob) knob.style.left = on ? '18px' : '2px';
 }
 
+
+/* ── Аватар ───────────────────────────────────────────────────
+   Стискаємо до 256px/JPEG 0.75 (~20КБ) ПЕРЕД відправкою: у БД лежить одне фото
+   на людину, і саме тому це не повторює історію з фото акцизу, які з'їли диск. */
+const AVATAR_MAX = 256;
+
+// id користувача досі ніде не зберігався. Беремо з localStorage, а якщо його там немає
+// (усі наявні сесії) — дістаємо з payload JWT, щоб нікому не довелось перезаходити.
+function myUserId() {
+  const ls = localStorage.getItem('barops_userId');
+  if (ls) return ls;
+  try {
+    const t = localStorage.getItem('barops_token') || '';
+    const pl = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (pl && pl.id) { localStorage.setItem('barops_userId', pl.id); return pl.id; }
+  } catch {}
+  return '';
+}
+
+async function loadPhoto() {
+  const id = myUserId();
+  if (!id) return;
+  try {
+    const r = await fetch(`${API}/api/auth/user/${id}/photo`, { headers: { Authorization: `Bearer ${localStorage.getItem('barops_token')}` } });
+    const d = await r.json();
+    if (d && typeof d.photoUrl === 'string') { _photo = d.photoUrl; paintAvatar(); }
+  } catch { /* офлайн — лишаються ініціали */ }
+}
+
+function paintAvatar() {
+  const el = document.getElementById('prof-avatar');
+  if (!el) return;
+  const img = el.querySelector('img');
+  if (_photo && img) img.src = _photo;
+  else if (_photo) el.insertAdjacentHTML('afterbegin', `<img src="${_photo}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`);
+  else if (img) img.remove();
+}
+
+function shrinkAvatar(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      // квадратний кроп по центру — аватар усюди круглий, тож бокові поля все одно зріжуться
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      const c = document.createElement('canvas');
+      c.width = c.height = Math.min(AVATAR_MAX, side);
+      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не вдалось прочитати фото')); };
+    img.src = url;
+  });
+}
+
+function pickPhoto() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    try {
+      const dataUrl = await shrinkAvatar(f);
+      const id = myUserId();
+      const r = await fetch(`${API}/api/auth/user/${id}/photo`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('barops_token')}` },
+        body: JSON.stringify({ photoData: dataUrl }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.success) throw new Error(d.error || 'Не вдалось зберегти');
+      _photo = dataUrl; paintAvatar();
+    } catch (e) { alert(e.message || 'Не вдалось зберегти фото'); }
+  };
+  inp.click();
+}
+
 window.__prof = {
+  pickPhoto,
   closeShiftAndLogout, togglePush,
   setTheme(t) {
     applyThemeChoice(t);   // застосовує тему (клас + плавний transition)
@@ -489,6 +573,7 @@ export default {
     _posSettings = null;
     _tgSaved     = false;
     loadData();
+    loadPhoto();
     return buildHTML();
   },
 };
