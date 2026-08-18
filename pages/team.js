@@ -325,6 +325,8 @@ function initials(name) {
 // Аватар. Якщо в людини є фото — підвантажуємо ЛІНИВО, коли рядок потрапляє в екран:
 // 116 співробітників × ~20КБ = 2.3 МБ, тягнути це все одразу на телефоні немає сенсу.
 const _photoCache = new Map();   // userId → data URI
+// іконка камери SVG, а не емодзі: емодзі малюється по-різному й подекуди не рендериться зовсім
+const CAM_SVG = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 5.5h2l1-1.5h5l1 1.5h2a1 1 0 011 1v6a1 1 0 01-1 1h-11a1 1 0 01-1-1v-6a1 1 0 011-1z" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="9.5" r="2.4" stroke="var(--text1)" stroke-width="1.2"/></svg>`;
 
 function avatarHTML(name, size = 46, isLive = false, member = null) {
   const bg  = isLive ? 'var(--green)' : 'var(--bg3)';
@@ -430,7 +432,7 @@ function profileHTML(t) {
         ${['admin','manager','director'].includes(state.role)
           ? `<div onclick="window.__tm.pickPhoto('${t.id}')" style="cursor:pointer;position:relative" title="Змінити фото">
                ${avatarHTML(t.name, 60, false, t)}
-               <div style="position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--bg1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px">📷</div>
+               <div style="position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--bg1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center">${CAM_SVG}</div>
              </div>`
           : avatarHTML(t.name, 60, false, t)}
         <div>

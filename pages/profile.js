@@ -212,12 +212,16 @@ ${CSS}
     <!-- Hero -->
     <div class="prof-hero">
       <div class="prof-hero-card">
-        <div class="prof-avatar" id="prof-avatar" onclick="window.__prof.pickPhoto()" style="cursor:pointer;overflow:hidden;position:relative">
-          ${_photo
-            ? `<img src="${_photo}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`
-            : initials}
-          <div class="prof-live-dot"></div>
-          <div style="position:absolute;right:-1px;bottom:-1px;width:22px;height:22px;border-radius:50%;background:var(--bg1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px">📷</div>
+        <!-- Обгортка БЕЗ overflow: інакше бейдж «змінити фото» зрізається колом аватара -->
+        <div style="position:relative;flex-shrink:0;cursor:pointer" onclick="window.__prof.pickPhoto()" title="Змінити фото">
+          <div class="prof-avatar" id="prof-avatar" style="overflow:hidden">
+            ${_photo
+              ? `<img src="${_photo}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`
+              : initials}
+            <div class="prof-live-dot"></div>
+          </div>
+          <!-- камера вгорі праворуч: унизу праворуч уже стоїть зелена крапка зміни -->
+          <div style="position:absolute;top:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:var(--bg1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center">${CAM_SVG}</div>
         </div>
         <div>
           <div class="prof-name">${name}</div>
@@ -475,6 +479,7 @@ function setPushToggle(on) {
 /* ── Аватар ───────────────────────────────────────────────────
    Стискаємо до 256px/JPEG 0.75 (~20КБ) ПЕРЕД відправкою: у БД лежить одне фото
    на людину, і саме тому це не повторює історію з фото акцизу, які з'їли диск. */
+const CAM_SVG = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 5.5h2l1-1.5h5l1 1.5h2a1 1 0 011 1v6a1 1 0 01-1 1h-11a1 1 0 01-1-1v-6a1 1 0 011-1z" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="9.5" r="2.4" stroke="var(--text1)" stroke-width="1.2"/></svg>`;
 const AVATAR_MAX = 256;
 
 // id користувача досі ніде не зберігався. Беремо з localStorage, а якщо його там немає
