@@ -295,6 +295,7 @@ function memberCardHTML(t) {
           <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-b)">
             <span style="color:var(--text1)">${roleLabel(t.role)}</span>${(t.role||'').toLowerCase()==='admin' ? '' : ` · ${esc(t.phone)}`}
           </div>
+          ${t.hasPush === false && !isInactive ? `<div style="font-size:10px;color:var(--amber);font-family:var(--font-b);margin-top:3px;display:flex;align-items:center;gap:4px">${BELL_OFF_SVG} сповіщення вимкнені</div>` : ''}
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
       </div>
@@ -325,6 +326,9 @@ function initials(name) {
 // Аватар. Якщо в людини є фото — підвантажуємо ЛІНИВО, коли рядок потрапляє в екран:
 // 116 співробітників × ~20КБ = 2.3 МБ, тягнути це все одразу на телефоні немає сенсу.
 const _photoCache = new Map();   // userId → data URI
+// Дзвіночок «вимкнено»: примусово ввімкнути пуш неможливо (дозвіл дає браузер на пристрої
+// у відповідь на дію людини), тож єдиний важіль — показати керівнику, з ким треба це зробити.
+const BELL_OFF_SVG = `<svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.5a4 4 0 018 0c0 3 1.2 4 1.2 4H2.8S4 9.5 4 6.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.6 13a1.6 1.6 0 002.8 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M2 2l12 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 // іконка камери SVG, а не емодзі: емодзі малюється по-різному й подекуди не рендериться зовсім
 const CAM_SVG = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 5.5h2l1-1.5h5l1 1.5h2a1 1 0 011 1v6a1 1 0 01-1 1h-11a1 1 0 01-1-1v-6a1 1 0 011-1z" stroke="var(--text1)" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="9.5" r="2.4" stroke="var(--text1)" stroke-width="1.2"/></svg>`;
 
@@ -396,6 +400,17 @@ function teamListHTML() {
       <div class="tm-stat-lbl">Вдома</div>
     </div>
   </div>
+
+  ${(() => {
+    // Скільки активних людей не отримають жодного пуша — керівник має це бачити,
+    // інакше нагадування (списання, інвентаризація, чек-листи) тихо летять у нікуди.
+    const off = (_team || []).filter(t => t.hasPush === false && t.status !== 'inactive').length;
+    if (!off) return '';
+    return `<div style="margin:0 14px 10px;padding:11px 14px;border-radius:14px;background:var(--amber-bg,#2a2210);border:0.5px solid var(--amber-border,#5c4a1f);font-family:var(--font-b);font-size:12px;color:var(--amber,#e0a23a);line-height:1.5">
+      ${off} ${off === 1 ? 'людина' : off < 5 ? 'людини' : 'людей'} без сповіщень — нагадування їм не приходять.
+      <div style="color:var(--text2);font-size:11px;margin-top:3px">Увімкнути можна лише на телефоні самої людини: Профіль → Сповіщення. На iPhone застосунок має бути доданий на головний екран.</div>
+    </div>`;
+  })()}
 
   <div class="tm-list">
     ${groupedTeamHTML()}
