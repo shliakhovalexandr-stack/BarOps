@@ -2510,6 +2510,34 @@ function closeSyrveResult() {
   fullRender();
 }
 
+// Підтвердження повтору акта. Сервер не вирішує за людину: до 5 хв повтор
+// гаситься мовчки (це подвійний тап), а пізніше того ж дня — питаємо, бо друга
+// відправка може бути свідомою.
+function askDuplicate(label, info) {
+  const t = info.sentAt ? new Date(info.sentAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }) : '';
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'wo-syrve-res-overlay open';
+    ov.innerHTML = `
+      <div class="wo-syrve-res-sheet" onclick="event.stopPropagation()">
+        <div class="wo-sheet-handle"></div>
+        <div class="wo-sheet-hdr"><div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0)">Схоже на дубль</div></div>
+        <div style="padding:0 18px 8px;font-size:13px;color:var(--text1);font-family:var(--font-b);line-height:1.55">
+          «${esc(label)}» вже надсилали сьогодні${t ? ' о ' + t : ''}${info.itemCount ? ` — ${info.itemCount} поз.` : ''}.<br>Надіслати ще раз?
+        </div>
+        <div style="display:flex;gap:8px;padding:14px 18px 20px">
+          <button id="wo-dup-no"  style="flex:1;height:44px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:13px;font-family:var(--font-b);cursor:pointer">Пропустити</button>
+          <button id="wo-dup-yes" style="flex:1;height:44px;border-radius:12px;border:0;background:var(--red);color:#fff;font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer">Надіслати ще раз</button>
+        </div>
+      </div>`;
+    const done = (v) => { ov.remove(); resolve(v); };
+    ov.addEventListener('click', e => { if (e.target === ov) done(false); });
+    document.body.appendChild(ov);
+    ov.querySelector('#wo-dup-no').onclick  = () => done(false);
+    ov.querySelector('#wo-dup-yes').onclick = () => done(true);
+  });
+}
+
 async function doSendActToSyrve() {
   if (_woSendingAct) return;   // ре-ентрі: один «Надіслати» в польоті — другий тап нічого не робить
   const groups = [..._syrveConfirmGroups];
@@ -2581,12 +2609,21 @@ async function doSendActToSyrve() {
           if (_isPosterWo && rk !== '__none__') body.reasonId = rk;          // причина списання Poster
           if (storeOverride) body.storeId = storeOverride;   // авто-маршрут: склад, де лежить товар (ТОВ/ФОП)
           else if (_selStoreId && (scope === 'bar' || scope === 'dishware')) body.storeId = _selStoreId;   // обраний склад — бар (ТОВ/ФОП) або Посуд
-          const resp = await fetch(`${API}/api/pos/writeoff-act/${vId}`, {
+          const send = (force) => fetch(`${API}/api/pos/writeoff-act/${vId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify(body),
+            body: JSON.stringify(force ? { ...body, force: true } : body),
           });
-          const data = await resp.json();
+          let resp = await send(false);
+          let data = await resp.json();
+          // 409 = сервер упізнав такий самий акт за сьогодні. Це може бути і свідомий
+          // повтор, тож не блокуємо — питаємо людину й шлемо ще раз із force.
+          if (resp.status === 409 && data.duplicate) {
+            const okDup = await askDuplicate(label + tag, data);
+            if (!okDup) { errors.push(`⏭ ${label}${tag}: пропущено (дубль)`); continue; }
+            resp = await send(true);
+            data = await resp.json();
+          }
           if (!resp.ok) {
             const det = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : '';
             throw new Error(det || data.error || 'Помилка');
