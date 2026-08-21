@@ -663,7 +663,10 @@ function buildHTML() {
               : isAcc ? [QUICK_INVOICE_OCR, QUICK_PRICE_ALERT, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
-              : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_PRODUCTION, QUICK_RECIPE_BOOK]  // кухар: списання/переміщення, графік, інвентар, замовлення + виробництво + рецепти кухні
+              // Кухар: списання/переміщення, графік, інвентар, замовлення + виробництво + рецепти кухні
+              // + ЖУРНАЛ: шеф ставить кухарю персональні задачі, а без плитки вони для нього
+              // просто не існували — він не мав жодного способу їх побачити.
+              : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_PRODUCTION, QUICK_RECIPE_BOOK, tileByRoute()['journal']].filter(Boolean)
               : QUICK_BARTENDER;
   const s     = _stats;
   const unseen = unseenNotifCount();
