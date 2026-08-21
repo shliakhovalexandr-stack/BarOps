@@ -767,7 +767,7 @@ function mgrOrdersHTML() {
             <span class="ord-req-iname">${esc(i.productName)}</span>
             <span class="ord-req-iqty">${i.qty} ${i.unit || 'од.'}</span>
           </div>
-          ${i.comment ? `<div class="ord-req-icomment">${i.comment}</div>` : ''}
+          ${i.comment ? `<div class="ord-req-icomment">${esc(i.comment)}</div>` : ''}
         `).join('')}
       </div>`;
     }).join('');
@@ -909,12 +909,12 @@ function suppSheetHTML() {
         <div class="ord-inp-lbl">Назва *</div>
         <input class="ord-inp ${_suppError && !_suppDraft.name ? 'err' : ''}"
           type="text" placeholder="Напр.: Баядера Логістик"
-          value="${_suppDraft.name}"
+          value="${esc(_suppDraft.name)}"
           oninput="window.__ord.suppDraft('name',this.value)"/>
 
         <div class="ord-inp-lbl">Контакт</div>
         <input class="ord-inp" type="text" placeholder="Ім'я · +380..."
-          value="${_suppDraft.contact}"
+          value="${esc(_suppDraft.contact)}"
           oninput="window.__ord.suppDraft('contact',this.value)"/>
 
         <div class="ord-inp-lbl">Дні доставки</div>
@@ -924,12 +924,12 @@ function suppSheetHTML() {
 
         <div class="ord-inp-lbl">Юр.особа (для тексту)</div>
         <input class="ord-inp" type="text" placeholder="Напр.: ТОВ Тріум Партнерс / ФОП Іваненко І.І."
-          value="${(_suppDraft.fop||'').replace(/"/g,'&quot;')}"
+          value="${esc(_suppDraft.fop)}"
           oninput="window.__ord.suppDraft('fop',this.value)"/>
 
         <div class="ord-inp-lbl">Форма оплати</div>
         <input class="ord-inp" type="text" placeholder="Напр.: безготівка / ФОП на ФОП"
-          value="${(_suppDraft.paymentForm||'').replace(/"/g,'&quot;')}"
+          value="${esc(_suppDraft.paymentForm)}"
           oninput="window.__ord.suppDraft('paymentForm',this.value)"/>
 
         ${isEdit ? `
@@ -977,8 +977,8 @@ function suppProdsHTML(supp) {
             return `
           <div style="display:flex;align-items:center;gap:8px;padding:10px 13px;${i < prods.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sp.customName || sp.productName}${isCustom ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">власний</span>' : ''}</div>
-              ${hasCustom ? `<div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Syrve: ${sp.productName}</div>` : ''}
+              <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sp.customName || sp.productName)}${isCustom ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">власний</span>' : ''}</div>
+              ${hasCustom ? `<div style="font-size:11px;color:var(--text3);font-family:var(--font-b);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Syrve: ${esc(sp.productName)}</div>` : ''}
             </div>
             <div onclick="window.__ord.renameProduct('${sp.id}')" title="Перейменувати для відправки"
               style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:7px;background:var(--bg4);flex-shrink:0;color:var(--teal)">
@@ -1007,8 +1007,8 @@ function pickerRowHTML(supp, b) {
       ${isOn ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
     </div>
     <div style="flex:1;min-width:0">
-      <div class="ord-pp-name" style="${custom ? '' : 'color:var(--text2)'}">${custom || b.name}</div>
-      ${custom ? `<div class="ord-pp-stock" style="color:var(--text3)">Syrve: ${b.name}</div>` : ''}
+      <div class="ord-pp-name" style="${custom ? '' : 'color:var(--text2)'}">${esc(custom || b.name)}</div>
+      ${custom ? `<div class="ord-pp-stock" style="color:var(--text3)">Syrve: ${esc(b.name)}</div>` : ''}
       ${b.amount !== undefined ? `<div class="ord-pp-stock">Залишок: ${(b.amount || 0).toFixed(2)} ${b.unit || ''}</div>` : ''}
     </div>
   </div>`;
@@ -1217,7 +1217,7 @@ function customHTML() {
     <div class="ord-confirm" onclick="event.stopPropagation()">
       <div class="ord-confirm-title">Власний товар</div>
       <input class="ord-confirm-inp" id="ord-custom-inp" type="text" maxlength="120"
-        value="${(c.name || '').replace(/"/g, '&quot;')}" placeholder="Назва (напр. Серветки, Зубочистки)"
+        value="${esc(c.name)}" placeholder="Назва (напр. Серветки, Зубочистки)"
         oninput="window.__ord.customInput(this.value)"
         onkeydown="if(event.key==='Enter')window.__ord.saveCustomProd()"/>
       <div class="ord-confirm-hint">Тільки в BarOps для замовлення (у Syrve товару нема). Одиницю бармен обере при замовленні.</div>
@@ -1762,7 +1762,7 @@ function deleteSuppConfirm(suppId) {
   if (!s) return;
   openConfirm({
     title:        'Видалити постачальника?',
-    message:      `Постачальник «${s.name}» та всі прив'язки його товарів будуть видалені. Дію не можна скасувати.`,
+    message:      `Постачальник «${esc(s.name)}» та всі прив'язки його товарів будуть видалені. Дію не можна скасувати.`,
     confirmLabel: 'Видалити',
     danger:       true,
     action:       () => deleteSupp(suppId),
