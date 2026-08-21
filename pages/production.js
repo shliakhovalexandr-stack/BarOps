@@ -109,7 +109,7 @@ function listHTML() {
   if (!list.length) return `<div class="prd-empty">${visibleForCook().length ? 'Нічого не знайдено' : (_canSettings ? 'Список порожній. Увімкни вироби у «Налаштуваннях».' : 'Список виробів ще не налаштований шефом.')}</div>`;
   return list.map(p => `
     <div class="prd-row ${p.picked ? 'sel' : ''}" onclick="window.__prod.add('${p.id}')">
-      <div class="prd-rname">${esc(p.name)}</div>
+      <div class="prd-rname">${esc(p.name)}${p.noChart ? ' <span style="font-size:10px;color:var(--amber)">без техкарти</span>' : ''}</div>
       <div class="prd-badge">${p.type === 'PREPARED' ? 'ПФ' : 'страва'}</div>
       <div class="prd-plus">${p.picked ? '✓' : '+'}</div>
     </div>`).join('');
@@ -339,7 +339,17 @@ export default {
       add(id) {
         const ex = _sel.find(s => s.id === id);
         if (ex) _sel = _sel.filter(s => s.id !== id);
-        else { const p = _items.find(x => x.id === id); if (p) _sel.push({ id: p.id, name: p.name, unit: p.unit, perPortion: Number(p.perPortion) || 1, qty: 1 }); }
+        else {
+          const p = _items.find(x => x.id === id);
+          // ⚠️ Вагова позиція без техкарти: вихід порції невідомий. Раніше мовчки брали
+          // множник 1 — і 12 порцій ішли в Syrve як 12 кг. Краще не дати обрати.
+          if (p && p.noChart) {
+            alert(`«${p.name}» — у Syrve немає техкарти, тож невідомо, скільки важить порція.
+Додайте техкарту або спишіть інгредієнти вручну.`);
+            return;
+          }
+          if (p) _sel.push({ id: p.id, name: p.name, unit: p.unit, perPortion: Number(p.perPortion) || 1, qty: 1 });
+        }
         refreshSel();
       },
       remove(id) { _sel = _sel.filter(s => s.id !== id); refreshSel(); },
