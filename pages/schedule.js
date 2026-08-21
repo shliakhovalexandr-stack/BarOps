@@ -1682,12 +1682,22 @@ export function init() {
       const btn   = document.querySelector('.sch-bar .sch-cta');
       if (btn) { btn.disabled = true; btn.textContent = 'Публікація…'; }
       try {
-        const res  = await fetch(`${API}/api/schedule/publish`, {
+        const vId  = state.venueId || localStorage.getItem('barops_venueId') || '';
+        const send = (confirmReplace) => fetch(`${API}/api/schedule/publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ venueId: state.venueId || localStorage.getItem('barops_venueId') || '', weekStart, shifts }),
+          body: JSON.stringify({ venueId: vId, weekStart, shifts, ...(confirmReplace ? { confirmReplace: true } : {}) }),
         });
-        const data = await res.json();
+        let res  = await send(false);
+        let data = await res.json();
+        // Сервер упізнав небезпечну публікацію (порожній тиждень або різке скорочення —
+        // типова ознака застарілої вкладки). Питаємо, а не тихо стираємо готовий графік.
+        if (res.status === 409 && data.needsConfirm) {
+          const okReplace = await askReplace(data);
+          if (!okReplace) { if (btn) { btn.disabled = false; btn.textContent = 'Опублікувати графік'; } return; }
+          res  = await send(true);
+          data = await res.json();
+        }
         if (!data.success) throw new Error(data.error || 'Помилка');
         if (btn) btn.textContent = 'Опубліковано ✓';
       } catch (e) {
@@ -1989,6 +1999,30 @@ export function init() {
       }
     },
   };
+}
+
+// Підтвердження ризикованої публікації. Своя модалка — на цьому екрані немає
+// спільної, а нативний confirm() у застосунку не використовуємо.
+async function askReplace(info) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
+    ov.innerHTML = `
+      <div style="width:100%;max-width:520px;background:var(--bg1);border-top-left-radius:20px;border-top-right-radius:20px;padding:20px 18px 24px;font-family:var(--font-b)">
+        <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:8px">Це зітре опублікований графік</div>
+        <div style="font-size:13px;color:var(--text1);line-height:1.55">${info.error || ''}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:8px;line-height:1.5">Найчастіша причина — стара вкладка з незавантаженою сіткою. Якщо ви не змінювали графік щойно, краще скасувати й перезавантажити сторінку.</div>
+        <div style="display:flex;gap:8px;margin-top:18px">
+          <button id="sch-rep-no"  style="flex:1;height:46px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:13px;font-family:var(--font-b);cursor:pointer">Скасувати</button>
+          <button id="sch-rep-yes" style="flex:1;height:46px;border-radius:12px;border:0;background:var(--red);color:#fff;font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer">Все одно опублікувати</button>
+        </div>
+      </div>`;
+    const done = v => { ov.remove(); resolve(v); };
+    ov.addEventListener('click', e => { if (e.target === ov) done(false); });
+    document.body.appendChild(ov);
+    ov.querySelector('#sch-rep-no').onclick  = () => done(false);
+    ov.querySelector('#sch-rep-yes').onclick = () => done(true);
+  });
 }
 
 export default { render, init };
