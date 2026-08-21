@@ -15,6 +15,7 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '
 let _loading   = false;
 let _error     = '';
 let _syncedAt  = null;
+let _stale     = false;   // POS не відповіла — показуємо це, а не вигаданий час синхронізації
 let _activeStops = [];
 let _isPoster    = false;   // заклад на Poster (стоп-ліст = visible=0; Syrve-діагностика недоступна)
 let _atRisk      = [];
@@ -425,7 +426,9 @@ function buildDiagHtml(d) {
 ════════════════════════ */
 function buildPage() {
   const critCount = _activeStops.filter(s => s.urgency === 'critical').length;
-  const syncStr   = _syncedAt
+  const syncStr   = _stale
+    ? (_syncedAt ? `⚠️ POS не відповідає · дані від ${fmtSyncedAt(_syncedAt)}` : '⚠️ POS не відповідає — стоп-ліст невідомий')
+    : _syncedAt
     ? (_loading ? `Оновлення… · ${fmtSyncedAt(_syncedAt)}` : `Синхронізовано о ${fmtSyncedAt(_syncedAt)}`)
     : 'Завантаження...';
 
@@ -483,11 +486,6 @@ function buildDataPage(critCount) {
           <div class="sl-kpi-label">Активні стопи</div>
           <div class="sl-kpi-val" style="color:var(--red)">${totalStops}</div>
           <div class="sl-kpi-sub">${critCount} критичних</div>
-        </div>
-        <div class="sl-kpi warn">
-          <div class="sl-kpi-label">Під ризиком</div>
-          <div class="sl-kpi-val" style="color:var(--amber)">${riskCount}</div>
-          <div class="sl-kpi-sub">малий залишок</div>
         </div>
         <div class="sl-kpi loss">
           <div class="sl-kpi-label">Sold Out</div>
@@ -647,7 +645,9 @@ async function loadStopList() {
     _isPoster    = data.source === 'poster';
     _activeStops = data.activeStops || [];
     _atRisk      = data.atRisk      || [];
-    _syncedAt    = data.syncedAt    || new Date().toISOString();
+    _stale       = !!data.stale;
+    // при відмові POS час НЕ вигадуємо: null означає «востаннє невідомо коли»
+    _syncedAt    = data.syncedAt || (_stale ? null : new Date().toISOString());
 
   } catch (err) {
     _error = err.message || 'Не вдалось отримати дані з POS';
