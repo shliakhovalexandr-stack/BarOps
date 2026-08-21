@@ -1,0 +1,14 @@
+{
+  "root": true,
+  "env": { "browser": true, "es2022": true, "serviceworker": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" },
+  "rules": {
+    "no-undef": "error",
+    "no-dupe-keys": "error",
+    "no-unreachable": "error",
+    "no-const-assign": "error",
+    "no-dupe-args": "error",
+    "no-func-assign": "error"
+  },
+  "ignorePatterns": ["node_modules/", "_*.js"]
+}
