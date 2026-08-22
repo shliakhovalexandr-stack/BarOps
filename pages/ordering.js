@@ -1253,9 +1253,10 @@ function hozUpdateCount() {
 function hozChangeQty(id, delta) {
   _hozQty[id] = Math.max(0, (+_hozQty[id] || 0) + delta);
   const el = document.getElementById(`hq-${id}`); if (el) el.value = _hozQty[id] || '';
+  saveHozDraft();
   hozUpdateCount();
 }
-function hozSetQty(id, val) { _hozQty[id] = Math.max(0, parseFloat(val) || 0); hozUpdateCount(); }
+function hozSetQty(id, val) { _hozQty[id] = Math.max(0, parseFloat(val) || 0); hozUpdateCount(); saveHozDraft(); }
 function hozSearchChange(v) { _hozSearch = v; const el = document.getElementById('hoz-list'); if (el) el.innerHTML = hozListHTML(); }
 function hozToggleOut() { _hozOnlyOut = !_hozOnlyOut; fullRender(); }
 function hozAddCustom() {
@@ -1264,6 +1265,7 @@ function hozAddCustom() {
   const id = 'custom-' + Math.random().toString(36).slice(2, 9);
   _hoz.unshift({ id, name: name.trim(), unit: '', stock: null, custom: true });
   _hozQty[id] = 1;
+  saveHozDraft();
   fullRender();
 }
 async function hozCopy() {
@@ -1279,7 +1281,7 @@ async function hozCopy() {
   } catch { prompt('Скопіюйте вручну:', text); }
 }
 function hozClear() {
-  _confirm = { title: 'Очистити замовлення?', message: 'Усі введені кількості буде скинуто.', confirmLabel: 'Очистити', danger: true, action: () => { _hozQty = {}; fullRender(); } };
+  _confirm = { title: 'Очистити замовлення?', message: 'Усі введені кількості буде скинуто.', confirmLabel: 'Очистити', danger: true, action: () => { _hozQty = {}; saveHozDraft(); fullRender(); } };
   fullRender();
 }
 function hozListHTML() {
@@ -1484,6 +1486,27 @@ function loadCopied() { try { _copiedSupp = new Set(JSON.parse(localStorage.getI
 function saveCopied() { try { localStorage.setItem(copiedStoreKey(), JSON.stringify([..._copiedSupp])); } catch {} }
 
 function draftKey() { return `barops_order_draft_${_venueId || localStorage.getItem('barops_venueId') || ''}`; }
+
+// Хоз-заявка жила ЛИШЕ в памʼяті вкладки: менеджер набирав список, переходив на іншу
+// сторінку — і все зникало без сліду. Тримаємо так само, як барну чернетку.
+function hozDraftKey() { return `barops_hoz_draft_${_venueId || localStorage.getItem('barops_venueId') || ''}`; }
+function saveHozDraft() {
+  try {
+    const has = Object.values(_hozQty).some(q => q > 0);
+    if (has) localStorage.setItem(hozDraftKey(), JSON.stringify({ qtys: _hozQty, at: Date.now() }));
+    else localStorage.removeItem(hozDraftKey());
+  } catch {}
+}
+function loadHozDraft() {
+  try {
+    const raw = localStorage.getItem(hozDraftKey());
+    if (!raw) return;
+    const d = JSON.parse(raw) || {};
+    // Чернетка старша за добу — це вже не «та сама заявка», не відновлюємо
+    if (d.at && Date.now() - d.at > 24 * 3600 * 1000) { localStorage.removeItem(hozDraftKey()); return; }
+    _hozQty = d.qtys || {};
+  } catch {}
+}
 function saveDraft() {
   try {
     const hasData = Object.values(_barQtys).some(q => q > 0) || Object.values(_barComments).some(c => c);
@@ -1976,7 +1999,8 @@ export default {
     if (!_venueId || !_token) { _loading = false; fullRender(); return; }
     // Хоз-зона (менеджер залу або адмін/керуючий у режимі Хоз) — окремий флоу, свій запит
     if (orderZone() === 'hoz') { _hozLoaded = false; loadHoz(); return; }
-    loadDraft();   // відновити збережену чернетку заявки
+    loadDraft();      // відновити збережену чернетку заявки
+    loadHozDraft();   // і хоз-заявку — вона теж губилась при переході
     loadCopied();  // відновити позначки «вже копіювали»
     // ПОСЛІДОВНО: обидва ходять у Syrve (один REST-слот) — паралельний loadSuggest
     // програвав гонку балансу й повертався порожнім
