@@ -179,6 +179,33 @@ function authHeaders() {
 function roleLc() { return (_role || '').toLowerCase(); }
 
 // Редагування за розділом: «Кухня» — лише шеф; «Бар»/«Винна карта» — лише власник (системний менеджер).
+// Фото рецептів більше не приходять у списку (там лише hasPhoto) — тягнемо їх
+// поштучно й кешуємо: раніше кухар на 4G качав увесь альбом заради одного рецепта.
+const _photoCache = new Map();   // recipeId → data URI ('' = фото немає)
+
+async function loadRecipePhoto(id, onDone) {
+  if (!id) return;
+  if (_photoCache.has(id)) { onDone(_photoCache.get(id)); return; }
+  try {
+    const r = await fetch(`${API}/api/recipe-book/recipes/${id}/photo`, { headers: { Authorization: `Bearer ${localStorage.getItem('barops_token')}` } });
+    const d = await r.json();
+    const url = (d && d.photoUrl) || '';
+    _photoCache.set(id, url);
+    onDone(url);
+  } catch { onDone(''); }
+}
+
+// Підставити фото у вже намальовані місця (виклик після рендера)
+function hydrateRecipePhotos() {
+  document.querySelectorAll('[data-rphoto]:not([data-rphoto-done])').forEach(el => {
+    el.dataset.rphotoDone = '1';
+    loadRecipePhoto(el.dataset.rphoto, url => {
+      if (!url || !el.isConnected) return;
+      el.outerHTML = `<img class="${el.dataset.rphotoClass || 'rb-rcard-photo'}" src="${url}" alt="">`;
+    });
+  });
+}
+
 function canEditCat(cat) {
   const r = roleLc();
   // Власник (admin) редагує всі розділи, включно з кухнею: інакше книга кухні
@@ -501,8 +528,8 @@ function buildRecipeCard(r) {
       });
       h += `</div>`;
     }
-    if (r.photoUrl) h += `<img class="rb-rcard-photo" src="${r.photoUrl}" alt="">`;
-    if (!ingr.length && !r.photoUrl) h += `<div class="rb-rcard-empty">Склад і фото ще не додано.</div>`;
+    if (r.hasPhoto) h += `<div data-rphoto="${r.id}" data-rphoto-class="rb-rcard-photo"></div>`;
+    if (!ingr.length && !r.hasPhoto) h += `<div class="rb-rcard-empty">Склад і фото ще не додано.</div>`;
     h += `</div>`;
   }
   return h + `</div>`;
@@ -543,10 +570,12 @@ function buildRecipeScreen() {
   if (steps) {
     html += `<div class="rb-section-title">Приготування</div><div class="rb-steps-text">${esc(steps)}</div>`;
   }
-  if (_selRecipe.photoUrl) {
-    html += `<img class="rb-recipe-photo" src="${_selRecipe.photoUrl}" alt="Фото рецепту">`;
+  if (_selRecipe.hasPhoto || _selRecipe.photoUrl) {
+    html += _selRecipe.photoUrl
+      ? `<img class="rb-recipe-photo" src="${_selRecipe.photoUrl}" alt="Фото рецепту">`
+      : `<div data-rphoto="${_selRecipe.id}" data-rphoto-class="rb-recipe-photo"></div>`;
   }
-  if (!ingr.length && !steps && !method && !garnish && !_selRecipe.photoUrl) {
+  if (!ingr.length && !steps && !method && !garnish && !_selRecipe.hasPhoto && !_selRecipe.photoUrl) {
     html += `<div class="rb-empty" style="padding:32px 0">Опис рецепту ще не додано.</div>`;
   }
   return html + '</div>';
@@ -842,6 +871,7 @@ function fullRender() {
   const selS = fid ? act.selectionStart : null, selE = fid ? act.selectionEnd : null;
 
   root.innerHTML = `<div class="rb-wrap"><div class="rb-scroll">${buildScreen()}</div></div>${buildDelConfirm()}`;
+  hydrateRecipePhotos();   // фото довантажуються поштучно після рендера
   _lastScreenKey = key;
 
   const sc = root.querySelector('.rb-scroll');
@@ -1110,6 +1140,8 @@ window.__rb = {
     _editMethod   = r.method   || '';
     _editGarnish  = r.garnish  || '';
     _editPhotoUrl = r.photoUrl || '';
+    // у списку фото немає — дочитуємо, інакше редагування «загубило б» наявне фото
+    if (!_editPhotoUrl && r.hasPhoto) loadRecipePhoto(r.id, url => { _editPhotoUrl = url; fullRender(); });
     _error = '';
     _screen = 'edit-recipe'; fullRender();
     setTimeout(() => document.getElementById('rb-r-name')?.focus(), 100);
