@@ -155,8 +155,8 @@ function buildHTML() {
         <div class="dis-card">
           <div class="dis-crow">
             <div class="dis-cname" onclick="window.__dis.clearInput()">${esc(_input.name)}</div>
-            <input class="dis-qty" type="number" inputmode="decimal" placeholder="кг" value="${_inAmount}" onfocus="this.select()" onchange="window.__dis.inAmount(this.value)">
-            <div class="dis-unit">кг</div>
+            <input class="dis-qty" type="number" inputmode="decimal" placeholder="${esc((_input && _input.unit) || 'од.')}" value="${_inAmount}" onfocus="this.select()" onchange="window.__dis.inAmount(this.value)">
+            <div class="dis-unit">${esc((_input && _input.unit) || 'од.')}</div>
           </div>
           <div class="dis-hint">${_inPrice != null
             ? `Остання закупівля: <b>${money(_inPrice)} ₴/кг</b>${cost != null ? ` · вартість входу ≈ <b>${money(cost)} ₴</b>` : ''}`
@@ -171,8 +171,8 @@ function buildHTML() {
         ${_outs.map((o, i) => `
           <div class="dis-outrow">
             <div class="dis-cname" style="font-size:13px">${esc(o.name)}</div>
-            <input class="dis-qty" style="width:70px" type="number" inputmode="decimal" placeholder="кг" value="${o.amount}" onfocus="this.select()" onchange="window.__dis.outAmount(${i},this.value)">
-            <div class="dis-unit">кг</div>
+            <input class="dis-qty" style="width:70px" type="number" inputmode="decimal" placeholder="${esc(o.unit || 'од.')}" value="${o.amount}" onfocus="this.select()" onchange="window.__dis.outAmount(${i},this.value)">
+            <div class="dis-unit">${esc(o.unit || 'од.')}</div>
             <input class="dis-sum" type="number" inputmode="decimal" placeholder="₴" value="${o.sum}" onfocus="this.select()" onchange="window.__dis.outSum(${i},this.value)">
             <button class="dis-del" onclick="window.__dis.delOut(${i})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke-linecap="round"/></svg></button>
           </div>`).join('')}
@@ -272,7 +272,7 @@ export default {
       pickInput: (id) => { const p = _prods.find(x => x.id === id); if (p) { _input = { id: p.id, name: p.name, unit: p.unit }; _searchIn = ''; loadPrice(); rerender(); } },
       clearInput: () => { _input = null; _inPrice = null; rerender(); },
       inAmount: (v) => { _inAmount = v; rerender(); },
-      addOut: (id) => { const p = _prods.find(x => x.id === id); if (p && !_outs.some(o => o.id === id)) { _outs.push({ id: p.id, name: p.name, amount: '', sum: '' }); _searchOut = ''; rerender(); } },
+      addOut: (id) => { const p = _prods.find(x => x.id === id); if (p && !_outs.some(o => o.id === id)) { _outs.push({ id: p.id, name: p.name, unit: p.unit || '', amount: '', sum: '' }); _searchOut = ''; rerender(); } },
       delOut: (i) => { _outs.splice(i, 1); rerender(); },
       outAmount: (i, v) => { if (_outs[i]) { _outs[i].amount = v; rerender(); } },
       outSum: (i, v) => { if (_outs[i]) { _outs[i].sum = v; rerender(); } },
