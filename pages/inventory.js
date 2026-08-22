@@ -1130,9 +1130,47 @@ function inventoryActDate(scheduled) {
   return ((now - s) / 86400000 > 3) ? now.toISOString() : (scheduled || now.toISOString());
 }
 
+// Скільки позицій ЩЕ НЕ пораховано — вони підуть у Syrve як 0, тобто спишуться в мінус.
+// Раніше це відбувалось з одного тапу, без жодного попередження: найдорожча операція
+// місяця не мала запобіжника взагалі.
+function uncountedInfo() {
+  const rows = (_balance || []).filter(p => p && p.id);
+  const uncounted = rows.filter(p => !isCounted(p.id));
+  return { total: rows.length, counted: rows.length - uncounted.length, uncounted: uncounted.length, names: uncounted.slice(0, 6).map(p => p.name) };
+}
+
+function askZeroes(info) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
+    ov.innerHTML = `
+      <div style="width:100%;max-width:520px;background:var(--bg1);border-top-left-radius:20px;border-top-right-radius:20px;padding:20px 18px 24px;font-family:var(--font-b)" onclick="event.stopPropagation()">
+        <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:8px">Не всі позиції пораховано</div>
+        <div style="font-size:13px;color:var(--text1);line-height:1.55">
+          Пораховано <b>${info.counted}</b> із <b>${info.total}</b>.
+          Решта <b style="color:var(--amber,#e0a23a)">${info.uncounted}</b> піде в Syrve як <b>0</b> — тобто спишеться в мінус.
+        </div>
+        ${info.names.length ? `<div style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.5">Напр.: ${info.names.map(n => (n || '').replace(/[<>&]/g, '')).join(', ')}${info.uncounted > info.names.length ? ' та інші' : ''}</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:18px">
+          <button id="inv-z-no"  style="flex:1;height:46px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:13px;font-family:var(--font-b);cursor:pointer">Повернутись</button>
+          <button id="inv-z-yes" style="flex:1;height:46px;border-radius:12px;border:0;background:var(--red);color:#fff;font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer">Все одно відправити</button>
+        </div>
+      </div>`;
+    const done = v => { ov.remove(); resolve(v); };
+    ov.addEventListener('click', e => { if (e.target === ov) done(false); });
+    document.body.appendChild(ov);
+    ov.querySelector('#inv-z-no').onclick  = () => done(false);
+    ov.querySelector('#inv-z-yes').onclick = () => done(true);
+  });
+}
+
 async function submitInventory(dryRun) {
   const os = openSession();
   if (!os) return;
+  if (!dryRun) {
+    const info = uncountedInfo();
+    if (info.uncounted > 0 && !(await askZeroes(info))) return;
+  }
   if (!dryRun) clearTimeout(_draftSyncTimer);   // щоб запізнілий автозбереж не відновив чернетку після завершення
   _saving = true; _testMsg = ''; _error = ''; re();
   // Підтягнути СПІЛЬНУ чернетку й злити — щоб відправити/перевірити ВСЕ, що ввели обидва бармени,
