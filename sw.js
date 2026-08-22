@@ -3,7 +3,7 @@
    Кешування ресурсів для офлайн-режиму
    ============================================================ */
 
-const CACHE_NAME = 'barops-v302';
+const CACHE_NAME = 'barops-v303';
 
 // Тільки справді статичні ресурси (CSS, маніфест)
 // JS-сторінки НЕ precache — вони завантажуються при першому відкритті
@@ -89,6 +89,23 @@ self.addEventListener('push', event => {
     vibrate: [80, 40, 80],
   };
   event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ── Підписка протухла: браузер сам може анулювати endpoint (оновлення, зміна ключів,
+// довга бездіяльність). Без цього обробника людина лишалась «з дозволом, але без пуша»
+// і ніколи про це не дізнавалась — половина «людей без сповіщень» саме така.
+self.addEventListener('pushsubscriptionchange', event => {
+  event.waitUntil((async () => {
+    try {
+      const old = event.oldSubscription || await self.registration.pushManager.getSubscription();
+      const key = old && old.options && old.options.applicationServerKey;
+      if (!key) return;
+      const fresh = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      // Токен у service worker недоступний — просимо сторінку дослати підписку на сервер
+      const clients = await self.clients.matchAll({ includeUncontrolled: true });
+      for (const c of clients) c.postMessage({ type: 'push-resubscribe', subscription: fresh.toJSON() });
+    } catch (e) { /* наступного відкриття застосунку ensurePushIfGranted полагодить */ }
+  })());
 });
 
 // ── Клік по сповіщенню: відкрити/сфокусувати додаток ──

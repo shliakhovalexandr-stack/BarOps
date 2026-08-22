@@ -92,7 +92,26 @@ export async function unsubscribePush() {
 // Тихо оновити підписку після логіну (тільки якщо дозвіл уже надано)
 export async function ensurePushIfGranted() {
   if (!pushSupported() || !token()) return;
-  if (Notification.permission === 'granted') {
-    subscribePush();   // оновлює endpoint під поточного користувача
-  }
+  if (Notification.permission !== 'granted') return;
+
+  // ⚠️ Дозвіл є — але це ще не означає, що підписка жива: браузер міг її анулювати,
+  // і тоді людина роками «має сповіщення», яких насправді не отримує.
+  // Тому перепідписуємось при кожному вході — endpoint оновиться, сервер отримає свіжий.
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) console.warn('[push] дозвіл є, а підписки немає — відновлюю');
+  } catch {}
+  subscribePush();   // оновлює endpoint під поточного користувача
+}
+
+// Service worker повідомляє, що браузер видав нову підписку замість анульованої.
+// Слухач ставимо один раз на завантаження модуля.
+if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'push-resubscribe') {
+      console.log('[push] підписку оновлено браузером — дошлю на сервер');
+      subscribePush().catch(() => {});
+    }
+  });
 }

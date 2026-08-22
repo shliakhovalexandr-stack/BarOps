@@ -181,8 +181,10 @@ function roleLc() { return (_role || '').toLowerCase(); }
 // Редагування за розділом: «Кухня» — лише шеф; «Бар»/«Винна карта» — лише власник (системний менеджер).
 function canEditCat(cat) {
   const r = roleLc();
+  // Власник (admin) редагує всі розділи, включно з кухнею: інакше книга кухні
+  // заморожена, щойно шеф у відпустці. Дзеркалить canEditCategory на бекенді.
+  if (r === 'admin') return true;
   if (cat === 'kitchen') return r === 'chef';
-  if (cat === 'bar' || cat === 'wine') return r === 'admin';
   return false;
 }
 
