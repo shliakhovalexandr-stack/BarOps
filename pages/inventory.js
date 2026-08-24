@@ -140,6 +140,8 @@ const _ASSIGN_COLORS = ['#7c9cff', '#34d399', '#f59e0b', '#f472b6', '#a78bfa', '
 function waiterColor(id) { const i = Math.max(0, _waiters.findIndex(w => w.id === id)); return _ASSIGN_COLORS[i % _ASSIGN_COLORS.length]; }
 
 // ── Склади інвентаризації кухні ──
+let _mainStoreId = '';   // основний склад закладу — куди йдуть спільні товари
+
 function locMode() { return isKitchen() && _locations.length > 0; }   // режим підрахунку по складах
 function locById(id) { return _locations.find(l => l.id === id) || null; }
 // productId-и, не додані до жодного складу (віртуальний «Без складу»)
@@ -926,6 +928,7 @@ async function loadAll() {
     if (balRes.ok) {
       const d = await balRes.json();
       _posMode = d.mode || '';            // 'poster' | 'selfhosted' | 'cloud' | '' (з detectSyrveMode; НЕ 'syrve')
+      _mainStoreId = d.defaultStoreId || '';   // основний склад закладу (Бар ТОВ)
       _balance = [];
       // ⚠ Виключення службових складів ОБОВʼЯЗКОВЕ для всіх зон: напр. «Обладнання Кухня» теж
       // матчить /кух/ → без цього кухонна інвентаризація йшла на склад обладнання (Дім18, баг 2026-07).
@@ -944,14 +947,18 @@ async function loadAll() {
       for (const store of stores) {
         for (const item of (store.items || [])) {
           if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
-            if (!_balance.find(x => x.id === item.id)) {
-              if (isDish()) {
-                // посуд: name = менеджерська (як у закупці), syrveName = оригінал
-                const meta = _dishMeta[item.id];
-                _balance.push({ ...item, syrveName: item.name, name: (meta && meta.customName) ? meta.customName : item.name });
-              } else {
-                _balance.push(item);
-              }
+            const dup = _balance.find(x => x.id === item.id);
+            if (dup) {
+              // Товар є на кількох складах (Бар ТОВ + Бар ФОП) — памʼятаємо ВСІ,
+              // щоб при відправці покласти документ на потрібний склад.
+              if (store.storeId && !dup.bs.includes(store.storeId)) dup.bs.push(store.storeId);
+              dup.amount = (dup.amount || 0) + (item.amount || 0);   // «в системі» = сума по складах
+            } else if (isDish()) {
+              // посуд: name = менеджерська (як у закупці), syrveName = оригінал
+              const meta = _dishMeta[item.id];
+              _balance.push({ ...item, bs: store.storeId ? [store.storeId] : [], syrveName: item.name, name: (meta && meta.customName) ? meta.customName : item.name });
+            } else {
+              _balance.push({ ...item, bs: store.storeId ? [store.storeId] : [] });
             }
           }
         }
@@ -1133,6 +1140,18 @@ function inventoryActDate(scheduled) {
 // Скільки позицій ЩЕ НЕ пораховано — вони підуть у Syrve як 0, тобто спишуться в мінус.
 // Раніше це відбувалось з одного тапу, без жодного попередження: найдорожча операція
 // місяця не мала запобіжника взагалі.
+// Куди інвентаризувати товар, коли барних складів кілька (Бар ТОВ + Бар ФОП):
+//  • є на основному складі (у т.ч. і там, і там) → основний (ТОВ);
+//  • є ЛИШЕ на іншому складі → саме на нього (ФОП);
+//  • склад невідомий → основний.
+// Те саме правило вже працює в Списанні: позиція йде на свій склад.
+function barStoreOf(p) {
+  const bs = (p && p.bs) || [];
+  if (!bs.length) return _mainStoreId || '';
+  if (_mainStoreId && bs.includes(_mainStoreId)) return _mainStoreId;
+  return bs[0];
+}
+
 function uncountedInfo() {
   const rows = (_balance || []).filter(p => p && p.id);
   const uncounted = rows.filter(p => !isCounted(p.id));
@@ -1245,20 +1264,55 @@ async function submitInventory(dryRun) {
     const prepPayload = loc
       ? locSum.filter(r => r.isPrep).map(r => ({ productId: r.productId, amount: r.amount }))
       : _preps.filter(p => p.id && isCounted(p.id)).map(p => ({ productId: p.id, amount: getResult(p.id) }));
-    const invRes = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-      body: JSON.stringify({
-        items:        syrveItems,
-        preparations: prepPayload,
-        date:    inventoryActDate(os.scheduledAt),
-        comment: `BarOps ${isDish() ? 'Інвентаризація посуду' : isKitchen() ? 'Інвентаризація кухні' : isHousehold() ? 'Інвентаризація хозтоварів' : 'Інвентаризація'} ${fmtDate(os.scheduledAt)}`,
-        dryRun:  !!dryRun,
-        ...(isDish() && _dishStoreId ? { storeId: _dishStoreId } : isKitchen() && _kitchenStoreId ? { storeId: _kitchenStoreId } : {}),
-      }),
-    });
-    const invD = await invRes.json().catch(() => ({}));
-    if (!invRes.ok || !invD.success) throw new Error(invD.error || (dryRun ? 'Перевірка не пройшла' : 'Не вдалося створити документ у Syrve Office'));
+    // ── Розкладка по складах ─────────────────────────────────────────────────
+    // Бар часто має ДВА товарні склади (Бар ТОВ і Бар ФОП). Раніше весь підрахунок
+    // ішов одним документом на основний склад: ФОП не перераховувався ніколи, у ТОВ
+    // потрапляло чуже, і розбіжність накопичувалась. Тепер — окремий документ на
+    // кожен склад: спільні товари в ТОВ, «лише ФОП» — у ФОП.
+    const isBarKind = !isDish() && !isKitchen() && !isHousehold();
+    const fixedStore = isDish() ? _dishStoreId : isKitchen() ? _kitchenStoreId : '';
+    const groups = new Map();   // storeId ('' = за замовчуванням) → { items, preparations }
+    if (isBarKind && !loc) {
+      for (const it of syrveItems) {
+        const prod = _balance.find(p => p.id === it.productId);
+        const sid  = barStoreOf(prod) || '';
+        if (!groups.has(sid)) groups.set(sid, { items: [], preparations: [] });
+        groups.get(sid).items.push(it);
+      }
+      // НФ не належать конкретному барному складу — кладемо до основного
+      const mainKey = _mainStoreId || '';
+      if (prepPayload.length) {
+        if (!groups.has(mainKey)) groups.set(mainKey, { items: [], preparations: [] });
+        groups.get(mainKey).preparations = prepPayload;
+      }
+    } else {
+      groups.set(fixedStore || '', { items: syrveItems, preparations: prepPayload });
+    }
+
+    const actDate = inventoryActDate(os.scheduledAt);
+    const kindLbl = isDish() ? 'Інвентаризація посуду' : isKitchen() ? 'Інвентаризація кухні' : isHousehold() ? 'Інвентаризація хозтоварів' : 'Інвентаризація';
+    let invD = null, totalCount = 0;
+    for (const [sid, g] of groups) {
+      if (!g.items.length && !g.preparations.length) continue;
+      const r = await fetch(`${API}/api/pos/inventory-act/${_venueId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+        body: JSON.stringify({
+          items:        g.items,
+          preparations: g.preparations,
+          date:    actDate,
+          comment: `BarOps ${kindLbl} ${fmtDate(os.scheduledAt)}`,
+          dryRun:  !!dryRun,
+          ...(sid ? { storeId: sid } : {}),
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.success) throw new Error(d.error || (dryRun ? 'Перевірка не пройшла' : 'Не вдалося створити документ у Syrve Office'));
+      totalCount += Number(d.itemCount) || 0;
+      if (!invD || (d.decompo && !invD.decompo)) invD = d;
+    }
+    if (!invD) throw new Error('Нема чого відправляти');
+    invD = { ...invD, itemCount: totalCount, storesUsed: groups.size };
 
     const dec    = invD.decompo;
     const decTxt = dec ? ` · ${dec.nfCount} НФ→товари${dec.unresolvedCount ? `, ${dec.unresolvedCount} не розкладено` : ''}${dec.chartsLoadFailed ? ' ⚠ тех-карти не завантажились' : ''}` : '';
