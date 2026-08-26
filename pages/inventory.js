@@ -88,6 +88,13 @@ function posLabel() { return _posMode === 'poster' ? 'Poster' : 'Syrve'; }   // 
 function canPlanZones() { return ['admin', 'accountant', 'director'].includes((_role || '').toLowerCase()); }
 // Хто бачить менеджерський вид (планування/налаштування):
 //   керуючий/бухгалтер/адмін — усі зони (бар/кухня/хоз); шеф — кухня; менеджер — посуд.
+// Хто може ВІДПРАВИТИ інвентаризацію. Кухню завершує лише шеф — кухарі рахують, але
+// не надсилають (25.08 у Дім18 троє кухарів надіслали одну сесію → три акти в Syrve).
+// Бар, посуд і хозтовари — як було.
+function canSubmitInv() {
+  return isKitchen() ? canManageInv() : true;
+}
+
 function canManageInv() {
   const r = (_role || '').toLowerCase();
   if (r === 'admin' || r === 'accountant' || r === 'director') return true;
@@ -1694,10 +1701,12 @@ function buildBar() {
       })()}
     </div>` : ''}
 
-    ${assignFilterOn()
+    ${(assignFilterOn() || !canSubmitInv())
       ? `<div class="inv-actions">
           <div style="padding:12px 14px;border-radius:12px;background:var(--bg2);border:0.5px solid var(--border);font-size:13px;color:var(--text2);font-family:var(--font-b);line-height:1.5;text-align:center">
-            Порахували свою частину (${counted}/${total})? Дані зберігаються автоматично — <b style="color:var(--text1)">завершить інвентаризацію менеджер</b>, коли всі закінчать.
+            ${assignFilterOn()
+              ? `Порахували свою частину (${counted}/${total})? Дані зберігаються автоматично — <b style="color:var(--text1)">завершить інвентаризацію менеджер</b>, коли всі закінчать.`
+              : `Пораховано ${counted} із ${total}. Дані зберігаються автоматично — <b style="color:var(--text1)">завершує інвентаризацію шеф-кухар</b>.`}
           </div>
         </div>`
       : `<div class="inv-actions">
