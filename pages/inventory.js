@@ -384,6 +384,18 @@ const CSS = `<style id="inv-css">
 .inv-cfg-sheet.open{transform:translateY(0)}
 .inv-cfg-sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px}
 .inv-cfg-sheet-title{font-family:var(--font-h);font-size:16px;font-weight:700;color:var(--text0);margin-bottom:16px;text-align:center}
+/* Лист-питання (напр. «не всі позиції пораховано») — той самий вигляд, що й решта
+   листів додатку: затемнення, ручка, заголовок font-h, кнопки зі спільних .btn */
+.inv-ask-ov{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.80);display:flex;align-items:flex-end;justify-content:center;animation:invAskFade .18s ease}
+@keyframes invAskFade{from{opacity:0}to{opacity:1}}
+.inv-ask-sheet{width:100%;max-width:520px;background:var(--bg1);border-top:0.5px solid var(--border);border-radius:22px 22px 0 0;padding:0 18px 26px;animation:invAskUp .28s cubic-bezier(.22,1,.36,1)}
+@keyframes invAskUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.inv-ask-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 16px}
+.inv-ask-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);letter-spacing:-0.02em;margin-bottom:8px}
+.inv-ask-body{font-family:var(--font-b);font-size:13px;color:var(--text1);line-height:1.55}
+.inv-ask-note{font-family:var(--font-b);font-size:11px;color:var(--text2);line-height:1.5;margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:12px}
+.inv-ask-acts{display:flex;gap:8px;margin-top:18px}
+.inv-ask-acts .btn{flex:1}
 .inv-cfg-field-grp{margin-bottom:12px}
 .inv-cfg-field-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
 .inv-cfg-field{height:46px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 13px;font-size:16px;font-weight:600;color:var(--text0);outline:none;width:100%;transition:border-color .2s}
@@ -1188,18 +1200,19 @@ function uncountedInfo() {
 function askZeroes(info) {
   return new Promise(resolve => {
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
+    ov.className = 'inv-ask-ov';
     ov.innerHTML = `
-      <div style="width:100%;max-width:520px;background:var(--bg1);border-top-left-radius:20px;border-top-right-radius:20px;padding:20px 18px 24px;font-family:var(--font-b)" onclick="event.stopPropagation()">
-        <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:8px">Не всі позиції пораховано</div>
-        <div style="font-size:13px;color:var(--text1);line-height:1.55">
-          Пораховано <b>${info.counted}</b> із <b>${info.total}</b>.
-          Решта <b style="color:var(--amber,#e0a23a)">${info.uncounted}</b> піде в Syrve як <b>0</b> — тобто спишеться в мінус.
+      <div class="inv-ask-sheet" onclick="event.stopPropagation()">
+        <div class="inv-ask-handle"></div>
+        <div class="inv-ask-title">Не всі позиції пораховано</div>
+        <div class="inv-ask-body">
+          Пораховано <b style="color:var(--text0)">${info.counted}</b> із <b style="color:var(--text0)">${info.total}</b>.
+          Решта <b style="color:var(--amber)">${info.uncounted}</b> піде в Syrve як <b style="color:var(--amber)">0</b> — тобто спишеться в мінус.
         </div>
-        ${info.names.length ? `<div style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.5">Напр.: ${info.names.map(n => (n || '').replace(/[<>&]/g, '')).join(', ')}${info.uncounted > info.names.length ? ' та інші' : ''}</div>` : ''}
-        <div style="display:flex;gap:8px;margin-top:18px">
-          <button id="inv-z-no"  style="flex:1;height:46px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:13px;font-family:var(--font-b);cursor:pointer">Повернутись</button>
-          <button id="inv-z-yes" style="flex:1;height:46px;border-radius:12px;border:0;background:var(--red);color:#fff;font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer">Все одно відправити</button>
+        ${info.names.length ? `<div class="inv-ask-note">Напр.: ${info.names.map(n => (n || '').replace(/[<>&]/g, '')).join(', ')}${info.uncounted > info.names.length ? ' та інші' : ''}</div>` : ''}
+        <div class="inv-ask-acts">
+          <button id="inv-z-no"  class="btn btn--md btn--ghost">Повернутись</button>
+          <button id="inv-z-yes" class="btn btn--md btn--red">Все одно відправити</button>
         </div>
       </div>`;
     const done = v => { ov.remove(); resolve(v); };
