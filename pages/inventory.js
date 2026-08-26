@@ -578,10 +578,21 @@ function getResult(pid) {
 }
 
 // одиниця за способом обліку (для підписів/історії)
+// ⚠ 'nf' сюди НЕ передавати: у напівфабрикату одиниця своя (л/кг/порц) і береться
+// з каталогу через invUnitOf — інакше сироп у літрах підписувався б штуками.
 function methodUnit(m) {
   if (m === 'kg_to_l' || m === 'ml') return 'л';
   if (m === 'kg') return 'кг';
+  if (m === 'nf') return '';
   return 'шт';
+}
+
+// Одиниця позиції ІСТОРІЇ: у НФ вона своя (л/кг), у товару — за способом обліку.
+// Раніше НФ падав у methodUnit → 'шт', і кількість ще й округлювалась до цілого:
+// 0.17 л сиропу показувало «0 шт», 1.1 л — «1 шт».
+function histUnitOf(it) {
+  if (it && it.method === 'nf') return invUnitOf(it.productId) || '';
+  return methodUnit(it && it.method);
 }
 
 /* ── Чернетка (localStorage, per-сесія) — щоб дані не зникали до відправки ── */
@@ -2138,7 +2149,7 @@ function historyHTML() {
                     const counted = (items || []).filter(it => (+it.countedQty) > 0);
                     if (!counted.length) return '<div style="font-size:12px;color:var(--text2);font-family:var(--font-b)">Без порахованих позицій</div>';
                     return `<div style="display:flex;flex-direction:column;gap:5px">${counted.map(it => {
-                      const u = methodUnit(it.method);
+                      const u = histUnitOf(it);
                       return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;font-family:var(--font-b)"><span style="color:var(--text1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.productName || '—'}</span><span style="color:var(--green);flex-shrink:0">${(+it.countedQty || 0).toFixed(u === 'шт' ? 0 : 3)} ${u}</span></div>`;
                     }).join('')}</div>`;
                   })()}
