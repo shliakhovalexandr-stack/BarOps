@@ -1318,6 +1318,7 @@ async function submitInventory(dryRun) {
         date:    actDate,
         comment: `BarOps ${kindLbl} ${fmtDate(os.scheduledAt)}`,
         dryRun:  !!dryRun,
+        sessionId: os.id,   // бекенд атомарно "захоплює" сесію: другий відправник дістане 409, а не другий акт
         ...(actStore ? { storeId: actStore } : {}),
         ...(storeSplit ? { storeSplit } : {}),
       }),
