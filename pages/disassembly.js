@@ -9,7 +9,7 @@
               POST /pos/disassembly-act, GET /pos/disassembly-history.
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { navigate, state, canSeeStock } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
@@ -126,7 +126,7 @@ function listInHTML() {
   return pickerList(_searchIn, new Set()).map(p => `
     <div class="dis-row" onclick="window.__dis.pickInput('${p.id}')">
       <div class="dis-rname">${esc(p.name)}</div>
-      <div class="dis-badge">${p.stock} ${esc(p.unit || '')}</div>
+      ${canSeeStock() ? `<div class="dis-badge">${p.stock} ${esc(p.unit || '')}</div>` : ''}
     </div>`).join('') || '<div class="dis-note">Завантаження товарів…</div>';
 }
 function listOutHTML() {

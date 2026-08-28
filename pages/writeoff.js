@@ -3,7 +3,7 @@
    Списання: Бармен (список + 4-крокова форма) + Менеджер (аналітика + журнал)
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { navigate, state, canSeeStock } from '../shared/app.js';
 
 /* ════════════════════════
    DATA
@@ -1055,7 +1055,7 @@ function prodListHTML() {
       <div class="wo-pi-emoji">🍾</div>
       <div style="flex:1;min-width:0">
         <div class="wo-pi-name">${esc(p.name)}</div>
-        ${p.stock!=null?`<div class="wo-pi-stock">Залишок: ${typeof p.stock==='number'?p.stock.toFixed(2):p.stock}</div>`:''}
+        ${(canSeeStock() && p.stock!=null)?`<div class="wo-pi-stock">Залишок: ${typeof p.stock==='number'?p.stock.toFixed(2):p.stock}</div>`:''}
       </div>
       <div class="wo-pi-check">
         ${sel?`<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
@@ -1276,7 +1276,7 @@ function volStepHTML() {
     return `<div class="wo-cart-row">
       <div class="wo-cart-info">
         <div class="wo-cart-name">${esc(c.name)}${c.isDish ? ' <span style="font-size:9px;color:#e08a2b">Страва</span>' : c.isPrep ? ' <span style="font-size:9px;color:var(--purple)">ПФ</span>' : ''}</div>
-        <div class="wo-cart-stock">Залишок ${fmtStock(c.stock, c.unit)} → <span id="wo-cv-after-${c.id}">${fmtStock(after, c.unit)}</span></div>
+        ${canSeeStock() ? `<div class="wo-cart-stock">Залишок ${fmtStock(c.stock, c.unit)} → <span id="wo-cv-after-${c.id}">${fmtStock(after, c.unit)}</span></div>` : ''}
       </div>
       <input class="wo-cart-vol" id="wo-cv-${c.id}" type="number" inputmode="decimal" step="0.001" min="0"
         placeholder="0" value="${c.vol ?? ''}" oninput="window.__wo.updateCartVol('${c.id}')">
@@ -1339,14 +1339,14 @@ function singleVolHTML() {
     </div>
     <div class="wo-stock-preview">
       <div>
-        <div class="wo-sp-label">Поточний залишок</div>
+        <div class="wo-sp-label">${canSeeStock() ? 'Поточний залишок' : 'Списуємо'}</div>
         <div class="wo-sp-name" id="wo-sp-name">${_selProd?esc(_selProd.name):'—'}</div>
       </div>
-      <div>
+      ${!canSeeStock() ? '' : `<div>
         <div class="wo-sp-before" id="wo-sp-before">${_selProd ? fmtStock(_selProd.stock, _selProd.unit) : '—'}</div>
         <div style="font-size:10px;color:var(--text2);font-family:var(--font-b);margin:2px 0;text-align:right">після списання</div>
         <div class="wo-sp-after" id="wo-sp-after">— ${_selProd ? unitLabel(_selProd.unit) : 'л'}</div>
-      </div>
+      </div>`}
     </div>`;
 }
 
@@ -1727,7 +1727,7 @@ function prepListHTML() {
       <div class="wo-pi-emoji">${p.isDish ? '🍽️' : '🧪'}</div>
       <div style="flex:1;min-width:0">
         <div class="wo-pi-name">${esc(p.name)} ${badge}</div>
-        <div class="wo-pi-stock">${zoneLbl[p.scope] || ''} · Залишок: ${typeof p.stock === 'number' ? p.stock : 0} ${p.unit || ''}</div>
+        <div class="wo-pi-stock">${zoneLbl[p.scope] || ''}${canSeeStock() ? ` · Залишок: ${typeof p.stock === 'number' ? p.stock : 0} ${p.unit || ''}` : ''}</div>
       </div>
       <div class="wo-pi-check">
         ${sel ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}

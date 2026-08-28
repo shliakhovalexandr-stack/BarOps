@@ -3,7 +3,7 @@
    Дашборд: реальні дані з /api/stats + switcher закладів
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { navigate, state, canSeeStock } from '../shared/app.js';
 import { pushSupported, pushPermission, subscribePush } from '../shared/push.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
@@ -735,7 +735,7 @@ ${CSS}
       </div>
     </div>`;
     }).join('') : ''}
-    ${s?.critical?.length ? s.critical.map(p => `
+    ${(canSeeStock() && s?.critical?.length) ? s.critical.map(p => `
     <div style="padding:10px 16px;border-bottom:1px solid var(--border)">
       <div style="display:flex;gap:8px;align-items:flex-start">
         <div style="width:7px;height:7px;border-radius:50%;background:${_seenNotifs.has('c-'+(p.productId||p.name)) ? 'var(--text3)' : 'var(--red)'};flex-shrink:0;margin-top:4px"></div>
@@ -836,7 +836,7 @@ ${CSS}
     </div>` : ''}
 
     <!-- Alerts: критичні залишки -->
-    ${s?.critical?.length ? s.critical.slice(0, 2).map(p => `
+    ${(canSeeStock() && s?.critical?.length) ? s.critical.slice(0, 2).map(p => `
     <div class="d-alert d-alert--red" onclick="window.__barops.navigate('inventory')">
       <div class="d-alert-icon d-alert-icon--red">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -905,7 +905,7 @@ ${CSS}
     })() : ''}
 
     <!-- Критичні залишки -->
-    ${s?.critical?.length ? `
+    ${(canSeeStock() && s?.critical?.length) ? `
     <div class="d-sec" style="padding-top:16px">
       Залишки · критичні
       <button class="d-sec-link" onclick="window.__barops.navigate('stock')">Всі →</button>

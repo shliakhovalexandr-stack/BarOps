@@ -3,7 +3,7 @@
    Борги та продажі між закладами — реальна БД
    ============================================================ */
 
-import { state } from '../shared/app.js';
+import { state, canSeeStock } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
@@ -193,7 +193,7 @@ function pickerRowsHTML() {
     const ds = (p.name || '').toLowerCase().replace(/"/g, '&quot;');
     return `<div class="dbt-picker-row" data-s="${ds}" onclick="window.__dbt.selectItem('${safeName}','${safeUnit}')">
       <div class="dbt-picker-name">${esc(p.name)}</div>
-      ${p.qty != null ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${esc(p.unit||'')}</div>` : ''}
+      ${(canSeeStock() && p.qty != null) ? `<div class="dbt-picker-stock">${Number.isInteger(p.qty)?p.qty:p.qty.toFixed(2)} ${esc(p.unit||'')}</div>` : ''}
     </div>`;
   }).join('');
   return rows + `<div id="dbt-picker-none" style="display:none;padding:24px 20px;font-size:12px;color:var(--text2);font-family:var(--font-b);text-align:center">Нічого не знайдено</div>`;

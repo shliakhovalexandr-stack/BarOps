@@ -3,7 +3,7 @@
    Smart Ordering: реальні постачальники + товари з Syrve
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { navigate, state, canSeeStock } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
@@ -449,7 +449,9 @@ function barSuppliersHTML() {
         stock:       bal ? (bal.amount || 0) : null,
         unit:        bal?.unit || '',
         qty:         _barQtys[sp.productId] || 0,
-        col:         statusColor(bal ? stockStatus(bal.amount || 0) : 'ok'),
+        // Смужка червона рівно тоді, коли залишок <= 0 — тобто одним поглядом по каталогу
+        // видно, де система тримає нуль. Для бармена гасимо в нейтральний колір.
+        col:         canSeeStock() ? statusColor(bal ? stockStatus(bal.amount || 0) : 'ok') : 'var(--border2)',
       };
     });
 
@@ -474,7 +476,7 @@ function barSuppliersHTML() {
               <div style="flex:1;min-width:0">
                 <div class="ord-pname">${esc(p.name)}</div>
                 ${p.syrve ? `<div class="ord-pstock" style="color:var(--text3)">Syrve: ${p.syrve}</div>` : ''}
-                <div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>
+                ${canSeeStock() ? `<div class="ord-pstock">${p.stock !== null ? `Залишок: ${p.stock.toFixed(2)} ${p.unit}` : 'Залишок: —'}</div>` : ''}
                 ${sug && fmtN(sug.sold7days) > 0 ? `<div class="ord-pstock" style="color:var(--text3)">За тиждень: ${fmtN(sug.sold7days)} ${p.unit || sug.unit || ''}</div>` : ''}
               </div>
               ${p.qty > 0 ? `<div class="ord-qty-badge">${p.qty} ${unit || 'од.'}</div>` : ''}
@@ -1009,7 +1011,7 @@ function pickerRowHTML(supp, b) {
     <div style="flex:1;min-width:0">
       <div class="ord-pp-name" style="${custom ? '' : 'color:var(--text2)'}">${esc(custom || b.name)}</div>
       ${custom ? `<div class="ord-pp-stock" style="color:var(--text3)">Syrve: ${esc(b.name)}</div>` : ''}
-      ${b.amount !== undefined ? `<div class="ord-pp-stock">Залишок: ${(b.amount || 0).toFixed(2)} ${b.unit || ''}</div>` : ''}
+      ${(canSeeStock() && b.amount !== undefined) ? `<div class="ord-pp-stock">Залишок: ${(b.amount || 0).toFixed(2)} ${b.unit || ''}</div>` : ''}
     </div>
   </div>`;
 }
@@ -1109,7 +1111,7 @@ function suggestHTML() {
         <div style="width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name)}</div>
-          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">за тиждень ${fmtN(s.sold7days)} ${u} · залишок ${fmtN(s.stock)} ${u}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">за тиждень ${fmtN(s.sold7days)} ${u}${canSeeStock() ? ` · залишок ${fmtN(s.stock)} ${u}` : ''}</div>
         </div>
         ${s.suggestedQty > 0
           ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:15px;font-weight:600;color:var(--green);line-height:1">+${fmtN(s.suggestedQty)}</div><div style="font-size:10px;color:var(--text3);margin-top:1px">${u}</div></div>`

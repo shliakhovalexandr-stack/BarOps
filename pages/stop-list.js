@@ -3,7 +3,7 @@
    Stop List — операційний центр з реальними даними Syrve
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { navigate, state, canSeeStock } from '../shared/app.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
 
@@ -198,11 +198,11 @@ function stopCard(item) {
         </div>
         <div class="sl-urgency ${hasStock ? 'high' : 'critical'}">${hasStock ? 'ОБМЕЖ.' : 'СТОП'}</div>
       </div>
-      <div class="sl-card-metrics">
-        <div class="sl-metric">
+      <div class="sl-card-metrics"${canSeeStock() ? '' : ' style="grid-template-columns:1fr 1fr"'}>
+        ${canSeeStock() ? `<div class="sl-metric">
           <div class="sl-metric-lbl">Залишок</div>
           <div class="sl-metric-val ${hasStock ? 'amber' : 'red'}">${fmtStock(item)}</div>
-        </div>
+        </div>` : ''}
         <div class="sl-metric">
           <div class="sl-metric-lbl">Одиниця</div>
           <div class="sl-metric-val dim">${item.unit || '—'}</div>
@@ -217,6 +217,7 @@ function stopCard(item) {
 }
 
 function riskCard(item) {
+  const show = canSeeStock();   // бармену — лише попередження, без цифри й шкали
   const pct = item.stock > 0 ? Math.min(Math.round(item.stock * 100), 100) : 0;
   const urgency = item.urgency || 'high';
   return `
@@ -225,11 +226,11 @@ function riskCard(item) {
       <div class="sl-risk-name">${esc(item.name)}</div>
       <div class="sl-risk-eta ${urgency}">Малий залишок</div>
     </div>
-    <div class="sl-risk-bar-bg">
+    ${show ? `<div class="sl-risk-bar-bg">
       <div class="sl-risk-bar-fill ${urgency}" style="width:${Math.max(pct, 4)}%"></div>
-    </div>
+    </div>` : ''}
     <div class="sl-risk-meta">
-      <span class="sl-risk-pct">${fmtStock(item)} залишилось</span>
+      <span class="sl-risk-pct">${show ? `${fmtStock(item)} залишилось` : 'Закінчується'}</span>
       <span class="sl-risk-cat">${item.category || ''}</span>
     </div>
   </div>`;
