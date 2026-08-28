@@ -210,8 +210,14 @@ function matchSearch(p) {
 }
 // Облікову (системну) кількість бачать лише керівні ролі — барменам/кухарям ховаємо,
 // щоб не «підганяли» рахунок під системну цифру.
+// Хто бачить залишок Syrve під час підрахунку.
+// Посуд рахують НАОСЛІП: ні офіціант, ні менеджер не мають бачити, скільки має бути,
+// інакше підрахунок підганяють під систему й інвентаризація втрачає сенс.
+// Бар, кухня та хозтовари — без змін.
 function canSeeSystemQty() {
-  return ['admin', 'manager', 'director', 'accountant'].includes((_role || '').toLowerCase());
+  const r = (_role || '').toLowerCase();
+  if (isDish()) return ['admin', 'director', 'accountant'].includes(r);
+  return ['admin', 'manager', 'director', 'accountant'].includes(r);
 }
 function searchBoxHTML() {
   return `<div style="padding:0 18px 10px">
@@ -2049,7 +2055,7 @@ function dishCfgHTML() {
             <div style="flex:1;min-width:0;cursor:pointer" data-a="dw-expand" data-pid="${p.id}">
               <div class="inv-cfg-name">${nm}${cnt > 1 ? ` <span style="color:var(--text3);font-weight:400">· ${cnt} фото</span>` : ''}${meta.hasPhoto ? ` <span style="color:var(--text3);font-size:11px">${open ? '▲' : '▾'}</span>` : ''}</div>
               <div class="inv-cfg-sub">у ${posLabel()}: ${p.syrveName || p.name}</div>
-              <div class="inv-cfg-sub" style="color:var(--blue)">залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>
+              ${canSeeSystemQty() ? `<div class="inv-cfg-sub" style="color:var(--blue)">залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>` : ''}
             </div>
             <button class="inv-mode-btn" data-a="dw-edit" data-pid="${p.id}" style="width:auto;padding:0 10px">✎ Назва/фото</button>
           </div>
@@ -2122,7 +2128,7 @@ function dishAssignHTML() {
             </div>
             <div style="flex:1;min-width:0">
               <div class="inv-cfg-name">${nm}</div>
-              <div class="inv-cfg-sub">залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>
+              ${canSeeSystemQty() ? `<div class="inv-cfg-sub">залишок ${p.amount != null ? p.amount.toFixed(0) : '—'}</div>` : ''}
             </div>
             ${uid
               ? `<span class="dw-asg-tag" style="background:${waiterColor(uid)}1f;color:${waiterColor(uid)};border-color:${waiterColor(uid)}55"><span class="dw-asg-dot" style="background:${waiterColor(uid)}"></span>${waiterShort(uid)}</span>`
