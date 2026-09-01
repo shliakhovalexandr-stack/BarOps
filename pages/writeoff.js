@@ -5,6 +5,28 @@
 
 import { navigate, state, canSeeStock } from '../shared/app.js';
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Безпечне читання JSON з localStorage.
+   ⚠ Один зіпсований запис (обрив запису, переповнена квота, вбита вкладка посеред
+   збереження) валив УВЕСЬ екран: JSON.parse кидав виняток просто в init(), і
+   «Списання» не відкривалось узагалі — на одному конкретному пристрої. Ззовні це
+   виглядало як «у конкретного бармена не працює», хоча сервер віддавав усе.
+   Тут ловимо й ВИДАЛЯЄМО битий ключ — наступне відкриття вже чисте.
+   ──────────────────────────────────────────────────────────────────────────── */
+function lsJson(key, fallback) {
+  let raw = null;
+  try { raw = localStorage.getItem(key); } catch { return fallback; }
+  if (raw == null || raw === '') return fallback;
+  try {
+    const v = JSON.parse(raw);
+    return (v === null || v === undefined) ? fallback : v;
+  } catch {
+    console.warn('[Writeoff] битий localStorage, чищу:', key);
+    try { localStorage.removeItem(key); } catch {}
+    return fallback;
+  }
+}
+
 /* ════════════════════════
    DATA
 ════════════════════════ */
@@ -1081,9 +1103,9 @@ function getWoAccounts() {
   if (!vId) return [];
   // Пріоритет: адмін-налаштовані > fallback з Syrve
   try {
-    const saved = JSON.parse(localStorage.getItem(`barops_wo_accounts_${vId}`) || '[]');
+    const saved = lsJson(`barops_wo_accounts_${vId}`, []);
     if (saved.length > 0) return saved;
-    return JSON.parse(localStorage.getItem(`barops_syrve_accounts_${vId}`) || '[]');
+    return lsJson(`barops_syrve_accounts_${vId}`, []);
   } catch { return []; }
 }
 function autoSelectAccount() {
@@ -1917,14 +1939,13 @@ const isServerId = id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.
 const MARK_Q_KEY = 'barops_wo_marksent_pending';
 function queueMarkSent(ids) {
   try {
-    const q = new Set(JSON.parse(localStorage.getItem(MARK_Q_KEY) || '[]'));
+    const q = new Set(lsJson(MARK_Q_KEY, []));
     ids.forEach(i => q.add(i));
     localStorage.setItem(MARK_Q_KEY, JSON.stringify([...q].slice(-500)));
   } catch {}
 }
 async function flushMarkSent() {
-  let q = [];
-  try { q = JSON.parse(localStorage.getItem(MARK_Q_KEY) || '[]'); } catch {}
+  const q = lsJson(MARK_Q_KEY, []);
   if (!q.length) return;
   const token = localStorage.getItem('barops_token');
   if (!token) return;
@@ -1943,7 +1964,7 @@ async function flushMarkSent() {
 function markNoSrv(entry, vId) {
   entry.noSrv = true;
   try {
-    const r = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    const r = lsJson('barops_writeoffs_v1', {});
     const i = (r[vId] || []).findIndex(w => w.id === entry.id);
     if (i !== -1) { r[vId][i].noSrv = true; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r)); }
   } catch {}
@@ -2028,7 +2049,7 @@ async function submitFormImpl() {
       _writeoffs[idx] = updated;
 
       const vId = localStorage.getItem('barops_venueId') || '';
-      const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+      const raw = lsJson('barops_writeoffs_v1', {});
       if (raw[vId]) {
         const li = raw[vId].findIndex(w => w.id === _editId);
         if (li !== -1) raw[vId][li] = updated; else raw[vId].push(updated);
@@ -2061,7 +2082,7 @@ async function submitFormImpl() {
         if (saved?.data?.id) {
           updated.id = saved.data.id;
           delete updated.noSrv;
-          const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+          const r2 = lsJson('barops_writeoffs_v1', {});
           const li2 = (r2[vId] || []).findIndex(w => w.id === editedId);
           if (li2 !== -1) { r2[vId][li2].id = saved.data.id; delete r2[vId][li2].noSrv; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
         } else {
@@ -2084,7 +2105,7 @@ async function submitFormImpl() {
     const items = _woCart.filter(c => (parseFloat(c.vol) || 0) > 0);
     if (!items.length) return;
     const vId = localStorage.getItem('barops_venueId') || '';
-    const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    const raw = lsJson('barops_writeoffs_v1', {});
     if (!raw[vId]) raw[vId] = [];
     const entries = [];
     for (const it of items) {
@@ -2127,7 +2148,7 @@ async function submitFormImpl() {
         }
         if (saved?.data?.id) {
           const oldId = e.id; e.id = saved.data.id;
-          const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+          const r2 = lsJson('barops_writeoffs_v1', {});
           const idx = (r2[vId] || []).findIndex(w => w.id === oldId);
           if (idx !== -1) { r2[vId][idx].id = saved.data.id; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
         } else {
@@ -2189,7 +2210,7 @@ async function submitFormImpl() {
 
   // Зберігаємо в localStorage
   const vId = localStorage.getItem('barops_venueId') || '';
-  const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+  const raw = lsJson('barops_writeoffs_v1', {});
   if (!raw[vId]) raw[vId] = [];
   raw[vId].push(entry);
   localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
@@ -2211,7 +2232,7 @@ async function submitFormImpl() {
     if (saved?.data?.id) {
       entry.id = saved.data.id;
       // Оновлюємо ID в localStorage
-      const r2 = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+      const r2 = lsJson('barops_writeoffs_v1', {});
       const idx = (r2[vId] || []).findIndex(w => w.ts === entry.ts && w.prod === entry.prod);
       if (idx !== -1) { r2[vId][idx].id = entry.id; localStorage.setItem('barops_writeoffs_v1', JSON.stringify(r2)); }
     }
@@ -2233,7 +2254,7 @@ function closeSuccessExit() { _succOpen=false; _formOpen=false; fullRender(); }
 /* ── Переміщення бар↔кухня ── */
 function saveTransfers() {
   const vId = localStorage.getItem('barops_venueId') || '';
-  const raw = JSON.parse(localStorage.getItem('barops_transfers_v1') || '{}');
+  const raw = lsJson('barops_transfers_v1', {});
   raw[vId] = _transfers;
   localStorage.setItem('barops_transfers_v1', JSON.stringify(raw));
 }
@@ -2698,7 +2719,7 @@ async function doSendActToSyrve() {
     if (localOnly) console.warn(`[Writeoff] ${localOnly} поз. без серверного id — на сервері лишаються ненадісланими`);
     const nowIso = new Date().toISOString();
     for (const w of sentItems) w.sentAt = nowIso;   // зникають із «не відправлені», лишаються в історії
-    const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    const raw = lsJson('barops_writeoffs_v1', {});
     raw[vId] = _writeoffs;
     localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
 
@@ -2836,7 +2857,7 @@ async function deleteWriteoff(id) {
   _writeoffs.splice(idx, 1);
   // Оновити localStorage
   const vId = localStorage.getItem('barops_venueId') || '';
-  const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+  const raw = lsJson('barops_writeoffs_v1', {});
   raw[vId] = _writeoffs;
   localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
   fullRender();
@@ -2881,11 +2902,11 @@ export default {
 
     // Завантажуємо списання: спочатку з localStorage (швидко), потім замінюємо з бекенду
     const vId = localStorage.getItem('barops_venueId') || state.venueId || '';
-    try { _sentHistory = JSON.parse(localStorage.getItem(`barops_wo_history_${vId}`) || '[]'); } catch { _sentHistory = []; }
-    const stored = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+    try { _sentHistory = lsJson(`barops_wo_history_${vId}`, []); } catch { _sentHistory = []; }
+    const stored = lsJson('barops_writeoffs_v1', {});
     _writeoffs = stored[vId] || [];
     _formMode  = 'writeoff';
-    try { const ts = JSON.parse(localStorage.getItem('barops_transfers_v1') || '{}'); _transfers = ts[vId] || []; } catch { _transfers = []; }
+    try { const ts = lsJson('barops_transfers_v1', {}); _transfers = ts[vId] || []; } catch { _transfers = []; }
 
     // Історія актів — головне джерело сервер, localStorage лише офлайн-кеш
     try {
@@ -2967,7 +2988,7 @@ export default {
         }
 
         // Оновлюємо кеш
-        const raw = JSON.parse(localStorage.getItem('barops_writeoffs_v1') || '{}');
+        const raw = lsJson('barops_writeoffs_v1', {});
         raw[vId] = _writeoffs;
         localStorage.setItem('barops_writeoffs_v1', JSON.stringify(raw));
       }
@@ -3002,7 +3023,7 @@ export default {
           // Але тільки якщо в fallback-кеші ще нічого немає (щоб не спамити Syrve API)
           // Зберігаємо під окремим ключем, щоб не забруднювати адмін-налаштований список
           const fallbackCached = (() => {
-            try { return JSON.parse(localStorage.getItem(`barops_syrve_accounts_${vId}`) || '[]'); } catch { return []; }
+            try { return lsJson(`barops_syrve_accounts_${vId}`, []); } catch { return []; }
           })();
           if (fallbackCached.length === 0) {
             try {
@@ -3031,7 +3052,7 @@ export default {
     const prodsKey = `barops_prods_v10_${vId}`;   // v10 — + bs (барні склади товару для ТОВ/ФОП-маршрутизації)
     let prodsCacheTs = 0;
     try {
-      const cached = JSON.parse(localStorage.getItem(prodsKey) || '{}');
+      const cached = lsJson(prodsKey, {});
       if (Array.isArray(cached.data) && cached.data.length) { _prods = cached.data; prodsCacheTs = cached.ts || 0; }
       if (Array.isArray(cached.dish)) _dishProds = cached.dish;   // посуд з кешу (fetch може пропуститись)
       if (cached.dishStoreId) _dishStoreId = cached.dishStoreId;
