@@ -10,10 +10,16 @@ import { applyTheme } from './theme.js';
 /* ══════════════════════════════════════
    1. ГЛОБАЛЬНИЙ СТАН
    ══════════════════════════════════════ */
+// ⚠ Це виконується на етапі ЗАВАНТАЖЕННЯ модуля, тобто до будь-якого try/catch
+// застосунку. Якщо localStorage кидає (приватний режим, заблоковане сховище у
+// WebView, побитий профіль) — не виконається app.js, за ним усі 34 сторінки, і
+// користувач побачить вічний спінер. Тому читаємо через безпечний хелпер.
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+
 export const state = {
-  role:    localStorage.getItem('barops_role')  || 'bartender',
-  venue:   localStorage.getItem('barops_venue') || '',
-  user:    localStorage.getItem('barops_user')  || '',
+  role:    lsGet('barops_role')  || 'bartender',
+  venue:   lsGet('barops_venue') || '',
+  user:    lsGet('barops_user')  || '',
   route:   'auth',
   history: [],
 };

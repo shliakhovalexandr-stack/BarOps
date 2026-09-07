@@ -17,6 +17,172 @@
   } catch(e){}
 })();
 </script>
+<script>
+/* ── BarOps: ловилка помилок ──────────────────────────────────────────────
+   КЛАСИЧНИЙ інлайн-скрипт у <head>, до всіх модулів — свідомо, не з ліні.
+   Увесь застосунок це ОДИН модульний граф: bootstrap робить top-level await на
+   34 імпорти без .catch(), і всі 34 сторінки тягнуть shared/app.js. Якщо app.js
+   не виконається (localStorage кидає в приватному режимі) або хоч один модуль не
+   доїде мережею бару — не рендериться НІЧОГО, людина бачить вічний спінер, а ми
+   не дізнаємось. Логер-модуль тут безсилий: він у тому ж графі.
+   Тому: ловимо тут, посилаємо збереженими посиланнями на fetch/sendBeacon. */
+(function () {
+  var API = 'https://barops-backend-production.up.railway.app';   // абсолютний! /api/* на Netlify переписується на функції
+  var BUILD = 'barops-v317';
+  window.__BAROPS_BUILD = BUILD;
+
+  var _fetch  = window.fetch && window.fetch.bind(window);
+  var _beacon = navigator.sendBeacon && navigator.sendBeacon.bind(navigator);
+  var _err    = (window.console && console.error) ? console.error.bind(console) : function () {};
+
+  /* Прочищення секретів. Дзеркало src/lib/redact.js на бекенді — тримати синхронно.
+     Найважливіше: Syrve кладе токен просто в адресу (?key=<40 hex>), а пароль —
+     як ?pass=<sha1>. У localStorage лежать JWT і refresh-токен. */
+  var RULES = [
+    [/([?&](?:key|pass|password|token|secret|api[-_]?key|access_token|apiKey|chatId|pin|licenseKey|login)=)[^&\s"'#\\]*/gi, '$1[REDACTED]'],
+    [/(?:\/bot)?\d{8,10}:[A-Za-z0-9_-]{30,}/g, '/bot[TG_BOT_TOKEN]'],
+    [/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, '[JWT]'],
+    [/\b(Bearer|iikoToken|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 [REDACTED]'],
+    [/\bbops_(live|test)_[A-Za-z0-9]{6,}/g, 'bops_$1_[REDACTED]'],
+    [/\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}/g, '[BCRYPT]'],
+    [/\b[0-9a-f]{64}\b/gi, '[HEX64]'],
+    [/\b[0-9a-f]{40}\b/gi, '[HEX40]'],
+    [/data:([a-z]+)\/[a-z.+-]{2,20};base64,[A-Za-z0-9+/=\s]{16,}/gi, 'data:$1/*;base64,[REDACTED]'],
+    [/\b[\w.+-]+@[\w-]+\.[\w.]{2,}\b/g, '[EMAIL]'],
+    [/\+380\d{9}\b/g, '[PHONE]'],
+  ];
+  function redact(v, max) {
+    var s = v == null ? '' : String(v);
+    try { for (var i = 0; i < RULES.length; i++) s = s.replace(RULES[i][0], RULES[i][1]); } catch (e) {}
+    max = max || 2000;
+    return s.length > max ? s.slice(0, max) + '…' : s;
+  }
+  window.__baropsRedact = redact;
+
+  function ls(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+
+  /* Контекст. Ніколи не кидає й не припускає, що app.js завантажився.
+     ⚠ З localStorage читаємо ЛИШЕ роль і заклад — ніколи токен. */
+  function ctx() {
+    var b = window.__barops, st = (b && b.state) || {};
+    var el = document.querySelector('.phone-frame');
+    return {
+      page:       (el && el.dataset && el.dataset.page) || st.route || 'boot',
+      role:       String(st.role || ls('barops_role') || '').toLowerCase(),
+      venueId:    st.venueId || ls('barops_venueId') || '',
+      userName:   String(st.userName || '').slice(0, 80),
+      appVersion: BUILD,
+      online:     navigator.onLine !== false,
+    };
+  }
+
+  /* Хлібні крихти: лише ФОРМА дії, ніколи вміст. У полях форм лежать паролі POS. */
+  var crumbs = [];
+  function crumb(type, info) {
+    try {
+      crumbs.push({ t: Date.now() % 1e7, type: type, info: String(info || '').slice(0, 80) });
+      if (crumbs.length > 20) crumbs.shift();
+    } catch (e) {}
+  }
+  window.__baropsCrumb = crumb;
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target.closest('[data-a],button,a') : null;
+    if (t) crumb('click', (t.dataset && t.dataset.a) || t.tagName);
+  }, true);
+
+  /* Запобіжники, щоб цикл помилок не завалив ні пристрій, ні базу. */
+  var perSig = {}, sentTotal = 0, suppressed = 0, busy = false, queue = [];
+  var MAX_PER_SIG = 20, MAX_TOTAL = 50;
+
+  function sigOf(msg, stack) {
+    var s = (String(msg).replace(/\d+/g, '#').slice(0, 120)) + '|' + String(stack || '').split('\n')[1];
+    var h = 0;
+    for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+    return String(h);
+  }
+
+  function report(name, message, stack, kind) {
+    if (busy) return;                                   // логер не логує сам себе
+    busy = true;
+    try {
+      var sig = sigOf(message, stack);
+      perSig[sig] = (perSig[sig] || 0) + 1;
+      if (perSig[sig] > MAX_PER_SIG || sentTotal >= MAX_TOTAL) { suppressed++; return; }
+      sentTotal++;
+      var c = ctx();
+      queue.push({
+        name: String(name || 'Error').slice(0, 60),
+        message: redact(message),
+        stack: redact(stack, 4000),
+        kind: kind || 'error',
+        page: c.page, role: c.role, venueId: c.venueId, userName: c.userName,
+        appVersion: c.appVersion, online: c.online,
+        breadcrumbs: crumbs.slice(-20),
+        suppressedCount: suppressed || undefined,
+      });
+      schedule();
+    } catch (e) { _err('[logger]', e && e.message); } finally { busy = false; }
+  }
+  window.__baropsReport = report;
+
+  var timer = null;
+  function schedule() { if (!timer) timer = setTimeout(flush, 2000); }
+  function flush() {
+    timer = null;
+    if (!queue.length) return;
+    var batch = queue.splice(0, 20);
+    var body = JSON.stringify({ events: batch });
+    try {
+      var tok = ls('barops_token');
+      if (!tok && _beacon) { _beacon(API + '/api/logs/client', new Blob([body], { type: 'text/plain' })); return; }
+      if (_fetch) {
+        _fetch(API + '/api/logs/client', {
+          method: 'POST', keepalive: true,
+          headers: { 'Content-Type': 'application/json', Authorization: tok ? 'Bearer ' + tok : '' },
+          body: body,
+        }).catch(function () {});                        // мовчки: збій відправки логів не має нічого ламати
+      } else if (_beacon) {
+        _beacon(API + '/api/logs/client', new Blob([body], { type: 'text/plain' }));
+      }
+    } catch (e) { _err('[logger flush]', e && e.message); }
+  }
+  addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
+
+  /* Гачки. Синхронні кидки — error; асинхронні (а це ~123 інлайн-обробники,
+     що викликають async-функції) — лише unhandledrejection. Потрібні обидва. */
+  addEventListener('error', function (e) {
+    if (e && e.target && e.target !== window && e.target.tagName) {   // не доїхав ресурс
+      report('ResourceError', 'не завантажився ' + e.target.tagName + ': ' + (e.target.src || e.target.href || ''), '', 'error');
+      return;
+    }
+    var err = e && e.error;
+    report(err && err.name, (err && err.message) || (e && e.message), err && err.stack);
+  }, true);
+  addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    report(r && r.name, (r && r.message) || String(r), r && r.stack);
+  });
+
+  /* Сторож: якщо через 8 с після завантаження застосунок так і не піднявся —
+     кажемо про це серверу і показуємо екран помилки замість вічного спінера. */
+  addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+      if (window.__barops) return;
+      report('BootstrapFailed', 'застосунок не піднявся за 8 с (модулі не завантажились?)', '', 'invariant');
+      flush();
+      try {
+        var l = document.getElementById('app-loading');
+        if (l) {
+          l.innerHTML = '<div class="error-screen"><h2>Не вдалося завантажити</h2>'
+            + '<p>Перевірте інтернет і спробуйте ще раз. Якщо не допомогло — закрийте застосунок і відкрийте знову.</p>'
+            + '<button onclick="location.reload()" style="margin-top:14px;height:44px;padding:0 20px;border-radius:12px;border:0;background:var(--green,#4ade80);color:#000;font-size:14px;font-weight:600;cursor:pointer">Спробувати ще раз</button></div>';
+        }
+      } catch (e) {}
+    }, 8000);
+  });
+})();
+</script>
 <title>BarOps</title>
 <meta name="description" content="Розумний помічник для барменів: інвентаризація, накладні, списання"/>
 <meta name="theme-color" content="#000000"/>
@@ -371,7 +537,16 @@ body {
     import('./pages/abc.js'),
     import('./pages/pay-audit.js'),
     import('./pages/morshynska.js'),
-  ]);
+  ].map(function (pr, i) {
+    // Без цього збій ОДНОГО модуля = вічний спінер і жодного сліду: top-level await
+    // просто відхиляється, bootstrap() не викликається, екран лишається порожнім.
+    return pr.catch(function (e) {
+      if (window.__baropsReport) {
+        window.__baropsReport('ModuleLoadError', 'не завантажився модуль #' + i + ': ' + (e && e.message), e && e.stack, 'invariant');
+      }
+      throw e;
+    });
+  }));
 
   /* Реєструємо кожну сторінку — простий прямий об'єкт */
   const pages = [
