@@ -251,6 +251,21 @@ const TAB_BAR_TRAINEE = [
   },
 ];
 
+// Стажер — той самий обмежений доступ, ПЛЮС книга рецептів: він приходить учитися,
+// і без рецептів навчатися нема з чого. Решта обмежених ролей (ранер, прибиральниця,
+// хостес, охорона) рецептів не потребують — їм лишається графік.
+const TAB_BAR_TRAINEE_LEARN = [
+  TAB_BAR_TRAINEE[0],
+  {
+    route: 'recipe-book', label: 'Рецепти',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M4 4.5A1.5 1.5 0 015.5 3H17v14H5.5A1.5 1.5 0 004 18.5v-14z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M4 18.5A1.5 1.5 0 015.5 17H17v2H5.5A1.5 1.5 0 014 18.5zM8 7h6M8 10h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+  TAB_BAR_TRAINEE[1],
+];
+
 const TAB_BAR_ACCOUNTANT = [
   {
     route: 'dashboard', label: 'Головна',
@@ -838,8 +853,11 @@ export async function deleteVenue(id, name) {
 export async function navigate(route, opts = {}) {
   // Обмежені ролі (Стажер/Ранер/Хозяюшка) — доступ ЛИШЕ до графіку + профілю; будь-що інше → графік
   const _rlim = (state.role || '').toLowerCase();
-  if (SCHEDULE_ONLY_ROLES.includes(_rlim) && !['schedule', 'profile', 'auth'].includes(route)) {
-    route = 'schedule';
+  if (SCHEDULE_ONLY_ROLES.includes(_rlim)) {
+    const allowed = _rlim === 'trainee'
+      ? ['schedule', 'profile', 'auth', 'recipe-book']   // стажер ще й вчиться за рецептами
+      : ['schedule', 'profile', 'auth'];
+    if (!allowed.includes(route)) route = 'schedule';
   }
   const page = PAGES[route];
   if (!page) { console.warn(`[BarOps] Unknown route: "${route}"`); return; }
@@ -928,7 +946,8 @@ export function goBack() {
 function updateTabBarActive() {
   const el = document.getElementById('app-tab-bar');
   if (!el || !el.children.length) { renderTabBar(); return; }
-  const tabs = SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
+  const tabs = state.role === 'trainee' ? TAB_BAR_TRAINEE_LEARN
+             : SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
              : state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
              : state.role === 'admin' ? TAB_BAR_MANAGER
              : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
@@ -972,7 +991,8 @@ function updateDrawerActive() {
 function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
-  const tabs = SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
+  const tabs = state.role === 'trainee' ? TAB_BAR_TRAINEE_LEARN
+             : SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
              : state.role === 'admin'       ? TAB_BAR_MANAGER
              : state.role === 'manager'     ? TAB_BAR_MGR_JOURNAL
              : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
