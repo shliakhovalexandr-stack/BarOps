@@ -144,7 +144,6 @@ function getWeekDates(offset = 0) {
     return { d: DOW_SHORT[i], date: d, n: d.getDate(), m: d.getMonth(), weekend: i >= 5 };
   });
 }
-function dateKey(d) { return d.toISOString().split('T')[0]; }
 // TZ-безпечний ключ дати (локальний календарний день, без зсуву через UTC)
 function ymd(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -269,9 +268,6 @@ async function loadRosters() {
     })(),
   ]);
 
-  const stored = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
-  const vData  = stored[_venueId] || {};
-  const approvedOff = (JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}')[_venueId]) || {};
 
   _rosters = {};
   for (const [key, cfg] of Object.entries(ROLE_CONFIG)) {
@@ -300,39 +296,30 @@ async function loadRosters() {
     const people = applyOrder(key, basePeople);
 
     const grid = people.map(p => {
-      const emp = vData[p.id] || {};
-      const off = approvedOff[p.id] || {};
       const pub = pubByUser[p.id] || {};
       return weekDates.map(w => {
-        const slot = emp[dateKey(w.date)];
+        const day = ymd(w.date);
+        // Клітинка, що ще не доїхала на сервер, перекриває серверну правду — і рівно до
+        // підтвердження. Шару локальних чернеток із правилами свіжості за _ts більше немає:
+        // він давав найгірші баги цього екрана (застаріла чернетка воскрешала зміну поверх
+        // вихідного; маркер «Вих» переживав чистку кешу), а сенс мав лише поки запис був
+        // відкладеним. Тепер відкладеного запису не існує — є тільки недоставлений.
+        const pend = pendingCell(p.id, day);
+        if (pend) {
+          if (!pend.start)          return null;
+          if (pend.start === 'OFF') return { dayOff: true, pending: true };
+          return { s: pend.start, e: pend.end, station: pend.station || null, stationName: pend.stationName || '', pending: true };
+        }
         // бармени — мережево (будь-який заклад); решта — лише свій заклад
-        const ps = pub[ymd(w.date)];
-        // Локальна чернетка перекриває публікацію ЛИШЕ якщо новіша за неї.
-        // Інакше застаріла чернетка «воскрешала» стару зміну поверх опублікованого
-        // вихідного (симптом: поставив Вих → знову зміна; графік різний по закладах).
-        // Чернетки без _ts (старий формат) вважаємо застарілими → сервер головніший (самозагоєння).
-        const pubTs    = ps && ps.createdAt ? new Date(ps.createdAt).getTime() : 0;
-        const slotTs   = slot && slot._ts ? slot._ts : 0;
-        const slotFresh = slot && (!ps || slotTs > pubTs);
-        if (slot && slot.cleared && slotFresh) return null;   // свіжий тумбстоун — перекриває публікацію
-        if (slot && !slot.cleared && slotFresh) return { s: slot.start, e: slot.end, station: slot.station || null };
-        // Локальний маркер «Вих» — те саме правило свіжості, що й чернетки: перекриває
-        // публікацію ЛИШЕ якщо новіший за неї. Інакше старий маркер на цьому пристрої
-        // назавжди «воскрешав» вихідний поверх новішої публікації з іншого пристрою
-        // (симптом: змінив графік на телефоні → на ПК лишився старий навіть після
-        // чистки кешу, бо localStorage вона не чіпає). Маркери старого формату (true,
-        // без часу) вважаємо застарілими → сервер головніший (самозагоєння).
-        const offVal    = off[ymd(w.date)];
-        const offTs     = typeof offVal === 'number' ? offVal : 0;
-        const psVisible = ps && (key === 'bartenders' || ps.venueId === _venueId);
-        if (offVal && (!psVisible || offTs > pubTs)) return { dayOff: true };
-        if (psVisible) {
+        const ps = pub[day];
+        if (ps && (key === 'bartenders' || ps.venueId === _venueId)) {
           if (ps.s === 'OFF') return { dayOff: true, srcVenueId: ps.venueId };
           return { s: ps.s, e: ps.e, station: ps.station || null, stationName: ps.stationName || '', srcVenueId: ps.venueId };
         }
         return null;
       });
     });
+
 
     // Накласти ПІДТВЕРДЖЕНІ запити на вихідні в грід (за іменем — ростер барменів по іменах,
     // тому userId акаунта не збігається з id рядка). Працює ретроспективно й на будь-якому пристрої.
@@ -343,10 +330,9 @@ async function loadRosters() {
       if (pi < 0 && nm) pi = people.findIndex(p => (p.n || '').trim().toLowerCase() === nm);
       if (pi < 0 && nm) pi = people.findIndex(p => nameTokensMatch(p.n, nm));   // прізвище будь-де в імені
       if (pi < 0) continue;
-      const emp = vData[people[pi].id] || {};
       weekDates.forEach((w, di) => {
         if (!rq.dates.includes(ymd(w.date)) || grid[pi][di]) return;
-        if (emp[dateKey(w.date)]?.cleared) return;   // менеджер явно очистив клітинку — «Вих» не повертаємо
+        if (pendingCell(people[pi].id, ymd(w.date))) return;   // менеджер щойно чіпав клітинку — «Вих» не нав'язуємо
         grid[pi][di] = { dayOff: true };
       });
     }
@@ -356,33 +342,119 @@ async function loadRosters() {
   }
 }
 
-function saveShiftToStorage(roleKey, pi, di, value) {
-  const weekDates = getWeekDates(_weekOffset);
-  const dk    = dateKey(weekDates[di].date);
-  const empId = _rosters[roleKey]?.people[pi]?.id;
-  if (!empId || !_venueId) return;
-  const raw = JSON.parse(localStorage.getItem('barops_schedule_v1') || '{}');
-  if (!raw[_venueId]) raw[_venueId] = {};
-  if (!raw[_venueId][empId]) raw[_venueId][empId] = {};
-  if (value === null) { delete raw[_venueId][empId][dk]; }
-  else if (value.cleared) { raw[_venueId][empId][dk] = { cleared: true, _ts: Date.now() }; }   // тумбстоун: порожньо, перекриває СВІЖУ публікацію
-  else { raw[_venueId][empId][dk] = { start: value.s, end: value.e, station: value.station || null, _ts: Date.now() }; }
-  localStorage.setItem('barops_schedule_v1', JSON.stringify(raw));
+/* ── Черга відправки (outbox) ──────────────────────────────────────────
+ * Клітинка їде на сервер одразу, тому локальної копії графіка тут більше немає:
+ * джерело правди — сервер. Лишається рівно те, що ЩЕ НЕ ДОЇХАЛО, і живе воно до
+ * першого підтвердження. Це навмисно НЕ чернетка: чернетка мала правила свіжості
+ * й уміла перемагати сервер, через що поверталися вже стерті зміни.
+ */
+const OUTBOX_KEY = 'barops_sch_outbox_v1';
+
+let _outboxCache = null;
+function outboxAll() {
+  if (_outboxCache) return _outboxCache;
+  try { _outboxCache = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '{}'); } catch { _outboxCache = {}; }
+  return _outboxCache;
+}
+function outboxWrite(all) {
+  _outboxCache = all;
+  localStorage.setItem(OUTBOX_KEY, JSON.stringify(all));
+}
+function outboxKey(venueId, userId, date) { return `${venueId}|${userId}|${date}`; }
+function outboxCount() { return Object.keys(outboxAll()).length; }
+
+// Недоставлена клітинка (перекриває серверну правду). undefined — у черзі нічого.
+function pendingCell(userId, day) { return outboxAll()[outboxKey(_venueId, userId, day)]; }
+
+function queueCell(payload) {
+  const all = outboxAll();
+  all[outboxKey(payload.venueId, payload.userId, payload.date)] = payload;
+  outboxWrite(all);
+  paintSaveStatus();
+  flushOutbox();
 }
 
-// Вихідний (день відпочинку) — окреме сховище за ymd
-function saveDayOffToStorage(roleKey, pi, di, on) {
-  const weekDates = getWeekDates(_weekOffset);
-  const yk    = ymd(weekDates[di].date);
-  const empId = _rosters[roleKey]?.people[pi]?.id;
-  if (!empId || !_venueId) return;
-  const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
-  if (!raw[_venueId]) raw[_venueId] = {};
-  if (!raw[_venueId][empId]) raw[_venueId][empId] = {};
-  if (on) raw[_venueId][empId][yk] = Date.now();   // час — щоб публікація новіша за маркер перемагала
-  else    delete raw[_venueId][empId][yk];
-  localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
+// Клітинка гриду → payload. start: '' прибрати · 'OFF' вихідний · час — зміна
+function queueCellFromGrid(roleKey, pi, di, value) {
+  const person = _rosters[roleKey]?.people[pi];
+  if (!person || !_venueId) return;
+  const stns = _stations[roleKey] || [];
+  const stn  = value && !value.dayOff && value.station ? stns.find(x => x.id === value.station) : null;
+  queueCell({
+    venueId:     _venueId,
+    userId:      person.id,
+    userName:    person.n || '',
+    role:        person.role || '',
+    date:        ymd(getWeekDates(_weekOffset)[di].date),
+    start:       !value ? '' : (value.dayOff ? 'OFF' : (value.s || '')),
+    end:         !value || value.dayOff ? '' : (value.e || ''),
+    station:     !value || value.dayOff ? null : (value.station || null),
+    stationName: stn ? stn.label : '',
+    _ts:         Date.now(),
+  });
 }
+
+let _flushing     = false;
+let _flushAgain   = false;   // клітинку чіпнули, поки йшов прогін
+let _flushTimer   = null;
+let _outboxFailed = false;   // останній прогін не пройшов → пропонуємо «Повторити»
+
+async function flushOutbox() {
+  if (_flushing) { _flushAgain = true; return; }
+  _flushing = true;
+  clearTimeout(_flushTimer);
+  const token = localStorage.getItem('barops_token');
+  let failed   = false;
+  let rejected = false;
+  try {
+    for (const [key, payload] of Object.entries(outboxAll())) {
+      try {
+        const res  = await fetch(`${API}/api/schedule/cell`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          // 4xx — відмова назавжди (немає доступу, битий запис). Тримати таке в черзі
+          // означало б вічне «Не збереглося» і повтори кожні 15 с до кінця часів.
+          // Прибираємо з черги й перечитуємо тиждень, щоб у сітці була серверна правда,
+          // а не фантом, якого на сервері немає.
+          if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+            console.warn('[schedule] сервер відхилив клітинку:', res.status, data.error || '');
+            const all = outboxAll();
+            if (all[key] && all[key]._ts === payload._ts) { delete all[key]; outboxWrite(all); }
+            rejected = true;
+            continue;
+          }
+          failed = true;
+          continue;
+        }
+        // Знімаємо з черги, ЛИШЕ якщо за час запиту клітинку не переписали ще раз —
+        // інакше свіжіша правка зникла б, так і не доїхавши
+        const all = outboxAll();
+        if (all[key] && all[key]._ts === payload._ts) { delete all[key]; outboxWrite(all); }
+      } catch { failed = true; }
+    }
+  } finally { _flushing = false; }
+  _outboxFailed = failed;
+  paintSaveStatus();
+  if (rejected) reloadData().then(re).catch(() => {});   // сітку — до серверної правди
+  if (_flushAgain) { _flushAgain = false; return flushOutbox(); }
+  if (failed) _flushTimer = setTimeout(flushOutbox, 15000);   // мережа впала — пробуємо самі
+}
+
+function saveStatusHtml() {
+  const n = outboxCount();
+  if (n && _outboxFailed) return `<button class="sch-save sch-save-err" onclick="window.__sch.retrySave()">Не збереглося (${n}) · Повторити</button>`;
+  if (n)                  return `<div class="sch-save">Збереження…</div>`;
+  return `<div class="sch-save">Збережено ✓</div>`;
+}
+function paintSaveStatus() {
+  const el = document.getElementById('sch-savebar');
+  if (el) el.innerHTML = saveStatusHtml();
+}
+
 
 // Спільні станції з сервера; якщо сервер порожній, а локально є — засіваємо (з пристрою, де редагували)
 async function loadStations() {
@@ -564,13 +636,6 @@ async function loadMyDayoff() {
   } catch (e) { console.warn('[dayoff] mine:', e); }
 }
 
-function findReqById(id) {
-  for (const r of Object.values(_rosters)) {
-    const f = (r.requests || []).find(x => x.id === id);
-    if (f) return f;
-  }
-  return null;
-}
 // Чи «a» і «b» — та сама людина. Слова зіставляються з урахуванням префіксів («Влад»≈«Владислав»).
 // Правила: (1) є спільне слово ≥3 літер (прізвище першим АБО останнім, порівняння лише перших слів
 // плодило дублі); (2) АЛЕ якщо в ОБОХ імен лишаються НЕспівставлені повні слова — це РІЗНІ люди
@@ -585,41 +650,6 @@ function nameTokensMatch(a, b) {
   const restB = tb.filter(y => !ta.some(x => eq(x, y)));
   return !(restA.length && restB.length);                                // конфлікт повних слів з обох боків = різні люди
 }
-// id рядка ростера для запиту: за userId, інакше за іменем/прізвищем
-// (ростер барменів — по іменах, тому userId акаунта не збігається з id рядка)
-function resolveReqPersonId(req) {
-  if (!req) return '';
-  for (const r of Object.values(_rosters)) { const p = r.people.find(x => x.id === req.userId); if (p) return p.id; }
-  const nm = (req.who || '').trim().toLowerCase();
-  for (const r of Object.values(_rosters)) { const p = r.people.find(x => (x.n || '').trim().toLowerCase() === nm); if (p) return p.id; }
-  if (nm) for (const r of Object.values(_rosters)) { const p = r.people.find(x => nameTokensMatch(x.n, nm)); if (p) return p.id; }
-  return req.userId || '';
-}
-// Підтверджений запит → позначаємо дати як вихідні у графіку (окреме сховище за ymd)
-function markApprovedOff(req) {
-  if (!req || !Array.isArray(req.dates) || !req.dates.length) return;
-  const uid = resolveReqPersonId(req);
-  if (!uid) return;
-  const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
-  if (!raw[_venueId]) raw[_venueId] = {};
-  if (!raw[_venueId][uid]) raw[_venueId][uid] = {};
-  for (const d of req.dates) raw[_venueId][uid][d] = Date.now();   // час — для правила свіжості vs публікація
-  localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
-}
-// Скасування підтвердженого запиту → знімаємо його дати з локальних позначок «Вих» (інакше цей
-// пристрій продовжував би малювати вихідний навіть після відхилення)
-function unmarkApprovedOff(req) {
-  if (!req || !Array.isArray(req.dates) || !req.dates.length) return;
-  const uid = resolveReqPersonId(req);
-  if (!uid) return;
-  try {
-    const raw = JSON.parse(localStorage.getItem('barops_dayoff_approved_v1') || '{}');
-    if (!raw[_venueId] || !raw[_venueId][uid]) return;
-    for (const d of req.dates) delete raw[_venueId][uid][d];
-    localStorage.setItem('barops_dayoff_approved_v1', JSON.stringify(raw));
-  } catch {}
-}
-
 /* ════════════════════════════════════════
    HELPERS
 ════════════════════════════════════════ */
@@ -770,7 +800,7 @@ function renderNetworkGrid() {
     return `<th class="${cls}">${w.d}<br><span style="font-size:10px;font-weight:400">${w.n}</span></th>`;
   }).join('');
   const bodyRows = r.people.length === 0
-    ? `<tr><td colspan="8"><div style="padding:16px 0;color:var(--text3);font-size:12px;text-align:center">Графік на цей тиждень ще не опубліковано.</div></td></tr>`
+    ? `<tr><td colspan="8"><div style="padding:16px 0;color:var(--text3);font-size:12px;text-align:center">Графік на цей тиждень ще не складено.</div></td></tr>`
     : r.people.map((p, pi) => {
         const cells = r.grid[pi].map(cell => {
           if (!cell) return `<td><div class="sch-cell-off"><svg width="10" height="10" viewBox="0 0 16 2" fill="none"><path d="M0 1h16" stroke="var(--border2)" stroke-width="1.5"/></svg></div></td>`;
@@ -905,6 +935,8 @@ const CSS = `<style id="sch-css">
 .sch-cta{flex:1;height:52px;border-radius:14px;background:var(--green);border:none;font-size:15px;font-weight:600;color:var(--fab-ink);cursor:pointer;letter-spacing:-.01em;font-family:inherit}
 .sch-cta:active{opacity:.85}.sch-cta:disabled{opacity:.35;cursor:not-allowed}
 .sch-cta-sec{flex:1;height:52px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border);font-size:14px;font-weight:500;color:var(--text1);cursor:pointer;font-family:inherit}
+.sch-save{flex:1;height:52px;border-radius:14px;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:500;color:var(--text2);font-family:inherit}
+.sch-save-err{background:transparent;border-color:var(--red);color:var(--red);cursor:pointer}
 .sch-ov{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.76);display:flex;flex-direction:column;justify-content:flex-end;animation:schOvIn .18s ease}
 @keyframes schOvIn{from{opacity:0}to{opacity:1}}
 .sch-sheet{background:var(--bg1);border-radius:22px 22px 0 0;border-top:0.5px solid var(--border);padding:0 0 40px;animation:schSl .26s cubic-bezier(.22,1,.36,1);max-height:82vh;overflow-y:auto}
@@ -1216,7 +1248,7 @@ function renderRoleView(roleKey) {
   ).join('');
 
   const bar = canEditDept(roleKey)
-    ? `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.publishSchedule()">Опублікувати графік</button></div>`
+    ? `<div class="sch-bar" id="sch-savebar">${saveStatusHtml()}</div>`
     : `<div class="sch-bar"><button class="sch-cta" onclick="window.__sch.goBooking()">Забронювати вихідні</button></div>`;
 
   const editPill = canEditDept(roleKey)
@@ -1609,10 +1641,16 @@ export function init() {
     document.addEventListener('visibilitychange', async () => {
       if (document.visibilityState !== 'visible') return;
       if (!document.querySelector('.sch-wrap')) return;   // сторінка графіка не відкрита
+      flushOutbox();   // мережа могла повернутись, поки вкладка була у фоні
       if (Date.now() - _lastLoadAt < 60000) return;
       await reloadData(); re();
     });
+    window.addEventListener('online', flushOutbox);
+    window.addEventListener('storage', e => {   // чергу міг поповнити інший таб
+      if (e.key === OUTBOX_KEY) { _outboxCache = null; paintSaveStatus(); }
+    });
   }
+  flushOutbox();   // те, що не долетіло минулого сеансу
   window.__sch = {
     goHub()     { _view = 'hub'; _mode = 'view'; re(); },
     goRole(key) {
@@ -1637,74 +1675,9 @@ export function init() {
       re();
     },
 
-    async publishSchedule() {
-      if (!canEditDept(_role)) return;
-      // Перед публікацією ПЕРЕЧИТУЄМО дані: стара відкрита вкладка інакше публікує
-      // застарілу сітку з памʼяті й перетирає свіжі публікації з інших пристроїв
-      // (кейс 2026-07-17: публікація Тераси о 14:44 затерла Вихідні, поставлені
-      // з Дім18 о 13:31). Свіжі локальні правки (_ts новіші) переживають злиття.
-      const btn0 = document.querySelector('.sch-bar .sch-cta');
-      if (btn0) { btn0.disabled = true; btn0.textContent = 'Оновлення…'; }
-      try { await loadRosters(); } catch {}
-      re();   // показати те, що реально піде в публікацію
-      const weekDates = getWeekDates(_weekOffset);
-      const weekStart = ymd(weekDates[0].date);
-      const myVenueId = state.venueId || localStorage.getItem('barops_venueId') || '';
-      const shifts = [];
-      for (const [roleKey, r] of Object.entries(_rosters)) {
-        const stns = _stations[roleKey] || [];
-        r.people.forEach((p, pi) => {
-          (r.grid[pi] || []).forEach((cell, di) => {
-            // Клітинка з ЧУЖОЇ публікації (мережеві бармени: зміна опублікована іншим закладом) —
-            // НЕ поглинаємо: інакше кожен заклад дублював чужий графік у своїх рядках, і стара копія
-            // потім перетирала свіжі правки (Влад Шевченко «збивався» після публікації)
-            if (cell && cell.srcVenueId && cell.srcVenueId !== myVenueId) return;
-            if (cell && cell.s) {   // реальна зміна
-              const stn = stns.find(x => x.id === cell.station);
-              shifts.push({
-                userId: p.id, userName: p.n, role: p.role,
-                date: ymd(weekDates[di].date),
-                start: cell.s, end: cell.e,
-                station: cell.station || null,
-                stationName: stn ? stn.label : '',
-              });
-            } else if (cell && cell.dayOff) {   // вихідний — публікуємо маркером OFF
-              shifts.push({
-                userId: p.id, userName: p.n, role: p.role,
-                date: ymd(weekDates[di].date),
-                start: 'OFF', end: '', station: null, stationName: '',
-              });
-            }
-          });
-        });
-      }
-      const token = localStorage.getItem('barops_token');
-      const btn   = document.querySelector('.sch-bar .sch-cta');
-      if (btn) { btn.disabled = true; btn.textContent = 'Публікація…'; }
-      try {
-        const vId  = state.venueId || localStorage.getItem('barops_venueId') || '';
-        const send = (confirmReplace) => fetch(`${API}/api/schedule/publish`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ venueId: vId, weekStart, shifts, ...(confirmReplace ? { confirmReplace: true } : {}) }),
-        });
-        let res  = await send(false);
-        let data = await res.json();
-        // Сервер упізнав небезпечну публікацію (порожній тиждень або різке скорочення —
-        // типова ознака застарілої вкладки). Питаємо, а не тихо стираємо готовий графік.
-        if (res.status === 409 && data.needsConfirm) {
-          const okReplace = await askReplace(data);
-          if (!okReplace) { if (btn) { btn.disabled = false; btn.textContent = 'Опублікувати графік'; } return; }
-          res  = await send(true);
-          data = await res.json();
-        }
-        if (!data.success) throw new Error(data.error || 'Помилка');
-        if (btn) btn.textContent = 'Опубліковано ✓';
-      } catch (e) {
-        console.error('[schedule] publish:', e);
-        if (btn) { btn.disabled = false; btn.textContent = 'Опублікувати графік'; }
-      }
-    },
+    // Черга повторює спроби сама; кнопка потрібна, лише коли мережа лягла надовго
+    async retrySave() { await flushOutbox(); re(); },
+
 
     // ── Cell sheet ──────────────────────────
     openCellSheet(roleKey, pi, di) {
@@ -1745,6 +1718,18 @@ export function init() {
       re();
     },
     async removeBarFromSchedule(id) {
+      // Зміни знятого бармена раніше прибирала наступна публікація — вона змітала весь
+      // тиждень. Публікації більше немає, тому чистимо його клітинки явно: інакше людина
+      // зникає з ростера, а її зміни лишаються висіти у команди на очах.
+      const bi = (_rosters.bartenders?.people || []).findIndex(p => p.id === id);
+      if (bi >= 0) {
+        const row = _rosters.bartenders.grid[bi] || [];
+        getWeekDates(_weekOffset).forEach((w, di) => {
+          const cell = row[di];
+          if (!cell || (cell.srcVenueId && cell.srcVenueId !== _venueId)) return;   // чужа зміна — не наша справа
+          queueCellFromGrid('bartenders', bi, di, null);
+        });
+      }
       try {
         const token = localStorage.getItem('barops_token');
         await fetch(`${API}/api/schedule/bartender-roster/${id}`, {
@@ -1829,21 +1814,19 @@ export function init() {
             e: document.getElementById('sch-t-end')?.value   || _rdef.e,
             station: station || null };
       _rosters[roleKey].grid[pi][di] = value;
-      saveShiftToStorage(roleKey, pi, di, isOff ? null : value);   // зняти зміну, якщо вихідний
-      saveDayOffToStorage(roleKey, pi, di, isOff);                  // поставити/зняти вихідний
+      queueCellFromGrid(roleKey, pi, di, value);   // одразу на сервер — команда бачить те саме
       _cellSheet = null;
       document.getElementById('sch-cell-ov')?.remove();
       re();
     },
 
-    // Прибрати клітинку → порожньо (ані зміна, ані вихідний). Тумбстоун перекриває
-    // опубліковану зміну до наступної публікації; повторна публікація (full-replace) прибере її назовсім.
+    // Прибрати клітинку → порожньо (ані зміна, ані вихідний). Порожнеча теж їде на
+    // сервер, тому її видно всім, а не лише цьому пристрою.
     clearCell() {
       if (!_cellSheet) return;
       const { roleKey, pi, di } = _cellSheet;
       _rosters[roleKey].grid[pi][di] = null;
-      saveShiftToStorage(roleKey, pi, di, { cleared: true });   // тумбстоун «порожньо»
-      saveDayOffToStorage(roleKey, pi, di, false);               // зняти вихідний, якщо був
+      queueCellFromGrid(roleKey, pi, di, null);
       _cellSheet = null;
       document.getElementById('sch-cell-ov')?.remove();
       re();
@@ -1951,24 +1934,20 @@ export function init() {
     async approveReq(roleKey, ri) {
       const req = _rosters[roleKey]?.requests[ri];
       if (!req) return;
-      markApprovedOff(req);
       await patchDayOff(req.id, 'approved');
       await reloadData(); re();
     },
     async rejectReq(roleKey, ri) {
       const req = _rosters[roleKey]?.requests[ri];
       if (!req) return;
-      unmarkApprovedOff(req);   // якщо був підтверджений — знімаємо локальні позначки «Вих»
       await patchDayOff(req.id, 'rejected');
       await reloadData(); re();
     },
     async hubApproveReq(id) {
-      const req = findReqById(id);
-      if (req) markApprovedOff(req);
       await patchDayOff(id, 'approved');
       await reloadData(); re();
     },
-    async hubRejectReq(id)  { unmarkApprovedOff(findReqById(id)); await patchDayOff(id, 'rejected'); await reloadData(); re(); },
+    async hubRejectReq(id)  { await patchDayOff(id, 'rejected'); await reloadData(); re(); },
 
     toggleDay(d) {
       if (_selDays.has(d)) _selDays.delete(d); else _selDays.add(d);
@@ -1999,30 +1978,6 @@ export function init() {
       }
     },
   };
-}
-
-// Підтвердження ризикованої публікації. Своя модалка — на цьому екрані немає
-// спільної, а нативний confirm() у застосунку не використовуємо.
-async function askReplace(info) {
-  return new Promise(resolve => {
-    const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
-    ov.innerHTML = `
-      <div style="width:100%;max-width:520px;background:var(--bg1);border-top-left-radius:20px;border-top-right-radius:20px;padding:20px 18px 24px;font-family:var(--font-b)">
-        <div style="font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);margin-bottom:8px">Це зітре опублікований графік</div>
-        <div style="font-size:13px;color:var(--text1);line-height:1.55">${info.error || ''}</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:8px;line-height:1.5">Найчастіша причина — стара вкладка з незавантаженою сіткою. Якщо ви не змінювали графік щойно, краще скасувати й перезавантажити сторінку.</div>
-        <div style="display:flex;gap:8px;margin-top:18px">
-          <button id="sch-rep-no"  style="flex:1;height:46px;border-radius:12px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text0);font-size:13px;font-family:var(--font-b);cursor:pointer">Скасувати</button>
-          <button id="sch-rep-yes" style="flex:1;height:46px;border-radius:12px;border:0;background:var(--red);color:#fff;font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer">Все одно опублікувати</button>
-        </div>
-      </div>`;
-    const done = v => { ov.remove(); resolve(v); };
-    ov.addEventListener('click', e => { if (e.target === ov) done(false); });
-    document.body.appendChild(ov);
-    ov.querySelector('#sch-rep-no').onclick  = () => done(false);
-    ov.querySelector('#sch-rep-yes').onclick = () => done(true);
-  });
 }
 
 export default { render, init };
