@@ -3,7 +3,7 @@
    Стани: pin | setup | admin-login | reg-1 | reg-2 | reg-3
    ============================================================ */
 
-import { navigate, state } from '../shared/app.js';
+import { navigate, state, setFeatures } from '../shared/app.js';
 import { ensurePushIfGranted } from '../shared/push.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
@@ -748,6 +748,8 @@ function saveSession(data) {
   }
   state.role = data.user.role;
   state.user = data.user.name;
+  // Набір фіч закладу приходить із логіном — щоб перший кадр уже був правильний
+  setFeatures(data.user.features);
 
   // Заклади перемикають лише admin / бухгалтер / керуючий — їм зберігаємо вибраний заклад.
   // Менеджер (і решта) привʼязані до СВОГО закладу акаунта — завжди беремо з логіну,
@@ -830,6 +832,7 @@ export default {
             if (data.user) {
               state.role = data.user.role;
               state.user = data.user.name;
+              setFeatures(data.user.features);
               const isMulti2 = ['admin', 'ADMIN', 'director', 'DIRECTOR', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
               const savedId2 = localStorage.getItem('barops_venueId');
               if (isMulti2 && savedId2) {
@@ -863,7 +866,8 @@ export default {
               } catch {}
             }
             ['barops_token','barops_refresh','barops_role','barops_user',
-             'barops_venue','barops_venueId','barops_telegram_topic'].forEach(k => localStorage.removeItem(k));
+             'barops_venue','barops_venueId','barops_telegram_topic',
+             'barops_features'].forEach(k => localStorage.removeItem(k));
             navigate('auth', { replace: true });
           }
         })

@@ -3,7 +3,7 @@
    Дашборд: реальні дані з /api/stats + switcher закладів
    ============================================================ */
 
-import { navigate, state, canSeeStock } from '../shared/app.js';
+import { navigate, state, canSeeStock, hasFeature, routeFeature, setFeatures } from '../shared/app.js';
 import { pushSupported, pushPermission, subscribePush } from '../shared/push.js';
 
 const API = 'https://barops-backend-production.up.railway.app';
@@ -668,6 +668,9 @@ function buildHTML() {
               // просто не існували — він не мав жодного способу їх побачити.
               : state.role === 'cook' ? [...QUICK_BARTENDER.filter(q => ['writeoff', 'schedule', 'inventory', 'ordering'].includes(q.route)), QUICK_PRODUCTION, QUICK_RECIPE_BOOK, tileByRoute()['journal']].filter(Boolean)
               : QUICK_BARTENDER;
+  // Обмежена мережа: лишаємо лише плитки дозволених розділів. Решта дашборду
+  // деградує сама — усі його запити вже під catch/allSettled, тож 403 тихий.
+  const quickF = quick.filter(q => hasFeature(routeFeature(q.route)));
   const s     = _stats;
   const unseen = unseenNotifCount();
   // Бейдж невиконаних чек-листів на тайлі «Журнал» (лише працівникам — у менеджерів своя аналітика)
@@ -852,10 +855,10 @@ ${CSS}
     </div>`).join('') : ''}
 
     <!-- Швидкі дії — секції-сітка (нагляд/операції за роллю); офіціант — одним блоком без назв -->
-    ${state.role === 'waiter' ? waiterTiles(quick)
-      : state.role === 'chef' ? dashTiles(quick, true, false, false)
-      : state.role === 'cook' ? dashTiles(quick, false, false)
-      : dashTiles(quick, isMgr, !isMgr && !isAcc)}
+    ${state.role === 'waiter' ? waiterTiles(quickF)
+      : state.role === 'chef' ? dashTiles(quickF, true, false, false)
+      : state.role === 'cook' ? dashTiles(quickF, false, false)
+      : dashTiles(quickF, isMgr, !isMgr && !isAcc)}
 
     <!-- Моя зміна сьогодні — дієві показники для бармена (клікабельні). Не показуємо: офіціанту/кухарю/шефу
          (борги/акциз — бар-операції; у шефа акцизу нема), менеджеру/бухгалтеру (мають свої екрани). -->
@@ -871,9 +874,9 @@ ${CSS}
     <div class="d-sec" style="padding-top:16px">Моя зміна сьогодні</div>
     ${_loading ? `<div class="d-tcard-row">${[1,2,3].map(()=>'<div class="d-skel" style="height:88px;border-radius:14px"></div>').join('')}</div>` : `
     <div class="d-tcard-row">
-      ${cell('debts',    dbt != null ? String(dbt) : '—', 'Борги',    dbt != null ? (dbt > 0 ? 'відкритих' : 'немає') : '—', dbt > 0 ? 'var(--amber)' : 'var(--green)')}
-      ${cell('writeoff', String(wo),                      'Списання', wo > 0 ? 'сьогодні' : 'чисто',                      wo > 0 ? 'var(--amber)' : 'var(--text3)')}
-      ${cell('excise',   ex != null ? String(ex) : '—',  'Акциз',    ex != null ? (ex > 0 ? 'досканувати' : 'немає') : '—', ex > 0 ? 'var(--red)' : 'var(--green)')}
+      ${hasFeature(routeFeature('debts'))    ? cell('debts',    dbt != null ? String(dbt) : '—', 'Борги',    dbt != null ? (dbt > 0 ? 'відкритих' : 'немає') : '—', dbt > 0 ? 'var(--amber)' : 'var(--green)') : ''}
+      ${hasFeature(routeFeature('writeoff')) ? cell('writeoff', String(wo),                      'Списання', wo > 0 ? 'сьогодні' : 'чисто',                      wo > 0 ? 'var(--amber)' : 'var(--text3)') : ''}
+      ${hasFeature(routeFeature('excise'))   ? cell('excise',   ex != null ? String(ex) : '—',  'Акциз',    ex != null ? (ex > 0 ? 'досканувати' : 'немає') : '—', ex > 0 ? 'var(--red)' : 'var(--green)') : ''}
     </div>`}`;
     })() : ''}
 
@@ -1034,6 +1037,9 @@ function selectVenue(id, name) {
   document.querySelector('.d-vsheet-ov')?.classList.remove('open');   // одразу сховати модалку
   state.venue      = name;
   state.venueId    = id;
+  // У дашборда власний перемикач, повз switchVenue() з app.js — тож набір фіч
+  // треба виставити й тут, інакше перехід у обмежену мережу лишав би повне меню
+  setFeatures((_venues.find(v => v.id === id) || {}).features || null);
   localStorage.setItem('barops_venue',   name);
   localStorage.setItem('barops_venueId', id);
   // Скидаємо ВСІ дані попереднього закладу й перезавантажуємо
@@ -1063,7 +1069,9 @@ async function openShift() {
         await loadStats();
         fullRender();
       } else {
-        alert(data.error || 'Помилка відкриття зміни');
+        alert(data.error === 'feature_disabled'
+          ? 'Цей розділ вимкнено для вашого закладу'
+          : (data.error || 'Помилка відкриття зміни'));
       }
     }
   } catch (err) {

@@ -15,6 +15,7 @@ import { applyTheme } from './theme.js';
 // WebView, побитий профіль) — не виконається app.js, за ним усі 34 сторінки, і
 // користувач побачить вічний спінер. Тому читаємо через безпечний хелпер.
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsJson(k) { try { const v = lsGet(k); return v ? JSON.parse(v) : null; } catch { return null; } }
 
 export const state = {
   role:    lsGet('barops_role')  || 'bartender',
@@ -22,6 +23,10 @@ export const state = {
   user:    lsGet('barops_user')  || '',
   route:   'auth',
   history: [],
+  // Перелік увімкнених фіч ЗАКЛАДУ. null = без обмежень (так у всіх наявних мереж).
+  // Гідратуємо синхронно з localStorage, як role — інакше перший кадр після
+  // перезавантаження показав би повне меню й воно б смикнулось.
+  features: lsJson('barops_features'),
 };
 
 // Бармен не бачить залишок Syrve НІДЕ (рішення власника 2026-08-28): інакше під час
@@ -29,6 +34,45 @@ export const state = {
 // систему. Стосується лише товарного залишку; підказки закупівлі та рух — лишаються.
 export function canSeeStock() {
   return (state.role || '').toLowerCase() !== 'bartender';
+}
+
+/* ── Обмежений набір фіч (напр. план 'lite' у тестової мережі) ──
+   Маршрут → фіча. Дзеркало PREFIX/POS у бекендному src/features.js.
+   Невідомий маршрут = ЗАБОРОНЕНО: інакше нова сторінка мовчки відкрилась би всім. */
+const ROUTE_FEATURE = {
+  auth: 'CORE', dashboard: 'CORE', profile: 'CORE',
+
+  inventory: 'inventory', dishware: 'dishware',
+  journal: 'journal', schedule: 'schedule', 'venue-edit': 'pos-admin',
+
+  team: 'team', manager: 'manager',
+  ocr: 'ocr', 'invoice-ocr': 'ocr',
+  writeoff: 'writeoff', disassembly: 'disassembly', production: 'production',
+  ordering: 'ordering', 'price-alert': 'ordering', morshynska: 'ordering',
+  excise: 'excise', debts: 'debts', cash: 'cash', 'pay-audit': 'cash',
+  analytics: 'stats', digest: 'stats', abc: 'stats',
+  performance: 'performance', discipline: 'performance',
+  'recipe-book': 'recipes', playlist: 'playlist',
+  'stop-list': 'stop-list', 'open-tables': 'open-tables', stock: 'stock',
+  'shift-log': 'shifts', 'current-shift': 'shifts', 'my-shift': 'shifts',
+};
+
+export function routeFeature(route) { return ROUTE_FEATURE[route] || null; }
+
+export function hasFeature(feature) {
+  if (!state.features) return true;        // мережа без обмежень
+  if (feature === 'CORE') return true;
+  return !!feature && state.features.includes(feature);
+}
+
+// Набір фіч приходить із закладом (логін, /auth/me, /auth/venues). Тримаємо його
+// і в state, і в localStorage — щоб перезавантаження не показало зайвого.
+export function setFeatures(list) {
+  state.features = Array.isArray(list) ? list : null;
+  try {
+    if (state.features) localStorage.setItem('barops_features', JSON.stringify(state.features));
+    else localStorage.removeItem('barops_features');
+  } catch { /* приватний режим — лишається в памʼяті */ }
 }
 
 export let MANAGER_VENUES = [];
@@ -65,10 +109,13 @@ async function loadVenuesIntoDrawer() {
     if (data.venues && data.venues.length > 0) {
       const savedId = localStorage.getItem('barops_venueId');
       MANAGER_VENUES = data.venues.map((v, i) => ({
-        id:     v.id,
-        name:   v.name,
-        pos:    v.posType === 'poster' ? 'Poster' : v.posType === 'manual' ? 'Ручний облік' : 'Syrve',
-        active: savedId ? v.id === savedId : i === 0,
+        id:       v.id,
+        name:     v.name,
+        pos:      v.posType === 'poster' ? 'Poster' : v.posType === 'manual' ? 'Ручний облік' : 'Syrve',
+        // Набір фіч їде разом із закладом — щоб switchVenue виставив його синхронно,
+        // ще до перемальовування, і меню не блимнуло чужим складом
+        features: Array.isArray(v.features) ? v.features : null,
+        active:   savedId ? v.id === savedId : i === 0,
       }));
       // fallback: якщо збережений ID не знайдено — перший заклад
       if (!MANAGER_VENUES.some(v => v.active)) MANAGER_VENUES[0].active = true;
@@ -76,6 +123,7 @@ async function loadVenuesIntoDrawer() {
       if (active) {
         state.venue   = active.name;
         state.venueId = active.id;
+        setFeatures(active.features);
         localStorage.setItem('barops_venue',   active.name);
         localStorage.setItem('barops_venueId', active.id);
       }
@@ -357,6 +405,74 @@ const TAB_BAR_MGR_JOURNAL = TAB_BAR_MANAGER.map(tab =>
     : tab
 );
 
+// Обмежена мережа: інвентаризації, посуд, журнал, графік. Окрема константа, а не
+// .filter() наявних масивів — фільтр лишив би дірку в центрі, а CSS .tab-bar__fab-wrap
+// розрахований саме на центральний FAB.
+const TAB_BAR_LITE = [
+  {
+    route: 'schedule', label: 'Графік',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="3" y="5" width="16" height="14" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 9h16M7 3v4M15 3v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'dishware', label: 'Посуд',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.4"/>
+      <circle cx="11" cy="11" r="3.5" stroke="currentColor" stroke-width="1.3"/>
+    </svg>`,
+  },
+  {
+    route: 'inventory', label: 'Інвентар', fab: true,
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M11 3l7 4v8l-7 4-7-4V7l7-4z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M4 7l7 4 7-4M11 11v8" stroke="white" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>`,
+  },
+  {
+    route: 'journal', label: 'Журнал',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="4" y="3" width="14" height="16" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M8 8h6M8 12h6M8 16h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    route: 'profile', label: 'Профіль',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M4 19c0-3.9 3.1-7 7-7h.5c3.9 0 6.5 3.1 6.5 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`,
+  },
+];
+
+// ЄДИНЕ місце вибору набору вкладок. Раніше цей тернарник був продубльований у
+// renderTabBar() і updateTabBarActive(), і копії вже розійшлися порядком гілок.
+// Набір фіч важить більше за роль: у обмеженій мережі адмін бачить те саме, що й бармен.
+// Прибирає з рольового таб-бару вкладки, вимкнені в цій мережі. Якщо не лишилось
+// нічого — віддаємо як є: порожній таб-бар гірший за зайву вкладку.
+function keepAllowed(tabs) {
+  if (!state.features) return tabs;
+  const kept = tabs.filter(t => hasFeature(routeFeature(t.route)));
+  return kept.length ? kept : tabs;
+}
+
+function tabsForRole() {
+  const r = state.role;
+  // Рольові обмеження СТРОГІШІ за набір фіч і мають пріоритет: інакше стажер
+  // отримав би повний lite-набір, з якого navigate() одразу викидає його назад.
+  if (r === 'trainee')                      return keepAllowed(TAB_BAR_TRAINEE_LEARN);
+  if (SCHEDULE_ONLY_ROLES.includes(r))      return keepAllowed(TAB_BAR_TRAINEE);
+  if (state.features)                       return TAB_BAR_LITE;
+  if (r === 'admin')                        return TAB_BAR_MANAGER;
+  if (r === 'manager' || r === 'director')  return TAB_BAR_MGR_JOURNAL;
+  if (r === 'accountant')                   return TAB_BAR_ACCOUNTANT;
+  if (r === 'cook')                         return TAB_BAR_COOK;
+  if (r === 'chef')                         return TAB_BAR_CHEF;
+  if (r === 'waiter')                       return TAB_BAR_WAITER;
+  return TAB_BAR_BARTENDER;
+}
+
 /* ══════════════════════════════════════
    4. DRAWER (менеджер)
    ══════════════════════════════════════ */
@@ -409,9 +525,10 @@ function renderDrawer() {
     <div data-drawer-scroll style="flex:1;overflow-y:auto;padding:8px 0">
       ${(() => {
         const r = (state.role || '').toLowerCase();
-        if (r === 'manager') return DRAWER_NAV.filter(i => !['ordering', 'writeoff', 'excise'].includes(i.route));
-        if (r === 'chef')    return DRAWER_NAV.filter(i => i.route !== 'excise');   // шеф: кухня без акцизу (бар/алкоголь)
-        return DRAWER_NAV;
+        let items = DRAWER_NAV;
+        if (r === 'manager') items = items.filter(i => !['ordering', 'writeoff', 'excise'].includes(i.route));
+        if (r === 'chef')    items = items.filter(i => i.route !== 'excise');   // шеф: кухня без акцизу (бар/алкоголь)
+        return items.filter(i => hasFeature(routeFeature(i.route)));            // обмежена мережа
       })().map(item => {
         const isActive = state.route === item.route;
         return `
@@ -683,7 +800,9 @@ export async function unarchiveVenue(id) {
     if (data.success) {
       ARCHIVED_VENUES = ARCHIVED_VENUES.filter(x => x.id !== id);
       if (!MANAGER_VENUES.some(x => x.id === id)) {
-        MANAGER_VENUES.push({ id: v.id, name: v.name, pos: v.pos, active: false });
+        // features обовʼязково: далі йде switchVenue(id), і без них набір фіч
+        // став би undefined → мережа втратила б обмеження до перезавантаження
+        MANAGER_VENUES.push({ id: v.id, name: v.name, pos: v.pos, features: v.features || null, active: false });
       }
       if (ARCHIVED_VENUES.length === 0) _archivedOpen = false;
       switchVenue(id);   // показуємо відновлений заклад одразу
@@ -701,6 +820,8 @@ export function switchVenue(id) {
   if (v) {
     state.venue   = v.name;
     state.venueId = v.id;
+    // ДО navigate(): інакше guard нижче звірятиме маршрут зі старим набором фіч
+    setFeatures(v.features);
     localStorage.setItem('barops_venue',   v.name);
     localStorage.setItem('barops_venueId', v.id);
   }
@@ -859,6 +980,15 @@ export async function navigate(route, opts = {}) {
       : ['schedule', 'profile', 'auth'];
     if (!allowed.includes(route)) route = 'schedule';
   }
+
+  // Обмежена мережа: маршрут поза набором фіч має бути недосяжним і напряму,
+  // не лише схованим у меню. Редирект, а не помилка — та сама поведінка,
+  // що й у гілці для стажера вище.
+  if (state.features && !hasFeature(routeFeature(route))) {
+    if (route === 'dashboard') return;     // CORE; запобіжник від рекурсії
+    return navigate('dashboard', { replace: true });
+  }
+
   const page = PAGES[route];
   if (!page) { console.warn(`[BarOps] Unknown route: "${route}"`); return; }
 
@@ -946,14 +1076,7 @@ export function goBack() {
 function updateTabBarActive() {
   const el = document.getElementById('app-tab-bar');
   if (!el || !el.children.length) { renderTabBar(); return; }
-  const tabs = state.role === 'trainee' ? TAB_BAR_TRAINEE_LEARN
-             : SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
-             : state.role === 'manager' || state.role === 'director' ? TAB_BAR_MGR_JOURNAL
-             : state.role === 'admin' ? TAB_BAR_MANAGER
-             : state.role === 'accountant' ? TAB_BAR_ACCOUNTANT
-             : state.role === 'cook' ? TAB_BAR_COOK
-             : state.role === 'chef' ? TAB_BAR_CHEF
-             : state.role === 'waiter' ? TAB_BAR_WAITER : TAB_BAR_BARTENDER;
+  const tabs = tabsForRole();
   // Якщо DOM не відповідає поточному набору вкладок (зміна ролі, додана вкладка тощо) — перемалювати
   const domRoutes = [...el.children].map(c => c.dataset.route || '');
   if (domRoutes.length !== tabs.length || tabs.some((t, i) => t.route !== domRoutes[i])) {
@@ -991,16 +1114,7 @@ function updateDrawerActive() {
 function renderTabBar() {
   const el = document.getElementById('app-tab-bar');
   if (!el) return;
-  const tabs = state.role === 'trainee' ? TAB_BAR_TRAINEE_LEARN
-             : SCHEDULE_ONLY_ROLES.includes(state.role) ? TAB_BAR_TRAINEE
-             : state.role === 'admin'       ? TAB_BAR_MANAGER
-             : state.role === 'manager'     ? TAB_BAR_MGR_JOURNAL
-             : state.role === 'director'    ? TAB_BAR_MGR_JOURNAL
-             : state.role === 'accountant'  ? TAB_BAR_ACCOUNTANT
-             : state.role === 'cook'        ? TAB_BAR_COOK
-             : state.role === 'chef'        ? TAB_BAR_CHEF
-             : state.role === 'waiter'      ? TAB_BAR_WAITER
-             : TAB_BAR_BARTENDER;
+  const tabs = tabsForRole();
   // Лого зліва — видно лише на десктопі (CSS ховає на телефоні); клік → головна
   const brand = `<div class="tab-bar__brand" onclick="window.__barops.navigate('dashboard')">bar<span>ops.</span></div>`;
   el.innerHTML = brand + tabs.map(tab => {
@@ -1216,9 +1330,11 @@ export async function bootstrap() {
       localStorage.removeItem('barops_venue');
       localStorage.removeItem('barops_role');
       localStorage.removeItem('barops_user');
-      state.role  = 'bartender';
-      state.venue = '';
-      state.user  = '';
+      localStorage.removeItem('barops_features');
+      state.role     = 'bartender';
+      state.venue    = '';
+      state.user     = '';
+      state.features = null;
       navigate('auth', { replace: true });
     },
   };

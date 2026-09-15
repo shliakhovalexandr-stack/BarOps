@@ -114,6 +114,10 @@ const BASE_DEFAULTS = {
 };
 const DEFAULTS = JSON.parse(JSON.stringify(BASE_DEFAULTS));   // робоча копія (мутується + персиститься)
 function defaultsKey() { return 'barops_sch_def_' + (_venueId || state.venueId || localStorage.getItem('barops_venueId') || ''); }
+
+// Активний заклад із перемикача. Мережеві запити мають іти в ТУ мережу, де людина
+// працює зараз, а не в домашню з токена: один акаунт може вести кілька мереж.
+function activeVenueId() { return _venueId || state.venueId || localStorage.getItem('barops_venueId') || ''; }
 // Відновити стандартні зміни закладу з localStorage (інакше скидались на захардкоджені)
 function loadDefaults() {
   for (const k of Object.keys(BASE_DEFAULTS)) DEFAULTS[k] = { ...BASE_DEFAULTS[k] };   // reset до бази (без bleed між закладами)
@@ -252,7 +256,7 @@ async function loadRosters() {
     (async () => {
       // опубліковані зміни (залежить від тижня) — щоб графік було видно на будь-якому пристрої
       try {
-        const pubRes = await fetch(`${API}/api/schedule/network?weekStart=${wkStart}`, { headers: H });
+        const pubRes = await fetch(`${API}/api/schedule/network?weekStart=${wkStart}&venueId=${activeVenueId()}`, { headers: H });
         if (pubRes.ok) {
           for (const s of ((await pubRes.json()).shifts || [])) {
             // Дублікати user+date з різних закладів (старі публікації, що «поглинули» чужий графік) —
@@ -535,7 +539,7 @@ async function loadNetwork() {
   const weekStart = ymd(weekDates[0].date);
   let shifts = [];
   try {
-    const res = await fetch(`${API}/api/schedule/network?weekStart=${weekStart}`, {
+    const res = await fetch(`${API}/api/schedule/network?weekStart=${weekStart}&venueId=${activeVenueId()}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (res.ok) {
