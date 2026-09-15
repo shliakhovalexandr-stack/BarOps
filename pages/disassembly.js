@@ -11,7 +11,7 @@
 
 import { navigate, state, canSeeStock } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function money(n) { return (Math.round((+n || 0) * 100) / 100).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

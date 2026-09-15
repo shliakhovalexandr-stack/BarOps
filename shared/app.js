@@ -6,6 +6,7 @@
 'use strict';
 
 import { applyTheme } from './theme.js';
+import { API_URL } from './config.js';
 
 /* ══════════════════════════════════════
    1. ГЛОБАЛЬНИЙ СТАН
@@ -84,7 +85,7 @@ export let ARCHIVED_VENUES = [];   // архівовані заклади (дл�
 async function loadArchivedVenues() {
   try {
     const token = localStorage.getItem('barops_token');
-    const res = await fetch('https://barops-backend-production.up.railway.app/api/venues/archived', {
+    const res = await fetch(`${API_URL}/api/venues/archived`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const data = await res.json();
@@ -104,7 +105,7 @@ async function loadArchivedVenues() {
 async function loadVenuesIntoDrawer() {
   try {
     const token = localStorage.getItem('barops_token');
-    const res = await fetch('https://barops-backend-production.up.railway.app/api/auth/venues', {
+    const res = await fetch(`${API_URL}/api/auth/venues`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const data = await res.json();
@@ -794,7 +795,7 @@ export async function unarchiveVenue(id) {
   if (!v) return;
   try {
     const token = localStorage.getItem('barops_token');
-    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}/unarchive`, {
+    const res = await fetch(`${API_URL}/api/venues/${id}/unarchive`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -861,7 +862,7 @@ export async function saveNewVenue() {
 
   try {
     const token = localStorage.getItem('barops_token');
-    const res = await fetch('https://barops-backend-production.up.railway.app/api/venues', {
+    const res = await fetch(`${API_URL}/api/venues`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({ name, posType: _addDraft.posType }),
@@ -899,7 +900,7 @@ export async function archiveVenue(id) {
   })) return;
   try {
     const token = localStorage.getItem('barops_token');
-    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}/archive`, {
+    const res = await fetch(`${API_URL}/api/venues/${id}/archive`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -946,7 +947,7 @@ export async function deleteVenue(id, name) {
   })) return;
   try {
     const token = localStorage.getItem('barops_token');
-    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${id}`, {
+    const res = await fetch(`${API_URL}/api/venues/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });

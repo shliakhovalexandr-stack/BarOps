@@ -8,7 +8,7 @@
 
 import { state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 function token()   { return localStorage.getItem('barops_token') || state.token || ''; }
 function venueId()  { return state.venueId || localStorage.getItem('barops_venueId') || ''; }
 

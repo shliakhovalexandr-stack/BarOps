@@ -16,7 +16,7 @@ const POS_SYSTEMS = {
   profit:     { name: 'Profit',     icon: '💰', color: '#f59e0b' },
 };
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 let _profile = null;
 let _stats   = null;

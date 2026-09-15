@@ -5,6 +5,7 @@
    ============================================================ */
 
 import { navigate, state } from '../shared/app.js';
+import { API_URL } from '../shared/config.js';
 
 /* ════════════════════════
    MODULE STATE
@@ -453,7 +454,6 @@ async function sendPhoto() {
     if (!token) throw new Error('Не авторизований');
 
     const blob = await rotatedBlob(_file, _rot);
-    const API_URL  = 'https://barops-backend-production.up.railway.app';
     const formData = new FormData();
     formData.append('photo',     blob, 'invoice.jpg');
     formData.append('venueName', venueName);
@@ -489,7 +489,7 @@ async function loadOcrTgSettings() {
     const venueId = localStorage.getItem('barops_venueId') || '';
     if (!token || !venueId) return;
 
-    const res = await fetch('https://barops-backend-production.up.railway.app/api/venues', {
+    const res = await fetch(`${API_URL}/api/venues`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return;
@@ -521,7 +521,7 @@ async function saveOcrTg() {
     _ocrTgChatId  = document.getElementById('ocr-tg-chat')?.value.trim()  || '';
     _ocrTgTopicId = document.getElementById('ocr-tg-topic')?.value.trim() || '';
 
-    const res = await fetch(`https://barops-backend-production.up.railway.app/api/venues/${venueId}/telegram`, {
+    const res = await fetch(`${API_URL}/api/venues/${venueId}/telegram`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body:    JSON.stringify({

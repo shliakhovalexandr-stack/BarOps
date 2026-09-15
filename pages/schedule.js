@@ -5,7 +5,7 @@
 
 import { state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 // Роль із JWT-токена (джерело правди від сервера на вході), бо barops_role може застаріти.
 function tokenRole() {

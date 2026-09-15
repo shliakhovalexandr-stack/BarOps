@@ -3,7 +3,7 @@
    Web Push: запит дозволу, підписка/відписка, синхронізація з бекендом
    ============================================================ */
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from './config.js';
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 

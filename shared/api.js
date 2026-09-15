@@ -3,7 +3,7 @@
    API клієнт для з'єднання з backend
    ============================================================ */
 
-const API_URL = 'https://barops-backend-production.up.railway.app';
+import { API_URL } from './config.js';
 
 /* ════════════════════════
    ТОКЕН

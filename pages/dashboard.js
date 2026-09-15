@@ -6,7 +6,7 @@
 import { navigate, state, canSeeStock, hasFeature, routeFeature, setFeatures } from '../shared/app.js';
 import { pushSupported, pushPermission, subscribePush } from '../shared/push.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 /* ════════════════════════
    STATE

@@ -6,7 +6,7 @@
 import { navigate, state, setFeatures } from '../shared/app.js';
 import { ensurePushIfGranted } from '../shared/push.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 let _view       = 'pin';
 let _phone      = '';
@@ -28,6 +28,12 @@ let _otpUserId  = '';
 let _otpCode    = '';
 let _otpLoading = false;
 let _otpError   = '';
+
+let _fp         = { email: '', otp: '', pass: '' };
+let _fpStep     = 'request';   // 'request' → пошта, 'code' → код і новий пароль
+let _fpLoading  = false;
+let _fpError    = '';
+let _fpInfo     = '';
 
 
 const BOTTLE_SVG = `<svg width="44" height="76" viewBox="0 0 52 90" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -256,6 +262,72 @@ function viewAdminLogin() {
         ${_mgrLoading ? 'disabled' : ''}>
         ${_mgrLoading ? '<span class="auth-spinner"></span>' : 'Увійти'}
       </button>
+      <div style="text-align:center;margin-top:14px">
+        <span onclick="window.__auth.goTo('forgot')"
+          style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
+          Забули пароль?
+        </span>
+      </div>
+      <div style="height:12px"></div>
+    </div>
+  </div>`;
+}
+
+
+/* ════════════════════════════════════════
+   VIEW: ВІДНОВЛЕННЯ ПАРОЛЯ
+   Два кроки на одному екрані: пошта → код і новий пароль.
+   Сервер навмисно відповідає однаково на існуючу й неіснуючу пошту,
+   тому текст нижче теж не підтверджує, що акаунт знайдено.
+════════════════════════════════════════ */
+function viewForgot() {
+  const step2 = _fpStep === 'code';
+  return `
+  <div class="auth-view ${_view==='forgot'?'active':''}" id="auth-forgot">
+    <div class="auth-inner">
+      <div class="auth-header">
+        <div class="auth-back" onclick="window.__auth.goTo('admin-login')">${BACK_SVG}</div>
+        <div>
+          <div class="auth-screen-title">Відновлення пароля</div>
+          <div class="auth-screen-sub">${step2 ? 'Крок 2 з 2 — код і новий пароль' : 'Крок 1 з 2 — ваша пошта'}</div>
+        </div>
+      </div>
+      <div class="auth-steps"><div class="auth-step active"></div><div class="auth-step ${step2?'active':''}"></div></div>
+
+      <div class="auth-lbl">Email</div>
+      <input class="auth-inp" id="fp-email" type="email" inputmode="email"
+        placeholder="your@email.com" value="${_fp.email}" ${step2 ? 'disabled' : ''}
+        oninput="window.__auth.fpField('email',this.value)"
+        onkeydown="if(event.key==='Enter')window.__auth.doForgotRequest()"/>
+
+      ${step2 ? `
+      <div class="auth-lbl">Код із листа</div>
+      <input class="auth-inp" id="fp-otp" type="text" inputmode="numeric" maxlength="6"
+        placeholder="000000" value="${_fp.otp}"
+        oninput="window.__auth.fpField('otp',this.value.replace(/[^0-9]/g,''))"
+        onkeydown="if(event.key==='Enter')document.getElementById('fp-pass').focus()"/>
+      <div class="auth-lbl">Новий пароль</div>
+      <input class="auth-inp" id="fp-pass" type="password"
+        placeholder="мінімум 6 символів" value="${_fp.pass}"
+        oninput="window.__auth.fpField('pass',this.value)"
+        onkeydown="if(event.key==='Enter')window.__auth.doResetPassword()"/>` : ''}
+
+      <div class="auth-error ${_fpError?'show':''}" id="fp-err">${_fpError}</div>
+      ${_fpInfo ? `<div style="font-size:13px;color:var(--text2);font-family:var(--font-b);margin-top:8px;line-height:1.5">${_fpInfo}</div>` : ''}
+
+      <div class="auth-spacer"></div>
+      <button class="auth-btn auth-btn-primary" id="fp-btn"
+        onclick="window.__auth.${step2 ? 'doResetPassword' : 'doForgotRequest'}()"
+        ${_fpLoading ? 'disabled' : ''}>
+        ${_fpLoading ? '<span class="auth-spinner"></span>' : (step2 ? 'Зберегти пароль' : 'Надіслати код')}
+      </button>
+      ${step2 ? `
+      <div style="text-align:center;margin-top:14px">
+        <span onclick="window.__auth.fpBackToEmail()"
+          style="font-size:13px;color:var(--text2);font-family:var(--font-b);cursor:pointer;padding:4px 0">
+          Інша пошта
+        </span>
+      </div>` : ''}
       <div style="height:12px"></div>
     </div>
   </div>`;
@@ -426,13 +498,14 @@ function viewReg3() {
 function rerender() {
   const c = document.querySelector('.auth-views-wrap');
   if (!c) return;
-  c.innerHTML = viewPin() + viewVenuePick() + viewSetup() + viewAdminLogin() + viewReg1() + viewReg2() + viewRegOtp() + viewReg3();
+  c.innerHTML = viewPin() + viewVenuePick() + viewSetup() + viewAdminLogin() + viewForgot() + viewReg1() + viewReg2() + viewRegOtp() + viewReg3();
 }
 
 function goTo(sub) {
   _view = sub;
   rerender();
   if (sub === 'admin-login') setTimeout(() => document.getElementById('mgr-email')?.focus(), 100);
+  if (sub === 'forgot')      setTimeout(() => document.getElementById('fp-email')?.focus(), 100);
   if (sub === 'reg-1')       setTimeout(() => document.getElementById('reg-name')?.focus(), 100);
   if (sub === 'reg-2')       setTimeout(() => document.getElementById('reg-venue')?.focus(), 100);
   if (sub === 'reg-otp')     { _otpCode = ''; _otpError = ''; setTimeout(() => document.getElementById('otp-inp')?.focus(), 100); }
@@ -593,6 +666,65 @@ function changeAccount() {
    ADMIN LOGIN
 ════════════════════════════════════════ */
 function mgrField(field, value) { _mgr[field] = value; }
+
+
+/* ── Відновлення пароля ── */
+function fpField(k, v) { _fp[k] = v; }
+
+function fpBackToEmail() {
+  _fpStep = 'request'; _fp.otp = ''; _fp.pass = ''; _fpError = ''; _fpInfo = '';
+  rerender();
+}
+
+async function doForgotRequest() {
+  const email = (_fp.email || '').trim();
+  if (!email) { _fpError = 'Введіть email'; rerender(); return; }
+  _fpLoading = true; _fpError = ''; _fpInfo = ''; rerender();
+  try {
+    const res = await fetch(`${API}/api/auth/forgot-password`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 429) throw new Error(data.error || 'Забагато спроб. Спробуйте пізніше.');
+    if (!res.ok) throw new Error(data.error || 'Не вдалося надіслати код');
+    // Сервер відповідає однаково незалежно від того, чи є такий акаунт —
+    // тому й тут не стверджуємо, що лист пішов саме вам.
+    _fpStep = 'code';
+    _fpInfo = 'Якщо акаунт із такою поштою існує — код уже в дорозі. Він дійсний 15 хвилин.';
+  } catch (err) {
+    _fpError = err.message || 'Помилка мережі';
+  }
+  _fpLoading = false; rerender();
+  setTimeout(() => document.getElementById('fp-otp')?.focus(), 80);
+}
+
+async function doResetPassword() {
+  if (!_fp.otp || _fp.otp.length < 6) { _fpError = 'Введіть 6-значний код'; rerender(); return; }
+  if (!_fp.pass || _fp.pass.length < 6) { _fpError = 'Пароль мінімум 6 символів'; rerender(); return; }
+  _fpLoading = true; _fpError = ''; rerender();
+  try {
+    const res = await fetch(`${API}/api/auth/reset-password`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: (_fp.email || '').trim(), otp: _fp.otp, newPassword: _fp.pass }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Не вдалося змінити пароль');
+    // Токен сервер не видає навмисно — заходимо наново, це й перевіряє новий пароль
+    _mgr = { email: (_fp.email || '').trim(), password: '' };
+    _fp = { email: '', otp: '', pass: '' };
+    _fpStep = 'request'; _fpInfo = ''; _fpError = '';
+    _mgrError = 'Пароль змінено — увійдіть із новим';
+    _fpLoading = false;
+    goTo('admin-login');
+    return;
+  } catch (err) {
+    _fpError = err.message || 'Помилка мережі';
+  }
+  _fpLoading = false; rerender();
+}
 
 async function doManagerLogin() {
   const errEl = document.getElementById('mgr-err');
@@ -817,6 +949,7 @@ export default {
       mgrField, doManagerLogin,
       regField, goToReg2, doRegister, enterApp,
       onOtpInput, doVerifyOtp, resendOtp,
+      fpField, fpBackToEmail, doForgotRequest, doResetPassword,
     };
 
     const token = localStorage.getItem('barops_token');

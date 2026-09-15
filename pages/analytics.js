@@ -5,7 +5,7 @@
 
 import { state } from '../shared/app.js';
 
-const API     = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 const FC_MAX  = 30;   // небезпечний FC %
 const FC_WARN = 25;   // попереджувальний FC %
 const FC_TARGET = 28; // цільовий FC для оптимізації ціни

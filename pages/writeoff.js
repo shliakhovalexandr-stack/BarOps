@@ -30,7 +30,7 @@ function lsJson(key, fallback) {
 /* ════════════════════════
    DATA
 ════════════════════════ */
-const API  = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 let _prods     = [];   // завантажується з /api/pos/balance
 let _writeoffs = [];   // зберігається в localStorage barops_writeoffs_v1
 

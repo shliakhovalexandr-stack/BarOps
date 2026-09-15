@@ -8,7 +8,7 @@
 
 import { state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 let _data      = null;   // сьогодні (живе): { supported, date, violations:[...] }

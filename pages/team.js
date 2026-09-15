@@ -6,7 +6,7 @@
 
 import { navigate, state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 function currentVenueId() {
   // Пріоритет: активний заклад на сторінці → state → localStorage
   // Використовується ТІЛЬКИ для GET-запитів (завантаження команди)

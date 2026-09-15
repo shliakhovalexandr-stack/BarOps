@@ -32,7 +32,7 @@ let _availableStores = []; // [{storeId, storeName}]
 let _groupFilter     = new Set(); // top goods group ("Бар", "Кухня")
 let _warehouseFilter = new Set(); // physical warehouse UUID
 let _catFilter       = new Set(); // goods sub-category
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 const CSS = `<style id="stk-css">
 .stk-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}

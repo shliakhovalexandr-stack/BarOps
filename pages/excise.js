@@ -5,7 +5,7 @@
 
 import { navigate, state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 // ── state ────────────────────────────────────────────────────
 let _venueId, _token, _role, _userName;

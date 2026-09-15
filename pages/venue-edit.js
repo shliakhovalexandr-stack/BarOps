@@ -5,7 +5,7 @@
 
 import { navigate, state } from '../shared/app.js';
 
-const API = 'https://barops-backend-production.up.railway.app';
+import { API_URL as API } from '../shared/config.js';
 
 let _venue = null;
 let _loading = true;
@@ -505,7 +505,7 @@ ${CSS}
         </div>
         <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">SYRVE API KEY (для стоп-листа)</label>
-          <input class="ve-input" id="iiko-api-key" type="text" placeholder="d8fcb572bf66473592dbc4755279d53c">
+          <input class="ve-input" id="iiko-api-key" type="text" placeholder="32 символи, літери й цифри">
           <div class="ve-hint">Syrve → Live API Settings → API key. Залиш порожнім — збережений ключ не зміниться.</div>
         </div>
         <div class="ve-field" style="margin-bottom:12px">
