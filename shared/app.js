@@ -48,7 +48,9 @@ const ROUTE_FEATURE = {
   team: 'team', manager: 'manager',
   ocr: 'ocr', 'invoice-ocr': 'ocr',
   writeoff: 'writeoff', disassembly: 'disassembly', production: 'production',
-  ordering: 'ordering', 'price-alert': 'ordering', morshynska: 'ordering',
+  ordering: 'ordering',
+  'price-alert': 'price-alert',   // аналітика змін цін — окремо від самої закупки
+  morshynska: 'morshynska',       // інтеграція ЄМоршинська — окрема фіча
   excise: 'excise', debts: 'debts', cash: 'cash', 'pay-audit': 'cash',
   analytics: 'stats', digest: 'stats', abc: 'stats',
   performance: 'performance', discipline: 'performance',
