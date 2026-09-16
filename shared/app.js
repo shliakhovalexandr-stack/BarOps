@@ -425,7 +425,10 @@ const TAB_BAR_MGR_JOURNAL = TAB_BAR_MANAGER.map(tab =>
     : tab
 );
 
-// Обмежена мережа: інвентаризації, посуд, журнал, графік. Окрема константа, а не
+// Обмежена мережа: журнал у центрі, поруч рецепти. Інвентаризації в панелі немає
+// свідомо (2026-09-16) — вона лишається плиткою на Головній і пунктом у шухляді,
+// бо quick-плитки на Головній фільтруються тим самим hasFeature().
+// Окрема константа, а не
 // .filter() наявних масивів — фільтр лишив би дірку в центрі, а CSS .tab-bar__fab-wrap
 // розрахований саме на центральний FAB.
 const TAB_BAR_LITE = [
@@ -446,17 +449,18 @@ const TAB_BAR_LITE = [
     </svg>`,
   },
   {
-    route: 'inventory', label: 'Інвентар', fab: true,
+    route: 'journal', label: 'Журнал', fab: true,
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M11 3l7 4v8l-7 4-7-4V7l7-4z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M4 7l7 4 7-4M11 11v8" stroke="white" stroke-width="1.6" stroke-linejoin="round"/>
+      <rect x="4" y="3" width="14" height="16" rx="1.5" stroke="white" stroke-width="1.9"/>
+      <path d="M8 8h6M8 12h6M8 16h4" stroke="white" stroke-width="1.7" stroke-linecap="round"/>
     </svg>`,
   },
   {
-    route: 'journal', label: 'Журнал',
+    route: 'recipe-book', label: 'Рецепти',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <rect x="4" y="3" width="14" height="16" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
-      <path d="M8 8h6M8 12h6M8 16h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <rect x="4" y="2" width="11" height="15" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M7 6h5M7 9h5M7 12h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M15 6h2a1 1 0 011 1v10a1 1 0 01-1 1H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
     </svg>`,
   },
   {
