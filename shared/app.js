@@ -438,10 +438,11 @@ const TAB_BAR_LITE = [
     </svg>`,
   },
   {
-    route: 'schedule', label: 'Графік',
+    route: 'team', label: 'Команда',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <rect x="3" y="5" width="16" height="14" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
-      <path d="M3 9h16M7 3v4M15 3v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.4"/>
+      <circle cx="15" cy="8" r="3" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 19c0-3 2-5 5-5M13 19c0-3 2-5 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </svg>`,
   },
   {
