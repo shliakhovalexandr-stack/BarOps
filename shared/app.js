@@ -79,6 +79,18 @@ export function setFeatures(list) {
 }
 
 export let MANAGER_VENUES = [];
+
+/**
+ * Скидає списки закладів. Вони живуть у памʼяті МОДУЛЯ, тож переживають і
+ * вихід з акаунта, і вхід під іншим — доки сторінку не перезавантажать.
+ * Через це людина, що зайшла другим акаунтом у тому ж вікні, бачила в шухляді
+ * заклади попереднього користувача: дані з легітимної сесії, але вже не її.
+ */
+export function resetVenues() {
+  MANAGER_VENUES = [];
+  ARCHIVED_VENUES = [];
+  _archivedOpen = false;
+}
 export let ARCHIVED_VENUES = [];   // архівовані заклади (для відновлення в шухляді)
 
 // Завантажуємо архівовані заклади (лінива підгрузка при розкритті секції)
@@ -109,6 +121,9 @@ async function loadVenuesIntoDrawer() {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const data = await res.json();
+    // Порожній список — теж відповідь: акаунт без закладів мусить бачити порожньо,
+    // а не те, що лишилось від попереднього.
+    if (!data.venues || !data.venues.length) { resetVenues(); renderDrawer(); return; }
     if (data.venues && data.venues.length > 0) {
       const savedId = localStorage.getItem('barops_venueId');
       MANAGER_VENUES = data.venues.map((v, i) => ({
@@ -133,7 +148,9 @@ async function loadVenuesIntoDrawer() {
       renderDrawer();
     }
   } catch {
-    // Fallback — показуємо поточний заклад
+    // Збій мережі: показуємо ЛИШЕ поточний заклад. Раніше при цьому міг лишитись
+    // список попереднього акаунта — саме через нього і світилась чужа мережа.
+    resetVenues();
     MANAGER_VENUES = [{ id:'current', name: state.venue || 'Заклад', pos:'Syrve', active:true }];
     renderDrawer();
   }
@@ -413,17 +430,18 @@ const TAB_BAR_MGR_JOURNAL = TAB_BAR_MANAGER.map(tab =>
 // розрахований саме на центральний FAB.
 const TAB_BAR_LITE = [
   {
+    route: 'dashboard', label: 'Головна',
+    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M3 10.5L11 3l8 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 9.5V18a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+      <path d="M9 19v-5h4v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
     route: 'schedule', label: 'Графік',
     icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <rect x="3" y="5" width="16" height="14" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
       <path d="M3 9h16M7 3v4M15 3v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-    </svg>`,
-  },
-  {
-    route: 'dishware', label: 'Посуд',
-    icon: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.4"/>
-      <circle cx="11" cy="11" r="3.5" stroke="currentColor" stroke-width="1.3"/>
     </svg>`,
   },
   {
@@ -1334,6 +1352,9 @@ export async function bootstrap() {
       localStorage.removeItem('barops_role');
       localStorage.removeItem('barops_user');
       localStorage.removeItem('barops_features');
+      localStorage.removeItem('barops_venueId');
+      resetVenues();                 // інакше наступний акаунт побачить чужі заклади
+      state.venueId  = '';
       state.role     = 'bartender';
       state.venue    = '';
       state.user     = '';

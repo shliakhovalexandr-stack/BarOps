@@ -3,7 +3,7 @@
    Стани: pin | setup | admin-login | reg-1 | reg-2 | reg-3
    ============================================================ */
 
-import { navigate, state, setFeatures } from '../shared/app.js';
+import { navigate, state, setFeatures, resetVenues } from '../shared/app.js';
 import { ensurePushIfGranted } from '../shared/push.js';
 
 import { API_URL as API } from '../shared/config.js';
@@ -892,6 +892,9 @@ function saveSession(data) {
   if (prevUserId && prevUserId !== data.user.id) {
     localStorage.removeItem('barops_venueId');
     localStorage.removeItem('barops_venue');
+    // Списки закладів живуть у памʼяті модуля й переживають зміну акаунта —
+    // без цього новий користувач бачив би в шухляді заклади попереднього.
+    resetVenues();
   }
   localStorage.setItem('barops_userId', data.user.id);
   const isMulti  = ['admin', 'ADMIN', 'director', 'DIRECTOR', 'accountant', 'ACCOUNTANT'].includes(data.user.role);
