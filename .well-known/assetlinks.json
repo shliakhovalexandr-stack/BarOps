@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.netlify.deft_ganache_819567.twa",
+      "sha256_cert_fingerprints": [
+        "4F:7B:D0:E4:CF:93:64:D3:C2:38:D4:6F:5F:9F:06:21:E0:D9:2B:3B:02:67:15:EA:D2:8F:82:8E:91:36:99:43"
+      ]
+    }
+  }
+]
