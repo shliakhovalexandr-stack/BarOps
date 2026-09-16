@@ -464,7 +464,7 @@ ${CSS}
       <div id="oc-status" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;font-size:13px;font-weight:600;font-family:var(--font-b);margin-bottom:10px;background:var(--bg2);color:var(--text2);border:0.5px solid var(--border)">Перевірка стану…</div>
       <div class="ve-hint" style="margin-bottom:8px">Живі неоплачені чеки із залу — для менеджера. Дані з зовнішнього сервісу, що читає POS-термінал. Ключ зберігається на сервері й не показується.</div>
       <div class="ve-label">URL джерела</div>
-      <input class="ve-input" id="oc-url" type="url" placeholder="https://...supabase.co/functions/v1/open-checks-api">
+      <input class="ve-input" id="oc-url" type="url" placeholder="https://адреса-сервісу/open-checks-api">
       <div class="ve-label">X-API-Key</div>
       <input class="ve-input" id="oc-key" type="password" placeholder="залиш порожнім — збережений ключ не зміниться">
       <div id="oc-key-hint" style="font-size:11px;font-family:var(--font-b);color:var(--text3);margin:-4px 0 10px"></div>
@@ -500,7 +500,7 @@ ${CSS}
         <!-- Syrve поля -->
         <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">URL СЕРВЕРА</label>
-          <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://terassa-chain.syrve.app">
+          <input class="ve-input" id="iiko-cloud-url" type="url" placeholder="https://назва-мережі.syrve.app">
           <div class="ve-hint">Наприклад: https://terassa-chain.syrve.app</div>
         </div>
         <div class="ve-field" style="margin-bottom:12px">
@@ -510,7 +510,7 @@ ${CSS}
         </div>
         <div class="ve-field" style="margin-bottom:12px">
           <label class="ve-label">ЛОГІН</label>
-          <input class="ve-input" id="iiko-login" type="text" placeholder="irina">
+          <input class="ve-input" id="iiko-login" type="text" placeholder="логін користувача Syrve">
           <div class="ve-hint">Логін співробітника Syrve</div>
         </div>
         <div class="ve-field" style="margin-bottom:12px">
@@ -650,9 +650,9 @@ ${CSS}
             <!-- Cloud поля -->
             <div id="modal-syrve-cloud">
               <div class="ve-label">URL СЕРВЕРА</div>
-              <input class="ve-input" id="modal-iiko-url-cloud" type="url" placeholder="https://terassa-chain.syrve.app">
+              <input class="ve-input" id="modal-iiko-url-cloud" type="url" placeholder="https://назва-мережі.syrve.app">
               <div class="ve-label">API KEY</div>
-              <input class="ve-input" id="modal-iiko-key" type="text" placeholder="41911a8e...">
+              <input class="ve-input" id="modal-iiko-key" type="text" placeholder="32 символи, літери й цифри">
               <div class="ve-hint">Syrve → Live API Settings → скопіювати API key</div>
             </div>
 
