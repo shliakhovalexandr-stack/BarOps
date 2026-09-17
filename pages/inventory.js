@@ -23,6 +23,7 @@ let _draftPullTimer  = null;   // періодичне підтягування 
 let _clearedPids     = new Set();  // позиції, які цей пристрій ЯВНО зняв (щоб зняття дійшло до сервера)
 let _lastCounted     = {};         // знімок «що було пораховано» — за ним бачимо, що саме зняли
 let _draftRetries    = 0;          // лічильник повторів невдалого автозбереження
+let _syncedCounts    = {};         // стан, який сервер уже підтвердив — база для точного злиття
 // Розподіл позицій між офіціантами (ЛИШЕ посуд): менеджер «фарбує» позиції на офіціанта,
 // офіціант бачить лише свої. assign = { productId: userId } прив'язаний до активної сесії.
 let _assign          = {};     // productId → userId (робоча копія)
@@ -677,10 +678,21 @@ function persistCounts() {
   for (const pid of Object.keys(_lastCounted)) {
     if (!isCounted(pid)) _clearedPids.add(pid);
   }
-  _lastCounted = {};
-  for (const pid of Object.keys(_counts)) if (isCounted(pid)) { _lastCounted[pid] = 1; _clearedPids.delete(pid); }
+  refreshCountedSnapshot();
+  for (const pid of Object.keys(_lastCounted)) _clearedPids.delete(pid);
   saveDraft();
   syncDraftToServer();
+}
+
+/** Перезняти «що зараз пораховано».
+ *
+ *  Обовʼязково після КОЖНОЇ масової зміни _counts — завантаження чернетки,
+ *  підтягу чужого прогресу. Інакше зняття позиції, зробленe одразу після
+ *  відкриття сторінки, не розпізнавалось: список був порожній, різницю не було
+ *  з чим порівняти, і на сервері лишалося старе значення. */
+function refreshCountedSnapshot() {
+  _lastCounted = {};
+  for (const pid of Object.keys(_counts)) if (isCounted(pid)) _lastCounted[pid] = 1;
 }
 function syncDraftToServer() {
   const os = openSession();
@@ -707,10 +719,35 @@ function syncDraftToServer() {
       _draftAt = new Date().toISOString();
       // сервер віддає ОБʼЄДНАНИЙ стан — одразу забираємо те, що дорахували інші
       if (d.counts) adoptRemoteCounts(d.counts, sent);
+      _syncedCounts = JSON.parse(JSON.stringify(_counts));   // база для злиття на відправці
       _draftRetries = 0;
     } catch { retryDraftSync(); }
   }, 1500);
 }
+
+/** Негайно дописати чернетку, коли застосунок згортають або закривають.
+ *
+ *  Автозбереження чекає 1.5 с. Бармен, який дорахував останню позицію і одразу
+ *  закрив застосунок, не лишав серверу шансу — запит просто не встигав піти.
+ *  keepalive дозволяє браузеру довести запит до кінця вже після вивантаження
+ *  сторінки. */
+function flushDraftNow() {
+  const os = openSession();
+  if (!os || !_token) return;
+  if (!Object.keys(_counts).length && !_clearedPids.size) return;
+  clearTimeout(_draftSyncTimer);
+  try {
+    fetch(`${API}/api/inventory/sessions/${os.id}/draft`, {
+      method:  'PUT',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      body:    JSON.stringify({ counts: _counts, cleared: [..._clearedPids], byName: state.user || '' }),
+    }).catch(() => {});
+  } catch { /* браузер не дозволив — лишається локальна чернетка */ }
+}
+
+/** Згортання застосунку — це найчастіший спосіб «закрити» його на телефоні. */
+function onHideFlush() { if (document.hidden) flushDraftNow(); }
 
 /** Повтор невдалого автозбереження з наростаючою паузою.
  *  До пʼяти спроб (≈2 хв): довше тримати непережите в памʼяті сенсу немає —
@@ -741,7 +778,7 @@ function adoptRemoteCounts(remote, sentSnapshot) {
     _counts[pid] = val;
     changed = true;
   }
-  if (changed) { saveDraft(); re(); }
+  if (changed) { saveDraft(); refreshCountedSnapshot(); re(); }
 }
 
 /** Періодично підтягувати чужий прогрес, навіть коли сам нічого не вводиш.
@@ -759,7 +796,7 @@ function startDraftPull() {
       const d = await r.json();
       if (d.draftByName) _draftByName = d.draftByName;
       if (d.draftAt)     _draftAt = d.draftAt;
-      if (d.counts) adoptRemoteCounts(d.counts, _counts);
+      if (d.counts) { adoptRemoteCounts(d.counts, _counts); _syncedCounts = JSON.parse(JSON.stringify(_counts)); }
     } catch {}
   }, 25000);
 }
@@ -1137,9 +1174,19 @@ async function loadAll() {
         }
       } catch {}
       startDraftPull();   // далі чуже підтягується саме, без дій користувача
+      // Дописати чернетку, коли застосунок згортають або закривають: інакше
+      // остання позиція могла не встигнути піти через 1.5-секундну затримку.
+      document.removeEventListener('visibilitychange', onHideFlush);
+      window.removeEventListener('pagehide', flushDraftNow);
+      document.addEventListener('visibilitychange', onHideFlush);
+      window.addEventListener('pagehide', flushDraftNow);
     }
 
     loadDraft();     // localStorage лише доповнює спільну чернетку (товари, яких у ній ще немає)
+    // Знімок «що вже пораховано» — інакше зняття позиції ПЕРШОЮ ж дією після
+    // відкриття сторінки не розпізнавалось і не доходило до сервера.
+    refreshCountedSnapshot();
+    _syncedCounts = JSON.parse(JSON.stringify(_counts));
   } catch (err) {
     _error = err.message;
   }
@@ -1336,7 +1383,12 @@ async function submitInventory(dryRun) {
     const dr = await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, { headers: { Authorization: `Bearer ${_token}` } });
     if (dr.ok) {
       const dd = await dr.json();
-      if (dd.counts && typeof dd.counts === 'object') _counts = { ...dd.counts, ..._counts };  // локальні найсвіжіші перекривають, чужі доповнюють
+      // Беремо серверне значення для позицій, яких цей пристрій НЕ чіпав після
+      // останньої синхронізації, і лишаємо своє для тих, що чіпав. Раніше
+      // локальні числа перекривали серверні наосліп: вкладка, що довго висіла у
+      // фоні (там підтяг не працює), відправляла застаріле число поверх свіжішого,
+      // введеного напарником.
+      if (dd.counts && typeof dd.counts === 'object') adoptRemoteCounts(dd.counts, _syncedCounts);
     }
   } catch {}
   const loc = locMode();   // кухня по складах → відправляємо СУМУ по товару
@@ -2904,5 +2956,7 @@ export default {
     // Інакше підтяг чужого прогресу продовжував би смикати бекенд і після виходу
     // зі сторінки, а adoptRemoteCounts писав би в _counts уже мертвої сесії.
     clearInterval(_draftPullTimer); _draftPullTimer = null;
+    document.removeEventListener('visibilitychange', onHideFlush);
+    window.removeEventListener('pagehide', flushDraftNow);
   },
 };
