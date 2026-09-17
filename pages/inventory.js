@@ -19,6 +19,9 @@ let _counts          = {};     // productId → {full,partial,kg,sht,nf}
 let _draftByName     = '';     // хто востаннє вносив у спільну чернетку (крос-девайс)
 let _draftAt         = null;   // коли востаннє збережено спільну чернетку
 let _draftSyncTimer  = null;   // debounce автозбереження чернетки на бекенд
+let _draftPullTimer  = null;   // періодичне підтягування чужого прогресу
+let _clearedPids     = new Set();  // позиції, які цей пристрій ЯВНО зняв (щоб зняття дійшло до сервера)
+let _lastCounted     = {};         // знімок «що було пораховано» — за ним бачимо, що саме зняли
 // Розподіл позицій між офіціантами (ЛИШЕ посуд): менеджер «фарбує» позиції на офіціанта,
 // офіціант бачить лише свої. assign = { productId: userId } прив'язаний до активної сесії.
 let _assign          = {};     // productId → userId (робоча копія)
@@ -664,8 +667,17 @@ function saveAssign() {
   }, 700);
 }
 
-// Зберегти прогрес: локально (миттєво) + на бекенд (debounce) — щоб інший бармен/пристрій продовжив
+// Зберегти прогрес: локально (миттєво) + на бекенд (debounce) — щоб інший бармен/пристрій продовжив.
+//
+// Тут же ловимо ЗНЯТТЯ позиції. Сервер зливає чернетки по-товарно, тож сам факт
+// зникнення ключа з _counts до нього не доходив: старе значення лишалось назавжди,
+// і стерту цифру неможливо було скасувати. Тому ведемо список знятих явно.
 function persistCounts() {
+  for (const pid of Object.keys(_lastCounted)) {
+    if (!isCounted(pid)) _clearedPids.add(pid);
+  }
+  _lastCounted = {};
+  for (const pid of Object.keys(_counts)) if (isCounted(pid)) { _lastCounted[pid] = 1; _clearedPids.delete(pid); }
   saveDraft();
   syncDraftToServer();
 }
@@ -674,16 +686,65 @@ function syncDraftToServer() {
   if (!os) return;
   clearTimeout(_draftSyncTimer);
   _draftSyncTimer = setTimeout(async () => {
+    // знімок того, що саме відправляємо: нижче по ньому визначимо, чи людина
+    // встигла ввести щось нове, поки запит був у дорозі
+    const sent = JSON.parse(JSON.stringify(_counts));
+    const sentCleared = [..._clearedPids];
     try {
-      await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, {
+      const r = await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-        body:    JSON.stringify({ counts: _counts, byName: state.user || '' }),
+        body:    JSON.stringify({ counts: _counts, cleared: sentCleared, byName: state.user || '' }),
       });
+      if (!r.ok) return;                       // не гасимо _clearedPids — повторимо наступного разу
+      const d = await r.json().catch(() => ({}));
+      sentCleared.forEach(pid => _clearedPids.delete(pid));
       _draftByName = state.user || _draftByName;
       _draftAt = new Date().toISOString();
+      // сервер віддає ОБʼЄДНАНИЙ стан — одразу забираємо те, що дорахували інші
+      if (d.counts) adoptRemoteCounts(d.counts, sent);
     } catch {}
   }, 1500);
+}
+
+/** Прийняти чужі позиції, не чіпаючи введеного на цьому пристрої.
+ *
+ *  Правило: беремо серверне значення лише для позицій, яких людина НЕ торкалась
+ *  відтоді, як ми відправили свій стан. Інакше підтягування затирало б цифру
+ *  просто в момент набору. */
+function adoptRemoteCounts(remote, sentSnapshot) {
+  let changed = false;
+  for (const [pid, val] of Object.entries(remote || {})) {
+    if (_clearedPids.has(pid)) continue;                       // я щойно зняв цю позицію
+    const nowJson  = JSON.stringify(_counts[pid] ?? null);
+    const sentJson = JSON.stringify((sentSnapshot || {})[pid] ?? null);
+    if (nowJson !== sentJson) continue;                        // встиг змінити — моє новіше
+    const valJson = JSON.stringify(val ?? null);
+    if (valJson === nowJson) continue;
+    _counts[pid] = val;
+    changed = true;
+  }
+  if (changed) { saveDraft(); re(); }
+}
+
+/** Періодично підтягувати чужий прогрес, навіть коли сам нічого не вводиш.
+ *  Без цього бармен, який уже закінчив свою частину, до кінця не бачив, що
+ *  напарник дорахував, — і «спільний прогрес» показував старе число. */
+function startDraftPull() {
+  clearInterval(_draftPullTimer);
+  _draftPullTimer = setInterval(async () => {
+    const os = openSession();
+    if (!os || _saving) return;
+    if (typeof document !== 'undefined' && document.hidden) return;   // вкладка у фоні — не смикаємо
+    try {
+      const r = await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, { headers: { Authorization: `Bearer ${_token}` } });
+      if (!r.ok) return;
+      const d = await r.json();
+      if (d.draftByName) _draftByName = d.draftByName;
+      if (d.draftAt)     _draftAt = d.draftAt;
+      if (d.counts) adoptRemoteCounts(d.counts, _counts);
+    } catch {}
+  }, 25000);
 }
 
 /* ── Історія відправлених = завершені сесії з бекенду (крос-девайс) ── */
@@ -1058,6 +1119,7 @@ async function loadAll() {
           _draftAt     = dd.draftAt || null;
         }
       } catch {}
+      startDraftPull();   // далі чуже підтягується саме, без дій користувача
     }
 
     loadDraft();     // localStorage лише доповнює спільну чернетку (товари, яких у ній ще немає)
@@ -2822,5 +2884,8 @@ export default {
       root.removeEventListener('click',  on);
       root.removeEventListener('change', on);
     }
+    // Інакше підтяг чужого прогресу продовжував би смикати бекенд і після виходу
+    // зі сторінки, а adoptRemoteCounts писав би в _counts уже мертвої сесії.
+    clearInterval(_draftPullTimer); _draftPullTimer = null;
   },
 };
