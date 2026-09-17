@@ -9,6 +9,12 @@ import { API_URL as API } from '../shared/config.js';
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
+// Обмежена мережа графік поставок не веде (рішення власника 2026-09-17): товар
+// возять без розкладу. Ховаємо все, що з нього росте — поле в картці постачальника,
+// вкладку «Розклад» і згадки днів у списках. Саме поле Supplier.orderDays лишається
+// в моделі: воно потрібне решті мереж, тут просто ніколи не заповнюється.
+const noDeliveryDays = () => !!state.features;
+
 /* ════════════════════════
    MODULE STATE
 ════════════════════════ */
@@ -517,7 +523,7 @@ function barSuppliersHTML() {
         <div class="ord-sh-icon">🏭</div>
         <div style="flex:1;min-width:0">
           <div class="ord-sh-name">${esc(s.name)}</div>
-          <div class="ord-sh-meta">${nProds(prods.length)}${s.orderDays ? ' · ' + s.orderDays : ''}</div>
+          <div class="ord-sh-meta">${nProds(prods.length)}${(s.orderDays && !noDeliveryDays()) ? ' · ' + s.orderDays : ''}</div>
         </div>
         ${totalQty > 0 ? `<div style="margin-right:6px"><div class="ord-sh-total" style="color:var(--teal)">${totalQty} шт</div></div>` : ''}
         <div class="ord-sh-chev ${isOpen ? 'open' : ''}">
@@ -854,7 +860,7 @@ function mgrSuppliersHTML() {
                 : nProds(n) + (s.contact ? ' · ' + s.contact : '')}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          ${!isM && s.orderDays ? `<div class="ord-ssc-day">${s.orderDays}</div>` : ''}
+          ${!isM && s.orderDays && !noDeliveryDays() ? `<div class="ord-ssc-day">${s.orderDays}</div>` : ''}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="color:var(--text3);display:block;margin-top:4px"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>`;
@@ -919,10 +925,11 @@ function suppSheetHTML() {
           value="${esc(_suppDraft.contact)}"
           oninput="window.__ord.suppDraft('contact',this.value)"/>
 
+        ${noDeliveryDays() ? '' : `
         <div class="ord-inp-lbl">Дні доставки</div>
         <input class="ord-inp" type="text" placeholder="Напр.: Вт, Чт"
           value="${_suppDraft.orderDays}"
-          oninput="window.__ord.suppDraft('orderDays',this.value)"/>
+          oninput="window.__ord.suppDraft('orderDays',this.value)"/>`}
 
         <div class="ord-inp-lbl">Юр.особа (для тексту)</div>
         <input class="ord-inp" type="text" placeholder="Напр.: ТОВ Тріум Партнерс / ФОП Іваненко І.І."
@@ -1140,7 +1147,7 @@ function renderManager() {
       <button class="ord-mt ${_mgrTab==='orders'?'act':''}"     onclick="window.__ord.setMgrTab('orders')">Замовлення</button>
       ${orderZone()!=='hoz' ? `<button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>` : ''}
       <button class="ord-mt ${_mgrTab==='suppliers'?'act':''}"  onclick="window.__ord.setMgrTab('suppliers')">Постачальники</button>
-      <button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>
+      ${noDeliveryDays() ? '' : `<button class="ord-mt ${_mgrTab==='schedule'?'act':''}"   onclick="window.__ord.setMgrTab('schedule')">Розклад</button>`}
     </div>
 
     ${_mgrTab === 'orders' ? mgrOrdersHTML() : ''}
@@ -1158,7 +1165,7 @@ function renderManager() {
         Натисніть на постачальника щоб редагувати та призначати товари зі списку залишків
       </div>` : ''}
 
-    ${_mgrTab === 'schedule' ? `
+    ${_mgrTab === 'schedule' && !noDeliveryDays() ? `
       <div class="ord-sec">Графік поставок</div>
       ${mgrScheduleHTML()}` : ''}
 
@@ -1688,7 +1695,11 @@ async function markOrderDone(id) {
 /* ════════════════════════
    MANAGER ACTIONS
 ════════════════════════ */
-function setMgrTab(tab) { _mgrTab = tab; fullRender(); if (tab === 'suggest' && _suggest === null) loadSuggest(); }
+function setMgrTab(tab) {
+  if (tab === 'schedule' && noDeliveryDays()) tab = 'orders';
+  _mgrTab = tab; fullRender();
+  if (tab === 'suggest' && _suggest === null) loadSuggest();
+}
 // Адмін/керуючий: перемкнути зону закупки (Бар/Кухня/Хоз) — перезавантажити постачальників+заявки+баланс
 function setMgrZone(z) {
   if (!['bar', 'kitchen', 'hoz'].includes(z) || _mgrZone === z) return;
