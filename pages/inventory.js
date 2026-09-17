@@ -22,6 +22,7 @@ let _draftSyncTimer  = null;   // debounce автозбереження черн
 let _draftPullTimer  = null;   // періодичне підтягування чужого прогресу
 let _clearedPids     = new Set();  // позиції, які цей пристрій ЯВНО зняв (щоб зняття дійшло до сервера)
 let _lastCounted     = {};         // знімок «що було пораховано» — за ним бачимо, що саме зняли
+let _draftRetries    = 0;          // лічильник повторів невдалого автозбереження
 // Розподіл позицій між офіціантами (ЛИШЕ посуд): менеджер «фарбує» позиції на офіціанта,
 // офіціант бачить лише свої. assign = { productId: userId } прив'язаний до активної сесії.
 let _assign          = {};     // productId → userId (робоча копія)
@@ -696,15 +697,31 @@ function syncDraftToServer() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
         body:    JSON.stringify({ counts: _counts, cleared: sentCleared, byName: state.user || '' }),
       });
-      if (!r.ok) return;                       // не гасимо _clearedPids — повторимо наступного разу
+      // Невдале збереження — це та сама втрата підрахунку: автозбереження
+      // спрацьовує лише на зміну, тож якщо людина дорахувала останню позицію і
+      // запит не пройшов, його більше ніхто не повторить. Тому пробуємо ще.
+      if (!r.ok) { retryDraftSync(); return; }   // _clearedPids не гасимо — підуть наступного разу
       const d = await r.json().catch(() => ({}));
       sentCleared.forEach(pid => _clearedPids.delete(pid));
       _draftByName = state.user || _draftByName;
       _draftAt = new Date().toISOString();
       // сервер віддає ОБʼЄДНАНИЙ стан — одразу забираємо те, що дорахували інші
       if (d.counts) adoptRemoteCounts(d.counts, sent);
-    } catch {}
+      _draftRetries = 0;
+    } catch { retryDraftSync(); }
   }, 1500);
+}
+
+/** Повтор невдалого автозбереження з наростаючою паузою.
+ *  До пʼяти спроб (≈2 хв): довше тримати непережите в памʼяті сенсу немає —
+ *  локальна чернетка в localStorage все одно збережена, і наступне введення
+ *  надішле повний стан. */
+function retryDraftSync() {
+  if (_draftRetries >= 5) { _draftRetries = 0; return; }
+  const wait = 3000 * Math.pow(2, _draftRetries);
+  _draftRetries++;
+  clearTimeout(_draftSyncTimer);
+  _draftSyncTimer = setTimeout(syncDraftToServer, wait);
 }
 
 /** Прийняти чужі позиції, не чіпаючи введеного на цьому пристрої.
