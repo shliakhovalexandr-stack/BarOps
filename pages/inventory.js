@@ -6,6 +6,7 @@
 import { state } from '../shared/app.js';
 
 import { API_URL as API } from '../shared/config.js';
+import { isMainStoreName } from '../shared/stores.js';
 
 /* ════════════════════════ STATE ════════════════════════ */
 let _venueId = null, _token = null, _role = null;
@@ -1188,13 +1189,25 @@ function inventoryActDate(scheduled) {
 function storeOrder() {
   const ids = _storeList.map(x => x.id).filter(Boolean);
   if (ids.length < 2) return [];
-  // основний склад беремо з бекенду; якщо не заданий — впізнаємо ТОВ за назвою,
-  // інакше порядок визначався б випадковим порядком відповіді Syrve і правило б інвертувалось
+  // Основний склад приходить із бекенду (venue.syrveStoreId) — це явне поле, а не
+  // перший елемент списку: інакше порядок визначався б порядком відповіді Syrve і
+  // правило розкладки переверталось би після кожного перезбереження складів.
+  // Впізнавання за назвою лишилось лише як запасний шлях. Сама перевірка — у
+  // shared/stores.js, поруч із дзеркалом для бекенду; межі слова через \b там немає
+  // свідомо: у JS вона визначена лише для латиниці, тож 'Бар ТОВ' не впізнавався
+  // НІКОЛИ — гілка була мертва, і розкладки не відбувалось узагалі.
   const main = (_mainStoreId && ids.includes(_mainStoreId))
     ? _mainStoreId
-    : (_storeList.find(x => /\bтов\b|тзов/i.test(x.name || '')) || {}).id || '';
+    : (_storeList.find(x => isMainStoreName(x.name)) || {}).id || '';
   if (!main) return [];   // не впізнали — краще без розкладки, ніж навпаки
-  return [main, ...ids.filter(x => x !== main)];
+  // Хвіст — за назвою, а не в порядку відповіді Syrve: той порядок нестабільний,
+  // і при 3+ барних складах «останній» (який забирає ВЕСЬ надлишок і нестачу)
+  // стрибав би між юрособами від запиту до запиту. Для двох складів сортування
+  // нічого не змінює. Якщо власник колись задасть інше правило для 3+ складів —
+  // міняти тут і в дзеркальному тесті.
+  const nameOf = id => ((_storeList.find(x => x.id === id) || {}).name || '');
+  const rest = ids.filter(x => x !== main).sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'uk'));
+  return [main, ...rest];
 }
 
 function uncountedInfo() {

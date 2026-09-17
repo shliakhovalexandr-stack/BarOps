@@ -163,6 +163,8 @@ async function loadVenue(venueId) {
           posLogin: _venue.posLogin || '',
           posPassword: '',
           syrveDepartmentId: found.syrveDepartmentId || '',
+          syrveStores: found.syrveStores || '',
+          syrveStoreId: found.syrveStoreId || '',   // основний склад (ТОВ) — явне поле
         };
         saveToLocal(_venue.name, _venue.posType, _venue.telegramTopicId);
         console.log('[VenueEdit] Loaded from API:', _venue);
@@ -322,6 +324,17 @@ async function initOpenChecksSection(venueId) {
       btn.disabled = false; btn.textContent = old;
     }
   });
+}
+
+// Підпис «Склади: … ★» (★ = основний). Окремою функцією, бо після збереження
+// підпис перемальовується БЕЗ повного render(): render перетирає весь innerHTML
+// форми і вимагав би повторної ініціалізації обробників POS-секції.
+function storesLineHTML() {
+  const savedS = (() => { try { return JSON.parse(_draft.syrveStores || '[]'); } catch { return []; } })();
+  const mainId = _draft.syrveStoreId || '';
+  return savedS.length
+    ? `<div style="font-size:12px;color:var(--green);font-family:var(--font-b);margin-bottom:4px">Склади: ${savedS.map(s => escapeHtml(s.name) + (s.id === mainId ? ' ★' : '')).join(', ')}</div>`
+    : '';
 }
 
 function escapeHtml(str) {
@@ -532,10 +545,7 @@ ${CSS}
         <!-- Склади + Рахунки: одна кнопка = одна Syrve-сесія -->
         <div class="ve-field" style="margin-bottom:4px">
           <label class="ve-label">СКЛАДИ ТА РАХУНКИ ДЛЯ СПИСАНЬ</label>
-          ${(() => {
-            const savedS = (() => { try { return JSON.parse(_draft.syrveStores || '[]'); } catch { return []; } })();
-            return savedS.length ? `<div style="font-size:12px;color:var(--green);font-family:var(--font-b);margin-bottom:4px">Склади: ${savedS.map(s=>escapeHtml(s.name)).join(', ')}</div>` : '';
-          })()}
+          <div id="ve-stores-line">${storesLineHTML()}</div>
           <button type="button" id="btn-load-syrve-config" style="width:100%;height:44px;background:transparent;border:1.5px solid var(--purple,#a855f7);color:var(--purple,#a855f7);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-h)">
             Завантажити склади та рахунки з Syrve
           </button>
@@ -1172,15 +1182,25 @@ async function initIikoSection(venueId) {
       const savedStoreIds = new Set((d.savedStores || []).map(s => s.id));
       if (storesListEl) {
         const stores = d.stores || [];
+        // Радіо «основний» — окремо від чекбокса участі. Раніше основним ставав
+        // ПЕРШИЙ збережений склад, тобто порядок відповіді Syrve: перезберіг
+        // склади — і основним міг стати ФОП, а розкладка інвентаризації та
+        // списання за замовчуванням перевертались на іншу юрособу.
+        const mainNow = d.mainStoreId || _draft.syrveStoreId || '';
         storesListEl.innerHTML = stores.length
           ? stores.map(s => `
-            <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px;cursor:pointer">
-              <input type="checkbox" data-id="${s.id}" data-name="${escapeHtml(s.name)}" ${savedStoreIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${escapeHtml(s.name)}${s.parentName ? ` · <span style="color:var(--purple,#a855f7)">${escapeHtml(s.parentName)}</span>` : ''}</div>
-                <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:1px">${s.id}</div>
-              </div>
-            </label>`).join('')
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:0.5px solid var(--border);border-radius:10px">
+              <label style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer">
+                <input type="checkbox" data-id="${s.id}" data-name="${escapeHtml(s.name)}" ${savedStoreIds.has(s.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple,#a855f7);flex-shrink:0">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${escapeHtml(s.name)}${s.parentName ? ` · <span style="color:var(--purple,#a855f7)">${escapeHtml(s.parentName)}</span>` : ''}</div>
+                  <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:1px">${s.id}</div>
+                </div>
+              </label>
+              <label title="Основний склад (ТОВ): розкладка інвентаризації та списання бару за замовчуванням" style="display:flex;align-items:center;gap:5px;flex-shrink:0;cursor:pointer;font-size:10px;color:var(--text2);font-family:var(--font-b)">
+                <input type="radio" name="main-store" data-main-id="${s.id}" ${s.id === mainNow ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--green,#22c55e)">основний
+              </label>
+            </div>`).join('')
           : `<div style="font-size:12px;color:var(--text2);font-family:var(--font-b);padding:6px 4px">Склади не знайдено.</div>`;
       }
       if (storesEl) storesEl.style.display = 'block';
@@ -1206,15 +1226,34 @@ async function initIikoSection(venueId) {
     btn.disabled = true; btn.textContent = '⏳';
     const checks = document.querySelectorAll('#stores-list input[type=checkbox]:checked');
     const selected = [...checks].map(cb => ({ id: cb.dataset.id, name: cb.dataset.name }));
+    // Явний вибір основного. Якщо радіо вказує на склад, знятий із чекбоксів, — не
+    // шлемо його: бекенд у такому разі лишає збережений основний як був.
+    const mainRadio = document.querySelector('#stores-list input[type=radio][name=main-store]:checked');
+    const mainStoreId = mainRadio && selected.some(s => s.id === mainRadio.dataset.mainId)
+      ? mainRadio.dataset.mainId : null;
     try {
       const r = await fetch(`${API}/api/pos/stores/${venueId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ stores: selected }),
+        body: JSON.stringify({ stores: selected, mainStoreId }),
       });
-      if (!r.ok) throw new Error((await r.json()).error);
+      const resp = await r.json();
+      if (!r.ok) throw new Error(resp.error);
       _draft.syrveStores = JSON.stringify(selected);
-      showToast(`✅ Збережено ${selected.length} складів`);
+      // САМЕ resp, без фолбеку на старе значення: якщо зняли всі склади, сервер
+      // повертає null — і драфт мусить стати порожнім, інакше радіо «воскрешає»
+      // основний склад, якого в БД уже немає.
+      _draft.syrveStoreId = resp.mainStoreId || '';
+      // Синхронізувати екран із тим, що РЕАЛЬНО зберіг сервер: підпис «Склади: … ★»
+      // і радіо. Інакше радіо могло світитись на знятому складі, а ★ — на старому
+      // основному, і користувач зберігав повторно, «бо не спрацювало».
+      const line = document.getElementById('ve-stores-line');
+      if (line) line.innerHTML = storesLineHTML();
+      document.querySelectorAll('#stores-list input[type=radio][name=main-store]').forEach(r => {
+        r.checked = r.dataset.mainId === (resp.mainStoreId || '');
+      });
+      const mainName = (selected.find(s => s.id === resp.mainStoreId) || {}).name;
+      showToast(`✅ Збережено ${selected.length} складів` + (mainName ? ` · основний: ${mainName}` : ''));
     } catch (err) {
       showToast('⚠️ ' + err.message, 'error');
     } finally {
