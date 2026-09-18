@@ -34,14 +34,14 @@ let _assignSaveTimer = null;   // debounce збереження розподіл
 let _waiters         = [];     // [{id,name,...}] офіціанти закладу (для пікера)
 let _myUserId;                 // id поточного юзера з JWT (для фільтра «мої позиції»)
 // Власні склади інвентаризації кухні (зони підрахунку; кухар веде). Постійні per-venue.
-// Ключ підрахунку в _counts для складів = "locId::productId". Сума по складах → у Syrve.
+// Ключ підрахунку в _counts у режимі зон = "locId::productId". Сума по зонах → у Syrve.
 let _locations       = [];     // [{id,name,products:[productId]}]
 let _locActive       = null;   // активний склад у виді підрахунку (id | '__none__')
 let _locMgmt         = false;  // відкрита панель керування складами
 let _locEditId       = null;   // склад, чий перелік товарів зараз редагуємо (пікер)
 let _locNewName      = '';     // назва нового складу (поле створення)
 let _locSaveTimer    = null;   // debounce збереження товарів складу
-const LOC_NONE       = '__none__';   // віртуальний склад «Без складу» (товари поза складами)
+const LOC_NONE       = '__none__';   // віртуальна зона «Без зони»: товар, не віднесений нікуди, лишається видимим — інакше новий товар із поставки ніхто не порахує і він піде в акт нулем
 let _openPid         = null;   // accordion: який продукт відкритий
 let _loading         = true;
 let _saving          = false;
@@ -89,6 +89,15 @@ function isChef() { return (_role || '').toLowerCase() === 'chef'; }
 function isKitchenRole() { return ['chef', 'cook'].includes((_role || '').toLowerCase()); } // кухонні ролі рахують кухню (шеф керує, кухар лише рахує)
 function isKitchen() { return _kind === 'kitchen'; }                   // вид «кухня»
 function isHousehold() { return _kind === 'household'; }               // вид «хоз товари»
+function isBar() { return !isDish() && !isKitchen() && !isHousehold(); }   // вид «бар»
+// Де рахують по ЗОНАХ. Зона — фізичне місце в межах ОДНОГО складу Syrve (бар,
+// склад, енотека, холодильник), яке рахує окрема людина; у Syrve йде СУМА по
+// зонах. Зі складом Syrve це ніяк не пов'язано: розкладка ТОВ/ФОП — окрема річ,
+// і порядок такий — спершу сума по зонах, потім розподіл між юрособами.
+//
+// Посуд сюди не входить свідомо: там assignJson ділить позиції МІЖ ЛЮДЬМИ, тобто
+// це права видимості, а не місце зберігання. Зводити їх в одне не можна.
+function zonesEnabled() { return isKitchen() || isBar(); }
 function posLabel() { return _posMode === 'poster' ? 'Poster' : 'Syrve'; }   // назва POS для міток
 // Керівні ролі, що планують інвентаризацію по ЗОНАХ (бар/кухня/хоз) — з перемикачем зон.
 function canPlanZones() { return ['admin', 'accountant', 'director'].includes((_role || '').toLowerCase()); }
@@ -156,10 +165,10 @@ function waiterColor(id) { const i = Math.max(0, _waiters.findIndex(w => w.id ==
 let _mainStoreId = '';   // основний склад закладу (Бар ТОВ) — з бекенду, venue.syrveStoreId
 let _storeList   = [];   // склади цього виду інвентаризації: [{id,name}] у порядку відповіді Syrve
 
-function locMode() { return isKitchen() && _locations.length > 0; }   // режим підрахунку по складах
+function locMode() { return zonesEnabled() && _locations.length > 0; }   // режим підрахунку по зонах
 function locById(id) { return _locations.find(l => l.id === id) || null; }
-// productId-и, не додані до жодного складу (віртуальний «Без складу»)
-// На склад можна класти і товари, і НФ
+// productId-и, не віднесені до жодної зони (віртуальна «Без зони»). Обчислюється, а не зберігається — тому новий товар потрапляє сюди сам
+// У зону можна класти і товари, і НФ
 function prodById(id) { return _balance.find(x => x.id === id) || _prepById[id] || null; }
 function locPool() { return [..._balance, ..._preps]; }   // усе, що можна додати на склад
 function unassignedProductIds() {
@@ -179,10 +188,10 @@ function locRows(locId) {
     return { ...p, id: `${locId}::${pid}`, productId: pid, locId, amount: null };   // amount per-склад невідомий
   }).filter(Boolean);
 }
-// Усі склади для відображення табів (+ «Без складу», якщо є невіднесені)
+// Усі зони для табів (+ «Без зони», якщо є невіднесені)
 function locTabs() {
   const tabs = _locations.map(l => ({ id: l.id, name: l.name }));
-  if (unassignedProductIds().length) tabs.push({ id: LOC_NONE, name: 'Без складу' });
+  if (unassignedProductIds().length) tabs.push({ id: LOC_NONE, name: 'Без зони' });
   return tabs;
 }
 // Прогрес складу (counted/total) за синтетичними рядками
@@ -190,8 +199,8 @@ function locProgress(locId) {
   const rows = locRows(locId);
   return { done: rows.filter(r => isCounted(r.id)).length, total: rows.length };
 }
-// Сума підрахунку по складах для кожного реального товару (для відправки/історії).
-// Кожен товар входить або у свої склади (сумуємо), або в «Без складу» — рівно один раз.
+// Сума підрахунку по ЗОНАХ для кожного реального товару (для відправки/історії).
+// Кожен товар входить або у свої зони (сумуємо), або в «Без зони» — рівно один раз.
 function locSummedRows() {
   const sums = {};
   for (const t of locTabs()) for (const pid of locProductIds(t.id)) {
@@ -540,7 +549,7 @@ function partialsView(c) {
   return arr.length ? arr : [''];
 }
 // Літри = цілі пляшки×обʼєм + КОЖНА відкрита через тару + прямі літри
-// Реальний productId з ключа підрахунку: для кухонних складів ключ = "locId::productId"
+// Реальний productId з ключа підрахунку: у режимі зон ключ = "locId::productId"
 function realPid(pid) { const s = String(pid); const i = s.indexOf('::'); return i >= 0 ? s.slice(i + 2) : pid; }
 
 function computeL(pid, c) {
@@ -1143,10 +1152,10 @@ async function loadAll() {
       for (const cfg of (d.configs || [])) _configs[cfg.productId] = cfg;
     }
 
-    // Власні склади (зони підрахунку) кухні — постійні per-venue
-    if (isKitchen()) {
+    // Зони підрахунку — постійні per-venue, окремо на бар і на кухню
+    if (zonesEnabled()) {
       try {
-        const lr = await fetch(`${API}/api/inventory/locations?venueId=${_venueId}&kind=kitchen`, { headers: h });
+        const lr = await fetch(`${API}/api/inventory/locations?venueId=${_venueId}&kind=${isKitchen() ? 'kitchen' : 'bar'}`, { headers: h });
         if (lr.ok) { const ld = await lr.json(); _locations = ld.locations || []; }
       } catch { _locations = []; }
       // активний таб за замовчуванням — перший наявний
@@ -1206,7 +1215,7 @@ async function loadAll() {
   _loading = false; re();
 }
 
-/* ── Склади кухні (CRUD) ── */
+/* ── Зони підрахунку (CRUD) ── */
 async function createLocation() {
   const name = (_locNewName || '').trim();
   if (!name) return;
@@ -1217,7 +1226,7 @@ async function createLocation() {
       body: JSON.stringify({ venueId: _venueId, kind: 'kitchen', name }),
     });
     const d = await res.json();
-    if (!d.success) throw new Error(d.error || 'Не вдалося створити склад');
+    if (!d.success) throw new Error(d.error || 'Не вдалося створити зону');
     _locations.push(d.location);
     _locNewName = '';
     if (!_locActive) _locActive = d.location.id;
@@ -1440,12 +1449,12 @@ async function submitInventory(dryRun) {
       if (dd.counts && typeof dd.counts === 'object') adoptRemoteCounts(dd.counts, _syncedCounts);
     }
   } catch {}
-  const loc = locMode();   // кухня по складах → відправляємо СУМУ по товару
-  const locSum = loc ? locSummedRows() : null;   // сума по складах (товари+НФ), рахуємо раз
+  const loc = locMode();   // режим зон → відправляємо СУМУ по товару
+  const locSum = loc ? locSummedRows() : null;   // сума по зонах (товари+НФ), рахуємо раз
   try {
     // dry-run: НЕ зберігаємо позиції в нашу БД — лише валідуємо документ у Syrve
     if (!dryRun) {
-      // у режимі складів historyitems = сума по складах (товари з method, НФ з 'nf'); flat — як було
+      // у режимі зон historyitems = сума по зонах (товари з method, НФ з 'nf'); flat — як було
       const items = loc
         ? locSum.map(r => ({
             productId: r.productId, productName: r.productName, countedQty: r.amount,
@@ -1465,7 +1474,7 @@ async function submitInventory(dryRun) {
             };
           });
       // НФ — як окремі позиції історії (method='nf'); у Syrve підуть РОЗКЛАДЕНІ товари, не НФ.
-      // У режимі складів НФ уже в items (через locSum) → тут порожньо, щоб не задвоїти.
+      // У режимі зон НФ уже в items (через locSum) → тут порожньо, щоб не задвоїти.
       const prepItems = loc ? [] : _preps.filter(p => p.id && isCounted(p.id)).map(p => {
         const cq = getResult(p.id), sq = p.stock || 0;
         return { productId: p.id, productName: p.name, countedQty: cq, systemQty: sq, fillPct: sq > 0 ? Math.round(cq / sq * 100) : 0, method: 'nf' };
@@ -1496,7 +1505,7 @@ async function submitInventory(dryRun) {
 
     // Документ інвентаризації в Syrve Office. dryRun=true → check (валідує, нічого не створює)
     // НФ йдуть окремим полем preparations → бекенд декомпозує в товари й додає до items.
-    // у режимі складів: товари → items, НФ → preparations (бекенд декомпозує) — обидва із суми по складах
+    // у режимі зон: товари → items, НФ → preparations (бекенд декомпозує) — обидва із суми по зонах
     const syrveItems  = loc
       ? locSum.filter(r => !r.isPrep).map(r => ({ productId: r.productId, amount: r.amount }))
       : _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
@@ -1508,10 +1517,14 @@ async function submitInventory(dryRun) {
     // одним документом на основний склад: ФОП не перераховувався ніколи, у ТОВ потрапляло
     // чуже. Тепер шлемо ПРАВИЛО (порядок складів + книжковий залишок кожного), а документи
     // розкладає й створює бекенд — уже ПІСЛЯ розкладки НФ у сировину.
-    const isBarKind = !isDish() && !isKitchen() && !isHousehold();
+    const isBarKind = isBar();
     const fixedStore = isDish() ? _dishStoreId : isKitchen() ? _kitchenStoreId : '';
     let storeSplit = null;
-    if (isBarKind && !loc) {
+    // Режим зон розкладку НЕ вимикає: це незалежні речі. Спершу сума по зонах
+    // (locSummedRows), потім розподіл отриманого числа між юрособами. book нижче
+    // будується з _balance, тобто по СПРАВЖНІХ productId — складені ключі зон
+    // сюди не потрапляють.
+    if (isBarKind) {
       const order = storeOrder();
       if (order.length > 1) {
         const book = {};
@@ -1811,7 +1824,7 @@ function buildBar() {
   const os = openSession();
 
   // Керування складами кухні — доступне завжди (склади постійні, не залежать від сесії)
-  if (isKitchen() && _locMgmt) return locMgmtHTML();
+  if (zonesEnabled() && _locMgmt) return locMgmtHTML();
 
   if (_submitted) {
     return `
@@ -1844,13 +1857,13 @@ function buildBar() {
             <div class="inv-next-day">${new Date(next.scheduledAt).toLocaleDateString('uk-UA', { weekday: 'long' })}</div>
           </div>
         ` : ''}
-        ${isKitchen() ? `<button class="inv-btn-test" style="margin-top:18px;max-width:260px" data-a="loc-mgmt-open">⚙ Налаштувати склади</button>` : ''}
+        ${zonesEnabled() ? `<button class="inv-btn-test" style="margin-top:18px;max-width:260px" data-a="loc-mgmt-open">⚙ Налаштувати зони</button>` : ''}
       </div>
     `;
   }
 
   // Активна сесія. Офіціанту при розподілі рахуємо лише його позиції.
-  const loc     = locMode();   // кухня з власними складами → підрахунок по складах
+  const loc     = locMode();   // заклад має зони → підрахунок по зонах
   const mine    = myBalance();
   const allLocRows = loc ? locTabs().flatMap(t => locRows(t.id)) : [];
   const counted = (loc ? allLocRows : mine).filter(p => isCounted(p.id)).length + _preps.filter(p => isCounted(p.id)).length;
@@ -1893,7 +1906,7 @@ function buildBar() {
 
     ${assignFilterOn() ? `<div style="margin:0 18px 8px;padding:9px 12px;border-radius:10px;background:var(--purple-bg);border:0.5px solid var(--purple-border);font-size:12px;color:var(--purple);font-family:var(--font-b)">Ваша частина — ${mine.length} позиц. Менеджер розподілив підрахунок.</div>` : ''}
     ${loc ? locCountHTML() : `
-    ${isKitchen() ? `<div style="margin:0 18px 8px;display:flex;justify-content:flex-end"><button class="inv-sec-link" style="position:static" data-a="loc-mgmt-open">⚙ Рахувати по складах</button></div>` : ''}
+    ${zonesEnabled() ? `<div style="margin:0 18px 8px;display:flex;justify-content:flex-end"><button class="inv-sec-link" style="position:static" data-a="loc-mgmt-open">⚙ Рахувати по зонах</button></div>` : ''}
     ${searchBoxHTML()}
     <div class="inv-prod-list">
       ${(() => {
@@ -1936,7 +1949,7 @@ function buildBar() {
   `;
 }
 
-// Підрахунок по складах кухні: таби складів + рядки активного складу
+// Підрахунок по зонах: таби зон + рядки активної зони
 function locCountHTML() {
   const tabs = locTabs();
   const rows = _locActive ? locRows(_locActive).filter(matchSearch) : [];
@@ -1946,7 +1959,7 @@ function locCountHTML() {
         return `<button class="loc-tab${_locActive === t.id ? ' on' : ''}${done ? ' full' : ''}" data-a="loc-tab" data-lid="${t.id}">
           ${t.id === LOC_NONE ? '◇ ' : ''}${t.name}<span class="loc-tab-n">${pr.done}/${pr.total}</span>
         </button>`; }).join('')}
-      <button class="loc-tab loc-cog" data-a="loc-mgmt-open" title="Керування складами">⚙</button>
+      <button class="loc-tab loc-cog" data-a="loc-mgmt-open" title="Керування зонами">⚙</button>
     </div>
     ${searchBoxHTML()}
     <div class="inv-prod-list">
@@ -1954,7 +1967,7 @@ function locCountHTML() {
         ? rows.map(p => isPrep(p.productId) ? prepRowHTML(p) : productRowHTML(p)).join('')
         : `<div style="text-align:center;padding:20px;color:var(--text2);font-family:var(--font-b);font-size:13px">${
             _search ? 'Нічого не знайдено'
-            : _locActive === LOC_NONE ? 'Усі товари віднесено до складів 👍'
+            : _locActive === LOC_NONE ? 'Усі товари віднесено до зон 👍'
             : 'У складі немає товарів — додайте через ⚙'}</div>`}
     </div>`;
 }
@@ -1966,16 +1979,16 @@ function locMgmtHTML() {
   return `
     <div class="loc-mgmt-hdr">
       <button class="loc-back" data-a="loc-mgmt-close">‹ До підрахунку</button>
-      <div class="loc-mgmt-title">Склади кухні</div>
+      <div class="loc-mgmt-title">Зони підрахунку · ${isKitchen() ? 'кухня' : 'бар'}</div>
     </div>
     ${_error ? `<div class="inv-alert">${_error}</div>` : ''}
     <div class="loc-create">
-      <input class="loc-inp" id="loc-new-name" type="text" value="${(_locNewName || '').replace(/"/g, '&quot;')}" placeholder="Новий склад — напр. Холодильник">
+      <input class="loc-inp" id="loc-new-name" type="text" value="${(_locNewName || '').replace(/"/g, '&quot;')}" placeholder="Нова зона — напр. Холодильник">
       <button class="loc-add-btn" data-a="loc-create" ${_saving ? 'disabled' : ''}>＋</button>
     </div>
-    <div class="loc-hint">Кухар створює склади й вносить туди товари. Товар може бути на кількох складах — у Syrve піде <b>сума</b>.</div>
+    <div class="loc-hint">Зона — це фізичне місце: бар, склад, енотека, холодильник. Різні люди рахують різні зони, у Syrve йде <b>сума</b>. Зі складами Syrve (ТОВ/ФОП) це не пов'язано.</div>
     ${_locations.length === 0
-      ? `<div class="loc-empty">Ще немає складів.<br>Створіть перший вище 👆</div>`
+      ? `<div class="loc-empty">Ще немає зон.<br>Створіть першу вище 👆</div>`
       : `<div class="loc-list">
           ${_locations.map(l => `
             <div class="loc-row">
@@ -1987,7 +2000,7 @@ function locMgmtHTML() {
               <button class="loc-row-del" data-a="loc-del" data-lid="${l.id}">✕</button>
             </div>`).join('')}
         </div>`}
-    ${unassigned ? `<div class="loc-hint" style="color:var(--amber,#f59e0b)">⚠ ${unassigned} товар. не додано до жодного складу — їх можна порахувати у вкладці «◇ Без складу».</div>` : ''}
+    ${unassigned ? `<div class="loc-hint" style="color:var(--amber,#f59e0b)">⚠ ${unassigned} товар. не віднесено до жодної зони — їх можна порахувати у вкладці «◇ Без зони».</div>` : ''}
     <div style="height:28px"></div>`;
 }
 
@@ -2000,11 +2013,11 @@ function locEditorHTML() {
   const chosen = (loc.products || []).filter(pid => prodById(pid)).length;
   return `
     <div class="loc-mgmt-hdr">
-      <button class="loc-back" data-a="loc-editor-close">‹ Склади</button>
-      <div class="loc-mgmt-title">Товари складу · ${chosen}</div>
+      <button class="loc-back" data-a="loc-editor-close">‹ Зони</button>
+      <div class="loc-mgmt-title">Товари зони · ${chosen}</div>
     </div>
     <div class="loc-create">
-      <input class="loc-inp" id="loc-name" type="text" value="${(loc.name || '').replace(/"/g, '&quot;')}" placeholder="Назва складу">
+      <input class="loc-inp" id="loc-name" type="text" value="${(loc.name || '').replace(/"/g, '&quot;')}" placeholder="Назва зони">
     </div>
     ${(() => {
       const others = _locations.filter(l => l.id !== loc.id && (l.products || []).length);
