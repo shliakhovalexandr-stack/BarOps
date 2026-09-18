@@ -1296,13 +1296,39 @@ async function deleteSession(sessionId) {
   re();
 }
 
+// Київська БІЗНЕС-доба 'YYYY-MM-DD'. Зміна триває за північ, тож доба перевертається
+// о 06:00, а не опівночі: підрахунок, закінчений о 03:00, належить попередньому дню.
+// Навіть якщо дорахували 26-го, акт має зайти в Syrve 25-м.
+//
+// Раніше тут стояло now.toISOString(), і правило виходило ВИПАДКОВО — через те, що
+// UTC на 2-3 години позаду Києва. Вікно було не 06:00, а 02:00-03:00, і залежало від
+// пори року. Дзеркало businessDayStartUTC на бекенді — тримайте однаковими.
+function kyivBusinessYmd(at) {
+  at = at || new Date();
+  try {
+    var ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kiev',
+      year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+    // hour12:false у частині старих ICU дає «24» замість «00» — звідси % 24
+    var hh = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Kiev',
+      hour: '2-digit', hour12: false }).format(at), 10) % 24;
+    if (hh >= 6) return ymd;
+    var d = new Date(ymd + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  } catch (e) {
+    // дуже старий рушій без зон в Intl — лишаємось на попередній поведінці
+    return new Date(at.getTime() - 6 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+}
+
 // Дата документа: планова дата сесії. Якщо вона застаріла (>3 днів у минулому — стару заплановану
-// сесію порахували значно пізніше), беремо СЬОГОДНІ. Інакше документ ляже на стару дату й з хибними
-// цифрами (Syrve рахує теоретичний залишок станом на дату документа). Баг Дім18 30.06→27.07, 2026-07.
+// сесію порахували значно пізніше), беремо СЬОГОДНІШНЮ БІЗНЕС-добу. Інакше документ ляже на стару
+// дату й з хибними цифрами (Syrve рахує теоретичний залишок станом на дату документа).
+// Баг Дім18 30.06→27.07, 2026-07.
 function inventoryActDate(scheduled) {
   const now = new Date();
   const s = scheduled ? new Date(scheduled) : now;
-  return ((now - s) / 86400000 > 3) ? now.toISOString() : (scheduled || now.toISOString());
+  return ((now - s) / 86400000 > 3) ? kyivBusinessYmd(now) : (scheduled || kyivBusinessYmd(now));
 }
 
 // Скільки позицій ЩЕ НЕ пораховано — вони підуть у Syrve як 0, тобто спишуться в мінус.
