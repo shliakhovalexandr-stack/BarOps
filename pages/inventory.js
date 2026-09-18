@@ -98,6 +98,11 @@ function isBar() { return !isDish() && !isKitchen() && !isHousehold(); }   // в
 // Посуд сюди не входить свідомо: там assignJson ділить позиції МІЖ ЛЮДЬМИ, тобто
 // це права видимості, а не місце зберігання. Зводити їх в одне не можна.
 function zonesEnabled() { return isKitchen() || isBar(); }
+// Вид зон для API. ОДНЕ джерело: створення й завантаження мусять збігатись,
+// інакше зона, створена в барі, зберігається як кухонна — бар її після
+// перезавантаження не бачить, підрахунок у ній стає невидимим і товари
+// їдуть у Syrve нулем, а в шефа в списку зʼявляється чужа зона.
+function zonesKind() { return isKitchen() ? 'kitchen' : 'bar'; }
 function posLabel() { return _posMode === 'poster' ? 'Poster' : 'Syrve'; }   // назва POS для міток
 // Керівні ролі, що планують інвентаризацію по ЗОНАХ (бар/кухня/хоз) — з перемикачем зон.
 function canPlanZones() { return ['admin', 'accountant', 'director'].includes((_role || '').toLowerCase()); }
@@ -1156,7 +1161,7 @@ async function loadAll() {
     // Зони підрахунку — постійні per-venue, окремо на бар і на кухню
     if (zonesEnabled()) {
       try {
-        const lr = await fetch(`${API}/api/inventory/locations?venueId=${_venueId}&kind=${isKitchen() ? 'kitchen' : 'bar'}`, { headers: h });
+        const lr = await fetch(`${API}/api/inventory/locations?venueId=${_venueId}&kind=${zonesKind()}`, { headers: h });
         if (lr.ok) { const ld = await lr.json(); _locations = ld.locations || []; }
       } catch { _locations = []; }
       // активний таб за замовчуванням — перший наявний
@@ -1224,7 +1229,7 @@ async function createLocation() {
   try {
     const res = await fetch(`${API}/api/inventory/locations`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-      body: JSON.stringify({ venueId: _venueId, kind: 'kitchen', name }),
+      body: JSON.stringify({ venueId: _venueId, kind: zonesKind(), name }),
     });
     const d = await res.json();
     if (!d.success) throw new Error(d.error || 'Не вдалося створити зону');
