@@ -1394,7 +1394,34 @@ function storeOrder() {
   return [main, ...rest];
 }
 
+/** Скільки позицій піде в Syrve нулем — тобто спишеться в мінус.
+ *
+ *  ⚠️ У режимі зон ключ підрахунку СКЛАДЕНИЙ («зона::товар»), тому перевіряти
+ *  _counts[простий id] не можна: там завжди порожньо. Через це попередження
+ *  казало «решта N піде нулем» на КОЖНІЙ кухонній інвентаризації, навіть коли
+ *  пораховано все до останньої позиції. Запобіжник, який кричить завжди, люди
+ *  перестають читати — а коли він має рацію, цього вже ніхто не помічає.
+ *
+ *  Товар вважається порахованим, якщо його порахували ХОЧА Б В ОДНІЙ зоні:
+ *  решта зон просто додасть нулі, і це нормально — товар лежить не всюди.
+ *
+ *  У режимі зон сюди входять і напівфабрикати: там вони йдуть через locSum,
+ *  тобто НЕПОРАХОВАНИЙ НФ теж піде нулем. Поза зонами НФ фільтруються за
+ *  isCounted і просто не надсилаються, тож і попереджати нема про що. */
 function uncountedInfo() {
+  if (locMode()) {
+    const seen = new Map();   // реальний productId → чи пораховано хоч десь
+    for (const t of locTabs()) for (const pid of locProductIds(t.id)) {
+      seen.set(pid, (seen.get(pid) || false) || isCounted(`${t.id}::${pid}`));
+    }
+    const un = [...seen].filter(([, done]) => !done).map(([pid]) => pid);
+    return {
+      total: seen.size,
+      counted: seen.size - un.length,
+      uncounted: un.length,
+      names: un.slice(0, 6).map(pid => (prodById(pid) || {}).name || ''),
+    };
+  }
   const rows = (_balance || []).filter(p => p && p.id);
   const uncounted = rows.filter(p => !isCounted(p.id));
   return { total: rows.length, counted: rows.length - uncounted.length, uncounted: uncounted.length, names: uncounted.slice(0, 6).map(p => p.name) };
