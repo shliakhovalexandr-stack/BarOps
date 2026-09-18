@@ -465,6 +465,7 @@ const CSS = `<style id="inv-css">
 .loc-create{display:flex;gap:8px;align-items:center;padding:0 16px}
 .loc-add-btn{flex-shrink:0;width:46px;height:46px;border-radius:12px;border:none;background:var(--green);color:var(--fab-ink);font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .loc-add-btn:disabled{opacity:.45;cursor:default}
+.loc-also{color:var(--purple);font-weight:600}
 .loc-hint{margin:12px 16px 2px;font-size:12px;color:var(--text2);font-family:var(--font-b);line-height:1.5}
 .loc-empty{text-align:center;padding:30px 24px;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.5}
 .loc-list{padding:10px 16px 0;display:flex;flex-direction:column;gap:8px}
@@ -2050,22 +2051,28 @@ function locEditorHTML() {
       const others = _locations.filter(l => l.id !== loc.id && (l.products || []).length);
       return others.length ? `
         <div class="loc-copy-row">
-          <span class="loc-copy-lbl">Скопіювати товари зі складу:</span>
+          <span class="loc-copy-lbl">Скопіювати товари з зони:</span>
           ${others.map(o => `<button class="loc-copy-chip" data-a="loc-copy-from" data-lid="${o.id}">${o.name} (${o.products.length})</button>`).join('')}
         </div>` : '';
     })()}
-    <div class="loc-hint">Торкніться товарів, що зберігаються в цьому складі. Той самий товар можна додати і в інший склад.</div>
+    <div class="loc-hint">Торкніться товарів, що лежать у цій зоні. Той самий товар може бути в кількох зонах — у Syrve піде <b>сума</b>.</div>
     ${searchBoxHTML()}
     <div class="inv-cfg-list">
       ${list.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>` : ''}
       ${list.map(p => {
         const on = inLoc.has(p.id);
+        // Товар може лежати в кількох зонах — це НОРМА, у Syrve йде сума. Але
+        // без підказки цього не видно: людина не знає, чи віскі вже враховано
+        // на складі, і або не додасть його сюди, або гадатиме, чи не задвоїть.
+        const alsoIn = _locations
+          .filter(l => l.id !== loc.id && (l.products || []).includes(p.id))
+          .map(l => l.name);
         return `
           <div class="loc-pick-row${on ? ' on' : ''}" data-a="loc-prod-toggle" data-pid="${p.id}">
             <div class="loc-pick-box">${on ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="var(--fab-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</div>
             <div style="flex:1;min-width:0">
               <div class="inv-cfg-name">${p.name}${isPrep(p.id) ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
-              <div class="inv-cfg-sub">${p.unit || ''}${p.amount != null ? ` · залишок ${p.amount.toFixed(0)}` : ''}</div>
+              <div class="inv-cfg-sub">${p.unit || ''}${p.amount != null ? ` · залишок ${p.amount.toFixed(0)}` : ''}${alsoIn.length ? ` · <span class="loc-also">ще в: ${alsoIn.join(', ')}</span>` : ''}</div>
             </div>
           </div>`;
       }).join('')}
@@ -2841,7 +2848,7 @@ function on(e) {
   if (a === 'loc-editor-close'){ const lid = _locEditId; if (lid) saveLocName(lid); _locEditId = null; _search = ''; re(); return; }
   if (a === 'loc-del') {
     const lid = t.dataset.lid; const l = locById(lid);
-    _confirm = { title: 'Видалити склад', msg: `Видалити склад «${l ? l.name : ''}»? Самі товари лишаться в Syrve.`, okLabel: 'Видалити', danger: true, run: () => deleteLocation(lid) };
+    _confirm = { title: 'Видалити зону', msg: `Видалити зону «${l ? l.name : ''}»? Самі товари лишаться в Syrve.`, okLabel: 'Видалити', danger: true, run: () => deleteLocation(lid) };
     re(); return;
   }
   if (a === 'loc-copy-from') {
