@@ -1226,7 +1226,17 @@ async function createLocation() {
 }
 async function deleteLocation(lid) {
   try {
-    await fetch(`${API}/api/inventory/locations/${lid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${_token}` } });
+    const r = await fetch(`${API}/api/inventory/locations/${lid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${_token}` } });
+    // Відповідь раніше не дивились узагалі: зона зникала з екрана, хоч сервер міг
+    // її не видалити. Тепер сервер відмовляє, якщо в зоні є підрахунок відкритої
+    // інвентаризації — і мовчазне зникнення виглядало б як успіх, а підрахунок
+    // повернувся б після перезавантаження сторінки.
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      _error = d.error || 'Не вдалося видалити зону';
+      re();
+      return;
+    }
     _locations = _locations.filter(l => l.id !== lid);
     if (_locActive === lid) { const t = locTabs(); _locActive = t[0] ? t[0].id : null; }
   } catch (err) { _error = err.message; }
