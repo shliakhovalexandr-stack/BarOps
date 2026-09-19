@@ -1126,15 +1126,42 @@ async function loadAll() {
       // ⚠ Виключення службових складів ОБОВʼЯЗКОВЕ для всіх зон: напр. «Обладнання Кухня» теж
       // матчить /кух/ → без цього кухонна інвентаризація йшла на склад обладнання (Дім18, баг 2026-07).
       const SVC_STORE = /обладнан|інвентар|inventar|equipment|мебл|ремонт|панг|залишк/i;
+
+      // ⚠️ Псевдосклади нульових залишків — НЕ службові, навпаки.
+      //
+      // Бекенд навмисно віддає «Без залишку · Бар» і «Без залишку · Кухня» з
+      // порожнім storeId (pos.js): звіт залишків Syrve не містить позицій із
+      // точним нулем, і це ЄДИНИЙ шлях, яким товар із нульовим книжковим
+      // залишком потрапляє в підрахунок. Слово «залишк» у SVC_STORE ловило саме
+      // їх — код суперечив власному коментарю нижче.
+      //
+      // Заміряно 19.09: так зникало 300 позицій у La Pasta і 327 у Дім18, тобто
+      // близько третини асортименту. Товар, у якого книга 0, а на полиці він є,
+      // не було де ввести. (Тераса не зачеплена: вона на спільній корпорації,
+      // там нульові приходять із історії балансу на справжні склади.)
+      const ZERO_PREFIX = /^без залишку\s*(·\s*)?/i;
+      const storeMatches = (s, re) => {
+        const raw = s.storeName || '';
+        if (!s.storeId && ZERO_PREFIX.test(raw)) {
+          // «Без залишку · Кухня» → зона «Кухня». Без суфікса («Без залишку») —
+          // це нейтральні групи, і їх забирає бар: історично бар бачив усі
+          // повернуті склади. У Syrve вони безпечні — книга 0, запис нуля нічого
+          // не змінює.
+          const zone = raw.replace(ZERO_PREFIX, '').trim();
+          return zone ? re.test(zone) : !isDish() && !isKitchen() && !isHousehold();
+        }
+        return re.test(raw) && !SVC_STORE.test(raw);
+      };
+
       // посуд — лише склад «Посуд»; кухня (шеф/кухар) — лише склад «Кухня»; Poster-бар — склад «Бар»; Syrve-бар — усі повернуті
       const stores = isDish()
-        ? (d.stores || []).filter(s => kindCfg().store.test(s.storeName || ''))
+        ? (d.stores || []).filter(s => storeMatches(s, kindCfg().store))
         : isKitchen()
-        ? (d.stores || []).filter(s => /кух|kitchen/i.test(s.storeName || '') && !SVC_STORE.test(s.storeName || ''))
+        ? (d.stores || []).filter(s => storeMatches(s, /кух|kitchen/i))
         : isHousehold()
-        ? (d.stores || []).filter(s => /хоз|госп|побут|household/i.test(s.storeName || '') && !SVC_STORE.test(s.storeName || ''))
+        ? (d.stores || []).filter(s => storeMatches(s, /хоз|госп|побут|household/i))
         // бар (Syrve+Poster): усі барні склади (Бар ТОВ/ФОП/Хочу + «Без залишку · Бар»), без обладнання/інвентарю
-        : (d.stores || []).filter(s => /бар|bar/i.test(s.storeName || '') && !SVC_STORE.test(s.storeName || ''));
+        : (d.stores || []).filter(s => storeMatches(s, /бар|bar/i));
       _storeList = stores.map(x => ({ id: x.storeId || '', name: x.storeName || '' })).filter(x => x.id);
       if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
       if (isKitchen() && stores[0]) _kitchenStoreId = stores[0].storeId || '';
@@ -1437,12 +1464,24 @@ function uncountedInfo() {
       total: seen.size,
       counted: seen.size - un.length,
       uncounted: un.length,
-      names: un.slice(0, 6).map(pid => (prodById(pid) || {}).name || ''),
+      // у мінус спишеться лише те, у чого книга БІЛЬША за нуль
+      atRisk: un.filter(pid => bookQty(pid) > 0).length,
+      names: un.filter(pid => bookQty(pid) > 0).slice(0, 6).map(pid => (prodById(pid) || {}).name || ''),
     };
   }
+
+// Книжковий залишок позиції. Потрібен, щоб відрізнити «непораховане, що
+// СПИШЕТЬСЯ В МІНУС» від «непорахованого, у якого книга й так нуль» —
+// для другого запис нуля в Syrve нічого не змінює.
+function bookQty(pid) {
+  const p = prodById(pid) || {};
+  return Number(p.amount != null ? p.amount : p.stock) || 0;
+}
   const rows = (_balance || []).filter(p => p && p.id);
   const uncounted = rows.filter(p => !isCounted(p.id));
-  return { total: rows.length, counted: rows.length - uncounted.length, uncounted: uncounted.length, names: uncounted.slice(0, 6).map(p => p.name) };
+  const risky = uncounted.filter(p => bookQty(p.id) > 0);
+  return { total: rows.length, counted: rows.length - uncounted.length, uncounted: uncounted.length,
+           atRisk: risky.length, names: risky.slice(0, 6).map(p => p.name) };
 }
 
 function askZeroes(info) {
@@ -1455,9 +1494,14 @@ function askZeroes(info) {
         <div class="inv-ask-title">Не всі позиції пораховано</div>
         <div class="inv-ask-body">
           Пораховано <b style="color:var(--text0)">${info.counted}</b> із <b style="color:var(--text0)">${info.total}</b>.
-          Решта <b style="color:var(--amber)">${info.uncounted}</b> піде в Syrve як <b style="color:var(--amber)">0</b> — тобто спишеться в мінус.
+          ${info.atRisk > 0
+            ? `З непорахованих <b style="color:var(--amber)">${info.atRisk}</b> має залишок у книзі — вони підуть у Syrve як <b style="color:var(--amber)">0</b>, тобто спишуться в мінус.`
+            : 'У непорахованих позицій книжковий залишок і так нуль — у Syrve нічого не зміниться.'}
+          ${info.uncounted > info.atRisk
+            ? `<br><span style="color:var(--text2)">Ще ${info.uncounted - info.atRisk} непораховано, але в них книга 0 — вони нічого не списують.</span>`
+            : ''}
         </div>
-        ${info.names.length ? `<div class="inv-ask-note">Напр.: ${info.names.map(n => (n || '').replace(/[<>&]/g, '')).join(', ')}${info.uncounted > info.names.length ? ' та інші' : ''}</div>` : ''}
+        ${info.names.length ? `<div class="inv-ask-note">Напр.: ${info.names.map(n => (n || '').replace(/[<>&]/g, '')).join(', ')}${info.atRisk > info.names.length ? ' та інші' : ''}</div>` : ''}
         <div class="inv-ask-acts">
           <button id="inv-z-no"  class="btn btn--md btn--ghost">Повернутись</button>
           <button id="inv-z-yes" class="btn btn--md btn--red">Все одно відправити</button>
@@ -1476,7 +1520,11 @@ async function submitInventory(dryRun) {
   if (!os) return;
   if (!dryRun) {
     const info = uncountedInfo();
-    if (info.uncounted > 0 && !(await askZeroes(info))) return;
+    // Питаємо лише коли є ЩО втрачати: позиція з книжковим залишком, яку не
+    // порахували, справді спишеться в мінус. Товар, у якого книга й так нуль,
+    // запис нуля не міняє — і діалог через нього спрацьовувати не має, інакше
+    // він знову стає шумом, який тапають не читаючи.
+    if (info.atRisk > 0 && !(await askZeroes(info))) return;
   }
   if (!dryRun) clearTimeout(_draftSyncTimer);   // щоб запізнілий автозбереж не відновив чернетку після завершення
   _saving = true; _testMsg = ''; _error = ''; re();
