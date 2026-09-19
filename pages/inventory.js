@@ -610,9 +610,9 @@ function modeOf(pid) {
 // Збережений режим суперечить одиниці Syrve (стара ручна помилка). kg_to_l не чіпаємо — свідомий режим із тарою.
 // Приймає обʼєкт товару (як tareMissing), бо викликається через _balance.filter(modeMismatch).
 function modeMismatch(p) {
-  const cfg = _configs[p.id];
+  const cfg = _configs[realPid(p.id)];   // стійко до складеного ключа зони
   if (!cfg?.mode || cfg.mode === 'kg_to_l') return false;
-  return cfg.mode !== syrveDefaultMode(p.id);
+  return cfg.mode !== syrveDefaultMode(p.id);   // syrveDefaultMode сам зрізає префікс
 }
 
 function isCounted(pid) {
@@ -1300,12 +1300,24 @@ function saveLocProducts(lid) {
   clearTimeout(_locSaveTimer);
   _locSaveTimer = setTimeout(async () => {
     const l = locById(lid); if (!l) return;
+    const sent = [...(l.products || [])];
     try {
-      await fetch(`${API}/api/inventory/locations/${lid}`, {
+      const r = await fetch(`${API}/api/inventory/locations/${lid}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
-        body: JSON.stringify({ products: l.products || [] }),
+        body: JSON.stringify({ products: sent }),
       });
-    } catch { /* best-effort */ }
+      // Сервер відмовляє, якщо знімають товар, уже порахований у відкритій
+      // інвентаризації: підрахунок лежить під ключем «зона::товар» і став би
+      // сиротою. Раніше відповідь тут не дивились узагалі — галочка знімалась на
+      // екрані, сервер її не приймав, і після перезавантаження вона поверталась.
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        _error = d.error || 'Не вдалося змінити перелік товарів зони';
+        // повертаємо зняті назад, щоб екран показував те, що справді збережено
+        for (const pid of (d.countedRemoved || [])) if (!l.products.includes(pid)) l.products.push(pid);
+        re();
+      }
+    } catch { /* мережа — лишаємо як є, наступна зміна перешле */ }
   }, 600);
 }
 async function saveLocName(lid) {
@@ -1966,8 +1978,15 @@ function buildBar() {
   const loc     = locMode();   // заклад має зони → підрахунок по зонах
   const mine    = myBalance();
   const allLocRows = loc ? locTabs().flatMap(t => locRows(t.id)) : [];
-  const counted = (loc ? allLocRows : mine).filter(p => isCounted(p.id)).length + _preps.filter(p => isCounted(p.id)).length;
-  const total   = (loc ? allLocRows.length : mine.length) + _preps.length;
+  // У режимі зон напівфабрикати ВЖЕ всередині allLocRows (locPool їх включає),
+  // тож додавати _preps ще раз не можна. До того ж там вони рахувались простим
+  // id, а в зонах ключ складений — тобто в чисельник не потрапляли ніколи, лише
+  // роздували знаменник. Прогрес через це впирався у стелю (La Pasta ~91%) і
+  // 100% не показував навіть коли пораховано все.
+  const counted = loc
+    ? allLocRows.filter(p => isCounted(p.id)).length
+    : mine.filter(p => isCounted(p.id)).length + _preps.filter(p => isCounted(p.id)).length;
+  const total   = loc ? allLocRows.length : mine.length + _preps.length;
   const pct     = total > 0 ? Math.round(counted / total * 100) : 0;
 
   // Офіціанту нічого не призначено — окремий екран
@@ -2221,7 +2240,7 @@ function prepRowHTML(p) {
 // бармен бачить лише потрібне поле в одиниці Syrve. Рідина → одразу в літрах.
 function inputPanelHTML(p, c, m) {
   if (m === 'kg_to_l') {
-    const cfg = _configs[p.id] || {};
+    const cfg = _configs[realPid(p.id)] || {};   // у зонах p.id складений («зона::товар»), а тара — per-товар
     const result = computeL(p.id, c);
     const hasCfg = cfg.bottleVolL > 0;
     return `
