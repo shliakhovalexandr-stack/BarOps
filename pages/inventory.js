@@ -1163,8 +1163,13 @@ async function loadAll() {
         // бар (Syrve+Poster): усі барні склади (Бар ТОВ/ФОП/Хочу + «Без залишку · Бар»), без обладнання/інвентарю
         : (d.stores || []).filter(s => storeMatches(s, /бар|bar/i));
       _storeList = stores.map(x => ({ id: x.storeId || '', name: x.storeName || '' })).filter(x => x.id);
-      if (isDish() && stores[0]) _dishStoreId = stores[0].storeId || '';
-      if (isKitchen() && stores[0]) _kitchenStoreId = stores[0].storeId || '';
+      // ПЕРШИЙ СПРАВЖНІЙ склад, а не просто stores[0]: у списку тепер є й псевдосклад
+      // нульових залишків («Без залишку · Кухня») з порожнім storeId. Бекенд кладе
+      // його в кінець, тож сьогодні stores[0] реальний — але спиратись на порядок
+      // чужої відповіді не варто: порожній storeId означав би акт без складу.
+      const firstReal = stores.find(s => s.storeId) || null;
+      if (isDish() && firstReal) _dishStoreId = firstReal.storeId;
+      if (isKitchen() && firstReal) _kitchenStoreId = firstReal.storeId;
       for (const store of stores) {
         for (const item of (store.items || [])) {
           if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
