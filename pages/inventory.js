@@ -175,7 +175,17 @@ function locById(id) { return _locations.find(l => l.id === id) || null; }
 // productId-и, не віднесені до жодної зони (віртуальна «Без зони»). Обчислюється, а не зберігається — тому новий товар потрапляє сюди сам
 // У зону можна класти і товари, і НФ
 function prodById(id) { return _balance.find(x => x.id === id) || _prepById[id] || null; }
-function locPool() { return [..._balance, ..._preps]; }   // усе, що можна додати на склад
+// Усе, що можна віднести до зони. ДЕДУП обовʼязковий: звіт залишків Syrve
+// повертає рядки і для PREPARED, тож напівфабрикат із власним залишком на
+// складі лежить і в _balance, і в _preps. Без дедупу unassignedProductIds
+// віддавав його ДВІЧІ, і сума по «Без зони» подвоювалась — тихо, з успішним
+// актом. На La Pasta такий ПФ один («Пф Креветка чищена»), і саме про нього
+// коментар у pos.js: 18 із 19 ПФ власного залишку не мають, а цей має.
+function locPool() {
+  const m = new Map();
+  for (const p of [..._balance, ..._preps]) if (p && p.id && !m.has(p.id)) m.set(p.id, p);
+  return [...m.values()];
+}
 function unassignedProductIds() {
   const inSome = new Set();
   for (const l of _locations) for (const pid of (l.products || [])) inSome.add(pid);
@@ -184,7 +194,9 @@ function unassignedProductIds() {
 // productId-и складу (для LOC_NONE — невіднесені)
 function locProductIds(locId) {
   if (locId === LOC_NONE) return unassignedProductIds();
-  const l = locById(locId); return l ? (l.products || []).filter(pid => prodById(pid)) : [];
+  const l = locById(locId);
+  // new Set — дубль у productsJson зони давав би таке саме подвоєння суми
+  return l ? [...new Set(l.products || [])].filter(pid => prodById(pid)) : [];
 }
 // Синтетичні рядки складу для підрахунку: id="locId::productId", productId=реальний (товар АБО НФ)
 function locRows(locId) {
@@ -1493,7 +1505,9 @@ async function submitInventory(dryRun) {
             productId: r.productId, productName: r.productName, countedQty: r.amount,
             systemQty: r.systemQty, fillPct: r.systemQty > 0 ? Math.round(r.amount / r.systemQty * 100) : 0, method: r.method,
           }))
-        : _balance.map(p => {
+        // без ПФ: вони йдуть окремим блоком prepItems нижче, інакше в історії
+        // той самий напівфабрикат стояв би двома рядками
+        : _balance.filter(p => !isPrep(p.id)).map(p => {
             const m          = modeOf(p.id);
             const countedQty = getResult(p.id);
             const sysQty     = p.amount || 0;
@@ -1541,7 +1555,12 @@ async function submitInventory(dryRun) {
     // у режимі зон: товари → items, НФ → preparations (бекенд декомпозує) — обидва із суми по зонах
     const syrveItems  = loc
       ? locSum.filter(r => !r.isPrep).map(r => ({ productId: r.productId, amount: r.amount }))
-      : _balance.filter(p => p.id).map(p => ({ productId: p.id, amount: getResult(p.id) }));
+      // !isPrep — напівфабрикат їде ЛИШЕ в preparations, де бекенд розкладе його
+      // в сировину. Якщо у ПФ є власний залишок, він лежить і в _balance, і тоді
+      // в Syrve потрапляло і саме ПФ рядком, і його сировина з тех-карти — тобто
+      // ті самі креветки рахувались двічі. У режимі зон розділення вже правильне
+      // (locSum.filter(!isPrep)), а в плоскому — ні.
+      : _balance.filter(p => p.id && !isPrep(p.id)).map(p => ({ productId: p.id, amount: getResult(p.id) }));
     const prepPayload = loc
       ? locSum.filter(r => r.isPrep).map(r => ({ productId: r.productId, amount: r.amount }))
       : _preps.filter(p => p.id && isCounted(p.id)).map(p => ({ productId: p.id, amount: getResult(p.id) }));
