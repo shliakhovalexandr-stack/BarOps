@@ -10,6 +10,22 @@ import { kyivYmd } from '../shared/kyiv.js';
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
+// Назва закладу ДЛЯ ПОСТАЧАЛЬНИКА. Усередині системи ця мережа названа кодами
+// «B1»/«B2» — короткими й зручними в перемикачі, але для людини по той бік
+// переписки це просто дві літери. Тому в текст замовлення підставляємо назву,
+// під якою заклади знають ззовні.
+//
+// Тільки для цієї мережі: решта закладів названі самодостатньо. Ключ — назва
+// закладу, бо саме вона лежить у state.venue; заклад, якого тут немає, їде як є.
+const SUPPLIER_VENUE_NAMES = {
+  B1: 'Bla-Bla Університетська',
+  B2: 'Bla-Bla Проспект',
+};
+function venueForSupplier() {
+  const v = String(state.venue || '').trim();
+  return SUPPLIER_VENUE_NAMES[v.toUpperCase()] || v;
+}
+
 // Обмежена мережа графік поставок не веде (рішення власника 2026-09-17): товар
 // возять без розкладу. Ховаємо все, що з нього росте — поле в картці постачальника,
 // вкладку «Розклад» і згадки днів у списках. Саме поле Supplier.orderDays лишається
@@ -1283,7 +1299,7 @@ async function hozCopy() {
   if (!rows.length) return;
   const date  = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
   const lines = rows.map(i => `• ${i.name} — ${_hozQty[i.id]}${i.unit ? ' ' + i.unit : ''}`);
-  const text  = `Замовлення (хоз-товари)\n${state.venue} · ${date}\n\n${lines.join('\n')}`;
+  const text  = `Замовлення (хоз-товари)\n${venueForSupplier()} · ${date}\n\n${lines.join('\n')}`;
   try {
     await navigator.clipboard.writeText(text);
     const b = document.getElementById('hoz-copybtn');
@@ -1678,7 +1694,8 @@ function buildSupplierMessage(s) {
   const lines = items.map(i => `• ${i.productName}${i.comment ? ` (${i.comment})` : ''} — ${i.qty} ${i.unit || 'од.'}`);
   const head  = ['Доброго дня!'];
   if (supp.fop)         head.push(`Юр.особа: ${supp.fop}`);
-  if (state.venue)      head.push(`Заклад: ${state.venue}`);
+  const venue = venueForSupplier();
+  if (venue)            head.push(`Заклад: ${venue}`);
   // Рядок оплати йде ЗАВЖДИ, навіть порожній. Доки він був під умовою, у
   // скопійованому тексті бракувало саме того, що дописують руками перед
   // відправкою, — і помітно це вже після вставки в месенджер.
