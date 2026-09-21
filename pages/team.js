@@ -226,6 +226,7 @@ const ROLE_OPTIONS = [
   ['STOREKEEPER','📦', 'Завгосп'],
   ['TRAINEE',    '🎓', 'Стажер'],
   ['RUNNER',     '🏃', 'Ранер'],
+  ['PURCHASER',  '🛒', 'Закупівельник'],
   ['ADMIN',      '🛡', 'Системний менеджер'],
 ];
 
@@ -234,11 +235,15 @@ const ROLE_OPTIONS = [
 // системний менеджер (admin) — усі ролі, разом із Системним менеджером;
 // решта (керуючий тощо) — усі, окрім Системного менеджера.
 function availableRoleOptions() {
+  // Закупівельник існує лише в обмеженій мережі (B1/B2): у великих мережах цю
+  // роботу ділять керуючий і системний менеджер, і зайва роль у списку лише
+  // плутала б. state.features непорожній саме в обмеженій мережі.
+  const byNet = o => o[0] !== 'PURCHASER' || !!state.features;
   const r = (state.role || '').toLowerCase();
   if (r === 'manager') return ROLE_OPTIONS.filter(o => ['WAITER', 'MANAGER', 'TRAINEE', 'RUNNER', 'CLEANER', 'HOSTESS', 'BABYSITTER', 'SECURITY', 'STOREKEEPER'].includes(o[0]));
   if (r === 'chef')    return ROLE_OPTIONS.filter(o => o[0] === 'COOK' || o[0] === 'CHEF');   // шеф — лише кухня
-  if (r === 'admin')   return ROLE_OPTIONS;
-  return ROLE_OPTIONS.filter(o => o[0] !== 'ADMIN');
+  if (r === 'admin')   return ROLE_OPTIONS.filter(byNet);
+  return ROLE_OPTIONS.filter(o => o[0] !== 'ADMIN').filter(byNet);
 }
 function defaultRole() {
   const r = (state.role || '').toLowerCase();
@@ -631,7 +636,7 @@ ${CSS}
   </div>
 
   <!-- Venue selector — лише мережеві ролі (admin/accountant/director); шеф/менеджер прив'язані до свого закладу -->
-  ${(_venues.length > 1 && ['admin', 'accountant', 'director'].includes((state.role || '').toLowerCase())) ? `
+  ${(_venues.length > 1 && ['admin', 'accountant', 'director', 'purchaser'].includes((state.role || '').toLowerCase())) ? `
   <div style="padding:0 14px 10px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none">
     ${_venues.map(v => { const vn = v.name.replace(/\\/g, '\\\\').replace(/"/g, '&quot;').replace(/'/g, "\\'"); return `
       <div onclick="window.__tm.switchTeamVenue('${v.id}','${vn}')"

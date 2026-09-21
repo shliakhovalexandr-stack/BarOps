@@ -274,7 +274,7 @@ function zoneToggleHTML() {
   const btn = (z, label) => `<button onclick="window.__ord.setMgrZone('${z}')" style="flex:1;height:34px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-b);font-size:13px;font-weight:600;background:${_mgrZone===z?'var(--bg3)':'transparent'};color:${_mgrZone===z?'var(--text0)':'var(--text2)'}">${label}</button>`;
   return `<div style="display:flex;gap:6px;margin:0 18px 12px;padding:3px;background:var(--bg2);border-radius:11px;border:0.5px solid var(--border)">${btn('bar','🍸 Бар')}${btn('kitchen','🍳 Кухня')}${btn('hoz','🧻 Хоз')}</div>`;
 }
-function isOrderMgr() { const r = (state.role || '').toLowerCase(); return r === 'admin' || r === 'manager' || r === 'director' || r === 'chef'; }
+function isOrderMgr() { const r = (state.role || '').toLowerCase(); return r === 'admin' || r === 'manager' || r === 'director' || r === 'chef' || r === 'purchaser'; }
 function orderZone() {
   const r = (state.role || '').toLowerCase();
   if (r === 'chef' || r === 'cook') return 'kitchen';
@@ -374,7 +374,7 @@ async function loadMorshOutlet() {
     _morshSel     = d.selected || null;
   } catch { /* тихо */ }
 }
-const isMgrRole = () => ['admin', 'manager', 'director'].includes((state.role || '').toLowerCase());
+const isMgrRole = () => ['admin', 'manager', 'director', 'purchaser'].includes((state.role || '').toLowerCase());
 
 async function loadData() {
   _loading = true;
@@ -1142,7 +1142,7 @@ function renderManager() {
   </div>
 
   <div class="ord-scroll">
-    ${(state.role==='admin' || state.role==='director') ? zoneToggleHTML() : ''}
+    ${(state.role==='admin' || state.role==='director' || state.role==='purchaser') ? zoneToggleHTML() : ''}
     <div class="ord-mgr-tabs">
       <button class="ord-mt ${_mgrTab==='orders'?'act':''}"     onclick="window.__ord.setMgrTab('orders')">Замовлення</button>
       ${orderZone()!=='hoz' ? `<button class="ord-mt ${_mgrTab==='suggest'?'act':''}"    onclick="window.__ord.setMgrTab('suggest')">Підказки</button>` : ''}
@@ -1326,7 +1326,7 @@ function hozListHTML() {
 }
 function renderHoz() {
   const n = Object.values(_hozQty).filter(q => q > 0).length;
-  const isAdminDir = state.role === 'admin' || state.role === 'director';
+  const isAdminDir = state.role === 'admin' || state.role === 'director' || state.role === 'purchaser';
   const outCount = _hoz.filter(i => i.stock !== null && i.stock <= 0).length;
   return `
   <div class="ord-topbar" style="flex-shrink:0">

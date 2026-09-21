@@ -661,6 +661,12 @@ function buildHTML() {
               : state.role === 'director' ? [...QUICK_MANAGER.filter(q => !['ordering', 'inventory'].includes(q.route)), ...(scheduleAction ? [scheduleAction] : []), QUICK_PRICE_ALERT, QUICK_ABC, QUICK_PAY_AUDIT]
               : state.role === 'manager' ? [...QUICK_MANAGER.filter(q => !['excise', 'ordering', 'inventory', 'stock', 'debts'].includes(q.route)), QUICK_HOZ, QUICK_PAY_AUDIT, ...(scheduleAction ? [scheduleAction] : [])]
               : isAcc ? [QUICK_INVOICE_OCR, QUICK_PRICE_ALERT, ...QUICK_BARTENDER.filter(q => !['excise', 'ordering', 'schedule', 'cash'].includes(q.route))]
+              // Закупівельник (B1/B2): інвентаризації + закупка — рівно його робота.
+              // Без власної гілки він падав би у QUICK_BARTENDER, де є зайве (акциз,
+              // борги, каса) — у lite-мережі це фільтрується фічами, але покладатись
+              // на побічний ефект не варто: роль має свій набір явно.
+              : state.role === 'purchaser'
+                ? [...QUICK_BARTENDER.filter(q => ['inventory', 'ordering', 'writeoff', 'schedule'].includes(q.route)), QUICK_HOZ, tileByRoute()['journal']].filter(Boolean)
               : state.role === 'chef' ? (() => { const m = tileByRoute(); return CHEF_ROUTES.map(r => m[r]).filter(Boolean); })()
               : state.role === 'waiter' ? [QUICK_MY_SHIFT, tileByRoute()['journal'], ...QUICK_BARTENDER.filter(q => !['writeoff', 'inventory', 'ordering', 'excise', 'debts'].includes(q.route))].filter(Boolean)
               // Кухар: списання/переміщення, графік, інвентар, замовлення + виробництво + рецепти кухні

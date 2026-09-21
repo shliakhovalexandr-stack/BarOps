@@ -105,7 +105,7 @@ function zonesEnabled() { return isKitchen() || isBar(); }
 function zonesKind() { return isKitchen() ? 'kitchen' : 'bar'; }
 function posLabel() { return _posMode === 'poster' ? 'Poster' : 'Syrve'; }   // назва POS для міток
 // Керівні ролі, що планують інвентаризацію по ЗОНАХ (бар/кухня/хоз) — з перемикачем зон.
-function canPlanZones() { return ['admin', 'accountant', 'director'].includes((_role || '').toLowerCase()); }
+function canPlanZones() { return ['admin', 'accountant', 'director', 'purchaser'].includes((_role || '').toLowerCase()); }
 // Хто бачить менеджерський вид (планування/налаштування):
 //   керуючий/бухгалтер/адмін — усі зони (бар/кухня/хоз); шеф — кухня; менеджер — посуд.
 // Хто може ВІДПРАВИТИ інвентаризацію. Кухню завершує лише шеф — кухарі рахують, але
@@ -117,7 +117,7 @@ function canSubmitInv() {
 
 function canManageInv() {
   const r = (_role || '').toLowerCase();
-  if (r === 'admin' || r === 'accountant' || r === 'director') return true;
+  if (r === 'admin' || r === 'accountant' || r === 'director' || r === 'purchaser') return true;
   if (isKitchen() && r === 'chef') return true;
   return isDish() && r === 'manager';
 }
