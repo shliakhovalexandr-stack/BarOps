@@ -508,6 +508,9 @@ const CSS = `<style id="inv-css">
 .loc-pick-row.on .loc-pick-box{background:var(--purple);border-color:var(--purple)}
 .loc-copy-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 14px 8px}
 .loc-copy-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b)}
+.loc-pickall-row{display:flex;justify-content:flex-end;padding:0 14px 8px}
+.loc-pickall{padding:7px 14px;border-radius:14px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.loc-pickall.off{border-color:var(--amber-border,rgba(240,170,60,.4));color:var(--amber)}
 .loc-copy-chip{padding:5px 10px;border-radius:14px;border:0.5px solid var(--purple-border);background:var(--purple-bg);color:var(--purple);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
 
 /* Confirm dialog (власне вікно замість нативного confirm) */
@@ -2348,6 +2351,20 @@ function locEditorHTML() {
     })()}
     <div class="loc-hint">Торкніться товарів, що лежать у цій зоні. Той самий товар може бути в кількох зонах — у Syrve піде <b>сума</b>.</div>
     ${searchBoxHTML()}
+    ${(() => {
+      // Кнопка діє рівно на те, що ЗАРАЗ на екрані: із пошуком — на знайдене,
+      // без пошуку — на весь список. Інакше з 300+ товарами вона або нічого не
+      // вирішує, або зносить усе одним дотиком.
+      if (!list.length) return "";
+      const allOn = list.every(x => inLoc.has(x.id));
+      const found = (_search || "").trim() !== "";
+      return `
+        <div class="loc-pickall-row">
+          <button class="loc-pickall${allOn ? " off" : ""}" data-a="loc-pick-all" data-off="${allOn ? "1" : "0"}">
+            ${allOn ? "Зняти" : "Додати"} всі${found ? " знайдені" : ""} · ${list.length}
+          </button>
+        </div>`;
+    })()}
     <div class="inv-cfg-list">
       ${list.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>` : ''}
       ${list.map(p => {
@@ -3206,6 +3223,21 @@ function on(e) {
     const src = locById(t.dataset.lid); const dst = locById(_locEditId);
     if (!src || !dst) return;
     dst.products = [...new Set([...(dst.products || []), ...(src.products || [])])];   // об'єднання, без дублів
+    saveLocProducts(_locEditId); re(); return;
+  }
+  if (a === "loc-pick-all") {
+    const l = locById(_locEditId); if (!l) return;
+    const ids = locPool().filter(matchSearch).map(x => x.id);   // те саме, що бачить людина
+    if (!ids.length) return;
+    l.products = l.products || [];
+    if (t.dataset.off === "1") {
+      const drop = new Set(ids);
+      l.products = l.products.filter(x => !drop.has(x));
+    } else {
+      l.products = [...new Set([...l.products, ...ids])];
+    }
+    // saveLocProducts сам поверне назад ті, що сервер не дозволив зняти
+    // (товар уже порахований у відкритій інвентаризації), і покаже помилку.
     saveLocProducts(_locEditId); re(); return;
   }
   if (a === 'loc-prod-toggle') {
