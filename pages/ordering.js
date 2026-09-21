@@ -6,6 +6,7 @@
 import { navigate, state, canSeeStock } from '../shared/app.js';
 
 import { API_URL as API } from '../shared/config.js';
+import { kyivYmd } from '../shared/kyiv.js';
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
@@ -1599,7 +1600,10 @@ async function loadMyOrder() {
     // Редагованою вважаємо лише заявку ЗА СЬОГОДНІ. Інакше стара незакрита заявка (менеджер не
     // позначив «виконано») підхоплювалась як чернетка → нова відправка мовчки PATCH-ила стару
     // (без пушу, зі старою датою), і менеджеру «нічого не приходило». Тепер новий день → нова заявка.
-    const kyiv  = t => new Date(new Date(t).getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+    // Саме КИЇВСЬКА доба, а не «UTC+3»: узимку зсув 2 години, і жорстка константа
+    // з 23:00 датувала б заявку вже завтрашнім днем. Бармен, який щойно відправив
+    // замовлення, після перезаходу не знайшов би його редагованим і подав би дубль.
+    const kyiv  = t => kyivYmd(new Date(t));
     const today = kyiv(Date.now());
     const editable = (data.data || []).find(o => (o.status === 'pending' || o.status === 'approved') && kyiv(o.createdAt) === today);
     if (!editable) return;

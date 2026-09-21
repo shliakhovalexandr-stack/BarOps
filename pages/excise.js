@@ -6,6 +6,7 @@
 import { navigate, state } from '../shared/app.js';
 
 import { API_URL as API } from '../shared/config.js';
+import { kyivYmd } from '../shared/kyiv.js';
 
 // ── state ────────────────────────────────────────────────────
 let _venueId, _token, _role, _userName;
@@ -151,9 +152,12 @@ function shiftDate(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
+// Київська дата «сьогодні» — з неї починається список марок і від неї гортають дні.
+// Було жорстке «+3 години». З 25.10.2026 Київ на UTC+02:00, тож із 23:00 до 00:00
+// сторінка відкривала б уже ЗАВТРАШНІЙ день: марки, відскановані перед закриттям, лягали б
+// у порожню добу, а сьогоднішні зникали б з очей. Зсув питаємо в зони, а не знаємо.
 function todayKyiv() {
-  const kyiv = new Date(Date.now() + 3 * 60 * 60 * 1000);
-  return kyiv.toISOString().slice(0, 10);
+  return kyivYmd();
 }
 
 function isMgr() {

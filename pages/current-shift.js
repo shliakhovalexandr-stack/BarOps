@@ -6,6 +6,7 @@
 import { navigate, state } from '../shared/app.js';
 
 import { API_URL as API } from '../shared/config.js';
+import { kyivYmd } from '../shared/kyiv.js';
 
 let _loading = true;
 let _error   = '';
@@ -17,7 +18,11 @@ let _day     = '';          // вибраний день YYYY-MM-DD (істор�
 
 function token() { return localStorage.getItem('barops_token') || ''; }
 function money(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA') + ' ₴'; }
-function todayIso() { return new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10); }
+// Київське «сьогодні» — це день, який піде в ?date= до POS і в ?day= до каси.
+// Було жорстке «+3 години». З 25.10.2026 Київ на UTC+02:00, тож в останню годину доби (23:00–00:00)
+// сторінка просила б ЗАВТРАШНЮ дату: порожня зміна та нульова готівка
+// «до здачі» саме тоді, коли зміна ще йде. Зсув питаємо в зони, а не знаємо.
+function todayIso() { return kyivYmd(); }
 function dayLabel(day) {
   const d = new Date(`${day}T00:00:00`);
   if (isNaN(d)) return day;

@@ -7,6 +7,7 @@
 import { navigate, state } from '../shared/app.js';
 
 import { API_URL as API } from '../shared/config.js';
+import { kyivYmd } from '../shared/kyiv.js';
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
@@ -56,8 +57,12 @@ function token() { return localStorage.getItem('barops_token') || ''; }
 function hdrs()  { return { Authorization: `Bearer ${token()}` }; }
 function money(n){ return (Math.round((n || 0) * 100) / 100).toLocaleString('uk-UA') + ' ₴'; }
 
+// Київське «сьогодні»: стартова дата, стеля навігації та ознака live-режиму.
+// Було жорстке «+3 години». З 25.10.2026 Київ на UTC+02:00 — і з 23:00 сторінка
+// вважала б сьогодні завтра: автооновлення гасло б (isToday став би false),
+// а вечірні продажі відкривались би порожнім ще не початим днем.
 function todayKyiv() {
-  return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return kyivYmd();
 }
 function shiftDate(dateStr, delta) {
   const d = new Date(`${dateStr}T00:00:00Z`);

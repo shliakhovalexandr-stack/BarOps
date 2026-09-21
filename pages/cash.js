@@ -8,6 +8,7 @@
 import { state } from '../shared/app.js';
 
 import { API_URL as API } from '../shared/config.js';
+import { kyivYmd } from '../shared/kyiv.js';
 
 /* ════════════ STATE ════════════ */
 let _items   = [];
@@ -32,7 +33,11 @@ function fmtTime(iso) {
   const d = new Date(iso);
   return isNaN(d) ? '' : `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-function todayIso() { return new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10); } // київ
+// Київське «сьогодні»: стартовий день списку, стеля date-pickerа і гальмо «не в майбутнє».
+// Було жорстке «+3 години». З 25.10.2026 Київ на UTC+02:00, тож з 23:00 каса
+// перемикалась би на ЗАВТРАШНІЙ день: вилучення, зафіксовані в пік зміни,
+// зникали б з екрана, а сума при здачі каси вийшла б нульовою. Зсув питаємо в зони.
+function todayIso() { return kyivYmd(); }
 function dayLabel(day) {
   const d = new Date(`${day}T00:00:00`);
   if (isNaN(d)) return day;
