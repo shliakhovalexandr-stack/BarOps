@@ -328,6 +328,9 @@ const CSS = `<style id="inv-css">
 /* Input panel */
 .inv-ipanel{border-top:0.5px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:7px}
 .inv-inp-lbl{font-size:10px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
+.inv-var-hdr{display:flex;align-items:baseline;gap:8px;margin:14px 0 2px;padding-top:10px;border-top:0.5px solid var(--border);font-family:var(--font-h);font-size:14px;font-weight:700;color:var(--text0)}
+.inv-var-hdr:first-child{margin-top:0;padding-top:0;border-top:0}
+.inv-var-sub{font-family:var(--font-b);font-size:11px;font-weight:400;color:var(--text2)}
 .inv-field{height:40px;background:var(--bg2);border:0.5px solid var(--green-border);border-radius:11px;padding:0 12px;font-size:17px;font-weight:700;color:var(--text0);outline:none;width:100%;text-align:center;transition:border-color .2s}
 .inv-field:focus{border-color:var(--green)}
 .inv-calc{display:flex;align-items:center;gap:6px;margin:7px 0 2px}
@@ -439,6 +442,9 @@ const CSS = `<style id="inv-css">
 .inv-ask-acts{display:flex;gap:8px;margin-top:18px}
 .inv-ask-acts .btn{flex:1}
 .inv-cfg-field-grp{margin-bottom:12px}
+.inv-cfg-var{margin-bottom:10px}
+.inv-cfg-var.multi{padding:10px;border:0.5px solid var(--border);border-radius:11px;background:var(--bg2)}
+.inv-cfg-var-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .inv-cfg-field-lbl{font-size:10px;color:var(--text2);font-family:var(--font-b);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
 .inv-cfg-field{height:46px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:0 13px;font-size:16px;font-weight:600;color:var(--text0);outline:none;width:100%;transition:border-color .2s}
 .inv-cfg-field:focus{border-color:var(--green)}
@@ -574,22 +580,63 @@ function partialsView(c) {
 // Реальний productId з ключа підрахунку: у режимі зон ключ = "locId::productId"
 function realPid(pid) { const s = String(pid); const i = s.indexOf('::'); return i >= 0 ? s.slice(i + 2) : pid; }
 
+/* ── Кілька видів тари на один товар ──────────────────────────────────────
+ *
+ *  Той самий сироп стоїть на полиці і в склі, і в пластику. Порожня пляшка
+ *  скла важить 446 г, пластику — 65 г: на вагах 500 г це 40 мл проти 320 мл,
+ *  різниця у вісім разів. У Syrve це ОДНА картка, і ділити її там не можна —
+ *  вона тягне за собою тех-карти й звіти.
+ *
+ *  Тому варіанти живуть у нас: бармен рахує кожну упаковку окремо, зі своєю
+ *  тарою, а в Syrve їде СУМА одним числом. Упаковка Syrve не цікавить.
+ *
+ *  Зберігання в _counts, сумісне зі старими чернетками:
+ *     { full, partials, litersAdd,            ← варіант 0
+ *       vars: { '1': { full, partials } } }   ← решта
+ *  Чернетка без vars читається як раніше.
+ *  ─────────────────────────────────────────────────────────────────────── */
+
+// Види тари товару. Завжди хоча б один — щоб решта коду не розгалужувалась.
+function tareVariants(cfg) {
+  if (cfg && Array.isArray(cfg.variants) && cfg.variants.length > 1) return cfg.variants;
+  return [{ name: '', empty: +(cfg && cfg.emptyTareKg) || 0, full: +(cfg && cfg.fullTareKg) || 0, vol: +(cfg && cfg.bottleVolL) || 0 }];
+}
+// Чи має товар кілька видів тари (тоді панель ділиться на секції)
+function hasVariants(pid) { return tareVariants(_configs[realPid(pid)]).length > 1; }
+
+// Зріз підрахунку для варіанта i. Індекс 0 — сам обʼєкт, щоб старі чернетки
+// лишались читабельними без міграції.
+function varSlot(c, i) {
+  if (!i) return c;
+  if (!c.vars || typeof c.vars !== 'object') c.vars = {};
+  if (!c.vars[i]) c.vars[i] = {};
+  return c.vars[i];
+}
+// Те саме, але без створення — для читання
+function varSlotRO(c, i) { return i ? ((c && c.vars && c.vars[i]) || {}) : (c || {}); }
+
 function computeL(pid, c) {
   const cfg = _configs[realPid(pid)];
   if (!cfg || cfg.mode !== 'kg_to_l') return 0;
-  const { emptyTareKg: e, fullTareKg: f, bottleVolL: v } = cfg;
-  const diff = (f - e) || 1;
-  let total = (+c.full || 0) * v;
-  for (const w of partialWeights(c)) total += Math.max(0, ((parseFloat(w) || 0) - e) / diff * v);
-  total += parseFloat(String(c.litersAdd || '').replace(',', '.')) || 0;   // пряме введення літрів (інша пляшка)
+  let total = 0;
+  tareVariants(cfg).forEach((t, i) => {
+    const part = varSlotRO(c, i);
+    const diff = (t.full - t.empty) || 1;
+    total += (+part.full || 0) * t.vol;
+    for (const w of partialWeights(part)) total += Math.max(0, ((parseFloat(w) || 0) - t.empty) / diff * t.vol);
+  });
+  // пряме введення літрів — спільне на товар, воно вже в літрах і тари не потребує
+  total += parseFloat(String(c.litersAdd || '').replace(',', '.')) || 0;
   return Math.max(0, Math.round(total * 1000) / 1000);
 }
+
 
 // Товар у режимі тари, але вага пустої/повної (чи об'єм) не введені
 function tareMissing(p) {
   if (modeOf(p.id) !== 'kg_to_l') return false;
   const cfg = _configs[realPid(p.id)] || {};
-  return !((+cfg.emptyTareKg) > 0 && (+cfg.fullTareKg) > 0 && (+cfg.bottleVolL) > 0);
+  // Кожен вид тари має бути заповнений: недозаповнений другий так само дасть хибні літри.
+  return tareVariants(cfg).some(t => !(t.empty > 0 && t.full > 0 && t.vol > 0));
 }
 
 // Дефолтний режим суто за базовою одиницею товару в Syrve (без урахування збереженого конфігу)
@@ -623,7 +670,7 @@ function isCounted(pid) {
   const c = _counts[pid] || {};
   const m = modeOf(pid);
   if (m === 'nf')      return (parseFloat(c.nf) || 0) > 0 || sumAdds(c.adds) > 0;
-  if (m === 'kg_to_l') return (+c.full || 0) > 0 || partialWeights(c).length > 0 || (String(c.litersAdd || '').trim() !== '');
+  if (m === 'kg_to_l') return tareVariants(_configs[realPid(pid)]).some((t, i) => { const s = varSlotRO(c, i); return (+s.full || 0) > 0 || partialWeights(s).length > 0; }) || (String(c.litersAdd || '').trim() !== '');
   if (m === 'kg')      return (c.kg || '') !== '' || sumAdds(c.adds) > 0;
   if (m === 'ml')      return (c.ml || '') !== '' || sumAdds(c.adds) > 0;
   return (+c.sht || 0) > 0 || sumAdds(c.adds) > 0;
@@ -973,11 +1020,12 @@ function bindLiveInputs() {
     inp.oninput = e => {
       const pid = e.target.dataset.pid;
       const idx = +e.target.dataset.idx || 0;
+      const vi  = +e.target.dataset.var || 0;   // який вид тари (скло/пластик)
       if (!_counts[pid]) _counts[pid] = {};
-      const c = _counts[pid];
+      const c = varSlot(_counts[pid], vi);
       if (!Array.isArray(c.partials)) c.partials = partialsView(c);   // міграція старого поля
       c.partials[idx] = (e.target.value || '').replace(',', '.');
-      c.partial = c.partials[0] || '';   // дзеркало першої ваги для старої версії (перехідний період)
+      if (!vi) c.partial = c.partials[0] || '';   // дзеркало для старої версії (лише базова тара)
       updateConvDisplay(pid);
       persistCounts();
     };
@@ -1000,8 +1048,10 @@ function bindLiveInputs() {
     inp.oninput = e => {
       const pid  = e.target.dataset.pid;
       const kind = e.target.dataset.stepInp;   // 'sht' | 'full'
+      const vi   = +e.target.dataset.var || 0;
       if (!_counts[pid]) _counts[pid] = {};
-      _counts[pid][kind] = Math.max(0, parseFloat((e.target.value || '').replace(',', '.')) || 0);  // число (для +/−)
+      const slot = kind === 'full' ? varSlot(_counts[pid], vi) : _counts[pid];
+      slot[kind] = Math.max(0, parseFloat((e.target.value || '').replace(',', '.')) || 0);  // число (для +/−)
       if (kind === 'full') updateConvDisplay(pid);
       if (kind === 'sht') updateAddTotal(pid);   // основне значення штук змінилось → оновити суму
       persistCounts();
@@ -1224,7 +1274,12 @@ async function loadAll() {
     if (cfgRes.ok) {
       const d = await cfgRes.json();
       _configs = {};
-      for (const cfg of (d.configs || [])) _configs[cfg.productId] = cfg;
+      for (const cfg of (d.configs || [])) {
+        // variantsJson приходить рядком — розбираємо один раз тут, щоб решта коду
+        // працювала з готовим масивом і не парсила на кожному рендері
+        if (cfg.variantsJson) { try { const a = JSON.parse(cfg.variantsJson); if (Array.isArray(a) && a.length > 1) cfg.variants = a; } catch { /* зіпсований JSON — лишаємось на одній тарі */ } }
+        _configs[cfg.productId] = cfg;
+      }
     }
 
     // Зони підрахунку — постійні per-venue, окремо на бар і на кухню
@@ -1813,6 +1868,19 @@ async function submitInventory(dryRun) {
   _saving = false; re();
 }
 
+/** Зчитати види тари з відкритої картки в _configDraft.
+ *  Потрібно перед КОЖНОЮ дією, що перемальовує картку: інакше те, що людина
+ *  щойно надрукувала, зникне при додаванні другого виду тари. */
+function collectCfgVars() {
+  const rows = [];
+  document.querySelectorAll('[data-cfg-var]').forEach(inp => {
+    const vi = +inp.dataset.cfgVar || 0;
+    if (!rows[vi]) rows[vi] = { name: '', empty: '', full: '', vol: '' };
+    rows[vi][inp.dataset.cfgKey] = (inp.value || '').replace(',', '.');
+  });
+  _configDraft.variants = rows.filter(Boolean);
+}
+
 async function saveConfig() {
   if (!_configPid) return;
   _cfgSaving = true; _cfgError = ''; re();
@@ -1824,8 +1892,13 @@ async function saveConfig() {
     });
     const d = await res.json();
     if (!d.success) throw new Error(d.error);
-    _configs[_configPid] = d.config;
+    // Сервер віддає variantsJson рядком — розбираємо одразу, бо далі з ним
+    // працює підрахунок, а парсити на кожному рендері не треба.
+    const saved = d.config;
+    if (saved.variantsJson) { try { const a = JSON.parse(saved.variantsJson); if (Array.isArray(a) && a.length > 1) saved.variants = a; } catch { /* лишаємось на одній тарі */ } }
+    _configs[_configPid] = saved;
     _configPid = null;
+    _configDraft = {};
   } catch (err) {
     _cfgError = err.message;
   }
@@ -2369,31 +2442,43 @@ function inputPanelHTML(p, c, m) {
   if (m === 'kg_to_l') {
     const cfg = _configs[realPid(p.id)] || {};   // у зонах p.id складений («зона::товар»), а тара — per-товар
     const result = computeL(p.id, c);
-    const hasCfg = cfg.bottleVolL > 0;
-    return `
-      <div class="inv-ipanel">
+    const vars = tareVariants(cfg);
+    const multi = vars.length > 1;
+    const hasCfg = vars.every(t => t.vol > 0);
+
+    // Секція на кожен вид тари. Коли він один — усе як було, без зайвих заголовків.
+    const section = (t, vi) => {
+      const s = varSlotRO(c, vi);
+      const uid = vi ? `${p.id}__v${vi}` : p.id;   // унікальні id полів на сторінці
+      return `
+        ${multi ? `<div class="inv-var-hdr">${t.name || `Тара ${vi + 1}`}<span class="inv-var-sub">${t.vol ? `${t.vol} л · пуста ${(t.empty * 1000).toFixed(0)} г` : ''}</span></div>` : ''}
         <div class="inv-inp-lbl">Цілі пляшки (шт)</div>
         <div class="inv-stepper">
-          <button class="inv-stbtn" data-a="full-dec" data-pid="${p.id}">−</button>
-          <input class="inv-stinp" id="inv-full-${p.id}" type="number" inputmode="numeric" value="${c.full || 0}" data-step-inp="full" data-pid="${p.id}" onfocus="this.select()">
-          <button class="inv-stbtn" data-a="full-inc" data-pid="${p.id}">+</button>
+          <button class="inv-stbtn" data-a="full-dec" data-pid="${p.id}" data-var="${vi}">−</button>
+          <input class="inv-stinp" id="inv-full-${uid}" type="number" inputmode="numeric" value="${s.full || 0}" data-step-inp="full" data-pid="${p.id}" data-var="${vi}" onfocus="this.select()">
+          <button class="inv-stbtn" data-a="full-inc" data-pid="${p.id}" data-var="${vi}">+</button>
         </div>
         <div class="inv-inp-lbl">Відкриті пляшки — зважити (кг)</div>
-        ${partialsView(c).map((w, idx) => `
+        ${partialsView(s).map((w, idx) => `
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
             <input class="inv-field" style="flex:1;margin:0" type="text" inputmode="decimal"
-              placeholder="${cfg.emptyTareKg ? `мін. ${Number(cfg.emptyTareKg).toFixed(3)} кг` : '0.000'}"
-              value="${w || ''}" data-partial-inp data-pid="${p.id}" data-idx="${idx}">
-            ${partialsView(c).length > 1 ? `<button class="inv-stbtn" data-a="partial-del" data-pid="${p.id}" data-idx="${idx}">×</button>` : ''}
+              placeholder="${t.empty ? `мін. ${Number(t.empty).toFixed(3)} кг` : '0.000'}"
+              value="${w || ''}" data-partial-inp data-pid="${p.id}" data-var="${vi}" data-idx="${idx}">
+            ${partialsView(s).length > 1 ? `<button class="inv-stbtn" data-a="partial-del" data-pid="${p.id}" data-var="${vi}" data-idx="${idx}">×</button>` : ''}
           </div>`).join('')}
-        <button class="inv-add-partial" data-a="partial-add" data-pid="${p.id}">+ ще відкрита пляшка</button>
+        <button class="inv-add-partial" data-a="partial-add" data-pid="${p.id}" data-var="${vi}">+ ще відкрита пляшка</button>`;
+    };
+
+    return `
+      <div class="inv-ipanel">
+        ${vars.map(section).join('')}
         <div class="inv-inp-lbl">Або додати літри напряму (інша пляшка)</div>
         <input class="inv-field" type="text" inputmode="decimal"
           placeholder="0.000" value="${c.litersAdd || ''}"
           data-live-inp="litersAdd" data-pid="${p.id}">
         <div class="inv-conv">
           <div class="inv-conv-formula">
-            ${hasCfg ? `Зважування з тарою → літри` : `<span style="color:var(--amber)">⚠ Тару задає менеджер</span>`}
+            ${hasCfg ? (multi ? `Сума всіх видів тари → літри` : `Зважування з тарою → літри`) : `<span style="color:var(--amber)">⚠ Тару задає менеджер</span>`}
           </div>
           <div style="text-align:right">
             <div class="inv-conv-result" id="inv-conv-res-${p.id}">${result.toFixed(3)}</div>
@@ -2837,16 +2922,39 @@ function configSheetHTML() {
   const p      = _balance.find(x => x.id === _configPid);
   const cfg    = _configs[_configPid] || {};
 
-  const eKg  = _configDraft.emptyTareKg !== undefined ? _configDraft.emptyTareKg : (cfg.emptyTareKg || '');
-  const fKg  = _configDraft.fullTareKg  !== undefined ? _configDraft.fullTareKg  : (cfg.fullTareKg  || '');
-  const vL   = _configDraft.bottleVolL  !== undefined ? _configDraft.bottleVolL  : (cfg.bottleVolL  || '');
+  // Чернетка редагування — масив видів тари. Один вид = звичайна тара, як було.
+  // Кілька — скло/пластик, 0,5 і 1 л: у Syrve одна картка, у нас різні пляшки.
+  const rows = Array.isArray(_configDraft.variants) ? _configDraft.variants : tareVariants(cfg).map(t => ({ ...t }));
+  const multi = rows.length > 1;
 
-  const eNum = parseFloat(eKg) || 0;
-  const fNum = parseFloat(fKg) || 0;
-  const vNum = parseFloat(vL)  || 0;
-  const diff = (fNum - eNum) || 1;
-  const exKg = eNum + diff * 0.5;
-  const exL  = vNum > 0 ? ((exKg - eNum) / diff * vNum) : 0;
+  const field = (vi, key, label, ph, val) => `
+    <div class="inv-cfg-field-grp" style="flex:1;min-width:0">
+      <div class="inv-cfg-field-lbl">${label}</div>
+      <input class="inv-cfg-field" type="text" inputmode="decimal"
+        data-cfg-var="${vi}" data-cfg-key="${key}" placeholder="${ph}" value="${val || ''}">
+    </div>`;
+
+  const block = (t, vi) => {
+    const e = parseFloat(t.empty) || 0, f = parseFloat(t.full) || 0, v = parseFloat(t.vol) || 0;
+    const diff = (f - e) || 1;
+    const exKg = e + diff * 0.5;
+    const exL  = v > 0 ? ((exKg - e) / diff * v) : 0;
+    return `
+      <div class="inv-cfg-var${multi ? ' multi' : ''}">
+        ${multi ? `
+          <div class="inv-cfg-var-top">
+            <input class="inv-cfg-field" style="margin:0;flex:1" type="text"
+              data-cfg-var="${vi}" data-cfg-key="name" placeholder="Назва: Скло / Пласт / 0,5 л" value="${(t.name || '').replace(/"/g, '&quot;')}">
+            ${rows.length > 2 || vi > 0 ? `<button class="inv-stbtn" data-a="cfg-var-del" data-var="${vi}" title="Прибрати вид тари">×</button>` : ''}
+          </div>` : ''}
+        <div style="display:flex;gap:8px">
+          ${field(vi, 'empty', 'Порожня (кг)', '0.420', t.empty)}
+          ${field(vi, 'full', 'Повна (кг)', '1.150', t.full)}
+          ${field(vi, 'vol', "Об'єм (л)", '0.700', t.vol)}
+        </div>
+        ${v > 0 ? `<div class="inv-cfg-formula" style="margin-top:6px">Приклад: ${exKg.toFixed(3)} кг → <strong>${exL.toFixed(3)} л</strong></div>` : ''}
+      </div>`;
+  };
 
   return `
     <div class="inv-cfg-overlay${isOpen ? ' open' : ''}" data-a="cfg-close"></div>
@@ -2854,28 +2962,10 @@ function configSheetHTML() {
       <div class="inv-cfg-sheet-handle"></div>
       <div class="inv-cfg-sheet-title">${p ? p.name : ''}</div>
 
-      <div class="inv-cfg-field-grp">
-        <div class="inv-cfg-field-lbl">Порожня тара (кг)</div>
-        <input class="inv-cfg-field" type="text" inputmode="decimal"
-          id="inv-cfg-empty" placeholder="напр. 0.420" value="${eKg}">
-      </div>
-      <div class="inv-cfg-field-grp">
-        <div class="inv-cfg-field-lbl">Повна тара (кг)</div>
-        <input class="inv-cfg-field" type="text" inputmode="decimal"
-          id="inv-cfg-full" placeholder="напр. 1.150" value="${fKg}">
-      </div>
-      <div class="inv-cfg-field-grp">
-        <div class="inv-cfg-field-lbl">Об'єм повної пляшки (л)</div>
-        <input class="inv-cfg-field" type="text" inputmode="decimal"
-          id="inv-cfg-vol" placeholder="напр. 0.700" value="${vL}">
-      </div>
+      ${rows.map(block).join('')}
 
-      ${vNum > 0 ? `
-        <div class="inv-cfg-formula">
-          Формула: <code>(факт − ${eNum.toFixed(3)}) ÷ (${fNum.toFixed(3)} − ${eNum.toFixed(3)}) × ${vNum.toFixed(3)}</code><br>
-          Приклад: ${exKg.toFixed(3)} кг → <strong>${exL.toFixed(3)} л</strong>
-        </div>
-      ` : ''}
+      <button class="inv-add-partial" data-a="cfg-var-add" style="margin-top:4px">+ ще вид тари (скло / пластик / інший обʼєм)</button>
+      ${multi ? `<div class="inv-cfg-formula" style="margin-top:6px">Бармен рахує кожен вид окремо, у ${posLabel()} піде <strong>сума</strong> — упаковка його не цікавить.</div>` : ''}
 
       ${_cfgError ? `<div class="inv-cfg-err">${_cfgError}</div>` : ''}
 
@@ -2954,19 +3044,13 @@ function on(e) {
   }
 
   /* ── BAR: steppers ── */
-  if (a === 'full-inc') {
+  if (a === 'full-inc' || a === 'full-dec') {
+    const vi = +t.dataset.var || 0;
     if (!_counts[pid]) _counts[pid] = { full: 0, partials: [''], litersAdd: '' };
-    _counts[pid].full = (+_counts[pid].full || 0) + 1;
-    const el = document.getElementById(`inv-full-${pid}`);
-    if (el) el.value = _counts[pid].full;
-    updateConvDisplay(pid); persistCounts();
-    return;
-  }
-  if (a === 'full-dec') {
-    if (!_counts[pid]) _counts[pid] = { full: 0, partials: [''], litersAdd: '' };
-    _counts[pid].full = Math.max(0, (+_counts[pid].full || 0) - 1);
-    const el = document.getElementById(`inv-full-${pid}`);
-    if (el) el.value = _counts[pid].full;
+    const slot = varSlot(_counts[pid], vi);
+    slot.full = Math.max(0, (+slot.full || 0) + (a === 'full-inc' ? 1 : -1));
+    const el = document.getElementById(`inv-full-${vi ? `${pid}__v${vi}` : pid}`);
+    if (el) el.value = slot.full;
     updateConvDisplay(pid); persistCounts();
     return;
   }
@@ -3005,22 +3089,24 @@ function on(e) {
 
   /* ── BAR: кілька відкритих пляшок (кг→л) ── */
   if (a === 'partial-add') {
+    const vi = +t.dataset.var || 0;
     if (!_counts[pid]) _counts[pid] = {};
-    const c = _counts[pid];
+    const c = varSlot(_counts[pid], vi);
     if (!Array.isArray(c.partials)) c.partials = partialsView(c);
     c.partials.push('');
-    c.partial = c.partials[0] || '';
+    if (!vi) c.partial = c.partials[0] || '';
     re(); persistCounts();
     return;
   }
   if (a === 'partial-del') {
     const idx = +t.dataset.idx || 0;
+    const vi  = +t.dataset.var || 0;
     if (_counts[pid]) {
-      const c = _counts[pid];
+      const c = varSlot(_counts[pid], vi);
       if (!Array.isArray(c.partials)) c.partials = partialsView(c);
       c.partials.splice(idx, 1);
       if (!c.partials.length) c.partials = [''];
-      c.partial = c.partials[0] || '';
+      if (!vi) c.partial = c.partials[0] || '';
     }
     re(); persistCounts();
     return;
@@ -3076,11 +3162,31 @@ function on(e) {
   }
   if (a === 'cfg-close') { _configPid = null; re(); return; }
   if (a === 'cfg-save') {
-    const numv = id => parseFloat((document.getElementById(id)?.value || '').replace(',', '.')) || 0;
-    _configDraft.emptyTareKg = numv('inv-cfg-empty');
-    _configDraft.fullTareKg  = numv('inv-cfg-full');
-    _configDraft.bottleVolL  = numv('inv-cfg-vol');
+    collectCfgVars();
+    const rows = _configDraft.variants || [];
+    // Індекс 0 їде і в старі поля: версії застосунку, які про види тари не
+    // знають, мають працювати як раніше.
+    _configDraft.emptyTareKg = rows[0] ? parseFloat(rows[0].empty) || 0 : 0;
+    _configDraft.fullTareKg  = rows[0] ? parseFloat(rows[0].full)  || 0 : 0;
+    _configDraft.bottleVolL  = rows[0] ? parseFloat(rows[0].vol)   || 0 : 0;
     saveConfig();
+    return;
+  }
+  if (a === 'cfg-var-add') {
+    collectCfgVars();
+    const rows = _configDraft.variants || [];
+    // другий вид тари найчастіше той самий обʼєм в іншій упаковці
+    _configDraft.variants = [...rows, { name: '', empty: '', full: '', vol: rows[0] ? rows[0].vol : '' }];
+    if (_configDraft.variants.length === 2 && !_configDraft.variants[0].name) _configDraft.variants[0].name = 'Скло';
+    if (_configDraft.variants.length === 2) _configDraft.variants[1].name = 'Пласт';
+    re();
+    return;
+  }
+  if (a === 'cfg-var-del') {
+    collectCfgVars();
+    const vi = +t.dataset.var || 0;
+    _configDraft.variants = (_configDraft.variants || []).filter((_, i) => i !== vi);
+    re();
     return;
   }
 
