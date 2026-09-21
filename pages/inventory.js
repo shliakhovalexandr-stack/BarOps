@@ -60,6 +60,8 @@ const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${pad2
 let _configPid       = null;   // продукт, що налаштовується
 let _configDraft     = { mode: 'sht', emptyTareKg: '', fullTareKg: '', bottleVolL: '' };
 let _cfgFilter       = 'all';  // 'all' | 'unset' — фільтр списку налаштувань
+let _hidden          = [];     // приховані з інвентаризації: [{productId,productName,hiddenByName}]
+let _hiddenRows      = [];     // їхні повні картки — щоб показати й повернути в «Одиницях»
 let _search          = '';     // пошук товару
 
 /* ── Параметризація за видом інвентаризації (бар / посуд / далі кухня) ── */
@@ -415,6 +417,7 @@ const CSS = `<style id="inv-css">
 .inv-mode-btn{height:26px;border-radius:6px;border:0.5px solid var(--border);background:var(--bg3);font-size:10px;color:var(--text2);cursor:pointer;font-family:var(--font-b);padding:0 8px;white-space:nowrap}
 .inv-mode-btn.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .inv-gear-btn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.06);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.inv-hide-btn{width:30px;height:30px;border-radius:8px;background:transparent;border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-right:6px}
 
 /* Config sheet */
 .inv-cfg-overlay{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:80;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -1254,6 +1257,26 @@ async function loadAll() {
       } catch { /* НФ опційні — без них інвента працює як раніше */ }
     }
 
+    // ── Приховані позиції ────────────────────────────────────────────────
+    //
+    // Відсікаємо ОДИН раз, тут, одразу після завантаження. Не в кожному місці
+    // підрахунку окремо: таких місць десяток (список, прогрес, попередження,
+    // зони, payload акта), і забути одне — означає тиху неправильну цифру.
+    // Повні обʼєкти лишаємо в _hiddenRows: екран «Одиниці» показує їх, щоб
+    // приховане можна було повернути.
+    _hidden = []; _hiddenRows = [];
+    try {
+      const hr = await fetch(`${API}/api/inventory/hidden?venueId=${_venueId}&kind=${_kind}`, { headers: h });
+      if (hr.ok) _hidden = (await hr.json()).hidden || [];
+    } catch { /* немає звʼязку — краще показати все, ніж сховати зайве */ }
+    if (_hidden.length) {
+      const ids = new Set(_hidden.map(x => x.productId));
+      _hiddenRows = [..._balance, ..._preps].filter(p => ids.has(p.id));
+      _balance = _balance.filter(p => !ids.has(p.id));
+      _preps   = _preps.filter(p => !ids.has(p.id));
+      for (const id of ids) delete _prepById[id];
+    }
+
     // Відкрита сесія — тягнемо СПІЛЬНУ чернетку з бекенду (крос-девайс):
     // ввечері один бармен порахував склад/енотеку → зранку інший продовжує бар на своєму пристрої.
     const os = openSession();
@@ -1347,6 +1370,72 @@ function saveLocProducts(lid) {
     } catch { /* мережа — лишаємо як є, наступна зміна перешле */ }
   }, 600);
 }
+/* ── Приховування позицій з інвентаризації ──────────────────────────────
+   Приховане НЕ рахують і НЕ шлють у Syrve: залишок лишається як був. Це не
+   те саме, що порахувати нулем — нуль списав би його в мінус.
+
+   Фільтр дублюється на сервері: старі версії застосунку про приховування не
+   знають і надіслали б позицію разом з усіма.
+   ──────────────────────────────────────────────────────────────────── */
+async function hideProduct(pid) {
+  const prod = _balance.find(x => x.id === pid) || _prepById[pid];
+  if (!prod) return;
+  // Позиція з ненульовим залишком після приховування перестає перевірятись —
+  // мовчки це робити не можна.
+  const book = bookQty(pid);
+  const warn = book > 0
+    ? `У «${prod.name}» книжковий залишок ${book}. Після приховування його ніхто не перевірятиме, а в Syrve він лишиться як є.`
+    : `«${prod.name}» більше не зʼявиться у списку підрахунку.`;
+  _confirm = {
+    title: 'Прибрати з інвентаризації', msg: warn, okLabel: 'Прибрати', danger: book > 0,
+    run: async () => {
+      try {
+        const r = await fetch(`${API}/api/inventory/hidden`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+          body: JSON.stringify({ venueId: _venueId, kind: _kind, productId: pid, productName: prod.name || '' }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          _error = d.error || 'Не вдалося прибрати позицію';
+          re(); return;
+        }
+        _hidden.push({ productId: pid, productName: prod.name || '', hiddenByName: state.user || '' });
+        _hiddenRows.push(prod);
+        _balance = _balance.filter(x => x.id !== pid);
+        _preps   = _preps.filter(x => x.id !== pid);
+        delete _prepById[pid];
+        re();
+      } catch (err) { _error = err.message; re(); }
+    },
+  };
+  re();
+}
+
+async function unhideProduct(pid) {
+  try {
+    const url = `${API}/api/inventory/hidden?venueId=${_venueId}&kind=${_kind}&productId=${encodeURIComponent(pid)}`;
+    const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${_token}` } });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      _error = d.error || 'Не вдалося повернути позицію';
+      re(); return;
+    }
+    const prod = _hiddenRows.find(x => x.id === pid);
+    _hidden     = _hidden.filter(x => x.productId !== pid);
+    _hiddenRows = _hiddenRows.filter(x => x.id !== pid);
+    // Повертаємо в той список, звідки брали: ПФ у _preps, звичайний товар у _balance.
+    if (prod) {
+      if (prod.scope !== undefined || prod.stock !== undefined) { _preps.push(prod); _prepById[prod.id] = prod; }
+      else _balance.push(prod);
+      _balance.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk', { sensitivity: 'base', numeric: true }));
+    }
+    if (!_hiddenRows.length) _cfgFilter = 'all';
+    re();
+  } catch (err) { _error = err.message; re(); }
+}
+
+
 async function saveLocName(lid) {
   const l = locById(lid); if (!l) return;
   try {
@@ -2660,7 +2749,9 @@ function sessionCardHTML(s) {
 function productConfigHTML() {
   const missing = _balance.filter(tareMissing).length;
   const mism    = _balance.filter(modeMismatch).length;
-  const base = _cfgFilter === 'unset' ? _balance.filter(tareMissing) : _balance;
+  const base = _cfgFilter === 'hidden' ? _hiddenRows
+             : _cfgFilter === 'unset'  ? _balance.filter(tareMissing)
+             : _balance;
   const list = base.filter(matchSearch);
   const header = `
     ${searchBoxHTML()}`;
@@ -2669,7 +2760,10 @@ function productConfigHTML() {
       <div style="font-size:12px;font-family:var(--font-b);min-width:0">
         ${missing ? `<span style="color:var(--amber)">⚠ ${missing} товар(ів) без тари</span>` : `<span style="color:var(--green)">✓ Тара задана всюди</span>`}
       </div>
-      ${missing ? `<button data-a="cfg-filter" style="flex-shrink:0;height:30px;padding:0 12px;border-radius:9px;border:0.5px solid ${_cfgFilter === 'unset' ? 'var(--amber-border)' : 'var(--border)'};background:${_cfgFilter === 'unset' ? 'var(--amber-bg)' : 'var(--bg2)'};color:${_cfgFilter === 'unset' ? 'var(--amber)' : 'var(--text1)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${_cfgFilter === 'unset' ? 'Показати всі' : 'Лише без тари'}</button>` : ''}
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        ${missing ? `<button data-a="cfg-filter" style="height:30px;padding:0 12px;border-radius:9px;border:0.5px solid ${_cfgFilter === 'unset' ? 'var(--amber-border)' : 'var(--border)'};background:${_cfgFilter === 'unset' ? 'var(--amber-bg)' : 'var(--bg2)'};color:${_cfgFilter === 'unset' ? 'var(--amber)' : 'var(--text1)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${_cfgFilter === 'unset' ? 'Показати всі' : 'Лише без тари'}</button>` : ''}
+        ${(_hiddenRows.length || _cfgFilter === 'hidden') ? `<button data-a="cfg-hidden" style="height:30px;padding:0 12px;border-radius:9px;border:0.5px solid ${_cfgFilter === 'hidden' ? 'var(--purple-border)' : 'var(--border)'};background:${_cfgFilter === 'hidden' ? 'var(--purple-bg)' : 'var(--bg2)'};color:${_cfgFilter === 'hidden' ? 'var(--purple)' : 'var(--text1)'};font-size:12px;font-family:var(--font-b);cursor:pointer">${_cfgFilter === 'hidden' ? '← Назад' : `Приховані · ${_hiddenRows.length}`}</button>` : ''}
+      </div>
     </div>`;
   const header3 = mism ? `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 18px 10px;gap:10px">
@@ -2682,7 +2776,20 @@ function productConfigHTML() {
     ${header3}
     <div class="inv-cfg-list">
       ${list.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не знайдено</div>` : ''}
+      ${_cfgFilter === 'hidden' && !list.length ? `<div style="text-align:center;padding:18px;color:var(--text2);font-family:var(--font-b);font-size:13px">Нічого не приховано</div>` : ''}
       ${list.map(p => {
+        // ── приховані: лише назва, хто сховав, і кнопка повернути ──
+        if (_cfgFilter === 'hidden') {
+          const meta = _hidden.find(x => x.productId === p.id) || {};
+          return `
+            <div class="inv-cfg-row" style="border-color:var(--purple-border);background:var(--purple-bg)">
+              <div style="flex:1;min-width:0">
+                <div class="inv-cfg-name">${p.name}</div>
+                <div class="inv-cfg-sub">${p.unit || ''} · ${p.category || ''}${meta.hiddenByName ? ` · сховав ${meta.hiddenByName}` : ''}${meta.reason ? ` · ${meta.reason}` : ''}</div>
+              </div>
+              <button data-a="unhide" data-pid="${p.id}" style="flex-shrink:0;height:30px;padding:0 12px;border-radius:9px;border:0.5px solid var(--green-border);background:var(--green-bg);color:var(--green);font-size:12px;font-family:var(--font-b);cursor:pointer">↩ Повернути</button>
+            </div>`;
+        }
         const m    = modeOf(p.id);
         const miss = tareMissing(p);
         const hasGear = m === 'kg_to_l';
@@ -2692,6 +2799,12 @@ function productConfigHTML() {
               <div class="inv-cfg-name">${p.name}${p.isPrep ? ' <span style="font-size:9px;color:var(--purple);border:0.5px solid var(--purple-border);border-radius:5px;padding:0 4px;vertical-align:middle">ПФ</span>' : ''}</div>
               <div class="inv-cfg-sub">${miss ? '<span style="color:var(--amber)">⚠ вага пустої/повної не введена</span>' : `${p.unit || ''} · ${p.category || ''}`}</div>
             </div>
+            <button class="inv-hide-btn" data-a="hide" data-pid="${p.id}" title="Прибрати з інвентаризації">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+                <path d="M1 1l22 22"/>
+              </svg>
+            </button>
             <div class="inv-mode-group">
               <button class="inv-mode-btn${m === 'kg_to_l' ? ' act' : ''}"
                 data-a="mode-set" data-pid="${p.id}" data-mode="kg_to_l">кг→л</button>
@@ -2811,6 +2924,9 @@ function on(e) {
     return;
   }
   if (a === 'cfg-filter') { _cfgFilter = _cfgFilter === 'unset' ? 'all' : 'unset'; re(); return; }
+  if (a === 'cfg-hidden') { _cfgFilter = _cfgFilter === 'hidden' ? 'all' : 'hidden'; _search = ''; re(); return; }
+  if (a === 'hide')   { hideProduct(t.dataset.pid); return; }
+  if (a === 'unhide') { unhideProduct(t.dataset.pid); return; }
   if (a === 'search-clear') { _search = ''; re(); return; }
   if (a === 'hist-toggle') {
     const sid = t.dataset.sid;
