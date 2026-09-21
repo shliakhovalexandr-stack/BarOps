@@ -293,6 +293,7 @@ const CSS = `<style id="inv-css">
 .inv-sh-time{margin-left:auto;font-size:11px;color:var(--text2)}
 .inv-sh-count{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
 .inv-sh-done{font-size:32px;font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--text0)}
+.inv-sh-extra{color:var(--purple);font-weight:700;margin-left:3px;font-size:.85em}
 .inv-sh-total{font-size:14px;color:var(--text2)}
 .inv-sh-pct{margin-left:auto;font-size:14px;font-weight:600;color:var(--green)}
 .inv-prog{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
@@ -1170,30 +1171,51 @@ async function loadAll() {
       const firstReal = stores.find(s => s.storeId) || null;
       if (isDish() && firstReal) _dishStoreId = firstReal.storeId;
       if (isKitchen() && firstReal) _kitchenStoreId = firstReal.storeId;
-      for (const store of stores) {
-        for (const item of (store.items || [])) {
-          if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
-            const dup = _balance.find(x => x.id === item.id);
-            if (dup) {
-              // Товар є на кількох складах (Бар ТОВ + Бар ФОП) — памʼятаємо ВСІ склади
-              // і ОКРЕМО книжковий залишок кожного: його шлемо бекенду як storeSplit.book.
-              if (store.storeId) {
-                if (!dup.bs.includes(store.storeId)) dup.bs.push(store.storeId);
-                dup.bsAmt[store.storeId] = (dup.bsAmt[store.storeId] || 0) + (item.amount || 0);
+
+      // ⚠️ Жодного СПРАВЖНЬОГО складу не впізнано, лише псевдосклад нульових.
+      //
+      // Так буває, коли склад названо не за шаблоном («Заготівельний цех») або
+      // коли його назва містить слово зі списку службових. Раніше в такому разі
+      // stores був порожній і екран чесно писав «Залишки не завантажено». Відколи
+      // псевдосклади проходять фільтр, вони заповнювали список сотнями нульових
+      // позицій: прогрес виглядав повним, а акт не містив жодного товару з
+      // реальним залишком — і бармен цього не бачив, бо книжковий залишок
+      // показують не всім ролям.
+      //
+      // Псевдосклад БЕЗ реального — це не дані, це збій розпізнавання.
+      if (!firstReal) {
+        const seen = (d.stores || []).map(s => s.storeName).filter(Boolean);
+        _balance = [];
+        _error = `Склад для «${kindCfg().title || _kind}» не впізнано.`
+               + (seen.length ? ` Syrve повернув: ${seen.join(', ')}.` : '')
+               + ' Перевірте назву складу в Syrve або оберіть його в картці закладу.';
+        console.warn('[Inventory] жодного реального складу не впізнано:', seen);
+      } else {
+        for (const store of stores) {
+          for (const item of (store.items || [])) {
+            if (item.name && !item.name.match(/^[0-9a-f-]{36}$/i)) {
+              const dup = _balance.find(x => x.id === item.id);
+              if (dup) {
+                // Товар є на кількох складах (Бар ТОВ + Бар ФОП) — памʼятаємо ВСІ склади
+                // і ОКРЕМО книжковий залишок кожного: його шлемо бекенду як storeSplit.book.
+                if (store.storeId) {
+                  if (!dup.bs.includes(store.storeId)) dup.bs.push(store.storeId);
+                  dup.bsAmt[store.storeId] = (dup.bsAmt[store.storeId] || 0) + (item.amount || 0);
+                }
+                dup.amount = (dup.amount || 0) + (item.amount || 0);   // «в системі» = сума по складах
+              } else if (isDish()) {
+                // посуд: name = менеджерська (як у закупці), syrveName = оригінал
+                const meta = _dishMeta[item.id];
+                _balance.push({ ...item, bs: store.storeId ? [store.storeId] : [], bsAmt: store.storeId ? { [store.storeId]: (item.amount || 0) } : {}, syrveName: item.name, name: (meta && meta.customName) ? meta.customName : item.name });
+              } else {
+                _balance.push({ ...item, bs: store.storeId ? [store.storeId] : [], bsAmt: store.storeId ? { [store.storeId]: (item.amount || 0) } : {} });
               }
-              dup.amount = (dup.amount || 0) + (item.amount || 0);   // «в системі» = сума по складах
-            } else if (isDish()) {
-              // посуд: name = менеджерська (як у закупці), syrveName = оригінал
-              const meta = _dishMeta[item.id];
-              _balance.push({ ...item, bs: store.storeId ? [store.storeId] : [], bsAmt: store.storeId ? { [store.storeId]: (item.amount || 0) } : {}, syrveName: item.name, name: (meta && meta.customName) ? meta.customName : item.name });
-            } else {
-              _balance.push({ ...item, bs: store.storeId ? [store.storeId] : [], bsAmt: store.storeId ? { [store.storeId]: (item.amount || 0) } : {} });
             }
           }
         }
+        // алфавітне сортування (укр. локаль, регістр/латиниця коректно) — для всіх видів
+        _balance.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk', { sensitivity: 'base', numeric: true }));
       }
-      // алфавітне сортування (укр. локаль, регістр/латиниця коректно) — для всіх видів
-      _balance.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'uk', { sensitivity: 'base', numeric: true }));
     }
 
     if (cfgRes.ok) {
@@ -1456,6 +1478,14 @@ function storeOrder() {
   return [main, ...rest];
 }
 
+// Книжковий залишок позиції. Потрібен, щоб відрізнити «непораховане, що
+// СПИШЕТЬСЯ В МІНУС» від «непорахованого, у якого книга й так нуль» —
+// для другого запис нуля в Syrve нічого не змінює.
+function bookQty(pid) {
+  const p = prodById(pid) || {};
+  return Number(p.amount != null ? p.amount : p.stock) || 0;
+}
+
 /** Скільки позицій піде в Syrve нулем — тобто спишеться в мінус.
  *
  *  ⚠️ У режимі зон ключ підрахунку СКЛАДЕНИЙ («зона::товар»), тому перевіряти
@@ -1487,13 +1517,6 @@ function uncountedInfo() {
     };
   }
 
-// Книжковий залишок позиції. Потрібен, щоб відрізнити «непораховане, що
-// СПИШЕТЬСЯ В МІНУС» від «непорахованого, у якого книга й так нуль» —
-// для другого запис нуля в Syrve нічого не змінює.
-function bookQty(pid) {
-  const p = prodById(pid) || {};
-  return Number(p.amount != null ? p.amount : p.stock) || 0;
-}
   const rows = (_balance || []).filter(p => p && p.id);
   const uncounted = rows.filter(p => !isCounted(p.id));
   const risky = uncounted.filter(p => bookQty(p.id) > 0);
@@ -1988,10 +2011,20 @@ function buildBar() {
   // id, а в зонах ключ складений — тобто в чисельник не потрапляли ніколи, лише
   // роздували знаменник. Прогрес через це впирався у стелю (La Pasta ~91%) і
   // 100% не показував навіть коли пораховано все.
-  const counted = loc
-    ? allLocRows.filter(p => isCounted(p.id)).length
-    : mine.filter(p => isCounted(p.id)).length + _preps.filter(p => isCounted(p.id)).length;
-  const total   = loc ? allLocRows.length : mine.length + _preps.length;
+  // У знаменник беремо лише те, що ТРЕБА порахувати — позиції з книжковим
+  // залишком. Повернення товарів із нульовою книгою (+300 у La Pasta) роздуло
+  // б прогрес назавжди: їх ніхто не рахує, бо нуль у нулі нічого не міняє, і
+  // 100% стали б недосяжні — рівно та вада, яку я виправив лише в зоновій
+  // гілці, не помітивши, що сусідня правка ламає плоску.
+  //
+  // Пораховані понад книгу (знайдена пляшка того, чого в залишках немає) — це
+  // не прогрес, а знахідка: рахуємо окремо й показуємо як «+N».
+  const rowsAll = loc ? allLocRows : [...mine, ..._preps];
+  const needKey = p => bookQty(realPid(p.id)) > 0;
+  const need    = rowsAll.filter(needKey);
+  const counted = need.filter(p => isCounted(p.id)).length;
+  const total   = need.length;
+  const extra   = rowsAll.filter(p => !needKey(p) && isCounted(p.id)).length;
   const pct     = total > 0 ? Math.round(counted / total * 100) : 0;
 
   // Офіціанту нічого не призначено — окремий екран
@@ -2012,7 +2045,7 @@ function buildBar() {
         <span class="inv-sh-time">${fmtDateShort(os.scheduledAt)}</span>
       </div>
       <div class="inv-sh-count">
-        <span class="inv-sh-done">${counted}</span>
+        <span class="inv-sh-done">${counted}</span>${extra ? `<span class="inv-sh-extra" title="знайдено понад книжковий залишок">+${extra}</span>` : ''}
         <span class="inv-sh-total">/ ${total} позицій</span>
         <span class="inv-sh-pct">${pct}%</span>
       </div>
