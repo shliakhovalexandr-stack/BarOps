@@ -1679,7 +1679,11 @@ function buildSupplierMessage(s) {
   const head  = ['Доброго дня!'];
   if (supp.fop)         head.push(`Юр.особа: ${supp.fop}`);
   if (state.venue)      head.push(`Заклад: ${state.venue}`);
-  if (supp.paymentForm) head.push(`Форма оплати: ${supp.paymentForm}`);
+  // Рядок оплати йде ЗАВЖДИ, навіть порожній. Доки він був під умовою, у
+  // скопійованому тексті бракувало саме того, що дописують руками перед
+  // відправкою, — і помітно це вже після вставки в месенджер.
+  // Пробіл у кінці навмисний: курсор стає одразу за ним.
+  head.push(`Форма оплати: ${supp.paymentForm || ''}`);
   return { supp, text: `${head.join('\n')}\n\n${lines.join('\n')}` };
 }
 
