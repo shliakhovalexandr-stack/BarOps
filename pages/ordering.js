@@ -58,6 +58,10 @@ let _loadError    = '';
 let _openSuppliers = new Set();
 let _submitted     = false;
 let _myOrderId     = null;    // id поданої заявки бармена (для редагування поки не «виконано»)
+// Заявка в польоті. Прапорець, а НЕ btn.disabled: кнопку перемальовує будь-який
+// fullRender, і вона знову ставала активною посеред відправки. Так само зроблено
+// на списаннях (_woSendingAct у pages/writeoff.js).
+let _ordSending    = false;
 let _mgrTab        = 'orders';
 let _mgrZone       = 'bar';   // адмін/менеджер: перемикач Бар/Кухня в закупці (шеф завжди kitchen)
 let _suggest        = null;   // підказки закупівлі (рух за 7 днів + залишок) з /ordering-suggestions
@@ -593,9 +597,9 @@ function renderBartender() {
   <div class="ord-actions">
     ${_submitted
       ? `<button class="ord-btn ord-btn-ghost" onclick="window.__ord.resetOrder()">Редагувати заявку</button>`
-      : `<button class="ord-btn ord-btn-teal" onclick="window.__ord.submitOrder()">
+      : `<button class="ord-btn ord-btn-teal" onclick="window.__ord.submitOrder()" ${_ordSending ? 'disabled style="opacity:.45"' : ''}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h10M8 4l4 4-4 4" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          ${_myOrderId ? 'Оновити заявку' : 'Відправити заявку менеджеру'}
+          ${_ordSending ? 'Надсилаю…' : (_myOrderId ? 'Оновити заявку' : 'Відправити заявку менеджеру')}
         </button>
         ${totalItems > 0 ? `<button class="ord-btn ord-btn-ghost" style="margin-top:8px" onclick="window.__ord.clearOrderConfirm()">Очистити заявку</button>` : ''}`}
   </div>`;
@@ -1563,6 +1567,17 @@ function clearOrderConfirm() {
 }
 
 async function submitOrder() {
+  // Подвійний дотик створював ДУБЛІ заявок: _myOrderId зʼявляється лише після
+  // відповіді сервера, тож другий і третій тапи встигали піти теж POST-ом, а не
+  // PATCH-ем — і менеджер отримував ту саму закупку кілька разів.
+  if (_ordSending) return;
+  _ordSending = true;
+  fullRender();                    // кнопка одразу глухне й міняє підпис
+  try { return await submitOrderImpl(); }
+  finally { _ordSending = false; fullRender(); }
+}
+
+async function submitOrderImpl() {
   // Збираємо дані по постачальниках. Моршинська — теж звичайний постачальник, лише з прапорцем
   // morsh:true → менеджер у списку побачить кнопку «Відправити ЄМоршинська» (API) замість «Копіювати».
   const suppliers = _suppliers.map(s => {
