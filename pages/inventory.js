@@ -511,13 +511,14 @@ const CSS = `<style id="inv-css">
 .loc-sum-btn{height:28px;padding:0 11px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:11px;font-weight:600;font-family:var(--font-b);cursor:pointer;flex-shrink:0}
 .loc-sum-btn.on{border-color:var(--amber-border);background:var(--amber-bg);color:var(--amber)}
 .loc-cog{padding:8px 11px;color:var(--text2)}
-.loc-mgmt-hdr{display:flex;align-items:center;gap:8px;padding:4px 16px 14px}
-.loc-back{background:none;border:none;color:var(--green);font-size:13px;font-family:var(--font-b);font-weight:600;cursor:pointer;padding:6px 8px 6px 0;flex-shrink:0}
-.loc-mgmt-title{font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0)}
+.loc-mgmt-hdr{display:flex;align-items:center;gap:10px;padding:6px 16px 12px}
+.loc-back{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 12px 0 9px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;font-family:var(--font-b);font-weight:600;cursor:pointer;flex-shrink:0}
+.loc-back:active{background:var(--bg3)}
+.loc-mgmt-title{flex:1;min-width:0;font-family:var(--font-h);font-size:17px;font-weight:700;color:var(--text0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .loc-inp{flex:1;min-width:0;height:46px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;font-size:15px;font-weight:500;color:var(--text0);outline:none;font-family:var(--font-b);text-align:left}
 .loc-inp:focus{border-color:var(--green-border)}
 .loc-inp::placeholder{color:var(--text3);font-weight:400}
-.loc-create{display:flex;gap:8px;align-items:center;padding:0 16px}
+.loc-create{display:flex;gap:8px;align-items:center;padding:0 16px 10px}
 .loc-add-btn{flex-shrink:0;width:46px;height:46px;border-radius:12px;border:none;background:var(--green);color:var(--fab-ink);font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .loc-add-btn:disabled{opacity:.45;cursor:default}
 .loc-also{color:var(--purple);font-weight:600}
@@ -534,7 +535,7 @@ const CSS = `<style id="inv-css">
 .loc-pick-row.on{background:var(--purple-bg)}
 .loc-pick-box{flex-shrink:0;width:24px;height:24px;border-radius:7px;border:1.5px solid var(--border2,var(--border));background:var(--bg1);display:flex;align-items:center;justify-content:center}
 .loc-pick-row.on .loc-pick-box{background:var(--purple);border-color:var(--purple)}
-.loc-copy-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 14px 8px}
+.loc-copy-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 16px 10px}
 .loc-copy-lbl{font-size:11px;color:var(--text2);font-family:var(--font-b)}
 .loc-pickall-row{display:flex;justify-content:flex-end;padding:0 14px 8px}
 .loc-pickall{padding:7px 14px;border-radius:14px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:12px;font-weight:600;font-family:var(--font-b);cursor:pointer}
