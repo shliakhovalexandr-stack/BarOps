@@ -43,6 +43,7 @@ let _locNewName      = '';     // назва нового складу (поле
 let _locSaveTimer    = null;   // debounce збереження товарів складу
 const LOC_NONE       = '__none__';   // віртуальна зона «Без зони»: товар, не віднесений нікуди, лишається видимим — інакше новий товар із поставки ніхто не порахує і він піде в акт нулем
 let _openPid         = null;   // accordion: який продукт відкритий
+let _allOnlyLeft     = false;  // «Разом»: показувати лише недораховані
 let _loading         = true;
 let _saving          = false;
 let _error           = '';
@@ -212,6 +213,29 @@ function locTabs() {
   const tabs = _locations.map(l => ({ id: l.id, name: l.name }));
   if (unassignedProductIds().length) tabs.push({ id: LOC_NONE, name: 'Без зони' });
   return tabs;
+}
+/* ── Вкладка «Разом» ───────────────────────────────────────────────────────
+   Зведення по ВСІХ зонах: один рядок на товар із сумою, яка піде в Syrve.
+   Потрібна, щоб перед відправкою побачити, чи все порахували: по окремих зонах
+   це видно лише поштучно, а товар живе в кількох.
+
+   ⚠ LOC_ALL свідомо НЕ входить у locTabs(). Той список — джерело для
+   locSummedRows(), locProgress і allLocRows: синтетична зона в ньому означала б
+   спробу порахувати неіснуючу зону й подвоїла б суми. Тут вона лише вкладка. */
+const LOC_ALL = '__all__';
+function locAllRows() {
+  const by = new Map();
+  for (const t of locTabs()) for (const pid of locProductIds(t.id)) {
+    if (!by.has(pid)) by.set(pid, { productId: pid, zones: 0, done: 0, total: 0 });
+    const r = by.get(pid);
+    r.zones++;
+    if (isCounted(`${t.id}::${pid}`)) r.done++;
+    r.total += getResult(`${t.id}::${pid}`);
+  }
+  return [...by.values()].map(r => {
+    const p = prodById(r.productId) || {};
+    return { ...r, name: p.name || '', unit: p.unit || '', book: bookQty(r.productId) };
+  }).sort((a, b) => a.name.localeCompare(b.name, 'uk'));
 }
 // Прогрес складу (counted/total) за синтетичними рядками
 function locProgress(locId) {
@@ -482,6 +506,10 @@ const CSS = `<style id="inv-css">
 .loc-tab.on{background:var(--purple-bg);border-color:var(--purple-border);color:var(--purple)}
 .loc-tab.full .loc-tab-n{color:var(--green)}
 .loc-tab-n{font-size:11px;color:var(--text3);font-weight:700}
+.loc-sum-bar{display:flex;align-items:center;gap:10px;padding:8px 14px 4px}
+.loc-sum-txt{flex:1;min-width:0;font-size:12px;font-family:var(--font-b);color:var(--text1)}
+.loc-sum-btn{height:28px;padding:0 11px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:11px;font-weight:600;font-family:var(--font-b);cursor:pointer;flex-shrink:0}
+.loc-sum-btn.on{border-color:var(--amber-border);background:var(--amber-bg);color:var(--amber)}
 .loc-cog{padding:8px 11px;color:var(--text2)}
 .loc-mgmt-hdr{display:flex;align-items:center;gap:8px;padding:4px 16px 14px}
 .loc-back{background:none;border:none;color:var(--green);font-size:13px;font-family:var(--font-b);font-weight:600;cursor:pointer;padding:6px 8px 6px 0;flex-shrink:0}
@@ -1293,7 +1321,9 @@ async function loadAll() {
       } catch { _locations = []; }
       // активний таб за замовчуванням — перший наявний
       const tabs = locTabs();
-      if (!tabs.find(t => t.id === _locActive)) _locActive = tabs[0] ? tabs[0].id : null;
+      // LOC_ALL — вкладка «Разом», у locTabs() її немає навмисно; без цього
+      // винятку вона б скидалась на першу зону при кожному перезавантаженні.
+      if (_locActive !== LOC_ALL && !tabs.find(t => t.id === _locActive)) _locActive = tabs[0] ? tabs[0].id : null;
     }
 
     // Напівфабрикати (PREPARED) по складу — ОКРЕМО після balance (одне REST-зʼєднання Syrve).
@@ -2274,15 +2304,22 @@ function buildBar() {
 // Підрахунок по зонах: таби зон + рядки активної зони
 function locCountHTML() {
   const tabs = locTabs();
-  const rows = _locActive ? locRows(_locActive).filter(matchSearch) : [];
+  const all = locAllRows();
+  const allDone = all.filter(r => r.done === r.zones).length;
+  const isAll = _locActive === LOC_ALL;
+  const rows = (!isAll && _locActive) ? locRows(_locActive).filter(matchSearch) : [];
   return `
     <div class="loc-tabs">
+      <button class="loc-tab${isAll ? ' on' : ''}${allDone === all.length && all.length ? ' full' : ''}" data-a="loc-tab" data-lid="${LOC_ALL}">
+        Σ Разом<span class="loc-tab-n">${allDone}/${all.length}</span>
+      </button>
       ${tabs.map(t => { const pr = locProgress(t.id); const done = pr.total > 0 && pr.done === pr.total;
         return `<button class="loc-tab${_locActive === t.id ? ' on' : ''}${done ? ' full' : ''}" data-a="loc-tab" data-lid="${t.id}">
           ${t.id === LOC_NONE ? '◇ ' : ''}${t.name}<span class="loc-tab-n">${pr.done}/${pr.total}</span>
         </button>`; }).join('')}
       <button class="loc-tab loc-cog" data-a="loc-mgmt-open" title="Керування зонами">⚙</button>
     </div>
+    ${isAll ? locAllHTML(all) : `
     ${searchBoxHTML()}
     <div class="inv-prod-list">
       ${rows.length
@@ -2291,6 +2328,46 @@ function locCountHTML() {
             _search ? 'Нічого не знайдено'
             : _locActive === LOC_NONE ? 'Усі товари віднесено до зон 👍'
             : 'У складі немає товарів — додайте через ⚙'}</div>`}
+    </div>`}`;
+}
+
+/* Зведення «Разом» — лише ДИВИТИСЬ. Вводити тут не можна свідомо: число є сумою
+   кількох зон, і правка «разом» не мала б куди лягти. Щоб виправити — заходять
+   у потрібну зону. */
+function locAllHTML(all) {
+  const list = all.filter(matchSearch).filter(r => !_allOnlyLeft || r.done < r.zones);
+  const left = all.filter(r => r.done < r.zones);
+  const risky = left.filter(r => r.book > 0).length;
+  return `
+    ${searchBoxHTML()}
+    <div class="loc-sum-bar">
+      <div class="loc-sum-txt">
+        ${left.length
+          ? `Недораховано <b>${left.length}</b> ${left.length === 1 ? 'товар' : 'товарів'}${risky ? ` · з них <b style="color:var(--amber)">${risky}</b> із залишком у ${posLabel()}` : ''}`
+          : `Усі ${all.length} товарів пораховано в усіх зонах 👍`}
+      </div>
+      ${left.length ? `<button class="loc-sum-btn${_allOnlyLeft ? ' on' : ''}" data-a="all-only-left">${_allOnlyLeft ? 'Показати всі' : 'Лише недораховані'}</button>` : ''}
+    </div>
+    <div class="inv-prod-list">
+      ${list.length ? list.map(r => {
+        const full = r.done === r.zones;
+        const none = r.done === 0;
+        return `
+          <div class="inv-prod${full ? ' entered' : ''}">
+            <div class="inv-prod-row" style="cursor:default">
+              <div class="inv-pbar" style="background:${full ? 'var(--green)' : none ? 'var(--bg3)' : 'var(--amber)'}"></div>
+              <div style="flex:1;min-width:0">
+                <div class="inv-pname">${r.name}</div>
+                <div class="inv-pmeta">${r.zones > 1 ? `зони ${r.done}/${r.zones}` : (full ? 'пораховано' : 'не рахували')}${r.book > 0 && !full ? ` · у ${posLabel()} ${r.book.toFixed(1)} ${r.unit || ''}` : ''}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div class="inv-pqty">${none ? '—' : (Math.round(r.total * 1000) / 1000)}</div>
+                <div class="inv-punit">${r.unit || ''}</div>
+              </div>
+            </div>
+          </div>`;
+      }).join('')
+      : `<div style="text-align:center;padding:20px;color:var(--text2);font-family:var(--font-b);font-size:13px">${_search ? 'Нічого не знайдено' : 'Недорахованих немає 👍'}</div>`}
     </div>`;
 }
 
@@ -3209,6 +3286,7 @@ function on(e) {
 
   /* ── КУХНЯ: склади (зони підрахунку) ── */
   if (a === 'loc-tab')         { _locActive = t.dataset.lid; _search = ''; re(); return; }
+  if (a === 'all-only-left')   { _allOnlyLeft = !_allOnlyLeft; re(); return; }
   if (a === 'loc-mgmt-open')   { _locMgmt = true; _locEditId = null; _search = ''; _error = ''; re(); return; }
   if (a === 'loc-mgmt-close')  { _locMgmt = false; _search = ''; re(); return; }
   if (a === 'loc-create')      { createLocation(); return; }
