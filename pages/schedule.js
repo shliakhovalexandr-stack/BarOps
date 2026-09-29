@@ -28,7 +28,7 @@ function canEdit() {
 //   адмін(сис.менеджер) → ВСІ;  менеджер/керуючий → офіціанти + хозяюшки;
 //   шеф → лише кухарі;  кухар/бармен/офіціант/бухгалтер → лише перегляд.
 // Підрозділи, які веде менеджер/керуючий (окрім барменів=адмін і кухні=шеф)
-const MGR_DEPTS = ['waiters', 'cleaners', 'managers', 'security', 'storekeeper', 'hostess', 'babysitter'];
+const MGR_DEPTS = ['waiters', 'cleaners', 'managers', 'security', 'storekeeper', 'hostess', 'babysitter', 'runners'];
 function canEditDept(key) {
   const r = resolveRole();
   if (r === 'admin')                       return true;
@@ -69,6 +69,10 @@ const ROLE_CONFIG = {
   storekeeper:{ label: 'Завгосп',  icon: 'box',    color: 'var(--amber)',       bgIcon: 'rgba(251,191,36,0.10)', bdIcon: 'rgba(251,191,36,0.28)', apiRoles: ['storekeeper','warehouse'], optional: true },
   hostess:    { label: 'Хостес',    icon: 'star',  color: 'var(--teal)',        bgIcon: 'rgba(34,211,238,0.10)',  bdIcon: 'rgba(34,211,238,0.28)',  apiRoles: ['hostess'],                optional: true },
   babysitter: { label: 'Babysitter', icon: 'heart', color: 'var(--purple,#a855f7)', bgIcon: 'rgba(168,139,255,0.10)', bdIcon: 'rgba(168,139,255,0.28)', apiRoles: ['babysitter'],        optional: true },
+  // Ролі runner/trainee уже заводяться в Команді, але в графіку підрозділу під них
+  // не було — людей просто не було куди поставити. Одна спільна вкладка (рішення
+  // власника 24.09.2026), як і в Команді. Опційна: у закладі без таких людей не видно.
+  runners:    { label: 'Ранери / Стажери', icon: 'tray', color: 'var(--teal)', bgIcon: 'rgba(34,211,238,0.10)', bdIcon: 'rgba(34,211,238,0.28)', apiRoles: ['runner','trainee'], optional: true },
 };
 
 /* ════════════════════════════════════════
@@ -111,6 +115,7 @@ const BASE_DEFAULTS = {
   storekeeper:{ s: '08:00', e: '17:00' },
   hostess:    { s: '11:00', e: '23:00' },
   babysitter: { s: '11:00', e: '23:00' },
+  runners:    { s: '11:00', e: '23:00' },   // зал, як в офіціантів
 };
 const DEFAULTS = JSON.parse(JSON.stringify(BASE_DEFAULTS));   // робоча копія (мутується + персиститься)
 function defaultsKey() { return 'barops_sch_def_' + (_venueId || state.venueId || localStorage.getItem('barops_venueId') || ''); }
