@@ -24,6 +24,10 @@ let _dayLoading= false;
 let _dayError  = '';
 
 const WD = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+// Глибина історії. Бекенд дозволяє до 60 діб; тримаємо 30 — місяць назад
+// покриває типовий розбір із бухгалтерією, і смужка лишається оглядною.
+const HISTORY_DAYS = 30;
+
 function lastNDays(endStr, n) {          // масив YYYY-MM-DD, найновіший перший
   const [y, m, d] = endStr.split('-').map(Number);
   const base = Date.UTC(y, m - 1, d);
@@ -52,7 +56,7 @@ async function loadHistory() {           // лічильники по днях (
   const token   = localStorage.getItem('barops_token');
   if (!venueId || !token) return;
   try {
-    const r = await fetch(`${API}/api/pos/close-audit-history/${venueId}?days=14`, { headers: { Authorization: `Bearer ${token}` } });
+    const r = await fetch(`${API}/api/pos/close-audit-history/${venueId}?days=${HISTORY_DAYS}`, { headers: { Authorization: `Bearer ${token}` } });
     const d = await r.json();
     if (d.success && Array.isArray(d.days)) { const m = {}; for (const x of d.days) m[x.date] = { count: x.count, sum: x.sum }; _hist = m; rerender(); }
   } catch { /* тихо — стрічка просто без бейджів минулих днів */ }
@@ -104,7 +108,7 @@ function rowHTML(v) {
 
 function stripHTML() {
   if (!_data || !_data.date) return '';
-  const days = lastNDays(_data.date, 14).reverse();   // найстаріший ліворуч, «сьогодні» праворуч
+  const days = lastNDays(_data.date, HISTORY_DAYS).reverse();   // найстаріший ліворуч, «сьогодні» праворуч
   return `<div class="pa-strip">${days.map(d => {
     const isToday = d === _data.date;
     const cnt = isToday ? (_data.violations || []).length : (_hist[d] ? _hist[d].count : 0);
