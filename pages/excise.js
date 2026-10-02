@@ -17,6 +17,7 @@ let _photoUrl  = null;
 let _result    = null;           // { code, id } | null
 let _failMsg   = '';
 let _manualCode = '';
+let _fixId    = '';           // id картки, яку виправляємо вручну після кривого OCR
 
 let _productName = '';
 let _pnError    = false;          // підсвітити поле назви товару (обов'язкове)
@@ -424,8 +425,18 @@ async function doScan() {
     if (!res.ok) throw new Error(data.error || 'Помилка сервера');
 
     if (data.recognized) {
-      _result   = { code: data.code, id: data.id };
+      _result   = { code: data.code, id: data.id, fixedFrom: data.fixedFrom || '' };
       _scanStep = 'done';
+    } else if (data.suspectCode) {
+      /* Прочиталось, але не у формі «4 літери + 6 цифр». Не показуємо просто
+         «не розпізнано» — ведемо одразу на введення з уже підставленим кодом:
+         виправити одну літеру, поки бутля в руках, займає секунду, а той самий
+         код через тиждень у звірці вже не відновити. fixId оновить ТУ САМУ
+         картку з фото, а не створить другу. */
+      _manualCode = data.suspectCode;
+      _fixId      = data.fixId || '';
+      _failMsg    = data.message || '';
+      _scanStep   = 'manual';
     } else {
       _failMsg  = data.message || 'Марку не розпізнано';
       _scanStep = 'failed';
@@ -435,6 +446,19 @@ async function doScan() {
     _scanStep = 'failed';
   }
   re();
+}
+
+/* Підказка форми акцизного коду просто в полі.
+   Авторитет форми — на сервері (barops-backend/src/lib/exciseCode.js), тут те
+   саме правило 4+6 лише щоб бармен побачив проблему ДО збереження, поки бутля
+   в руках. Малюємо без ререндера: ререндер на кожну літеру забирав би фокус. */
+const SHAPE_OK = /^[A-Z]{4}[0-9]{6}$/;
+function shapeHint(code) {
+  const s = (code || '').toUpperCase();
+  if (!s)              return { text: '', color: 'var(--text3)' };
+  if (SHAPE_OK.test(s)) return { text: '✓ форма марки правильна', color: 'var(--green)' };
+  if (s.length !== 10)  return { text: `${s.length} симв. — в акцизному коді рівно 10`, color: 'var(--amber)' };
+  return { text: 'має бути 4 літери, потім 6 цифр', color: 'var(--amber)' };
 }
 
 async function doManualSave() {
@@ -454,12 +478,12 @@ async function doManualSave() {
     return;
   }
   _pnError = false;
-  _scanStep = 'scanning'; re();
+  _failMsg = ''; _scanStep = 'scanning'; re();
   try {
     const res  = await fetch(`${API}/api/excise/manual`, {
       method: 'POST',
       headers: { ...hdrs(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, productName: _productName, venueId: _venueId }),
+      body: JSON.stringify({ code, productName: _productName, venueId: _venueId, fixId: _fixId || undefined }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -480,7 +504,7 @@ function resetScan() {
   if (_photoUrl) URL.revokeObjectURL(_photoUrl);
   _photoFile = null; _photoUrl = null;
   _scanStep  = 'idle'; _result = null; _failMsg = '';
-  _manualCode = ''; _productName = ''; _pnError = false;
+  _manualCode = ''; _productName = ''; _pnError = false; _fixId = '';
   re();
 }
 
@@ -898,6 +922,7 @@ function buildScanTab() {
         <div class="exc-result-icon">✅</div>
         <div class="exc-result-code">${_result.code}</div>
         <div class="exc-result-label">Серія та номер збережено</div>
+        ${_result.fixedFrom ? `<div class="exc-result-hint" style="color:var(--amber)">Прочитано ${_result.fixedFrom} — виправлено за формою марки. Звірте з фото.</div>` : ''}
         ${_photoUrl ? `<img class="exc-result-photo" src="${_photoUrl}" alt="Фото марки"><div class="exc-result-hint">Звірте код із фото</div>` : ''}
       </div>
       <button class="exc-cta" onclick="window.__exc.resetScan()">
@@ -926,12 +951,15 @@ function buildScanTab() {
   if (_scanStep === 'manual') {
     return `<div class="exc-scroll">
       <div style="margin-bottom:12px">
-        <div style="font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);margin-bottom:6px">Введіть код вручну</div>
+        <div style="font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--text0);margin-bottom:6px">${_fixId ? 'Перевірте код' : 'Введіть код вручну'}</div>
         <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);line-height:1.5">Серія та номер з акцизної марки (наприклад: AIZT016199)</div>
       </div>
+      ${_fixId && _failMsg ? `<div style="margin:0 0 10px;padding:9px 11px;border-radius:10px;background:var(--amber-bg,rgba(255,179,71,.10));border:0.5px solid var(--amber-border);font-size:11px;line-height:1.5;color:var(--amber);font-family:var(--font-b)">${_failMsg}</div>` : ''}
+      ${_fixId && _photoUrl ? `<img class="exc-result-photo" src="${_photoUrl}" alt="Фото марки" style="margin:0 0 10px"><div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin:-4px 0 8px">Звірте код із фото марки</div>` : ''}
       <input class="exc-manual-inp" id="exc-manual" type="text" maxlength="12" autocapitalize="characters"
         placeholder="AIZT016199" value="${_manualCode}"
         oninput="window.__exc.manualInput(this.value)"/>
+      <div id="exc-shape-hint" style="font-size:10px;font-family:var(--font-b);margin:-4px 0 8px;min-height:13px;color:${shapeHint(_manualCode).color}">${shapeHint(_manualCode).text}</div>
       <input class="exc-manual-inp${_pnError ? ' pn-error' : ''}" id="exc-product-name" type="text" maxlength="80"
         placeholder="Назва товару (обов'язково) *" value="${_productName}"
         oninput="window.__exc._pnChange(this.value)" style="margin-top:-4px;margin-bottom:${_pnError ? '4px' : '10px'}"/>
@@ -1287,7 +1315,7 @@ export default {
     _photoFile = null;
     if (_photoUrl) URL.revokeObjectURL(_photoUrl);
     _photoUrl = null;
-    _result = null; _failMsg = ''; _manualCode = ''; _productName = ''; _pnError = false;
+    _result = null; _failMsg = ''; _manualCode = ''; _productName = ''; _pnError = false; _fixId = '';
     _marks = []; _marksDate = todayKyiv();
     _verifying = false; _verifyResult = null;
     _deletingIds = new Set();
@@ -1318,7 +1346,11 @@ export default {
       doScan:      doScan,
       resetScan:   resetScan,
       showManual:  () => { _scanStep = 'manual'; re(); },
-      manualInput: (v) => { _manualCode = v; },
+      manualInput: (v) => {
+        _manualCode = v;
+        const h = document.getElementById('exc-shape-hint');
+        if (h) { const r = shapeHint(v); h.textContent = r.text; h.style.color = r.color; }
+      },
       _pnChange:   (v) => { _productName = v; if (v.trim()) _pnError = false; },
       doManualSave: doManualSave,
       refreshMarks:     () => loadMarks(_marksDate),
