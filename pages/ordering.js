@@ -67,6 +67,7 @@ let _mgrZone       = 'bar';   // адмін/менеджер: перемикач
 let _suggest        = null;   // підказки закупівлі (рух за 7 днів + залишок) з /ordering-suggestions
 let _suggestLoading = false;
 let _suggestOnlyLow = false;  // фільтр «лише те, що треба замовити»
+let _draftOpen      = false;  // чернетка заявки по постачальниках
 
 /* ── ХОЗ-ТОВАРИ (окремий простий флоу: список асортименту з Syrve + кількості, без постачальників) ── */
 let _hoz         = [];        // [{id,name,unit,stock,lastPrice,lastDate,custom?}]
@@ -1108,13 +1109,15 @@ async function loadSuggest(force = false, attempt = 1) {
   if (_mgrTab === 'suggest') fullRender(); else partialRefreshSupps();
 }
 
+// Зона підказки підходить поточній вкладці. Спільна для рендера й чернетки:
+// дві копії цього правила неминуче розійшлись би.
+function zoneOk(s) { const sz = s.zone || ''; const z = orderZone(); return sz === '' || sz === 'both' || sz === z; }
+function toggleDraft() { _draftOpen = !_draftOpen; fullRender(); }
 function toggleSuggestLow() { _suggestOnlyLow = !_suggestOnlyLow; fullRender(); }
 
 function suggestHTML() {
   if (_suggestLoading) return `<div style="padding:30px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px">Аналізую рух за 7 днів…</div>`;
   // зональний фільтр: кухня бачить kitchen+both+невідоме; бар — bar+both+невідоме (ховаємо протилежну зону)
-  const _z = orderZone();
-  const zoneOk = s => { const sz = s.zone || ''; return sz === '' || sz === 'both' || sz === _z; };
   const all = (_suggest || []).filter(s => (s.sold7days || 0) > 0 && zoneOk(s));
   if (!all.length) {
     return `<div style="padding:24px 16px;text-align:center;color:var(--text2);font-family:var(--font-b);font-size:13px;line-height:1.6">Немає даних про рух за тиждень.<br>Перевір, що для закладу налаштовано POS і є продажі за тиждень.
@@ -1123,6 +1126,27 @@ function suggestHTML() {
   const rank = { critical: 0, low: 1, ok: 2 };
   all.sort((a, b) => (rank[a.status] - rank[b.status]) || ((a.stock - a.weeklyAvg) - (b.stock - b.weeklyAvg)));
   const lowCount = all.filter(s => s.status !== 'ok').length;
+  const draft = draftBySupplier();
+  const draftN = draft.groups.reduce((a, g) => a + g.lines.length, 0);
+  const draftHTML = !draftN && !draft.orphan.length ? '' : `
+    <div style="margin:0 0 10px">
+      <button onclick="window.__ord.toggleDraft()" style="width:100%;height:40px;border-radius:12px;border:0.5px solid var(--green-border);background:var(--green-bg,rgba(168,139,255,.10));color:var(--green);font-size:13px;font-weight:600;font-family:var(--font-b);cursor:pointer">
+        ${_draftOpen ? '▾' : '▸'} Чернетка заявки · ${draftN} поз. у ${draft.groups.length} постач.
+      </button>
+      ${_draftOpen ? draft.groups.map(g => `
+        <div style="margin-top:8px;background:var(--bg1);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text0);font-family:var(--font-b)">${esc(g.sup.name)}<span style="color:var(--text3);font-weight:400"> · ${g.lines.length} поз.</span></div>
+            <button id="drf-${g.sup.id}" onclick="window.__ord.copyDraft('${g.sup.id}','drf-${g.sup.id}')" style="height:30px;padding:0 12px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:12px;font-family:var(--font-b);cursor:pointer;flex-shrink:0">Копіювати</button>
+          </div>
+          ${g.lines.map(l => `<div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:4px">• ${esc(l.name)} — ${l.sg.packs > 0 ? `${l.sg.packs} уп.` : `${fmtN(l.sg.suggestedQty)} ${l.sg.unit || 'од.'}`}</div>`).join('')}
+        </div>`).join('') + (draft.orphan.length ? `
+        <div style="margin-top:8px;padding:10px 12px;border:0.5px dashed var(--amber-border);border-radius:12px">
+          <div style="font-size:12px;color:var(--amber);font-family:var(--font-b)">Без постачальника · ${draft.orphan.length}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:4px;line-height:1.5">${draft.orphan.map(o => esc(o.name)).join(' · ')}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:6px">Ці позиції треба замовити, але вони не прив’язані до жодного постачальника — прив’яжіть у вкладці «Постачальники», інакше вони щоразу випадатимуть із чернетки.</div>
+        </div>` : '') : ''}
+    </div>`;
   const list = _suggestOnlyLow ? all.filter(s => s.status !== 'ok') : all;
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 10px">
@@ -1132,6 +1156,7 @@ function suggestHTML() {
         <button onclick="window.__ord.loadSuggest(true)" style="width:30px;height:30px;border-radius:9px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px;cursor:pointer">↻</button>
       </div>
     </div>
+    ${draftHTML}
     ${list.map(s => {
       const c = s.status === 'critical' ? 'var(--red)' : s.status === 'low' ? 'var(--amber)' : 'var(--text3)';
       const u = s.unit || 'од.';
@@ -1704,6 +1729,21 @@ function toggleDoneOrder(id) {
 }
 
 // ── Супровідний текст замовлення для постачальника ──
+/* Шапка однакова для заявки бармена й для чернетки з підказок: постачальник
+   має отримувати той самий формат незалежно від того, хто зібрав замовлення. */
+function supplierMessageText(supp, lines) {
+  const head = ['Доброго дня!'];
+  if (supp.fop)    head.push(`Юр.особа: ${supp.fop}`);
+  const venue = venueForSupplier();
+  if (venue)       head.push(`Заклад: ${venue}`);
+  // Рядок оплати йде ЗАВЖДИ, навіть порожній. Доки він був під умовою, у
+  // скопійованому тексті бракувало саме того, що дописують руками перед
+  // відправкою, — і помітно це вже після вставки в месенджер.
+  // Пробіл у кінці навмисний: курсор стає одразу за ним.
+  head.push(`Форма оплати: ${supp.paymentForm || ''}`);
+  return `${head.join('\n')}\n\n${lines.join('\n')}`;
+}
+
 function buildSupplierMessage(s) {
   const supp  = _suppliers.find(x => x.id === s.supplierId) || {};
   const items = (s.items || []).filter(i => (i.qty || 0) > 0);
@@ -1716,8 +1756,57 @@ function buildSupplierMessage(s) {
   // скопійованому тексті бракувало саме того, що дописують руками перед
   // відправкою, — і помітно це вже після вставки в месенджер.
   // Пробіл у кінці навмисний: курсор стає одразу за ним.
-  head.push(`Форма оплати: ${supp.paymentForm || ''}`);
-  return { supp, text: `${head.join('\n')}\n\n${lines.join('\n')}` };
+  return { supp, text: supplierMessageText(supp, lines) };
+}
+
+/* Чернетка заявки з підказок, згрупована за постачальником.
+
+   Навіщо: підказки показують, ЩО треба замовити, але замовляють у конкретних
+   людей. Менеджер інакше переписує список по постачальниках руками — і саме
+   там губляться позиції.
+
+   Товар у двох постачальників потрапляє до ПЕРШОГО, у кого він є: класти в
+   обидва означало б замовити вдвічі більше. Кого саме обрати — вирішує
+   людина, прибравши зайве перед відправкою. */
+function draftBySupplier() {
+  const need = (_suggest || []).filter(s => (s.suggestedQty || 0) > 0 && zoneOk(s));
+  const byId = new Map(need.map(s => [s.id, s]));
+  const taken = new Set();
+  const out = [];
+  for (const sup of _suppliers) {
+    const lines = [];
+    for (const sp of (sup.supplierProducts || [])) {
+      const sg = byId.get(sp.productId);
+      if (!sg || taken.has(sp.productId)) continue;
+      taken.add(sp.productId);
+      lines.push({ id: sp.productId, name: sp.customName || sp.productName || sg.name, sg });
+    }
+    if (lines.length) out.push({ sup, lines });
+  }
+  // Те, чого немає в жодного постачальника — показуємо окремо, інакше воно
+  // мовчки випаде з чернетки й ніхто його не замовить.
+  const orphan = need.filter(s => !taken.has(s.id));
+  return { groups: out, orphan };
+}
+
+function draftText(group) {
+  const lines = group.lines.map(l => {
+    const u = l.sg.unit || 'од.';
+    const qty = l.sg.packs > 0 ? `${l.sg.packs} уп. (${fmtN(l.sg.suggestedQty)} ${u})` : `${fmtN(l.sg.suggestedQty)} ${u}`;
+    return `• ${l.name} — ${qty}`;
+  });
+  return supplierMessageText(group.sup, lines);
+}
+
+async function copyDraft(supId, btnId) {
+  const g = draftBySupplier().groups.find(x => x.sup.id === supId);
+  if (!g) return;
+  const text = draftText(g);
+  try {
+    await navigator.clipboard.writeText(text);
+    const b = document.getElementById(btnId);
+    if (b) { const o = b.textContent; b.textContent = '✓ Скопійовано'; b.style.color = 'var(--green)'; setTimeout(() => { b.textContent = o; b.style.color = ''; }, 2000); }
+  } catch { prompt('Скопіюйте вручну:', text); }
 }
 
 async function markOrderDone(id) {
@@ -2033,7 +2122,7 @@ export default {
   },
   init() {
     window.__ord = {
-      toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, clearOrderConfirm, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
+      toggleDraft, copyDraft, toggleSupp, toggleProdCard, setUnit, changeQty, setQty, setComment, submitOrder, resetOrder, clearOrderConfirm, loadOrders, markOrderDone, toggleDoneOrder, copySupplier,
       setMgrTab, setMgrZone, loadSuggest, toggleSuggestLow,
       loadHoz, hozChangeQty, hozSetQty, hozSearchChange, hozToggleOut, hozAddCustom, hozCopy, hozClear,
       openSuppAdd, openSuppEdit, closeSuppSheet, suppDraft, saveSuppEdit, deleteSuppConfirm,
