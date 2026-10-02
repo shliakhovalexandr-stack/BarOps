@@ -1139,7 +1139,8 @@ function suggestHTML() {
         <div style="width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:var(--text0);font-family:var(--font-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name)}</div>
-          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">за тиждень ${fmtN(s.sold7days)} ${u}${canSeeStock() ? ` · залишок ${fmtN(s.stock)} ${u}` : ''}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">за тиждень ${fmtN(s.sold7days)} ${u}${canSeeStock() ? ` · залишок ${fmtN(s.stock)} ${u}` : ''}${s.trend === 'up' ? ' <span style="color:var(--amber)">▲ попит зріс</span>' : s.trend === 'down' ? ' <span style="color:var(--text3)">▼ попит упав</span>' : ''}</div>
+          ${s.reason ? `<div style="font-size:10px;color:var(--text3);font-family:var(--font-b);margin-top:3px;line-height:1.35">${esc(s.reason)}</div>` : ''}
         </div>
         ${s.suggestedQty > 0
           ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:15px;font-weight:600;color:var(--green);line-height:1">+${fmtN(s.suggestedQty)}</div><div style="font-size:10px;color:var(--text3);margin-top:1px">${u}</div></div>`
