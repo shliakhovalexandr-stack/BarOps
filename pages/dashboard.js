@@ -654,6 +654,12 @@ async function loadSyrveStats() {
 ════════════════════════ */
 function buildHTML() {
   const isMgr = state.role === 'admin' || state.role === 'manager' || state.role === 'director';
+  /* Перемикач закладів — умова ОКРЕМА від isMgr. Закупівельник пише заявки на
+     обидва заклади мережі (B1 і B2), тож перемикач йому потрібен. А ось
+     менеджерський дашборд — KPI, інше розбиття плиток, прибраний блок «Моя
+     зміна» — ні: його набір плиток визначено власною гілкою вище. Через те це
+     не розширення isMgr, а окремий прапорець на три місця розмітки. */
+  const canSwitchVenue = isMgr || (state.role || '').toLowerCase() === 'purchaser';
   const isAcc = (state.role || '').toLowerCase() === 'accountant';
   // Керуючий — менеджерські швидкі дії (без Замовлень/Інвентаризації) + «Графіки»
   const scheduleAction = QUICK_BARTENDER.find(q => q.route === 'schedule');
@@ -765,7 +771,7 @@ ${CSS}
       <div style="font-family:'Geist',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--text2);letter-spacing:-.02em;margin-bottom:10px">bar<span style="color:var(--green)">ops.</span></div>
       <div class="d-venue-row">
         <div style="display:flex;align-items:center;gap:10px">
-          ${(isMgr || (state.role || '').toLowerCase() === 'accountant') ? `
+          ${(canSwitchVenue || (state.role || '').toLowerCase() === 'accountant') ? `
           <div onclick="window.__barops.openDrawer()"
             style="width:36px;height:36px;border-radius:10px;background:var(--glass-bg);
                    
@@ -776,8 +782,8 @@ ${CSS}
             <div style="width:10px;height:1.5px;background:var(--text1);border-radius:1px;align-self:flex-start;margin-left:8px"></div>
           </div>` : ''}
           <div>
-            <div class="d-venue-sub">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'} ·${new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long'})}</div>
-            ${isMgr && _venues.length > 1 ? `
+            <div class="d-venue-sub">${state.role==='admin'?'Системний менеджер':state.role==='manager'?'Менеджер':state.role==='director'?'Керуючий':state.role==='accountant'?'Бухгалтер':state.role==='purchaser'?'Закупівельник':state.role==='chef'?'Шеф-кухар':state.role==='cook'?'Кухар':state.role==='waiter'?'Офіціант':'Бармен'} ·${new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long'})}</div>
+            ${canSwitchVenue && _venues.length > 1 ? `
             <div class="d-venue-btn" onclick="window.__dash.toggleVenueSheet()">
               <div class="d-venue-name">${_activeVenueName || state.venue || '...'}</div>
               <div class="d-venue-chev">
@@ -785,7 +791,7 @@ ${CSS}
                   <path d="M2 3l2 2 2-2" stroke="var(--text2)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </div>
-            </div>` : isMgr ? `
+            </div>` : canSwitchVenue ? `
             <div class="d-venue-name">${_activeVenueName || state.venue || '...'}</div>` : `
             <div class="d-venue-name">${state.venue || '...'}</div>
             <div style="font-size:11px;color:var(--text2);font-family:var(--font-b);margin-top:2px">${state.user || localStorage.getItem('barops_user') || ''} - ${localStorage.getItem('barops_phone') || ''}
@@ -965,7 +971,7 @@ ${CSS}
     <div style="height:20px"></div>
   </div><!-- d-scroll -->
 
-  ${isMgr ? `
+  ${canSwitchVenue ? `
   <!-- VENUE SWITCHER SHEET -->
   <div class="d-vsheet-ov ${_venueSheetOpen ? 'open' : ''}" onclick="window.__dash.closeVenueSheet(event)">
     <div class="d-vsheet" onclick="event.stopPropagation()">
