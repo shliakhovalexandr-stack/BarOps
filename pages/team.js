@@ -200,7 +200,7 @@ const CSS = `<style id="tm-css">
 ════════════════════════ */
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 function roleLabel(role) {
-  const map = { admin:'Системний менеджер', manager:'Менеджер', director:'Керуючий', bartender:'Бармен', accountant:'Бухгалтер', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант', trainee:'Стажер', runner:'Ранер', cleaner:'Хозяюшка', hostess:'Хостес', housekeeper:'Хозяюшка', babysitter:'Babysitter', security:'Охоронець', guard:'Охоронець', storekeeper:'Завгосп', warehouse:'Завгосп' };
+  const map = { admin:'Системний менеджер', manager:'Менеджер', director:'Керуючий', bartender:'Бармен', accountant:'Бухгалтер', purchaser:'Закупівельник', chef:'Шеф-кухар', cook:'Кухар', waiter:'Офіціант', trainee:'Стажер', runner:'Ранер', cleaner:'Хозяюшка', hostess:'Хостес', housekeeper:'Хозяюшка', babysitter:'Babysitter', security:'Охоронець', guard:'Охоронець', storekeeper:'Завгосп', warehouse:'Завгосп' };
   return map[(role||'').toLowerCase()] || role || 'Бармен';
 }
 function roleClass(role) {
@@ -230,15 +230,28 @@ const ROLE_OPTIONS = [
   ['ADMIN',      '🛡', 'Системний менеджер'],
 ];
 
+/* Чи обмежена мережа ЗАКЛАДУ, у який заводимо людину.
+
+   Дивимось саме на заклад, а не на мережу того, хто заводить: state.features
+   тут не підходить двічі — власник у своїй мережі навмисно без обмежень
+   (barops-backend/src/features.js), а заклад на цій сторінці перемикається
+   чипами окремо від drawer. Через це роль «Закупівельник» ховалась саме від
+   того, кому вона й потрібна, і людина падала в дефолтних барменів.
+
+   _venues приходить із /api/auth/venues, де features уже ЕФЕКТИВНІ (пресет
+   плану враховано), тож plan тут перевіряти не треба. */
+function targetVenueLimited() {
+  const v = _venues.find(x => x.id === _activeVenueId);
+  if (v) return Array.isArray(v.features) && v.features.length > 0;
+  return !!state.features;        // списку закладів немає — лишається своя мережа
+}
+
 // Які ролі може призначати поточний користувач:
 // звичайний менеджер — лише офіціанта або іншого менеджера;
 // системний менеджер (admin) — усі ролі, разом із Системним менеджером;
 // решта (керуючий тощо) — усі, окрім Системного менеджера.
 function availableRoleOptions() {
-  // Закупівельник існує лише в обмеженій мережі (B1/B2): у великих мережах цю
-  // роботу ділять керуючий і системний менеджер, і зайва роль у списку лише
-  // плутала б. state.features непорожній саме в обмеженій мережі.
-  const byNet = o => o[0] !== 'PURCHASER' || !!state.features;
+  const byNet = o => o[0] !== 'PURCHASER' || targetVenueLimited();  // гейт по закладу, не по мережі того, хто заводить
   const r = (state.role || '').toLowerCase();
   if (r === 'manager') return ROLE_OPTIONS.filter(o => ['WAITER', 'MANAGER', 'TRAINEE', 'RUNNER', 'CLEANER', 'HOSTESS', 'BABYSITTER', 'SECURITY', 'STOREKEEPER'].includes(o[0]));
   if (r === 'chef')    return ROLE_OPTIONS.filter(o => o[0] === 'COOK' || o[0] === 'CHEF');   // шеф — лише кухня
@@ -279,6 +292,7 @@ const TEAM_GROUPS = [
   { label: 'Керівники',              roles: ['admin', 'director'] },
   { label: 'Адміністратори закладу', roles: ['manager'] },
   { label: 'Бухгалтерія', roles: ['accountant'] },
+  { label: 'Закупівля',   roles: ['purchaser'] },
   { label: 'Бармени',     roles: ['bartender', 'barman'] },
   { label: 'Кухня',       roles: ['chef', 'cook'] },
   { label: 'Офіціанти',   roles: ['waiter'] },
