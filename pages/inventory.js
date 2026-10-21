@@ -24,6 +24,8 @@ let _clearedPids     = new Set();  // позиції, які цей пристр
 let _lastCounted     = {};         // знімок «що було пораховано» — за ним бачимо, що саме зняли
 let _draftRetries    = 0;          // лічильник повторів невдалого автозбереження
 let _syncedCounts    = {};         // стан, який сервер уже підтвердив — база для точного злиття
+let _pushPending     = false;      // є незбережена/в дорозі порція — сервер зараз СТАРШИЙ за нас
+let _lastPushAt      = 0;          // коли востаннє сервер підтвердив наш запис (мітка свіжості відповіді)
 // Розподіл позицій між офіціантами (ЛИШЕ посуд): менеджер «фарбує» позиції на офіціанта,
 // офіціант бачить лише свої. assign = { productId: userId } прив'язаний до активної сесії.
 let _assign          = {};     // productId → userId (робоча копія)
@@ -807,6 +809,10 @@ function refreshCountedSnapshot() {
 function syncDraftToServer() {
   const os = openSession();
   if (!os) return;
+  // З цієї миті й до підтвердження сервер віддає СТАРІШИЙ стан, ніж у нас на екрані.
+  // Поки прапорець піднятий, періодичне підтягування мовчить — інакше воно
+  // приносить учорашню цифру й затирає щойно набрану.
+  _pushPending = true;
   clearTimeout(_draftSyncTimer);
   _draftSyncTimer = setTimeout(async () => {
     // знімок того, що саме відправляємо: нижче по ньому визначимо, чи людина
@@ -843,6 +849,8 @@ function syncDraftToServer() {
       // сервер віддає ОБʼЄДНАНИЙ стан — одразу забираємо те, що дорахували інші
       if (d.counts) adoptRemoteCounts(d.counts, sent);
       _syncedCounts = JSON.parse(JSON.stringify(_counts));   // база для злиття на відправці
+      _lastPushAt   = Date.now();
+      _pushPending  = false;
       _draftRetries = 0;
     } catch { retryDraftSync(); }
   }, 1500);
@@ -913,13 +921,26 @@ function startDraftPull() {
     const os = openSession();
     if (!os || _saving) return;
     if (typeof document !== 'undefined' && document.hidden) return;   // вкладка у фоні — не смикаємо
+    // Наша порція ще не доїхала — сервер завідомо старший. Питати його зараз
+    // означає отримати цифру, яку ми щойно замінили, і накотити її собі ж.
+    if (_pushPending) return;
+    const askedAt = Date.now();
     try {
       const r = await fetch(`${API}/api/inventory/sessions/${os.id}/draft`, { headers: { Authorization: `Bearer ${_token}` } });
       if (!r.ok) return;
       const d = await r.json();
+      // Поки відповідь летіла, ми встигли записати своє. Значить вона вже
+      // застаріла: приймати її — це відкотити власний ввід на крок назад.
+      if (_pushPending || _lastPushAt > askedAt) return;
       if (d.draftByName) _draftByName = d.draftByName;
       if (d.draftAt)     _draftAt = d.draftAt;
-      if (d.counts) { adoptRemoteCounts(d.counts, _counts); _syncedCounts = JSON.parse(JSON.stringify(_counts)); }
+      /* Базою злиття йде _syncedCounts — те, що сервер у нас ПІДТВЕРДИВ.
+         Раніше сюди передавали сам _counts, тобто порівнювали обʼєкт із собою:
+         перевірка «людина встигла змінити?» завжди давала «ні», і кожні 25 с
+         серверна копія мовчки перетирала все, що набрали на цьому пристрої.
+         Саме тому виправлене значення поверталось до попереднього — і це було
+         видно навіть тоді, коли в інвентаризації не було нікого, крім тебе. */
+      if (d.counts) { adoptRemoteCounts(d.counts, _syncedCounts); _syncedCounts = JSON.parse(JSON.stringify(_counts)); }
     } catch {}
   }, 25000);
 }
