@@ -53,7 +53,10 @@ const ROUTE_FEATURE = {
   'price-alert': 'price-alert',   // аналітика змін цін — окремо від самої закупки
   morshynska: 'morshynska',       // інтеграція ЄМоршинська — окрема фіча
   excise: 'excise', debts: 'debts', cash: 'cash', 'pay-audit': 'cash',
-  analytics: 'stats', digest: 'stats', abc: 'stats',
+  analytics: 'stats', digest: 'stats',
+  // ABC має ВЛАСНИЙ ключ, а не 'stats': обмеженій мережі його відкрили окремо,
+  // без решти аналітики. Ключ мусить збігатися з backend features.js (INVOICES).
+  abc: 'abc',
   performance: 'performance', discipline: 'performance',
   'recipe-book': 'recipes', playlist: 'playlist',
   'stop-list': 'stop-list', 'open-tables': 'open-tables', stock: 'stock',
